@@ -1,0 +1,72 @@
+import { create } from 'zustand';
+import type { CreateJourneyInput, Journey, Place } from '@/types/journey';
+import { insertJourney } from '@/lib/journeys';
+import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
+
+interface JourneyStore {
+  activeJourney: Journey | null;
+  isCreateFormOpen: boolean;
+  isLoading: boolean;
+  openCreateForm: () => void;
+  closeCreateForm: () => void;
+  createJourney: (input: CreateJourneyInput) => Promise<void>;
+  setActiveJourney: (journey: Journey | null) => void;
+  clearJourney: () => void;
+  addPlace: (place: Place) => Promise<void>;
+  removePlace: (placeId: string) => Promise<void>;
+}
+
+export const useJourneyStore = create<JourneyStore>((set, get) => ({
+  activeJourney: null,
+  isCreateFormOpen: false,
+  isLoading: false,
+
+  openCreateForm: () => set({ isCreateFormOpen: true }),
+  closeCreateForm: () => set({ isCreateFormOpen: false }),
+
+  createJourney: async (input) => {
+    set({ isLoading: true });
+    try {
+      const journey = await insertJourney(input);
+      set({
+        activeJourney: journey,
+        isCreateFormOpen: false,
+        isLoading: false,
+      });
+    } catch (err) {
+      set({ isLoading: false });
+      throw err instanceof Error
+        ? err
+        : new Error('여정 저장에 실패했습니다.');
+    }
+  },
+
+  setActiveJourney: (journey) => set({ activeJourney: journey }),
+  clearJourney: () => set({ activeJourney: null }),
+
+  addPlace: async (place) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    const updatedPlaces = [...activeJourney.places, place];
+    // 낙관적 업데이트: UI 먼저 반영
+    set({
+      activeJourney: { ...activeJourney, places: updatedPlaces },
+    });
+    // DB 동기화
+    await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+  },
+
+  removePlace: async (placeId) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    const updatedPlaces = activeJourney.places.filter((p) => p.id !== placeId);
+    // 낙관적 업데이트
+    set({
+      activeJourney: { ...activeJourney, places: updatedPlaces },
+    });
+    // DB 동기화
+    await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+  },
+}));

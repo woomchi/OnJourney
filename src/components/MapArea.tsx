@@ -18,7 +18,7 @@ interface SelectedPlace {
 
 export default function MapArea() {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-  const { activeJourney, directionsCache } = useJourneyStore();
+  const { activeJourney, directionsCache, focusBounds, setFocusBounds } = useJourneyStore();
   const [map, setMap] = useState<naver.maps.Map | null>(null);
   const [mapCenter, setMapCenter] = useState<naver.maps.CoordLiteral>({
     lat: 37.5665,
@@ -35,6 +35,36 @@ export default function MapArea() {
     const coord: naver.maps.CoordLiteral = { lat, lng };
     setMapCenter(coord);
     map?.panTo(coord);
+  };
+
+  const handleResetBounds = () => {
+    setFocusBounds(null);
+    if (!map || places.length === 0) return;
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    if (places.length === 1) {
+      const first = places[0];
+      map.setCenter(new navermaps.LatLng(first.lat, first.lng));
+      map.setZoom(15);
+    } else {
+      const bounds = new navermaps.LatLngBounds(
+        new navermaps.LatLng(places[0].lat, places[0].lng),
+        new navermaps.LatLng(places[0].lat, places[0].lng)
+      );
+
+      places.forEach((place) => {
+        bounds.extend(new navermaps.LatLng(place.lat, place.lng));
+      });
+
+      map.fitBounds(bounds, {
+        top: 80,
+        right: 80,
+        bottom: 80,
+        left: 80,
+      });
+    }
   };
 
   if (!clientId) {
@@ -65,6 +95,9 @@ export default function MapArea() {
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
 
+    // 만약 사용자가 이미 개별 세그먼트에 포커스(focusBounds가 활성 상태) 중이라면 자동 전체 fitBounds 무시
+    if (focusBounds) return;
+
     if (places.length === 1) {
       const first = places[0];
       map.setCenter(new navermaps.LatLng(first.lat, first.lng));
@@ -86,7 +119,27 @@ export default function MapArea() {
         left: 80,
       });
     }
-  }, [places, map]);
+  }, [places, map, focusBounds]);
+
+  // focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
+  useEffect(() => {
+    if (!map || !focusBounds) return;
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    const bounds = new navermaps.LatLngBounds(
+      new navermaps.LatLng(focusBounds.sw.lat, focusBounds.sw.lng),
+      new navermaps.LatLng(focusBounds.ne.lat, focusBounds.ne.lng)
+    );
+
+    map.fitBounds(bounds, {
+      top: 100,
+      right: 100,
+      bottom: 100,
+      left: 100,
+    });
+  }, [focusBounds, map]);
 
   return (
     <div className="relative w-full h-full">
@@ -155,6 +208,26 @@ export default function MapArea() {
           </NaverMap>
         </MapDiv>
       </NavermapsProvider>
+
+      {/* 전체 보기 플로팅 버튼 (우측 하단) */}
+      {places.length > 0 && (
+        <div className="absolute bottom-8 right-6 z-[100] flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={handleResetBounds}
+            className="
+              flex items-center justify-center w-12 h-12 rounded-2xl bg-white border border-zinc-100 shadow-[0_8px_30px_rgb(0,0,0,0.08)]
+              text-zinc-600 hover:text-blue-600 hover:scale-[1.04] hover:border-blue-100 active:scale-[0.96] transition-all duration-200
+              cursor-pointer
+            "
+            title="전체 경로 보기"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* 검색바: 지도 위에 absolute로 올림 (MapDiv 밖) */}
       <div className="absolute top-8 left-1/2 -translate-x-1/2 w-full max-w-lg z-[100] px-4">

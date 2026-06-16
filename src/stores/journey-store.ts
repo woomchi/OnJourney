@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse } from '@/types/journey';
+import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral } from '@/types/journey';
 import { insertJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 
@@ -11,6 +11,7 @@ interface JourneyStore {
   isLoading: boolean;
   directionsCache: Record<string, DirectionsApiResponse>;
   directionsLoading: Record<string, boolean>;
+  focusBounds: LatLngBoundsLiteral | null;
   setJourneys: (journeys: Journey[]) => void;
   openCreateForm: () => void;
   closeCreateForm: () => void;
@@ -23,7 +24,9 @@ interface JourneyStore {
   removePlace: (placeId: string) => Promise<void>;
   reorderPlaces: (places: Place[]) => Promise<void>;
   fetchSegmentDirections: (origin: Place, dest: Place, transportType: 'public' | 'car') => Promise<void>;
+  setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
 }
+
 
 
 export const useJourneyStore = create<JourneyStore>((set, get) => ({
@@ -34,6 +37,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
   isLoading: false,
   directionsCache: {},
   directionsLoading: {},
+  focusBounds: null,
 
   setJourneys: (journeys) => set({ journeys }),
   openCreateForm: () => set({ isCreateFormOpen: true }),
@@ -59,8 +63,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     }
   },
 
-  setActiveJourney: (journey) => set({ activeJourney: journey }),
-  clearJourney: () => set({ activeJourney: null }),
+  setActiveJourney: (journey) => set({ activeJourney: journey, focusBounds: null }),
+  clearJourney: () => set({ activeJourney: null, focusBounds: null }),
 
   addPlace: async (place) => {
     const { activeJourney } = get();
@@ -149,4 +153,6 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
       }));
     }
   },
+
+  setFocusBounds: (bounds) => set({ focusBounds: bounds }),
 }));

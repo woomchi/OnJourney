@@ -75,7 +75,7 @@ function SegmentInfo({ data, loading }: SegmentInfoProps) {
   const totalStepDuration = data.steps.reduce((acc, s) => acc + s.duration, 0) || 1;
 
   return (
-    <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+    <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99] transition-all duration-200 cursor-pointer">
       {/* 상단 정보: 총 이동 시간, 요금, 실시간 상태 */}
       <div className="flex items-center justify-between mb-3.5">
         <div className="flex items-end gap-1.5">
@@ -207,7 +207,7 @@ function PlaceCard({
   nextPlace,
   transportType,
 }: PlaceCardProps) {
-  const { directionsCache, directionsLoading, fetchSegmentDirections } = useJourneyStore();
+  const { directionsCache, directionsLoading, fetchSegmentDirections, setFocusBounds } = useJourneyStore();
   const [showAlternatives, setShowAlternatives] = useState(false);
 
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}-${transportType}` : '';
@@ -316,7 +316,25 @@ function PlaceCard({
       {/* 기본 구간 이동 정보 (항상 노출) */}
       {!editMode && !isLast && (
         <div className="pl-10 pb-1">
-          <SegmentInfo data={segmentData?.primary} loading={isSegmentLoading} />
+          <button
+            type="button"
+            className="w-full text-left focus:outline-none"
+            onClick={() => {
+              if (nextPlace) {
+                const sw = {
+                  lat: Math.min(place.lat, nextPlace.lat),
+                  lng: Math.min(place.lng, nextPlace.lng),
+                };
+                const ne = {
+                  lat: Math.max(place.lat, nextPlace.lat),
+                  lng: Math.max(place.lng, nextPlace.lng),
+                };
+                setFocusBounds({ sw, ne });
+              }
+            }}
+          >
+            <SegmentInfo data={segmentData?.primary} loading={isSegmentLoading} />
+          </button>
         </div>
       )}
     </li>

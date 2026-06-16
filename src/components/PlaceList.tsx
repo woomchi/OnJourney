@@ -1,18 +1,26 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
 
 interface PlaceListProps {
   editMode?: boolean;
+  selectedIds: string[];
+  onToggleSelect: (id: string) => void;
 }
 
 interface PlaceCardProps {
   place: Place;
   index: number;
   isLast: boolean;
-  onRemove: (id: string) => void;
+  editMode: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+  isDragged: boolean;
+  isSelected: boolean;
+  onToggleSelect: () => void;
 }
 
 function ChevronDownIcon({ open }: { open: boolean }) {
@@ -58,18 +66,46 @@ function SegmentInfo() {
   );
 }
 
-function PlaceCard({ place, index, isLast, onRemove }: PlaceCardProps) {
+function PlaceCard({
+  place,
+  index,
+  isLast,
+  editMode,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  isDragged,
+  isSelected,
+  onToggleSelect,
+}: PlaceCardProps) {
   const [segmentOpen, setSegmentOpen] = useState(false);
 
   return (
-    <li className="relative">
+    <li
+      draggable={editMode}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      className={`relative transition-all duration-200 ${isDragged ? 'opacity-40 scale-[0.98]' : ''}`}
+    >
       {/* 카드 + 번호 행 */}
       <div className="flex items-center gap-0 group">
         {/* 번호 + 세로선 컬럼 */}
-        <div className="flex flex-col items-center w-10 flex-shrink-0 self-stretch">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-200 flex items-center justify-center text-white text-xs font-bold z-10 flex-shrink-0">
-            {index + 1}
-          </div>
+        <div className="flex flex-col items-center w-10 flex-shrink-0 self-stretch select-none">
+          {editMode ? (
+            <div className="w-8 h-8 flex items-center justify-center z-10 flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={onToggleSelect}
+                className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-200 flex items-center justify-center text-white text-xs font-bold z-10 flex-shrink-0">
+              {index + 1}
+            </div>
+          )}
           {/* 세로 연결선 (마지막 카드 제외) */}
           {!isLast && (
             <div className="flex-1 w-px bg-gradient-to-b from-blue-200 via-blue-100 to-transparent min-h-[2rem] mt-1" />
@@ -89,8 +125,8 @@ function PlaceCard({ place, index, isLast, onRemove }: PlaceCardProps) {
               )}
             </div>
 
-            {/* 대안 교통정보 토글 (∨ 버튼) */}
-            {!isLast && (
+            {/* 대안 교통정보 토글 (∨ 버튼) - 기본 상태에만 노출 */}
+            {!editMode && !isLast && (
               <button
                 type="button"
                 onClick={() => setSegmentOpen((v) => !v)}
@@ -108,17 +144,14 @@ function PlaceCard({ place, index, isLast, onRemove }: PlaceCardProps) {
               </button>
             )}
 
-            {/* 삭제 버튼 (hover 시) */}
-            <button
-              type="button"
-              onClick={() => onRemove(place.id)}
-              className="flex-shrink-0 w-7 h-7 rounded-full bg-zinc-50 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 text-zinc-400 flex items-center justify-center transition-all duration-150"
-              aria-label={`${place.place_name} 삭제`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
-              </svg>
-            </button>
+            {/* 드래그 핸들 - 편집 상태에만 오른쪽에 노출 */}
+            {editMode && (
+              <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                  <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
           </div>
 
           {/* 카테고리 뱃지 */}
@@ -133,7 +166,7 @@ function PlaceCard({ place, index, isLast, onRemove }: PlaceCardProps) {
       </div>
 
       {/* 구간 이동 정보 (토글) */}
-      {!isLast && segmentOpen && (
+      {!editMode && !isLast && segmentOpen && (
         <div className="pl-10 animate-in fade-in slide-in-from-top-1 duration-200">
           <SegmentInfo />
         </div>
@@ -142,8 +175,22 @@ function PlaceCard({ place, index, isLast, onRemove }: PlaceCardProps) {
   );
 }
 
-export default function PlaceList({ editMode = false }: PlaceListProps) {
-  const { activeJourney, removePlace } = useJourneyStore();
+export default function PlaceList({
+  editMode = false,
+  selectedIds,
+  onToggleSelect,
+}: PlaceListProps) {
+  const { activeJourney, reorderPlaces } = useJourneyStore();
+  const [localPlaces, setLocalPlaces] = useState<Place[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const draggedIndexRef = useRef<number | null>(null);
+
+  // Sync with store places when not dragging
+  useEffect(() => {
+    if (!isDragging && activeJourney?.places) {
+      setLocalPlaces(activeJourney.places);
+    }
+  }, [activeJourney?.places, isDragging]);
 
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
@@ -169,16 +216,55 @@ export default function PlaceList({ editMode = false }: PlaceListProps) {
     );
   }
 
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (!editMode) {
+      e.preventDefault();
+      return;
+    }
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+    draggedIndexRef.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (!editMode) return;
+    e.preventDefault();
+    const draggedIndex = draggedIndexRef.current;
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    // Shift places dynamically
+    const updated = [...localPlaces];
+    const [draggedItem] = updated.splice(draggedIndex, 1);
+    updated.splice(index, 0, draggedItem);
+    draggedIndexRef.current = index;
+    setLocalPlaces(updated);
+  };
+
+  const handleDragEnd = async () => {
+    setIsDragging(false);
+    draggedIndexRef.current = null;
+    if (activeJourney) {
+      await reorderPlaces(localPlaces);
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto pt-4 pb-2">
       <ul className="flex flex-col px-2">
-        {activeJourney.places.map((place, idx) => (
+        {localPlaces.map((place, idx) => (
           <PlaceCard
             key={place.id}
             place={place}
             index={idx}
-            isLast={idx === activeJourney.places.length - 1}
-            onRemove={removePlace}
+            isLast={idx === localPlaces.length - 1}
+            editMode={editMode}
+            onDragStart={(e) => handleDragStart(e, idx)}
+            onDragOver={(e) => handleDragOver(e, idx)}
+            onDragEnd={handleDragEnd}
+            isDragged={draggedIndexRef.current === idx}
+            isSelected={selectedIds.includes(place.id)}
+            onToggleSelect={() => onToggleSelect(place.id)}
           />
         ))}
       </ul>

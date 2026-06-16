@@ -4,25 +4,36 @@ import { insertJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 
 interface JourneyStore {
+  journeys: Journey[];
   activeJourney: Journey | null;
   isCreateFormOpen: boolean;
+  isAddPlaceOpen: boolean;
   isLoading: boolean;
+  setJourneys: (journeys: Journey[]) => void;
   openCreateForm: () => void;
   closeCreateForm: () => void;
+  openAddPlace: () => void;
+  closeAddPlace: () => void;
   createJourney: (input: CreateJourneyInput) => Promise<void>;
   setActiveJourney: (journey: Journey | null) => void;
   clearJourney: () => void;
   addPlace: (place: Place) => Promise<void>;
   removePlace: (placeId: string) => Promise<void>;
+  reorderPlaces: (places: Place[]) => Promise<void>;
 }
 
 export const useJourneyStore = create<JourneyStore>((set, get) => ({
+  journeys: [],
   activeJourney: null,
   isCreateFormOpen: false,
+  isAddPlaceOpen: false,
   isLoading: false,
 
+  setJourneys: (journeys) => set({ journeys }),
   openCreateForm: () => set({ isCreateFormOpen: true }),
   closeCreateForm: () => set({ isCreateFormOpen: false }),
+  openAddPlace: () => set({ isAddPlaceOpen: true }),
+  closeAddPlace: () => set({ isAddPlaceOpen: false }),
 
   createJourney: async (input) => {
     set({ isLoading: true });
@@ -62,6 +73,18 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     if (!activeJourney) return;
 
     const updatedPlaces = activeJourney.places.filter((p) => p.id !== placeId);
+    // 낙관적 업데이트
+    set({
+      activeJourney: { ...activeJourney, places: updatedPlaces },
+    });
+    // DB 동기화
+    await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+  },
+
+  reorderPlaces: async (updatedPlaces) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
     // 낙관적 업데이트
     set({
       activeJourney: { ...activeJourney, places: updatedPlaces },

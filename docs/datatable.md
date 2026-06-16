@@ -24,7 +24,7 @@ CREATE TABLE journeys (
     journey_date DATE NOT NULL,                             -- 여정 날짜
     
     -- 장소 리스트를 순서가 보존되는 JSONB 배열로 통째로 저장
-    -- 구조: Array<{place_name: string, lat: number, lng: number}>
+    -- 구조: Array<{id: string, place_name: string, address: string, category: string, lat: number, lng: number}>
     places JSONB NOT NULL DEFAULT '[]'::jsonb,
     
     -- 실행(Execution) 모드를 위한 현재 이동 구간 인덱스 (0부터 시작)
@@ -62,31 +62,45 @@ CREATE POLICY "사용자는 자신의 여정을 수정할 수 있습니다."
 
 CREATE POLICY "사용자는 자신의 여정을 삭제할 수 있습니다." 
     ON journeys FOR DELETE USING (auth.uid() = user_id);
+```
 
---
+---
 
 # 컬럼 규격
 [
-  { "place_name": "서울역 (출발지)", "lat": 37.5546, "lng": 126.9706 },
-  { "place_name": "숭례문 (경유지)", "lat": 37.5599, "lng": 126.9753 },
-  { "place_name": "남산서울타워 (목적지)", "lat": 37.5511, "lng": 126.9882 }
+  { "id": "12709706-375546-0", "place_name": "서울역 (출발지)", "address": "서울특별시 중구 한강대로 405", "category": "교통편 > 기차역 > KTX역", "lat": 37.5546, "lng": 126.9706 },
+  { "id": "12709753-375599-1", "place_name": "숭례문 (경유지)", "address": "서울특별시 중구 세종대로 40", "category": "문화재 > 성 > 대문", "lat": 37.5599, "lng": 126.9753 },
+  { "id": "12709882-375511-2", "place_name": "남산서울타워 (목적지)", "address": "서울특별시 용산구 남산공원길 105", "category": "여행 > 관광명소 > 전망대", "lat": 37.5511, "lng": 126.9882 }
 ]
 
 # 조합 규격
+```typescript
 export interface Place {
+  id: string;          // 고유 식별자 (nanoid 또는 mapx-mapy-idx 조합 등)
   place_name: string;
+  address: string;
+  category: string;
   lat: number;
   lng: number;
 }
 
+export type TransportType = 'public' | 'car';
+
 export interface Journey {
   id: string;
-  user_id: string;
+  user_id?: string;
   title: string;
-  transport_type: 'public' | 'car';
+  transport_type: TransportType;
   journey_date: string;
   places: Place[];       // JSONB가 파싱되어 가벼운 객체 배열로 매핑됨
   current_step: number;  // 현재 유저가 진행 중인 구간 인덱스 (0이면 places[0] -> places[1] 이동 중)
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
+
+export interface CreateJourneyInput {
+  title: string;
+  transport_type: TransportType;
+  journey_date: string;
+}
+```

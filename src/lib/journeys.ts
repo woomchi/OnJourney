@@ -76,7 +76,7 @@ export async function fetchLatestJourney(): Promise<Journey | null> {
     .from('journeys')
     .select()
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -93,3 +93,43 @@ export async function fetchLatestJourney(): Promise<Journey | null> {
 
   return mapRowToJourney(data as JourneyRow);
 }
+
+export async function fetchJourneys(): Promise<Journey[]> {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('journeys')
+    .select()
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('[journeys] 조회 실패:', error.message);
+    return [];
+  }
+
+  return (data as JourneyRow[]).map(mapRowToJourney);
+}
+
+export async function deleteJourneys(ids: string[]): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from('journeys')
+    .delete()
+    .in('id', ids);
+
+  if (error) {
+    throw new Error(toJourneyErrorMessage(error));
+  }
+}
+

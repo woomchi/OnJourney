@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import {
   NavermapsProvider,
   NaverMap,
   Container as MapDiv,
   Marker,
+  Polyline,
 } from 'react-naver-maps';
 import PlaceSearchBar from '@/components/PlaceSearchBar';
 import { useJourneyStore } from '@/stores/journey-store';
@@ -17,8 +18,8 @@ interface SelectedPlace {
 
 export default function MapArea() {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-  const { activeJourney } = useJourneyStore();
-  const mapRef = useRef<naver.maps.Map | null>(null);
+  const { activeJourney, directionsCache } = useJourneyStore();
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
   const [mapCenter, setMapCenter] = useState<naver.maps.CoordLiteral>({
     lat: 37.5665,
     lng: 126.9780,
@@ -27,13 +28,13 @@ export default function MapArea() {
   const handlePlaceSelect = (place: SelectedPlace) => {
     const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
     setMapCenter(coord);
-    mapRef.current?.panTo(coord);
+    map?.panTo(coord);
   };
 
   const handleMarkerClick = (lat: number, lng: number) => {
     const coord: naver.maps.CoordLiteral = { lat, lng };
     setMapCenter(coord);
-    mapRef.current?.panTo(coord);
+    map?.panTo(coord);
   };
 
   if (!clientId) {
@@ -57,6 +58,36 @@ export default function MapArea() {
 
   const places = activeJourney?.places ?? [];
 
+  // places 또는 map 인스턴스가 로드/변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
+  useEffect(() => {
+    if (!map || places.length === 0) return;
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    if (places.length === 1) {
+      const first = places[0];
+      map.setCenter(new navermaps.LatLng(first.lat, first.lng));
+      map.setZoom(15);
+    } else {
+      const bounds = new navermaps.LatLngBounds(
+        new navermaps.LatLng(places[0].lat, places[0].lng),
+        new navermaps.LatLng(places[0].lat, places[0].lng)
+      );
+
+      places.forEach((place) => {
+        bounds.extend(new navermaps.LatLng(place.lat, place.lng));
+      });
+
+      map.fitBounds(bounds, {
+        top: 80,
+        right: 80,
+        bottom: 80,
+        left: 80,
+      });
+    }
+  }, [places, map]);
+
   return (
     <div className="relative w-full h-full">
       <NavermapsProvider ncpKeyId={clientId}>
@@ -64,8 +95,38 @@ export default function MapArea() {
           <NaverMap
             defaultCenter={mapCenter}
             defaultZoom={14}
-            ref={mapRef}
+            ref={setMap}
           >
+            {/* 구간별 이동경로 Polyline 렌더링 */}
+            {places.map((place, idx) => {
+              if (idx === places.length - 1) return null;
+              const nextPlace = places[idx + 1];
+              const transportType = activeJourney?.transport_type || 'public';
+              const cacheKey = `${place.id}-${nextPlace.id}-${transportType}`;
+              const segmentData = directionsCache[cacheKey];
+
+              if (!segmentData || !segmentData.primary || !segmentData.primary.pathPoints) {
+                return null;
+              }
+
+              const strokeColor = transportType === 'public' ? '#3b82f6' : '#f59e0b';
+              
+              // window.naver.maps가 존재하면 LatLng 인스턴스 배열로 매핑하여 렌더링 안정성 확보
+              const pathPoints = (typeof window !== 'undefined' && window.naver?.maps)
+                ? segmentData.primary.pathPoints.map(pt => new window.naver.maps.LatLng(pt.lat, pt.lng))
+                : segmentData.primary.pathPoints;
+
+              return (
+                <Polyline
+                  key={`polyline-${place.id}-${nextPlace.id}`}
+                  path={pathPoints}
+                  strokeColor={strokeColor}
+                  strokeOpacity={0.8}
+                  strokeWeight={5}
+                />
+              );
+            })}
+
             {/* Marker는 반드시 NaverMap children 안에 있어야 함 */}
             {places.map((place, idx) => (
               <Marker

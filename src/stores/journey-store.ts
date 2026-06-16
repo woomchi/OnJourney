@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CreateJourneyInput, Journey, Place } from '@/types/journey';
+import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse } from '@/types/journey';
 import { insertJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 
@@ -9,6 +9,8 @@ interface JourneyStore {
   isCreateFormOpen: boolean;
   isAddPlaceOpen: boolean;
   isLoading: boolean;
+  directionsCache: Record<string, DirectionsApiResponse>;
+  directionsLoading: Record<string, boolean>;
   setJourneys: (journeys: Journey[]) => void;
   openCreateForm: () => void;
   closeCreateForm: () => void;
@@ -20,7 +22,9 @@ interface JourneyStore {
   addPlace: (place: Place) => Promise<void>;
   removePlace: (placeId: string) => Promise<void>;
   reorderPlaces: (places: Place[]) => Promise<void>;
+  fetchSegmentDirections: (origin: Place, dest: Place, transportType: 'public' | 'car') => Promise<void>;
 }
+
 
 export const useJourneyStore = create<JourneyStore>((set, get) => ({
   journeys: [],
@@ -28,6 +32,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
   isCreateFormOpen: false,
   isAddPlaceOpen: false,
   isLoading: false,
+  directionsCache: {},
+  directionsLoading: {},
 
   setJourneys: (journeys) => set({ journeys }),
   openCreateForm: () => set({ isCreateFormOpen: true }),
@@ -98,5 +104,49 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+  },
+
+  fetchSegmentDirections: async (origin, dest, transportType) => {
+    const cacheKey = `${origin.id}-${dest.id}-${transportType}`;
+    const { directionsCache, directionsLoading } = get();
+
+    if (directionsCache[cacheKey] || directionsLoading[cacheKey]) {
+      return;
+    }
+
+    set((state) => ({
+      directionsLoading: {
+        ...state.directionsLoading,
+        [cacheKey]: true,
+      },
+    }));
+
+    try {
+      const url = `/api/directions?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}&type=${transportType}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error('이동 경로 요청 실패');
+      }
+      const data = await res.json();
+
+      set((state) => ({
+        directionsCache: {
+          ...state.directionsCache,
+          [cacheKey]: data,
+        },
+        directionsLoading: {
+          ...state.directionsLoading,
+          [cacheKey]: false,
+        },
+      }));
+    } catch (err) {
+      console.error('[journey-store] fetchSegmentDirections error:', err);
+      set((state) => ({
+        directionsLoading: {
+          ...state.directionsLoading,
+          [cacheKey]: false,
+        },
+      }));
+    }
   },
 }));

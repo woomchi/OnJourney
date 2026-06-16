@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { Place } from '@/types/journey';
+import type { Place, DirectionResult, DirectionAlternative } from '@/types/journey';
 
 interface PlaceListProps {
   editMode?: boolean;
@@ -21,6 +21,8 @@ interface PlaceCardProps {
   isDragged: boolean;
   isSelected: boolean;
   onToggleSelect: () => void;
+  nextPlace: Place | null;
+  transportType: 'public' | 'car';
 }
 
 function ChevronDownIcon({ open }: { open: boolean }) {
@@ -38,99 +40,158 @@ function ChevronDownIcon({ open }: { open: boolean }) {
   );
 }
 
-// 구간 이동 정보 플레이스홀더 (향후 ODsay API 연동)
-function SegmentInfo() {
+// 1. 구간 이동 정보 뼈대 로딩 UI
+function SegmentInfoSkeleton() {
+  return (
+    <div className="mx-4 mb-3 px-4 py-4 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] animate-pulse">
+      <div className="flex items-center justify-between mb-4">
+        <div className="h-5 bg-zinc-200 rounded w-24"></div>
+        <div className="h-4 bg-zinc-200 rounded w-16"></div>
+      </div>
+      <div className="h-3 bg-zinc-200 rounded-full w-full"></div>
+    </div>
+  );
+}
+
+// 2. 실시간 구간 이동 정보 렌더링 컴포넌트
+interface SegmentInfoProps {
+  data?: DirectionResult;
+  loading?: boolean;
+}
+
+function SegmentInfo({ data, loading }: SegmentInfoProps) {
+  if (loading) {
+    return <SegmentInfoSkeleton />;
+  }
+
+  if (!data) {
+    return (
+      <div className="mx-4 mb-3 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-100 text-center text-xs text-zinc-400">
+        경로 정보를 불러올 수 없습니다.
+      </div>
+    );
+  }
+
+  const totalStepDuration = data.steps.reduce((acc, s) => acc + s.duration, 0) || 1;
+
   return (
     <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
       {/* 상단 정보: 총 이동 시간, 요금, 실시간 상태 */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-end gap-2">
-          <span className="text-xl font-extrabold text-zinc-800 leading-none tracking-tight">53분</span>
-          <span className="text-[13px] font-medium text-zinc-500 pb-[1px]">1,400원</span>
+      <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-end gap-1.5">
+          <span className="text-lg font-extrabold text-zinc-800 leading-none tracking-tight">
+            {data.duration}분
+          </span>
+          <span className="text-[12px] font-medium text-zinc-400 pb-[0.5px]">
+            {data.fare > 0 ? `${data.fare.toLocaleString()}원` : '요금 정보 없음'}
+          </span>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] font-semibold text-rose-500 bg-rose-50 px-2 py-1 rounded-full border border-rose-100">
           <span className="relative flex h-1.5 w-1.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
           </span>
-          최적 경로
+          실시간 정보
         </div>
       </div>
-      
-      {/* 네이버 지도 스타일 타임라인 바 (아이콘 경계선 배치) */}
+
+      {/* 동적 타임라인 바 */}
       <div className="flex ml-3 -mr-2 mt-4 mb-2 h-3 relative">
-        {/* Step 1: 도보 */}
-        <div 
-          className="bg-zinc-200 rounded-l-full relative flex items-center justify-center pl-[12px] pr-[12px]" 
-          style={{ width: '18%', minWidth: '45px' }}
-        >
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm w-4 h-4 z-10">
-            <span className="text-[9px]">🚶</span>
-          </div>
-          <span className="text-zinc-700 font-medium whitespace-nowrap text-[9px]">8분</span>
-        </div>
-        
-        {/* Step 2: 지하철 */}
-        <div 
-          className="bg-[#00A84D] relative flex items-center justify-center pl-[12px] pr-[12px]" 
-          style={{ width: '45%', minWidth: '55px' }}
-        >
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border border-[#00A84D] w-4 h-4 z-10">
-            <span className="text-[9px]">🚇</span>
-          </div>
-          <span className="text-white font-bold whitespace-nowrap text-[9px]">29분</span>
-        </div>
+        {data.steps.map((step, idx) => {
+          const isFirst = idx === 0;
+          const isLast = idx === data.steps.length - 1;
+          const widthPercent = `${(step.duration / totalStepDuration) * 100}%`;
+          
+          let icon = '🚶';
+          if (step.type === 'subway') icon = '🚇';
+          else if (step.type === 'bus') icon = '🚌';
+          else if (step.type === 'car') icon = '🚗';
 
-        {/* Step 3: 도보 */}
-        <div 
-          className="bg-zinc-200 relative flex items-center justify-center pl-[12px] pr-[12px]" 
-          style={{ width: '17%', minWidth: '45px' }}
-        >
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border border-zinc-200 w-4 h-4 z-10">
-            <span className="text-[9px]">🚶</span>
-          </div>
-          <span className="text-zinc-700 font-medium whitespace-nowrap text-[9px]">6분</span>
-        </div>
-
-        {/* Step 4: 버스 */}
-        <div 
-          className="bg-[#0068b7] rounded-r-full relative flex items-center justify-center pl-[12px] pr-[8px]" 
-          style={{ width: '20%', minWidth: '45px' }}
-        >
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border border-[#0068b7] w-4 h-4 z-10">
-            <span className="text-[9px]">🚌</span>
-          </div>
-          <span className="text-white font-bold whitespace-nowrap text-[9px]">10분</span>
-        </div>
+          return (
+            <div
+              key={idx}
+              className="relative flex items-center justify-center pl-[10px] pr-[10px]"
+              style={{
+                width: widthPercent,
+                minWidth: '42px',
+                backgroundColor: step.color || '#E4E4E7',
+                borderTopLeftRadius: isFirst ? '9999px' : '0px',
+                borderBottomLeftRadius: isFirst ? '9999px' : '0px',
+                borderTopRightRadius: isLast ? '9999px' : '0px',
+                borderBottomRightRadius: isLast ? '9999px' : '0px',
+              }}
+            >
+              <div
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm w-4 h-4 z-10 border"
+                style={{ borderColor: step.color || '#E4E4E7' }}
+              >
+                <span className="text-[9px]">{icon}</span>
+              </div>
+              <span className={`font-bold whitespace-nowrap text-[9px] ${step.type === 'walk' ? 'text-zinc-700' : 'text-white'}`}>
+                {step.duration}분
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-// 대안 구간 이동 정보 플레이스홀더
-function AlternativeSegmentInfo() {
+// 3. 대안 구간 이동 정보 렌더링 컴포넌트
+interface AlternativeSegmentInfoProps {
+  alternatives?: DirectionAlternative[];
+  loading?: boolean;
+}
+
+function AlternativeSegmentInfo({ alternatives, loading }: AlternativeSegmentInfoProps) {
+  if (loading) {
+    return (
+      <div className="mx-4 px-4 py-3 bg-white rounded-xl border border-zinc-200 shadow-sm animate-pulse flex flex-col gap-2">
+        <div className="h-4 bg-zinc-200 rounded w-20 mb-1"></div>
+        <div className="h-8 bg-zinc-200 rounded w-full"></div>
+        <div className="h-8 bg-zinc-200 rounded w-full"></div>
+      </div>
+    );
+  }
+
+  if (!alternatives || alternatives.length === 0) return null;
+
   return (
     <div className="mx-4 px-4 py-3 bg-white rounded-xl border border-zinc-200 shadow-sm">
       <div className="text-[11px] font-semibold text-zinc-600 mb-2">대안 이동 수단</div>
       <div className="flex flex-col gap-2">
-        <button className="flex items-center justify-between w-full p-2 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200 text-left">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🚕</span>
-            <span className="text-xs font-medium text-zinc-700">택시</span>
-          </div>
-          <span className="text-xs font-bold text-zinc-900">15분</span>
-        </button>
-        <button className="flex items-center justify-between w-full p-2 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200 text-left">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🚶</span>
-            <span className="text-xs font-medium text-zinc-700">도보</span>
-          </div>
-          <span className="text-xs font-bold text-zinc-900">45분</span>
-        </button>
+        {alternatives.map((alt, idx) => {
+          let emoji = '🚶';
+          if (alt.type === 'taxi') emoji = '🚕';
+          else if (alt.type === 'public') emoji = '🚌';
+          else if (alt.type === 'car') emoji = '🚗';
+
+          return (
+            <div
+              key={idx}
+              className="flex items-center justify-between w-full p-2 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200 text-left text-xs"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{emoji}</span>
+                <span className="font-medium text-zinc-700">
+                  {alt.name}
+                  {alt.fare !== undefined && alt.fare > 0 && (
+                    <span className="text-[10px] text-zinc-400 font-normal ml-1">
+                      ({alt.fare.toLocaleString()}원)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <span className="font-bold text-zinc-900">{alt.duration}분</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
+
 
 function PlaceCard({
   place,
@@ -143,8 +204,21 @@ function PlaceCard({
   isDragged,
   isSelected,
   onToggleSelect,
+  nextPlace,
+  transportType,
 }: PlaceCardProps) {
+  const { directionsCache, directionsLoading, fetchSegmentDirections } = useJourneyStore();
   const [showAlternatives, setShowAlternatives] = useState(false);
+
+  const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}-${transportType}` : '';
+  const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
+  const isSegmentLoading = nextPlace ? directionsLoading[cacheKey] : false;
+
+  useEffect(() => {
+    if (nextPlace) {
+      fetchSegmentDirections(place, nextPlace, transportType);
+    }
+  }, [place, nextPlace, transportType, fetchSegmentDirections]);
 
   return (
     <li
@@ -232,18 +306,17 @@ function PlaceCard({
       </div>
 
       {/* 대안 이동 정보 (아코디언 토글, 장소 카드 바로 밑) */}
-      <div 
-        className={`pl-10 overflow-hidden transition-all duration-300 ease-in-out ${
-          showAlternatives && !editMode && !isLast ? 'max-h-96 opacity-100 mb-3' : 'max-h-0 opacity-0'
-        }`}
+      <div
+        className={`pl-10 overflow-hidden transition-all duration-300 ease-in-out ${showAlternatives && !editMode && !isLast ? 'max-h-96 opacity-100 mb-3' : 'max-h-0 opacity-0'
+          }`}
       >
-        <AlternativeSegmentInfo />
+        <AlternativeSegmentInfo alternatives={segmentData?.alternatives} loading={isSegmentLoading} />
       </div>
 
       {/* 기본 구간 이동 정보 (항상 노출) */}
       {!editMode && !isLast && (
         <div className="pl-10 pb-1">
-          <SegmentInfo />
+          <SegmentInfo data={segmentData?.primary} loading={isSegmentLoading} />
         </div>
       )}
     </li>
@@ -324,6 +397,8 @@ export default function PlaceList({
     }
   };
 
+  const transportType = activeJourney.transport_type || 'public';
+
   return (
     <div className="flex-1 overflow-y-auto pt-4 pb-2">
       <ul className="flex flex-col px-2">
@@ -340,6 +415,8 @@ export default function PlaceList({
             isDragged={draggedIndexRef.current === idx}
             isSelected={selectedIds.includes(place.id)}
             onToggleSelect={() => onToggleSelect(place.id)}
+            nextPlace={idx < localPlaces.length - 1 ? localPlaces[idx + 1] : null}
+            transportType={transportType}
           />
         ))}
       </ul>

@@ -26,3 +26,30 @@ export interface CreateJourneyInput {
   transport_type: TransportType;
   journey_date: string;
 }
+
+export interface DirectionStep {
+  type: 'walk' | 'subway' | 'bus' | 'car';
+  name: string;
+  duration: number;
+  color?: string;
+}
+
+export interface DirectionResult {
+  duration: number;
+  fare: number;
+  steps: DirectionStep[];
+  pathPoints: { lat: number; lng: number }[];
+}
+
+export interface DirectionAlternative {
+  type: 'taxi' | 'walk' | 'public' | 'car';
+  name: string;
+  duration: number;
+  fare?: number;
+}
+
+export interface DirectionsApiResponse {
+  primary: DirectionResult;
+  alternatives: DirectionAlternative[];
+}
+

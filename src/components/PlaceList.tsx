@@ -207,7 +207,7 @@ function PlaceCard({
   nextPlace,
   transportType,
 }: PlaceCardProps) {
-  const { directionsCache, directionsLoading, fetchSegmentDirections, setFocusBounds } = useJourneyStore();
+  const { directionsCache, directionsLoading, fetchSegmentDirections, setFocusBounds, focusedSegment, setFocusedSegment } = useJourneyStore();
   const [showAlternatives, setShowAlternatives] = useState(false);
 
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}-${transportType}` : '';
@@ -321,15 +321,22 @@ function PlaceCard({
             className="w-full text-left focus:outline-none"
             onClick={() => {
               if (nextPlace) {
-                const sw = {
-                  lat: Math.min(place.lat, nextPlace.lat),
-                  lng: Math.min(place.lng, nextPlace.lng),
-                };
-                const ne = {
-                  lat: Math.max(place.lat, nextPlace.lat),
-                  lng: Math.max(place.lng, nextPlace.lng),
-                };
-                setFocusBounds({ sw, ne });
+                // 이미 해당 구간이 포커스된 경우 토글 해제
+                if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
+                  setFocusedSegment(null);
+                  setFocusBounds(null);
+                } else {
+                  const sw = {
+                    lat: Math.min(place.lat, nextPlace.lat),
+                    lng: Math.min(place.lng, nextPlace.lng),
+                  };
+                  const ne = {
+                    lat: Math.max(place.lat, nextPlace.lat),
+                    lng: Math.max(place.lng, nextPlace.lng),
+                  };
+                  setFocusBounds({ sw, ne });
+                  setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                }
               }
             }}
           >

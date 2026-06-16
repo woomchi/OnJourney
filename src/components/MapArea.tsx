@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import {
   NavermapsProvider,
   NaverMap,
@@ -18,7 +18,7 @@ interface SelectedPlace {
 
 export default function MapArea() {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-  const { activeJourney, directionsCache, focusBounds, setFocusBounds } = useJourneyStore();
+  const { activeJourney, directionsCache, focusBounds, setFocusBounds, focusedSegment, setFocusedSegment } = useJourneyStore();
   const [map, setMap] = useState<naver.maps.Map | null>(null);
   const [mapCenter, setMapCenter] = useState<naver.maps.CoordLiteral>({
     lat: 37.5665,
@@ -39,6 +39,7 @@ export default function MapArea() {
 
   const handleResetBounds = () => {
     setFocusBounds(null);
+    setFocusedSegment(null);
     if (!map || places.length === 0) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
@@ -141,6 +142,75 @@ export default function MapArea() {
     });
   }, [focusBounds, map]);
 
+  const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+
+  // 방향 화살표 마커 수집 (경로의 진행 방향각 bearing을 계산하여 얹음)
+  interface DirectionArrowMarker {
+    key: string;
+    position: { lat: number; lng: number };
+    bearing: number;
+    color: string;
+  }
+
+  const arrowMarkers = useMemo(() => {
+    const markers: DirectionArrowMarker[] = [];
+    if (!navermaps) return markers;
+
+    places.forEach((place, idx) => {
+      if (idx === places.length - 1) return;
+      const nextPlace = places[idx + 1];
+      const transportType = activeJourney?.transport_type || 'public';
+      const cacheKey = `${place.id}-${nextPlace.id}-${transportType}`;
+      const segmentData = directionsCache[cacheKey];
+
+      if (!segmentData || !segmentData.primary || !segmentData.primary.steps) {
+        return;
+      }
+
+      segmentData.primary.steps.forEach((step, sIdx) => {
+        // 특정 세그먼트만 포커스 상태인 경우, 해당 세그먼트가 아니라면 화살표 마커 수집 제외
+        if (focusedSegment) {
+          const isCurrentSegment = (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id);
+          if (!isCurrentSegment) return;
+        }
+
+        const stepPath = step.pathPoints || [];
+        if (stepPath.length < 2 || step.type === 'walk') return;
+
+        const strokeColor = step.color || (transportType === 'public' ? '#3b82f6' : '#f59e0b');
+        const totalLen = stepPath.length;
+        let targetPoints: number[] = [];
+
+        // 경로의 길이가 충분할 경우 고르게 25%, 50%, 75% 지점에 배치
+        if (totalLen >= 18) {
+          targetPoints = [
+            Math.floor(totalLen * 0.25),
+            Math.floor(totalLen * 0.50),
+            Math.floor(totalLen * 0.75),
+          ];
+        } else if (totalLen >= 6) {
+          targetPoints = [Math.floor(totalLen * 0.50)];
+        }
+
+        targetPoints.forEach((ptIdx, pIdx) => {
+          const p1 = stepPath[ptIdx];
+          const p2 = stepPath[ptIdx + 1] || stepPath[ptIdx - 1];
+          if (!p1 || !p2) return;
+
+          const bearing = getBearing(p1.lat, p1.lng, p2.lat, p2.lng);
+          markers.push({
+            key: `arrow-${place.id}-${nextPlace.id}-${sIdx}-${pIdx}`,
+            position: { lat: p1.lat, lng: p1.lng },
+            bearing,
+            color: strokeColor,
+          });
+        });
+      });
+    });
+
+    return markers;
+  }, [places, directionsCache, activeJourney, navermaps, focusedSegment]);
+
   return (
     <div className="relative w-full h-full">
       <NavermapsProvider ncpKeyId={clientId}>
@@ -158,27 +228,88 @@ export default function MapArea() {
               const cacheKey = `${place.id}-${nextPlace.id}-${transportType}`;
               const segmentData = directionsCache[cacheKey];
 
-              if (!segmentData || !segmentData.primary || !segmentData.primary.pathPoints) {
+              if (!segmentData || !segmentData.primary || !segmentData.primary.steps) {
                 return null;
               }
 
-              const strokeColor = transportType === 'public' ? '#3b82f6' : '#f59e0b';
-              
-              // window.naver.maps가 존재하면 LatLng 인스턴스 배열로 매핑하여 렌더링 안정성 확보
-              const pathPoints = (typeof window !== 'undefined' && window.naver?.maps)
-                ? segmentData.primary.pathPoints.map(pt => new window.naver.maps.LatLng(pt.lat, pt.lng))
-                : segmentData.primary.pathPoints;
+              return segmentData.primary.steps.map((step, sIdx) => {
+                const stepPath = step.pathPoints || [];
+                if (stepPath.length < 2) return null;
 
-              return (
-                <Polyline
-                  key={`polyline-${place.id}-${nextPlace.id}`}
-                  path={pathPoints}
-                  strokeColor={strokeColor}
-                  strokeOpacity={0.8}
-                  strokeWeight={5}
-                />
-              );
+                // window.naver.maps가 존재하면 LatLng 인스턴스 배열로 매핑하여 렌더링 안정성 확보
+                const pathPoints = navermaps
+                  ? stepPath.map(pt => new navermaps.LatLng(pt.lat, pt.lng))
+                  : stepPath;
+
+                // 포커스 세그먼트 매칭 여부 판별
+                const isSegmentFocused = focusedSegment
+                  ? (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id)
+                  : true;
+
+                const strokeColor = isSegmentFocused
+                  ? (step.color || (transportType === 'public' ? '#3b82f6' : '#f59e0b'))
+                  : '#D4D4D8'; // 포커스 해제된 선은 연한 회색으로 처리
+
+                const strokeOpacity = isSegmentFocused ? 0.8 : 0.25;
+                const strokeWeight = isSegmentFocused ? 6.5 : 4.5;
+                const isWalk = step.type === 'walk';
+
+                if (isWalk) {
+                  // 도보 구간: 얇은 회색 점선으로 표시 (방향 화살표 제외하여 깔끔하게 처리)
+                  return (
+                    <Polyline
+                      key={`polyline-${place.id}-${nextPlace.id}-${sIdx}`}
+                      path={pathPoints}
+                      strokeColor={isSegmentFocused ? '#A1A1AA' : '#E4E4E7'}
+                      strokeOpacity={isSegmentFocused ? 0.65 : 0.2}
+                      strokeWeight={isSegmentFocused ? 3.5 : 2.5}
+                      strokeStyle="shortdash"
+                      strokeLineCap="round"
+                      strokeLineJoin="round"
+                    />
+                  );
+                }
+
+                // 대중교통/차량 구간: 하나의 온전한 단일 Polyline으로 매끄럽고 세련되게 렌더링
+                return (
+                  <Polyline
+                    key={`polyline-${place.id}-${nextPlace.id}-${sIdx}`}
+                    path={pathPoints}
+                    strokeColor={strokeColor}
+                    strokeOpacity={strokeOpacity}
+                    strokeWeight={strokeWeight}
+                    strokeStyle="solid"
+                    strokeLineCap="round"
+                    strokeLineJoin="round"
+                  />
+                );
+              });
             })}
+
+            {/* 방향 화살표 마커 렌더링 (경로선 위에 세련되게 얹음) */}
+            {navermaps && arrowMarkers.map((marker) => (
+              <Marker
+                key={marker.key}
+                position={marker.position}
+                icon={{
+                  content: `<div style="
+                    display: flex; align-items: center; justify-content: center;
+                    width: 18px; height: 18px;
+                    background-color: white;
+                    border: 2px solid ${marker.color};
+                    border-radius: 50%;
+                    transform: rotate(${marker.bearing}deg);
+                    box-shadow: 0 1.5px 5px rgba(0,0,0,0.22);
+                    pointer-events: none;
+                  ">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display: block; pointer-events: none;">
+                      <path d="M5 1L9 5H6V9H4V5H1L5 1Z" fill="${marker.color}"/>
+                    </svg>
+                  </div>`,
+                  anchor: new navermaps.Point(9, 9),
+                }}
+              />
+            ))}
 
             {/* Marker는 반드시 NaverMap children 안에 있어야 함 */}
             {places.map((place, idx) => (
@@ -209,9 +340,9 @@ export default function MapArea() {
         </MapDiv>
       </NavermapsProvider>
 
-      {/* 전체 보기 플로팅 버튼 (우측 하단) */}
+      {/* 전체 보기 플로팅 버튼 (우측 상단) */}
       {places.length > 0 && (
-        <div className="absolute bottom-8 right-6 z-[100] flex flex-col gap-2">
+        <div className="absolute top-8 right-6 z-[100] flex flex-col gap-2">
           <button
             type="button"
             onClick={handleResetBounds}
@@ -223,7 +354,7 @@ export default function MapArea() {
             title="전체 경로 보기"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h-4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15" />
             </svg>
           </button>
         </div>
@@ -235,4 +366,17 @@ export default function MapArea() {
       </div>
     </div>
   );
+}
+
+// 두 위경도 좌표 간 방위각(Bearing)을 0~360도 각도로 구하는 함수
+function getBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const radLat1 = (lat1 * Math.PI) / 180;
+  const radLat2 = (lat2 * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  
+  const y = Math.sin(dLng) * Math.cos(radLat2);
+  const x = Math.cos(radLat1) * Math.sin(radLat2) - Math.sin(radLat1) * Math.cos(radLat2) * Math.cos(dLng);
+  
+  const brng = Math.atan2(y, x);
+  return ((brng * 180) / Math.PI + 360) % 360;
 }

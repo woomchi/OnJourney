@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral } from '@/types/journey';
+import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral, FocusedSegment } from '@/types/journey';
 import { insertJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 
@@ -12,6 +12,7 @@ interface JourneyStore {
   directionsCache: Record<string, DirectionsApiResponse>;
   directionsLoading: Record<string, boolean>;
   focusBounds: LatLngBoundsLiteral | null;
+  focusedSegment: FocusedSegment | null;
   setJourneys: (journeys: Journey[]) => void;
   openCreateForm: () => void;
   closeCreateForm: () => void;
@@ -25,6 +26,7 @@ interface JourneyStore {
   reorderPlaces: (places: Place[]) => Promise<void>;
   fetchSegmentDirections: (origin: Place, dest: Place, transportType: 'public' | 'car') => Promise<void>;
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
+  setFocusedSegment: (segment: FocusedSegment | null) => void;
 }
 
 
@@ -38,6 +40,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
   directionsCache: {},
   directionsLoading: {},
   focusBounds: null,
+  focusedSegment: null,
 
   setJourneys: (journeys) => set({ journeys }),
   openCreateForm: () => set({ isCreateFormOpen: true }),
@@ -63,8 +66,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     }
   },
 
-  setActiveJourney: (journey) => set({ activeJourney: journey, focusBounds: null }),
-  clearJourney: () => set({ activeJourney: null, focusBounds: null }),
+  setActiveJourney: (journey) => set({ activeJourney: journey, focusBounds: null, focusedSegment: null }),
+  clearJourney: () => set({ activeJourney: null, focusBounds: null, focusedSegment: null }),
 
   addPlace: async (place) => {
     const { activeJourney } = get();
@@ -155,4 +158,5 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
   },
 
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
+  setFocusedSegment: (segment) => set({ focusedSegment: segment }),
 }));

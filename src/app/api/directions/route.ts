@@ -5,6 +5,7 @@ interface DirectionStep {
   name: string;
   duration: number;
   color?: string;
+  pathPoints?: { lat: number; lng: number }[];
 }
 
 interface DirectionResult {
@@ -57,8 +58,19 @@ function getSubwayColor(laneName: string): string {
   return '#00A84D';
 }
 
-// 버스 색상 매핑
-function getBusColor(laneName: string): string {
+// 버스 색상 매핑 (ODsay type 코드 및 버스 번호 기반)
+function getBusColor(busType: number, laneName: string): string {
+  // ODsay 버스 타입 코드 매핑
+  // 4: 고속/급행, 14: 광역
+  if (busType === 14 || busType === 4) return '#e60012'; // 빨간색 (광역/급행)
+  // 3: 마을, 12: 지선
+  if (busType === 12 || busType === 3) return '#33b35a'; // 초록색 (지선/마을)
+  // 13: 순환
+  if (busType === 13) return '#f9a825'; // 노란색 (순환)
+  // 11: 간선, 2: 좌석
+  if (busType === 11 || busType === 2) return '#0068b7'; // 파란색 (간선/좌석)
+
+  // fallback: 버스 번호나 텍스트 기반 매핑
   if (laneName.includes('광역') || laneName.includes('급행') || laneName.includes('red') || laneName.includes('M')) return '#e60012';
   if (laneName.includes('지선') || laneName.includes('green') || laneName.includes('마을')) return '#33b35a';
   if (laneName.includes('순환') || laneName.includes('yellow')) return '#f9a825';
@@ -89,17 +101,56 @@ async function fetchPublicTransit(
     throw new Error('대중교통 경로를 찾을 수 없습니다.');
   }
 
-  // 최적 경로 선택
-  const bestPath = data.result.path[0];
+  // 네이버 지도 스타일의 도보 검색 반경 필터링 적용
+  const validPaths = data.result.path.filter((path: any) => {
+    let totalWalkTime = 0;
+    let firstWalkTime = 0;
+    let lastWalkTime = 0;
+    let maxTransferWalkTime = 0;
+
+    const hasTransit = path.subPath.some((sp: any) => sp.trafficType === 1 || sp.trafficType === 2);
+    if (!hasTransit) return false;
+
+    const subPathsList = path.subPath;
+    subPathsList.forEach((sp: any, i: number) => {
+      if (sp.trafficType === 3) {
+        const time = sp.sectionTime || 0;
+        totalWalkTime += time;
+
+        if (i === 0) {
+          firstWalkTime = time;
+        } else if (i === subPathsList.length - 1) {
+          lastWalkTime = time;
+        } else {
+          maxTransferWalkTime = Math.max(maxTransferWalkTime, time);
+        }
+      }
+    });
+
+    // 1) 첫 탑승 정류장까지 도보 15분(약 1km) 초과 시 필터링
+    if (firstWalkTime > 15) return false;
+    // 2) 하차 후 최종 목적지까지 도보 15분(약 1km) 초과 시 필터링
+    if (lastWalkTime > 15) return false;
+    // 3) 환승 시 도보 10분 초과 시 필터링
+    if (maxTransferWalkTime > 10) return false;
+    // 4) 경로 내 총 도보 시간 합계 25분 초과 시 필터링
+    if (totalWalkTime > 25) return false;
+
+    return true;
+  });
+
+  if (validPaths.length === 0) {
+    throw new Error('도보 검색 제한 반경을 초과하여 적절한 대중교통 경로가 없습니다.');
+  }
+
+  // 필터링을 통과한 최적 경로 선택
+  const bestPath = validPaths[0];
   const info = bestPath.info;
   const subPaths = bestPath.subPath;
 
-  const pathPoints: { lat: number; lng: number }[] = [];
-  // 출발지 좌표 먼저 삽입
-  pathPoints.push({ lat: sy, lng: sx });
-
-  // 1. 상세 궤적 정보(loadLane) 획득 시도
+  // 상세 궤적 정보(loadLane) 획득 시도
   let hasDetailedLanes = false;
+  let laneList: any[] = [];
   if (info.mapObj) {
     try {
       const mapObjectParam = `0:0@${info.mapObj}`;
@@ -108,14 +159,8 @@ async function fetchPublicTransit(
       if (laneRes.ok) {
         const laneData = await laneRes.json();
         if (laneData.result && laneData.result.lane) {
-          laneData.result.lane.forEach((lane: any) => {
-            lane.section.forEach((section: any) => {
-              section.graphPos.forEach((pos: any) => {
-                pathPoints.push({ lat: pos.y, lng: pos.x });
-              });
-            });
-          });
-          hasDetailedLanes = pathPoints.length > 1;
+          laneList = laneData.result.lane;
+          hasDetailedLanes = true;
         }
       }
     } catch (e) {
@@ -123,32 +168,120 @@ async function fetchPublicTransit(
     }
   }
 
-  const steps: DirectionStep[] = subPaths.map((sp: any) => {
+  let transitIndex = 0;
+  const steps: DirectionStep[] = subPaths.map((sp: any, idx: number) => {
     let type: 'walk' | 'subway' | 'bus' | 'car' = 'walk';
     let name = '도보';
     let color = '#E4E4E7'; // 도보 회색
+    const stepPathPoints: { lat: number; lng: number }[] = [];
+
+    // start 좌표 추론
+    let startLat = parseFloat(sp.startY || sp.y1);
+    let startLng = parseFloat(sp.startX || sp.x1);
+    if (isNaN(startLat) || isNaN(startLng)) {
+      if (idx === 0) {
+        startLat = sy;
+        startLng = sx;
+      } else {
+        const prevSp = subPaths[idx - 1];
+        if (prevSp.passStopList?.stations?.length > 0) {
+          const lastStation = prevSp.passStopList.stations[prevSp.passStopList.stations.length - 1];
+          startLat = parseFloat(lastStation.y);
+          startLng = parseFloat(lastStation.x);
+        } else {
+          startLat = parseFloat(prevSp.endY || prevSp.y2 || sy);
+          startLng = parseFloat(prevSp.endX || prevSp.x2 || sx);
+        }
+      }
+    }
+
+    // end 좌표 추론
+    let endLat = parseFloat(sp.endY || sp.y2);
+    let endLng = parseFloat(sp.endX || sp.x2);
+    if (isNaN(endLat) || isNaN(endLng)) {
+      if (idx === subPaths.length - 1) {
+        endLat = ey;
+        endLng = ex;
+      } else {
+        const nextSp = subPaths[idx + 1];
+        if (nextSp.passStopList?.stations?.length > 0) {
+          const firstStation = nextSp.passStopList.stations[0];
+          endLat = parseFloat(firstStation.y);
+          endLng = parseFloat(firstStation.x);
+        } else {
+          endLat = parseFloat(nextSp.startY || nextSp.y1 || ey);
+          endLng = parseFloat(nextSp.startX || nextSp.x1 || ex);
+        }
+      }
+    }
 
     if (sp.trafficType === 1) {
       type = 'subway';
       const laneName = sp.lane?.[0]?.name || '지하철';
       name = laneName;
       color = getSubwayColor(laneName);
+
+      if (hasDetailedLanes && laneList[transitIndex]) {
+        const lane = laneList[transitIndex];
+        lane.section.forEach((section: any) => {
+          section.graphPos.forEach((pos: any) => {
+            stepPathPoints.push({ lat: pos.y, lng: pos.x });
+          });
+        });
+      } else if (sp.passStopList && sp.passStopList.stations) {
+        sp.passStopList.stations.forEach((station: any) => {
+          const lat = parseFloat(station.y);
+          const lng = parseFloat(station.x);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            stepPathPoints.push({ lat, lng });
+          }
+        });
+      }
+      transitIndex++;
     } else if (sp.trafficType === 2) {
       type = 'bus';
       const busNo = sp.lane?.[0]?.busNo || '버스';
+      const busType = sp.lane?.[0]?.type || 1;
       name = `${busNo}번 버스`;
-      color = getBusColor(busNo);
+      color = getBusColor(busType, busNo);
+
+      if (hasDetailedLanes && laneList[transitIndex]) {
+        const lane = laneList[transitIndex];
+        lane.section.forEach((section: any) => {
+          section.graphPos.forEach((pos: any) => {
+            stepPathPoints.push({ lat: pos.y, lng: pos.x });
+          });
+        });
+      } else if (sp.passStopList && sp.passStopList.stations) {
+        sp.passStopList.stations.forEach((station: any) => {
+          const lat = parseFloat(station.y);
+          const lng = parseFloat(station.x);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            stepPathPoints.push({ lat, lng });
+          }
+        });
+      }
+      transitIndex++;
+    } else {
+      type = 'walk';
+      name = '도보';
+      color = '#E4E4E7';
+
+      if (!isNaN(startLat) && !isNaN(startLng)) {
+        stepPathPoints.push({ lat: startLat, lng: startLng });
+      }
+      if (!isNaN(endLat) && !isNaN(endLng)) {
+        stepPathPoints.push({ lat: endLat, lng: endLng });
+      }
     }
 
-    // 상세 궤적 정보가 없는 경우에만 정류장 위위도 리스트로 Fallback 경로 생성
-    if (!hasDetailedLanes && sp.passStopList && sp.passStopList.stations) {
-      sp.passStopList.stations.forEach((station: any) => {
-        const lat = parseFloat(station.y);
-        const lng = parseFloat(station.x);
-        if (!isNaN(lat) && !isNaN(lng)) {
-          pathPoints.push({ lat, lng });
-        }
-      });
+    if (stepPathPoints.length === 0) {
+      if (!isNaN(startLat) && !isNaN(startLng)) {
+        stepPathPoints.push({ lat: startLat, lng: startLng });
+      }
+      if (!isNaN(endLat) && !isNaN(endLng)) {
+        stepPathPoints.push({ lat: endLat, lng: endLng });
+      }
     }
 
     return {
@@ -156,10 +289,18 @@ async function fetchPublicTransit(
       name,
       duration: sp.sectionTime,
       color,
+      pathPoints: stepPathPoints,
     };
   }).filter((step: DirectionStep) => step.duration > 0);
 
-  // 최종 목적지 좌표 추가
+  // 전체 pathPoints 플래튼 처리 (기존 맵 뷰포트 맞춤 등에 호환되도록 제공)
+  const pathPoints: { lat: number; lng: number }[] = [];
+  pathPoints.push({ lat: sy, lng: sx });
+  steps.forEach((step) => {
+    if (step.pathPoints) {
+      pathPoints.push(...step.pathPoints);
+    }
+  });
   pathPoints.push({ lat: ey, lng: ex });
 
   return {
@@ -219,6 +360,7 @@ async function fetchCarRoute(
         name: '차량',
         duration: durationMin,
         color: '#F59E0B', // 노란색/주황색 계열
+        pathPoints,
       },
     ],
     pathPoints,
@@ -241,6 +383,11 @@ function calculateCarFallback(
   // 예상 택시 요금 계산: 기본 요금 4,800원 + 1km 당 약 1,100원 추가 가산
   const taxiFare = 4800 + Math.round(distance * 1100);
 
+  const fallbackPath = [
+    { lat: sy, lng: sx },
+    { lat: ey, lng: ex },
+  ];
+
   return {
     duration,
     fare: taxiFare, // 자동차 경로 결과의 요금은 택시 요금을 기반으로 노출
@@ -250,12 +397,10 @@ function calculateCarFallback(
         name: '차량(예상)',
         duration,
         color: '#F59E0B',
+        pathPoints: fallbackPath,
       },
     ],
-    pathPoints: [
-      { lat: sy, lng: sx },
-      { lat: ey, lng: ex },
-    ],
+    pathPoints: fallbackPath,
   };
 }
 
@@ -305,6 +450,10 @@ export async function GET(request: NextRequest) {
         console.warn('[directions] ODsay API failed, using fallback:', err instanceof Error ? err.message : err);
         // 대중교통 API 실패 시 차량 Fallback 요율과 도보 가산을 조합한 Fallback 제공
         const carFallback = calculateCarFallback(sx, sy, ex, ey);
+        const fallbackPath = [
+          { lat: sy, lng: sx },
+          { lat: ey, lng: ex },
+        ];
         primaryResult = {
           duration: Math.round(carFallback.duration * 1.3), // 대중교통은 보통 차량보다 1.3배 더 소요됨
           fare: 1500, // 기본 버스/지하철 단일요금 수준
@@ -314,12 +463,10 @@ export async function GET(request: NextRequest) {
               name: '대중교통(예상)',
               duration: Math.round(carFallback.duration * 1.3),
               color: '#0068b7',
+              pathPoints: fallbackPath,
             }
           ],
-          pathPoints: [
-            { lat: sy, lng: sx },
-            { lat: ey, lng: ex },
-          ]
+          pathPoints: fallbackPath
         };
       }
     }

@@ -32,6 +32,7 @@ export interface DirectionStep {
   name: string;
   duration: number;
   color?: string;
+  pathPoints?: { lat: number; lng: number }[];
 }
 
 export interface DirectionResult {
@@ -56,6 +57,11 @@ export interface DirectionsApiResponse {
 export interface LatLngBoundsLiteral {
   sw: { lat: number; lng: number };
   ne: { lat: number; lng: number };
+}
+
+export interface FocusedSegment {
+  originId: string;
+  destId: string;
 }
 
 

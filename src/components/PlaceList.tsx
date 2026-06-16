@@ -43,7 +43,7 @@ function SegmentInfo() {
   return (
     <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
       {/* 상단 정보: 총 이동 시간, 요금, 실시간 상태 */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-end gap-2">
           <span className="text-xl font-extrabold text-zinc-800 leading-none tracking-tight">53분</span>
           <span className="text-[13px] font-medium text-zinc-500 pb-[1px]">1,400원</span>
@@ -57,40 +57,50 @@ function SegmentInfo() {
         </div>
       </div>
       
-      {/* 네이버 지도 스타일 통합 타임라인 바 */}
-      <div className="flex w-full h-8 rounded-[8px] overflow-hidden border border-zinc-200/80 shadow-sm bg-zinc-100 mt-3">
+      {/* 네이버 지도 스타일 타임라인 바 (아이콘 경계선 배치) */}
+      <div className="flex ml-3 -mr-2 mt-4 mb-2 h-3 relative">
         {/* Step 1: 도보 */}
-        <div className="flex items-center justify-center bg-zinc-100 text-zinc-600 relative" style={{ width: '18%' }}>
-          <span className="text-[11px] font-medium truncate px-1 z-10 flex items-center gap-0.5">
-            <svg className="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>
-            </svg>
-            8분
-          </span>
+        <div 
+          className="bg-zinc-200 rounded-l-full relative flex items-center justify-center pl-[12px] pr-[12px]" 
+          style={{ width: '18%', minWidth: '45px' }}
+        >
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm w-4 h-4 z-10">
+            <span className="text-[9px]">🚶</span>
+          </div>
+          <span className="text-zinc-700 font-medium whitespace-nowrap text-[9px]">8분</span>
         </div>
         
         {/* Step 2: 지하철 */}
-        <div className="flex items-center justify-center bg-[#00A84D] text-white" style={{ width: '47%' }}>
-          <span className="text-[11px] font-bold truncate px-1 drop-shadow-sm flex items-center gap-1">
-            2호선 29분
-          </span>
+        <div 
+          className="bg-[#00A84D] relative flex items-center justify-center pl-[12px] pr-[12px]" 
+          style={{ width: '45%', minWidth: '55px' }}
+        >
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border border-[#00A84D] w-4 h-4 z-10">
+            <span className="text-[9px]">🚇</span>
+          </div>
+          <span className="text-white font-bold whitespace-nowrap text-[9px]">29분</span>
         </div>
 
         {/* Step 3: 도보 */}
-        <div className="flex items-center justify-center bg-zinc-100 text-zinc-600 relative" style={{ width: '15%' }}>
-          <span className="text-[11px] font-medium truncate px-1 z-10 flex items-center gap-0.5">
-            <svg className="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>
-            </svg>
-            6분
-          </span>
+        <div 
+          className="bg-zinc-200 relative flex items-center justify-center pl-[12px] pr-[12px]" 
+          style={{ width: '17%', minWidth: '45px' }}
+        >
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border border-zinc-200 w-4 h-4 z-10">
+            <span className="text-[9px]">🚶</span>
+          </div>
+          <span className="text-zinc-700 font-medium whitespace-nowrap text-[9px]">6분</span>
         </div>
 
         {/* Step 4: 버스 */}
-        <div className="flex items-center justify-center bg-[#0068b7] text-white" style={{ width: '20%' }}>
-          <span className="text-[11px] font-bold truncate px-1 drop-shadow-sm flex items-center gap-1">
-            144번 10분
-          </span>
+        <div 
+          className="bg-[#0068b7] rounded-r-full relative flex items-center justify-center pl-[12px] pr-[8px]" 
+          style={{ width: '20%', minWidth: '45px' }}
+        >
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border border-[#0068b7] w-4 h-4 z-10">
+            <span className="text-[9px]">🚌</span>
+          </div>
+          <span className="text-white font-bold whitespace-nowrap text-[9px]">10분</span>
         </div>
       </div>
     </div>

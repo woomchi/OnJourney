@@ -8,7 +8,7 @@ import CreateJourneyModal from '@/components/CreateJourneyModal';
 import AuthModal from '@/components/AuthModal';
 import PlaceList from '@/components/PlaceList';
 import AddPlaceModal from '@/components/AddPlaceModal';
-import type { Journey } from '@/types/journey';
+import type { Journey, Place } from '@/types/journey';
 
 function formatJourneyDate(dateStr: string) {
   if (!dateStr || !dateStr.includes('-')) return dateStr || '';
@@ -57,6 +57,7 @@ export default function JourneySidebar() {
   const [isListEditMode, setIsListEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
+  const [localPlaces, setLocalPlaces] = useState<Place[]>([]);
 
   // Drag and drop states for journey list
   const [localJourneys, setLocalJourneys] = useState<Journey[]>([]);
@@ -139,6 +140,13 @@ export default function JourneySidebar() {
     setSelectedPlaceIds([]);
   }, [activeJourney?.id]);
 
+  // Sync localPlaces with activeJourney.places when not in edit mode
+  useEffect(() => {
+    if (!isEditMode && activeJourney?.places) {
+      setLocalPlaces(activeJourney.places);
+    }
+  }, [activeJourney?.places, isEditMode]);
+
   useEffect(() => {
     setSelectedPlaceIds([]);
   }, [isEditMode]);
@@ -149,7 +157,7 @@ export default function JourneySidebar() {
       return;
     }
     try {
-      const remainingPlaces = activeJourney.places.filter(
+      const remainingPlaces = localPlaces.filter(
         (p) => !selectedPlaceIds.includes(p.id)
       );
       await reorderPlaces(remainingPlaces);
@@ -159,6 +167,18 @@ export default function JourneySidebar() {
       console.error('장소 삭제 실패:', err);
       alert('장소 삭제에 실패했습니다.');
     }
+  };
+
+  const handleDoneEdit = async () => {
+    if (activeJourney) {
+      try {
+        await reorderPlaces(localPlaces);
+      } catch (err) {
+        console.error('순서 변경 저장 실패:', err);
+        alert('순서 변경 저장에 실패했습니다.');
+      }
+    }
+    setIsEditMode(false);
   };
 
   const handleCreateClick = () => {
@@ -285,7 +305,7 @@ export default function JourneySidebar() {
             {/* 편집 */}
             <button
               type="button"
-              onClick={() => setIsEditMode((v) => !v)}
+              onClick={isEditMode ? handleDoneEdit : () => setIsEditMode(true)}
               className={`
                 flex items-center gap-1 px-4 h-full text-xs font-semibold flex-shrink-0 w-20 justify-end transition-colors
                 ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'}
@@ -310,7 +330,7 @@ export default function JourneySidebar() {
           </header>
 
           {/* ── 장소 목록 (스크롤 영역) ── */}
-          <PlaceList
+           <PlaceList
             editMode={isEditMode}
             selectedIds={selectedPlaceIds}
             onToggleSelect={(id) => {
@@ -318,6 +338,8 @@ export default function JourneySidebar() {
                 prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
               );
             }}
+            localPlaces={localPlaces}
+            setLocalPlaces={setLocalPlaces}
           />
 
           {/* ── 하단 고정: 장소 추가 or 삭제 버튼 ── */}

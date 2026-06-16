@@ -8,6 +8,8 @@ interface PlaceListProps {
   editMode?: boolean;
   selectedIds: string[];
   onToggleSelect: (id: string) => void;
+  localPlaces: Place[];
+  setLocalPlaces: React.Dispatch<React.SetStateAction<Place[]>>;
 }
 
 interface PlaceCardProps {
@@ -215,10 +217,10 @@ function PlaceCard({
   const isSegmentLoading = nextPlace ? directionsLoading[cacheKey] : false;
 
   useEffect(() => {
-    if (nextPlace) {
+    if (!editMode && nextPlace) {
       fetchSegmentDirections(place, nextPlace, transportType);
     }
-  }, [place, nextPlace, transportType, fetchSegmentDirections]);
+  }, [editMode, place, nextPlace, transportType, fetchSegmentDirections]);
 
   return (
     <li
@@ -352,18 +354,12 @@ export default function PlaceList({
   editMode = false,
   selectedIds,
   onToggleSelect,
+  localPlaces,
+  setLocalPlaces,
 }: PlaceListProps) {
-  const { activeJourney, reorderPlaces } = useJourneyStore();
-  const [localPlaces, setLocalPlaces] = useState<Place[]>([]);
+  const { activeJourney } = useJourneyStore();
   const [isDragging, setIsDragging] = useState(false);
   const draggedIndexRef = useRef<number | null>(null);
-
-  // Sync with store places when not dragging
-  useEffect(() => {
-    if (!isDragging && activeJourney?.places) {
-      setLocalPlaces(activeJourney.places);
-    }
-  }, [activeJourney?.places, isDragging]);
 
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
@@ -414,12 +410,9 @@ export default function PlaceList({
     setLocalPlaces(updated);
   };
 
-  const handleDragEnd = async () => {
+  const handleDragEnd = () => {
     setIsDragging(false);
     draggedIndexRef.current = null;
-    if (activeJourney) {
-      await reorderPlaces(localPlaces);
-    }
   };
 
   const transportType = activeJourney.transport_type || 'public';

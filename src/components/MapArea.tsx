@@ -18,7 +18,16 @@ interface SelectedPlace {
 
 export default function MapArea() {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-  const { activeJourney, directionsCache, focusBounds, setFocusBounds, focusedSegment, setFocusedSegment } = useJourneyStore();
+  const {
+    activeJourney,
+    directionsCache,
+    directionsLoading,
+    fetchSegmentDirections,
+    focusBounds,
+    setFocusBounds,
+    focusedSegment,
+    setFocusedSegment
+  } = useJourneyStore();
   const [map, setMap] = useState<naver.maps.Map | null>(null);
   const [mapCenter, setMapCenter] = useState<naver.maps.CoordLiteral>({
     lat: 37.5665,
@@ -88,6 +97,21 @@ export default function MapArea() {
   }
 
   const places = activeJourney?.places ?? [];
+
+  // activeJourney.places가 변경될 때 캐시에 누락된 세그먼트 경로 정보가 있다면 백그라운드에서 fetch 요청을 넣어 복구함
+  useEffect(() => {
+    if (!activeJourney || !places || places.length < 2) return;
+    const transportType = activeJourney.transport_type || 'public';
+    
+    places.forEach((place, idx) => {
+      if (idx === places.length - 1) return;
+      const nextPlace = places[idx + 1];
+      const cacheKey = `${place.id}-${nextPlace.id}-${transportType}`;
+      if (!directionsCache[cacheKey] && !directionsLoading[cacheKey]) {
+        fetchSegmentDirections(place, nextPlace, transportType);
+      }
+    });
+  }, [activeJourney, places, directionsCache, directionsLoading, fetchSegmentDirections]);
 
   // places 또는 map 인스턴스가 로드/변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
   useEffect(() => {

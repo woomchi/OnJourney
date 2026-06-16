@@ -25,6 +25,7 @@ interface JourneyStore {
   removePlace: (placeId: string) => Promise<void>;
   reorderPlaces: (places: Place[]) => Promise<void>;
   fetchSegmentDirections: (origin: Place, dest: Place, transportType: 'public' | 'car') => Promise<void>;
+  fetchJourneyDirections: () => Promise<void>;
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
 }
@@ -66,7 +67,12 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     }
   },
 
-  setActiveJourney: (journey) => set({ activeJourney: journey, focusBounds: null, focusedSegment: null }),
+  setActiveJourney: (journey) => {
+    set({ activeJourney: journey, focusBounds: null, focusedSegment: null });
+    if (journey) {
+      get().fetchJourneyDirections();
+    }
+  },
   clearJourney: () => set({ activeJourney: null, focusBounds: null, focusedSegment: null }),
 
   addPlace: async (place) => {
@@ -82,6 +88,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+    get().fetchJourneyDirections();
   },
 
   removePlace: async (placeId) => {
@@ -97,6 +104,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+    get().fetchJourneyDirections();
   },
 
   reorderPlaces: async (updatedPlaces) => {
@@ -111,6 +119,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+    get().fetchJourneyDirections();
   },
 
   fetchSegmentDirections: async (origin, dest, transportType) => {
@@ -155,6 +164,20 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
         },
       }));
     }
+  },
+
+  fetchJourneyDirections: async () => {
+    const { activeJourney, fetchSegmentDirections } = get();
+    if (!activeJourney || !activeJourney.places || activeJourney.places.length < 2) return;
+
+    const places = activeJourney.places;
+    const transportType = activeJourney.transport_type || 'public';
+
+    const promises = [];
+    for (let i = 0; i < places.length - 1; i++) {
+      promises.push(fetchSegmentDirections(places[i], places[i + 1], transportType));
+    }
+    await Promise.all(promises);
   },
 
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),

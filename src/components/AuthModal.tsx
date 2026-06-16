@@ -180,7 +180,7 @@ export default function AuthModal() {
             disabled={isSubmitting}
             className="flex-1 py-3.5 rounded-2xl bg-zinc-900 text-white font-bold text-[15px] hover:bg-zinc-800 transition-colors disabled:opacity-50"
           >
-            {isSubmitting ? '처리 중...' : mode === 'login' ? '로그인' : '가입하기'}
+            {isSubmitting ? '로그인 중...' : mode === 'login' ? '로그인' : '가입하기'}
           </button>
         </div>
 

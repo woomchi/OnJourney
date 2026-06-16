@@ -108,7 +108,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     setMounted(true);
   }, []);
 
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const { activeJourney, addPlace, journeys, setJourneys, openCreateForm, setActiveJourney } = useJourneyStore();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -187,6 +187,11 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   };
 
   const handleAddPlace = async (item: PlaceResult) => {
+    if (!user) {
+      openAuthModal();
+      return;
+    }
+
     if (activeJourney) {
       if (addedIds.has(item.id)) return;
 
@@ -286,13 +291,13 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
       {/* 검색바 */}
       <div
         onClick={() => {
-          if (user) inputRef.current?.focus();
+          inputRef.current?.focus();
         }}
         className={`
           flex items-center gap-3 px-5 py-3.5
           bg-white/90 backdrop-blur-xl
           rounded-2xl border transition-all duration-300
-          ${user ? 'cursor-text' : 'cursor-not-allowed'}
+          cursor-text
           ${isFocused
             ? 'border-blue-300 shadow-[0_8px_32px_rgba(59,130,246,0.18)] -translate-y-0.5'
             : 'border-white/60 shadow-[0_4px_24px_rgba(0,0,0,0.08)]'
@@ -315,8 +320,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
             setIsFocused(true);
             if (results.length > 0) setIsOpen(true);
           }}
-          placeholder={user ? '방문할 장소를 검색해보세요' : '로그인이 필요합니다'}
-          disabled={!user}
+          placeholder="방문할 장소를 검색해보세요"
           className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-[15px] disabled:cursor-not-allowed disabled:opacity-50"
         />
 

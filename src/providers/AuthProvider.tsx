@@ -40,11 +40,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const init = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-      setUser(currentUser);
-      setLoading(false);
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        setUser(currentUser);
+      } catch (err) {
+        console.error('Failed to get user session:', err);
+      } finally {
+        setLoading(false);
+      }
     };
 
     init();
@@ -58,11 +63,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-      setUser(currentUser);
-      setLoading(false);
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        setUser(currentUser);
+      } catch (err) {
+        console.error('Failed to get user on auth state change:', err);
+      } finally {
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();

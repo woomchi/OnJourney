@@ -39,11 +39,12 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     set({ isLoading: true });
     try {
       const journey = await insertJourney(input);
-      set({
+      set((state) => ({
         activeJourney: journey,
+        journeys: [journey, ...state.journeys],
         isCreateFormOpen: false,
         isLoading: false,
-      });
+      }));
     } catch (err) {
       set({ isLoading: false });
       throw err instanceof Error
@@ -59,11 +60,13 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     const { activeJourney } = get();
     if (!activeJourney) return;
 
-    const updatedPlaces = [...activeJourney.places, place];
+    const updatedPlaces = [...(activeJourney.places || []), place];
+    const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
     // 낙관적 업데이트: UI 먼저 반영
-    set({
-      activeJourney: { ...activeJourney, places: updatedPlaces },
-    });
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+    }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
   },
@@ -73,10 +76,12 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     if (!activeJourney) return;
 
     const updatedPlaces = activeJourney.places.filter((p) => p.id !== placeId);
+    const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
     // 낙관적 업데이트
-    set({
-      activeJourney: { ...activeJourney, places: updatedPlaces },
-    });
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+    }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
   },
@@ -85,10 +90,12 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     const { activeJourney } = get();
     if (!activeJourney) return;
 
+    const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
     // 낙관적 업데이트
-    set({
-      activeJourney: { ...activeJourney, places: updatedPlaces },
-    });
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+    }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
   },

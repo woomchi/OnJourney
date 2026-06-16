@@ -74,12 +74,19 @@ export default function JourneySidebar() {
 
     const hydrate = async () => {
       setIsHydrating(true);
-      const list = await fetchJourneys();
-      if (!cancelled) {
-        const sorted = user ? sortJourneysByStoredOrder(list, user.id) : list;
-        setJourneys(sorted);
+      try {
+        const list = await fetchJourneys();
+        if (!cancelled) {
+          const sorted = user ? sortJourneysByStoredOrder(list, user.id) : list;
+          setJourneys(sorted);
+        }
+      } catch (err) {
+        console.error('여정 목록 로드 실패 (hydrate):', err);
+      } finally {
+        if (!cancelled) {
+          setIsHydrating(false);
+        }
       }
-      setIsHydrating(false);
     };
 
     hydrate();
@@ -168,6 +175,10 @@ export default function JourneySidebar() {
   };
 
   const handleStartEdit = () => {
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     setIsListEditMode(true);
     setSelectedIds([]);
   };
@@ -370,7 +381,7 @@ export default function JourneySidebar() {
                 On-Journey
               </h1>
             </div>
-            {user && (
+            {user ? (
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -378,12 +389,20 @@ export default function JourneySidebar() {
               >
                 로그아웃
               </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openAuthModal}
+                className="text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors bg-blue-50 px-3 py-1.5 rounded-full"
+              >
+                로그인
+              </button>
             )}
           </div>
         </header>
 
         {/* 서비스 로고 밑 작은 바 */}
-        {!isLoading && user && (
+        {!isLoading && (
           <div className="px-8 py-3.5 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between text-xs font-semibold flex-shrink-0">
             {isListEditMode ? (
               <>

@@ -41,27 +41,83 @@ function ChevronDownIcon({ open }: { open: boolean }) {
 // 구간 이동 정보 플레이스홀더 (향후 ODsay API 연동)
 function SegmentInfo() {
   return (
-    <div className="mx-4 mb-3 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-100">
+    <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+      {/* 상단 정보: 총 이동 시간, 요금, 실시간 상태 */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">구간 이동 정보</span>
-        <span className="text-[11px] text-zinc-400">실시간 정보</span>
-      </div>
-      {/* 교통수단 바 플레이스홀더 */}
-      <div className="flex items-center gap-1.5">
-        <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
-            <path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM13.5 15h-12v2.625c0 1.035.84 1.875 1.875 1.875H3.75a3 3 0 1 0 6 0h3a3 3 0 1 0 6 0h.375a1.875 1.875 0 0 0 1.875-1.875V15H13.5z"/>
-          </svg>
-          8분
+        <div className="flex items-end gap-2">
+          <span className="text-xl font-extrabold text-zinc-800 leading-none tracking-tight">53분</span>
+          <span className="text-[13px] font-medium text-zinc-500 pb-[1px]">1,400원</span>
         </div>
-        <div className="flex-1 h-2 rounded-full bg-gradient-to-r from-green-400 to-green-500 relative overflow-hidden">
-          <div className="absolute inset-0 bg-white/20 animate-pulse" />
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-rose-500 bg-rose-50 px-2 py-1 rounded-full border border-rose-100">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
+          </span>
+          최적 경로
         </div>
-        <div className="text-[11px] font-bold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">29분</div>
-        <div className="flex-none text-[11px] text-zinc-400 px-1">6분</div>
-        <div className="flex-none bg-orange-100 text-orange-600 px-2.5 py-1 rounded-full text-[11px] font-bold">10분</div>
       </div>
-      <p className="text-[10px] text-zinc-400 mt-2">경로 계산 대기 중 · 대중교통 기준</p>
+      
+      {/* 네이버 지도 스타일 통합 타임라인 바 */}
+      <div className="flex w-full h-8 rounded-[8px] overflow-hidden border border-zinc-200/80 shadow-sm bg-zinc-100 mt-3">
+        {/* Step 1: 도보 */}
+        <div className="flex items-center justify-center bg-zinc-100 text-zinc-600 relative" style={{ width: '18%' }}>
+          <span className="text-[11px] font-medium truncate px-1 z-10 flex items-center gap-0.5">
+            <svg className="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>
+            </svg>
+            8분
+          </span>
+        </div>
+        
+        {/* Step 2: 지하철 */}
+        <div className="flex items-center justify-center bg-[#00A84D] text-white" style={{ width: '47%' }}>
+          <span className="text-[11px] font-bold truncate px-1 drop-shadow-sm flex items-center gap-1">
+            2호선 29분
+          </span>
+        </div>
+
+        {/* Step 3: 도보 */}
+        <div className="flex items-center justify-center bg-zinc-100 text-zinc-600 relative" style={{ width: '15%' }}>
+          <span className="text-[11px] font-medium truncate px-1 z-10 flex items-center gap-0.5">
+            <svg className="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>
+            </svg>
+            6분
+          </span>
+        </div>
+
+        {/* Step 4: 버스 */}
+        <div className="flex items-center justify-center bg-[#0068b7] text-white" style={{ width: '20%' }}>
+          <span className="text-[11px] font-bold truncate px-1 drop-shadow-sm flex items-center gap-1">
+            144번 10분
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 대안 구간 이동 정보 플레이스홀더
+function AlternativeSegmentInfo() {
+  return (
+    <div className="mx-4 px-4 py-3 bg-white rounded-xl border border-zinc-200 shadow-sm">
+      <div className="text-[11px] font-semibold text-zinc-600 mb-2">대안 이동 수단</div>
+      <div className="flex flex-col gap-2">
+        <button className="flex items-center justify-between w-full p-2 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200 text-left">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🚕</span>
+            <span className="text-xs font-medium text-zinc-700">택시</span>
+          </div>
+          <span className="text-xs font-bold text-zinc-900">15분</span>
+        </button>
+        <button className="flex items-center justify-between w-full p-2 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200 text-left">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🚶</span>
+            <span className="text-xs font-medium text-zinc-700">도보</span>
+          </div>
+          <span className="text-xs font-bold text-zinc-900">45분</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -78,7 +134,7 @@ function PlaceCard({
   isSelected,
   onToggleSelect,
 }: PlaceCardProps) {
-  const [segmentOpen, setSegmentOpen] = useState(false);
+  const [showAlternatives, setShowAlternatives] = useState(false);
 
   return (
     <li
@@ -129,18 +185,18 @@ function PlaceCard({
             {!editMode && !isLast && (
               <button
                 type="button"
-                onClick={() => setSegmentOpen((v) => !v)}
+                onClick={() => setShowAlternatives((v) => !v)}
                 className={`
                   flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
                   transition-all duration-200
-                  ${segmentOpen
+                  ${showAlternatives
                     ? 'bg-blue-100 text-blue-600'
                     : 'bg-zinc-50 text-zinc-400 hover:bg-blue-50 hover:text-blue-500'
                   }
                 `}
                 aria-label="대안 교통정보 보기"
               >
-                <ChevronDownIcon open={segmentOpen} />
+                <ChevronDownIcon open={showAlternatives} />
               </button>
             )}
 
@@ -165,9 +221,18 @@ function PlaceCard({
         </div>
       </div>
 
-      {/* 구간 이동 정보 (토글) */}
-      {!editMode && !isLast && segmentOpen && (
-        <div className="pl-10 animate-in fade-in slide-in-from-top-1 duration-200">
+      {/* 대안 이동 정보 (아코디언 토글, 장소 카드 바로 밑) */}
+      <div 
+        className={`pl-10 overflow-hidden transition-all duration-300 ease-in-out ${
+          showAlternatives && !editMode && !isLast ? 'max-h-96 opacity-100 mb-3' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <AlternativeSegmentInfo />
+      </div>
+
+      {/* 기본 구간 이동 정보 (항상 노출) */}
+      {!editMode && !isLast && (
+        <div className="pl-10 pb-1">
           <SegmentInfo />
         </div>
       )}

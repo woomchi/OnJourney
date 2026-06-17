@@ -42,17 +42,23 @@ function sortJourneysByStoredOrder(journeys: Journey[], userId: string): Journey
 
 export default function JourneySidebar() {
   const { user, loading: authLoading, openAuthModal, signOut } = useAuth();
-  const { 
-    journeys, 
-    setJourneys, 
-    activeJourney, 
-    openCreateForm, 
-    openAddPlace, 
-    setActiveJourney, 
-    clearJourney, 
-    reorderPlaces 
+  const {
+    journeys,
+    setJourneys,
+    activeJourney,
+    openCreateForm,
+    openAddPlace,
+    setActiveJourney,
+    clearJourney,
+    reorderPlaces
   } = useJourneyStore();
   const [isHydrating, setIsHydrating] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [isEditMode, setIsEditMode] = useState(false);
   const [isListEditMode, setIsListEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -272,6 +278,48 @@ export default function JourneySidebar() {
 
   const isLoading = authLoading || isHydrating;
 
+  // Defer rendering until client-side hydration is complete to prevent hydration mismatches
+  if (!mounted) {
+    return (
+      <>
+        <aside className="w-[30%] min-w-[320px] max-w-[400px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+          <header className="px-8 py-7 border-b border-zinc-100/80 bg-white/50 backdrop-blur-md flex-shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-lg shadow-blue-500/20 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white">
+                    <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600">
+                  On-Journey
+                </h1>
+              </div>
+              <button
+                type="button"
+                className="text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors bg-blue-50 px-3 py-1.5 rounded-full"
+              >
+                로그인
+              </button>
+            </div>
+          </header>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <svg className="w-6 h-6 animate-spin text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              <p className="text-sm text-zinc-400 font-medium">불러오는 중...</p>
+            </div>
+          </div>
+        </aside>
+
+        <CreateJourneyModal />
+        <AuthModal />
+      </>
+    );
+  }
+
   // ── 여정이 있는 상태 ──────────────────────────────────
   if (activeJourney) {
     return (
@@ -330,7 +378,7 @@ export default function JourneySidebar() {
           </header>
 
           {/* ── 장소 목록 (스크롤 영역) ── */}
-           <PlaceList
+          <PlaceList
             editMode={isEditMode}
             selectedIds={selectedPlaceIds}
             onToggleSelect={(id) => {
@@ -349,11 +397,10 @@ export default function JourneySidebar() {
                 type="button"
                 onClick={handleDeleteSelectedPlaces}
                 disabled={selectedPlaceIds.length === 0}
-                className={`w-full py-4 rounded-2xl font-bold text-[15px] transition-all duration-300 flex justify-center items-center gap-2 ${
-                  selectedPlaceIds.length > 0
-                    ? 'bg-red-600 hover:bg-red-700 text-white hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(220,38,38,0.15)] cursor-pointer shadow-sm'
-                    : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
-                }`}
+                className={`w-full py-4 rounded-2xl font-bold text-[15px] transition-all duration-300 flex justify-center items-center gap-2 ${selectedPlaceIds.length > 0
+                  ? 'bg-red-600 hover:bg-red-700 text-white hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(220,38,38,0.15)] cursor-pointer shadow-sm'
+                  : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                  }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -486,9 +533,8 @@ export default function JourneySidebar() {
                   onDragStart={(e) => handleJourneyDragStart(e, idx)}
                   onDragOver={(e) => handleJourneyDragOver(e, idx)}
                   onDragEnd={handleJourneyDragEnd}
-                  className={`flex items-center gap-3 w-full transition-all duration-200 ${
-                    isDragged ? 'opacity-40 scale-[0.98]' : ''
-                  }`}
+                  className={`flex items-center gap-3 w-full transition-all duration-200 ${isDragged ? 'opacity-40 scale-[0.98]' : ''
+                    }`}
                 >
                   {isListEditMode && (
                     <input
@@ -503,9 +549,8 @@ export default function JourneySidebar() {
                     type="button"
                     onClick={() => !isListEditMode && setActiveJourney(journey)}
                     disabled={isListEditMode}
-                    className={`flex-1 text-left bg-white border border-zinc-100 rounded-2xl p-5 shadow-sm transition-all flex flex-col gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
-                      isListEditMode ? 'opacity-90 cursor-default' : 'hover:border-blue-500 hover:shadow-md cursor-pointer'
-                    }`}
+                    className={`flex-1 text-left bg-white border border-zinc-100 rounded-2xl p-5 shadow-sm transition-all flex flex-col gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${isListEditMode ? 'opacity-90 cursor-default' : 'hover:border-blue-500 hover:shadow-md cursor-pointer'
+                      }`}
                   >
                     <div>
                       <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full transition-colors group-hover:bg-blue-100">
@@ -556,11 +601,10 @@ export default function JourneySidebar() {
                 type="button"
                 onClick={handleDeleteSelected}
                 disabled={selectedIds.length === 0}
-                className={`w-full py-4 rounded-2xl font-bold text-[15px] transition-all duration-300 flex justify-center items-center gap-2 ${
-                  selectedIds.length > 0
-                    ? 'bg-red-600 hover:bg-red-700 text-white hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(220,38,38,0.15)] cursor-pointer shadow-sm'
-                    : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
-                }`}
+                className={`w-full py-4 rounded-2xl font-bold text-[15px] transition-all duration-300 flex justify-center items-center gap-2 ${selectedIds.length > 0
+                  ? 'bg-red-600 hover:bg-red-700 text-white hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(220,38,38,0.15)] cursor-pointer shadow-sm'
+                  : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                  }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />

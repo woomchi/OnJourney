@@ -39,16 +39,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
+    let active = true;
+
     const init = async () => {
       try {
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
-        setUser(currentUser);
+        const getUserPromise = supabase.auth.getUser();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Auth check timeout')), 5000)
+        );
+
+        const { data: { user: currentUser } } = await Promise.race([
+          getUserPromise,
+          timeoutPromise,
+        ]);
+
+        if (active) {
+          setUser(currentUser);
+        }
       } catch (err) {
-        console.error('Failed to get user session:', err);
+        console.error('Failed to get user session (timeout or error):', err);
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
@@ -56,26 +69,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setLoading(false);
         return;
       }
 
-      try {
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
-        setUser(currentUser);
-      } catch (err) {
-        console.error('Failed to get user on auth state change:', err);
-      } finally {
-        setLoading(false);
-      }
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);

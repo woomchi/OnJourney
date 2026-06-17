@@ -86,6 +86,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     set((state) => ({
       activeJourney: updatedActiveJourney,
       journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+      focusBounds: null,
+      focusedSegment: null,
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
@@ -102,6 +104,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     set((state) => ({
       activeJourney: updatedActiveJourney,
       journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+      focusBounds: null,
+      focusedSegment: null,
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
@@ -117,6 +121,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     set((state) => ({
       activeJourney: updatedActiveJourney,
       journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+      focusBounds: null,
+      focusedSegment: null,
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);

@@ -293,7 +293,7 @@ export default function MapArea() {
                       path={pathPoints}
                       strokeColor="#FFFFFF"
                       strokeOpacity={isSegmentFocused ? 0.95 : 0.3}
-                      strokeWeight={strokeWeight + 3.0}
+                      strokeWeight={strokeWeight + 1.8}
                       strokeStyle="solid"
                       strokeLineCap="round"
                       strokeLineJoin="round"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { Place, DirectionResult, DirectionAlternative } from '@/types/journey';
+import type { Place, DirectionResult, DirectionAlternative, RouteGuideNode } from '@/types/journey';
 
 interface PlaceListProps {
   editMode?: boolean;
@@ -216,6 +216,110 @@ function AlternativeSegmentInfo({ alternatives, loading }: AlternativeSegmentInf
   );
 }
 
+// 4. 차량 이동 수단 세부 경로 렌더링 컴포넌트
+interface CarRouteGuideProps {
+  guide?: RouteGuideNode[];
+}
+
+function CarRouteGuide({ guide }: CarRouteGuideProps) {
+  if (!guide || guide.length === 0) {
+    return (
+      <div className="mx-4 mb-3 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-100 text-center text-xs text-zinc-400">
+        세부 경로 정보를 불러올 수 없습니다.
+      </div>
+    );
+  }
+
+  const formatDistance = (meters: number) => {
+    if (meters < 10) return '';
+    if (meters < 1000) return `${meters}m`;
+    return `${(meters / 1000).toFixed(1)}km`;
+  };
+
+  const formatDuration = (ms: number) => {
+    if (ms < 1000) return '';
+    const seconds = Math.round(ms / 1000);
+    if (seconds < 60) return `${seconds}초`;
+    const minutes = Math.round(seconds / 60);
+    return `${minutes}분`;
+  };
+
+  return (
+    <div className="mx-4 mb-3 p-4 bg-zinc-50/50 border border-zinc-150 rounded-2xl shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] max-h-72 overflow-y-auto flex flex-col gap-3">
+      <div className="text-[11px] font-bold text-zinc-500 tracking-wide flex items-center gap-1.5 uppercase select-none">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-zinc-400">
+          <path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.343 7.587.829.799 1.655 1.38 2.274 1.765.31.192.57.337.757.433.113.06.211.107.282.14l.017.008.006.003zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+        </svg>
+        상세 경로 안내
+      </div>
+      <div className="relative pl-1 flex flex-col gap-3.5">
+        {/* 세로 연결선 */}
+        <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-zinc-200" />
+
+        {guide.map((step, idx) => {
+          const distStr = formatDistance(step.distance);
+          const durStr = formatDuration(step.duration);
+
+          // 아이콘과 색상 매핑
+          let icon = '•';
+          let iconColor = 'text-zinc-400 bg-white border-zinc-200';
+          let iconSize = 'w-4 h-4 text-[9px]';
+
+          const text = step.instructions;
+          if (text.includes('출발')) {
+            icon = '🏁';
+            iconColor = 'text-blue-600 bg-blue-50 border-blue-200 shadow-sm';
+            iconSize = 'w-5 h-5 text-[10px]';
+          } else if (text.includes('도착')) {
+            icon = '📍';
+            iconColor = 'text-rose-600 bg-rose-50 border-rose-200 shadow-sm';
+            iconSize = 'w-5 h-5 text-[10px]';
+          } else if (text.includes('우회전') || text.includes('우측')) {
+            icon = '→';
+            iconColor = 'text-amber-600 bg-amber-50 border-amber-200';
+          } else if (text.includes('좌회전') || text.includes('좌측')) {
+            icon = '←';
+            iconColor = 'text-amber-600 bg-amber-50 border-amber-200';
+          } else if (text.includes('유턴')) {
+            icon = '↶';
+            iconColor = 'text-indigo-600 bg-indigo-50 border-indigo-200';
+          } else if (text.includes('직진')) {
+            icon = '↑';
+            iconColor = 'text-zinc-600 bg-zinc-50 border-zinc-200';
+          } else if (text.includes('지하차도') || text.includes('터널') || text.includes('고속도로')) {
+            icon = '🛣️';
+            iconColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+          }
+
+          return (
+            <div key={idx} className="relative flex gap-3 pl-6 items-start group">
+              {/* 타임라인 노드 아이콘 */}
+              <div
+                className={`absolute left-0 top-0.5 rounded-full border flex items-center justify-center font-bold z-10 transition-colors group-hover:scale-110 duration-200 ${iconColor} ${iconSize}`}
+              >
+                {icon}
+              </div>
+
+              {/* 경로 설명 및 거리/시간 */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold text-zinc-600 leading-snug group-hover:text-zinc-800 transition-colors">
+                  {step.instructions}
+                </p>
+                {(distStr || durStr) && (
+                  <div className="flex items-center gap-1 mt-0.5 text-[9px] text-zinc-400 font-medium">
+                    {distStr && <span>{distStr}</span>}
+                    {distStr && durStr && <span className="text-zinc-300">·</span>}
+                    {durStr && <span>{durStr}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function PlaceCard({
   place,
@@ -339,7 +443,7 @@ function PlaceCard({
 
       {/* 기본 구간 이동 정보 (항상 노출) */}
       {!editMode && !isLast && (
-        <div className="pl-10 pb-1">
+        <div className="pl-10 pb-1 flex flex-col gap-1">
           <button
             type="button"
             className="w-full text-left focus:outline-none"
@@ -366,6 +470,13 @@ function PlaceCard({
           >
             <SegmentInfo data={segmentData?.primary} loading={isSegmentLoading} />
           </button>
+
+          {/* 차량 세부 경로 안내 (구간 선택/포커스 시 활성화) */}
+          {!isSegmentLoading && transportType === 'car' && focusedSegment && focusedSegment.originId === place.id && nextPlace && focusedSegment.destId === nextPlace.id && segmentData?.primary && (
+            <div className="overflow-hidden transition-all duration-300">
+              <CarRouteGuide guide={segmentData.primary.guide} />
+            </div>
+          )}
         </div>
       )}
     </li>

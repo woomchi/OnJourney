@@ -10,6 +10,7 @@ import {
 } from 'react-naver-maps';
 import PlaceSearchBar from '@/components/PlaceSearchBar';
 import { useJourneyStore } from '@/stores/journey-store';
+import { NaverMapRouteRenderer } from '@/lib/naverMapRouteService';
 
 interface SelectedPlace {
   lat: number;
@@ -59,21 +60,8 @@ export default function MapArea() {
       map.setCenter(new navermaps.LatLng(first.lat, first.lng));
       map.setZoom(15);
     } else {
-      const bounds = new navermaps.LatLngBounds(
-        new navermaps.LatLng(places[0].lat, places[0].lng),
-        new navermaps.LatLng(places[0].lat, places[0].lng)
-      );
-
-      places.forEach((place) => {
-        bounds.extend(new navermaps.LatLng(place.lat, place.lng));
-      });
-
-      map.fitBounds(bounds, {
-        top: 80,
-        right: 80,
-        bottom: 80,
-        left: 80,
-      });
+      const renderer = new NaverMapRouteRenderer(map);
+      renderer.fitMapBounds(places);
     }
   };
 
@@ -128,21 +116,8 @@ export default function MapArea() {
       map.setCenter(new navermaps.LatLng(first.lat, first.lng));
       map.setZoom(15);
     } else {
-      const bounds = new navermaps.LatLngBounds(
-        new navermaps.LatLng(places[0].lat, places[0].lng),
-        new navermaps.LatLng(places[0].lat, places[0].lng)
-      );
-
-      places.forEach((place) => {
-        bounds.extend(new navermaps.LatLng(place.lat, place.lng));
-      });
-
-      map.fitBounds(bounds, {
-        top: 80,
-        right: 80,
-        bottom: 80,
-        left: 80,
-      });
+      const renderer = new NaverMapRouteRenderer(map);
+      renderer.fitMapBounds(places);
     }
   }, [places, map, focusBounds]);
 
@@ -256,6 +231,24 @@ export default function MapArea() {
                 return null;
               }
 
+              const handlePolylineClick = () => {
+                if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
+                  setFocusedSegment(null);
+                  setFocusBounds(null);
+                } else {
+                  const sw = {
+                    lat: Math.min(place.lat, nextPlace.lat),
+                    lng: Math.min(place.lng, nextPlace.lng),
+                  };
+                  const ne = {
+                    lat: Math.max(place.lat, nextPlace.lat),
+                    lng: Math.max(place.lng, nextPlace.lng),
+                  };
+                  setFocusBounds({ sw, ne });
+                  setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                }
+              };
+
               return segmentData.primary.steps.map((step, sIdx) => {
                 const stepPath = step.pathPoints || [];
                 if (stepPath.length < 2) return null;
@@ -290,6 +283,7 @@ export default function MapArea() {
                       strokeStyle="shortdash"
                       strokeLineCap="round"
                       strokeLineJoin="round"
+                      onClick={handlePolylineClick}
                     />
                   );
                 }
@@ -305,6 +299,7 @@ export default function MapArea() {
                     strokeStyle="solid"
                     strokeLineCap="round"
                     strokeLineJoin="round"
+                    onClick={handlePolylineClick}
                   />
                 );
               });
@@ -336,30 +331,38 @@ export default function MapArea() {
             ))}
 
             {/* Marker는 반드시 NaverMap children 안에 있어야 함 */}
-            {places.map((place, idx) => (
-              <Marker
-                key={place.id}
-                position={{ lat: place.lat, lng: place.lng }}
-                title={place.place_name}
-                onClick={() => handleMarkerClick(place.lat, place.lng)}
-                icon={{
-                  content: `<div style="
-                    display:flex;align-items:center;justify-content:center;
-                    width:32px;height:32px;
-                    background:linear-gradient(135deg,#3b82f6,#6366f1);
-                    border-radius:50% 50% 50% 0;
-                    transform:rotate(-45deg);
-                    box-shadow:0 4px 12px rgba(59,130,246,0.4);
-                    border:2px solid white;
-                    cursor:pointer;
-                  "><span style="
-                    transform:rotate(45deg);
-                    color:white;font-weight:800;font-size:12px;font-family:sans-serif;
-                  ">${idx + 1}</span></div>`,
-                  anchor: new window.naver.maps.Point(16, 32),
-                }}
-              />
-            ))}
+            {places.map((place, idx) => {
+              const isSegmentMarker = !!(focusedSegment && (place.id === focusedSegment.originId || place.id === focusedSegment.destId));
+              const zIndex = (places.length - idx) + (isSegmentMarker ? 1000 : 0);
+              const isVisible = !focusedSegment || isSegmentMarker;
+
+              return (
+                <Marker
+                  key={place.id}
+                  position={{ lat: place.lat, lng: place.lng }}
+                  title={place.place_name}
+                  onClick={() => handleMarkerClick(place.lat, place.lng)}
+                  zIndex={zIndex}
+                  visible={isVisible}
+                  icon={{
+                    content: `<div style="
+                      display:flex;align-items:center;justify-content:center;
+                      width:32px;height:32px;
+                      background:linear-gradient(135deg,#3b82f6,#6366f1);
+                      border-radius:50% 50% 50% 0;
+                      transform:rotate(-45deg);
+                      box-shadow:0 4px 12px rgba(59,130,246,0.4);
+                      border:2px solid white;
+                      cursor:pointer;
+                    "><span style="
+                      transform:rotate(45deg);
+                      color:white;font-weight:800;font-size:12px;font-family:sans-serif;
+                    ">${idx + 1}</span></div>`,
+                    anchor: new window.naver.maps.Point(16, 32),
+                  }}
+                />
+              );
+            })}
           </NaverMap>
         </MapDiv>
       </NavermapsProvider>

@@ -35,11 +35,18 @@ export interface DirectionStep {
   pathPoints?: { lat: number; lng: number }[];
 }
 
+export interface RouteGuideNode {
+  instructions: string;
+  distance: number; // m
+  duration: number; // ms
+}
+
 export interface DirectionResult {
   duration: number;
   fare: number;
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
+  guide?: RouteGuideNode[];
 }
 
 export interface DirectionAlternative {

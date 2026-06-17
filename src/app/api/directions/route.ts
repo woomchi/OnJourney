@@ -13,6 +13,11 @@ interface DirectionResult {
   fare: number; // 원
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
+  guide?: {
+    instructions: string;
+    distance: number;
+    duration: number;
+  }[];
 }
 
 interface DirectionsApiResponse {
@@ -325,7 +330,7 @@ async function fetchCarRoute(
     throw new Error('Naver Directions API ID/Secret이 설정되지 않았습니다.');
   }
 
-  const url = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${sx},${sy}&goal=${ex},${ey}&option=trafast`;
+  const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${sx},${sy}&goal=${ex},${ey}&option=trafast`;
 
   const res = await fetch(url, {
     headers: {
@@ -350,6 +355,11 @@ async function fetchCarRoute(
   const summary = route.summary;
   const durationMin = Math.max(1, Math.round(summary.duration / 1000 / 60)); // ms -> min
   const pathPoints = route.path ? route.path.map(([lng, lat]: [number, number]) => ({ lat, lng })) : [];
+  const guide = route.guide ? route.guide.map((g: any) => ({
+    instructions: g.instructions,
+    distance: g.distance,
+    duration: g.duration,
+  })) : [];
 
   return {
     duration: durationMin,
@@ -364,6 +374,7 @@ async function fetchCarRoute(
       },
     ],
     pathPoints,
+    guide,
   };
 }
 
@@ -401,6 +412,18 @@ function calculateCarFallback(
       },
     ],
     pathPoints: fallbackPath,
+    guide: [
+      {
+        instructions: '출발지에서 출발',
+        distance: 0,
+        duration: 0,
+      },
+      {
+        instructions: '목적지 도착',
+        distance: Math.round(distance * 1000), // m
+        duration: duration * 60 * 1000, // ms
+      }
+    ],
   };
 }
 

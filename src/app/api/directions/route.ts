@@ -63,6 +63,13 @@ function getSubwayColor(laneName: string): string {
   return '#00A84D';
 }
 
+// 지하철 노선명 정리 (수도권 등 불필요한 지역 접두사 및 온점/가운데점 제거)
+function cleanSubwayName(laneName: string): string {
+  return laneName
+    .replace(/^(수도권|인천|부산|대구|대전|광주|울산)\s+/, '')
+    .replace(/[·\.]/g, '');
+}
+
 // 버스 색상 매핑 (ODsay type 코드 및 버스 번호 기반)
 function getBusColor(busType: number, laneName: string): string {
   // ODsay 버스 타입 코드 매핑
@@ -223,7 +230,7 @@ async function fetchPublicTransit(
     if (sp.trafficType === 1) {
       type = 'subway';
       const laneName = sp.lane?.[0]?.name || '지하철';
-      name = laneName;
+      name = cleanSubwayName(laneName);
       color = getSubwayColor(laneName);
 
       if (hasDetailedLanes && laneList[transitIndex]) {

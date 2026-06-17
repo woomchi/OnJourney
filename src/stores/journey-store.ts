@@ -280,7 +280,6 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
         const response = await NaverDirectionService.fetchRoute(start, goal, waypoints);
         const traoptimal = response.route?.traoptimal?.[0];
         const path = traoptimal?.path || [];
-        const sectionArray = traoptimal?.section || (traoptimal as any)?.sections || [];
         const isSingleSegment = places.length === 2;
 
         const cacheUpdates: Record<string, DirectionsApiResponse> = {};

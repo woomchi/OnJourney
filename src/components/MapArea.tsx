@@ -344,19 +344,28 @@ export default function MapArea() {
                   visible={isVisible}
                   icon={{
                     content: `<div style="
-                      display:flex;align-items:center;justify-content:center;
-                      width:32px;height:32px;
-                      background:linear-gradient(135deg,#3b82f6,#6366f1);
-                      border-radius:50% 50% 50% 0;
-                      transform:rotate(-45deg);
-                      box-shadow:0 4px 12px rgba(59,130,246,0.4);
-                      border:2px solid white;
-                      cursor:pointer;
-                    "><span style="
-                      transform:rotate(45deg);
-                      color:white;font-weight:800;font-size:12px;font-family:sans-serif;
-                    ">${idx + 1}</span></div>`,
-                    anchor: new window.naver.maps.Point(16, 32),
+                      cursor: pointer;
+                      filter: drop-shadow(0 3px 6px rgba(59, 130, 246, 0.35));
+                    ">
+                      <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <linearGradient id="pinGrad-${idx}" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#3b82f6" />
+                            <stop offset="100%" stop-color="#6366f1" />
+                          </linearGradient>
+                        </defs>
+                        <!-- 날씬한 물방울 모양 ( stroke 잘림 방지를 위해 1px 패딩 적용 ) -->
+                        <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
+                              fill="url(#pinGrad-${idx})" 
+                              stroke="white" 
+                              stroke-width="1.2" 
+                              stroke-linejoin="round"
+                        />
+                        <!-- 텍스트 숫자 배치 (y값 미세조정으로 정중앙 배치) -->
+                        <text x="12" y="16" fill="white" font-size="10.5" font-weight="800" font-family="Pretendard, -apple-system, sans-serif" text-anchor="middle">${idx + 1}</text>
+                      </svg>
+                    </div>`,
+                    anchor: new window.naver.maps.Point(12, 30),
                   }}
                 />
               );

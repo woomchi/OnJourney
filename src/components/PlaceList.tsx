@@ -55,13 +55,22 @@ function SegmentInfoSkeleton() {
   );
 }
 
+const SEQUENCE_COLORS = [
+  '#4F46E5', // 1번째 구간: Indigo Blue
+  '#0D9488', // 2번째 구간: Teal Green
+  '#D97706', // 3번째 구간: Amber Golden
+  '#EC4899', // 4번째 구간: Coral Pink
+  '#DC2626', // 5번째 이상: Rose Red
+];
+
 // 2. 실시간 구간 이동 정보 렌더링 컴포넌트
 interface SegmentInfoProps {
   data?: DirectionResult;
   loading?: boolean;
+  index: number;
 }
 
-function SegmentInfo({ data, loading }: SegmentInfoProps) {
+function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
   if (loading) {
     return <SegmentInfoSkeleton />;
   }
@@ -111,6 +120,9 @@ function SegmentInfo({ data, loading }: SegmentInfoProps) {
           else if (step.type === 'bus') icon = '🚌';
           else if (step.type === 'car') icon = '🚗';
 
+          const segmentColor = SEQUENCE_COLORS[index % SEQUENCE_COLORS.length];
+          const stepColor = step.type === 'walk' ? (step.color || '#E4E4E7') : segmentColor;
+
           return (
             <div
               key={idx}
@@ -124,7 +136,7 @@ function SegmentInfo({ data, loading }: SegmentInfoProps) {
               <div
                 className="relative flex items-center justify-center h-3 pl-[10px] pr-[10px]"
                 style={{
-                  backgroundColor: step.color || '#E4E4E7',
+                  backgroundColor: stepColor,
                   borderTopLeftRadius: isFirst ? '9999px' : '0px',
                   borderBottomLeftRadius: isFirst ? '9999px' : '0px',
                   borderTopRightRadius: isLast ? '9999px' : '0px',
@@ -133,7 +145,7 @@ function SegmentInfo({ data, loading }: SegmentInfoProps) {
               >
                 <div
                   className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm w-4 h-4 z-10 border"
-                  style={{ borderColor: step.color || '#E4E4E7' }}
+                  style={{ borderColor: stepColor }}
                 >
                   <span className="text-[9px]">{icon}</span>
                 </div>
@@ -144,10 +156,15 @@ function SegmentInfo({ data, loading }: SegmentInfoProps) {
 
               {/* 하단 노선명 텍스트 */}
               {hasTransit && (
-                <div className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px]">
+                <div 
+                  className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px]"
+                  title={step.type !== 'walk' ? step.name : undefined}
+                >
                   {step.type !== 'walk' ? (
-                    <span style={{ color: step.color || '#71717A' }}>
-                      {step.name.replace(' 버스', '')}
+                    <span style={{ color: stepColor }}>
+                      {step.type === 'subway'
+                        ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
+                        : step.name.replace(' 버스', '')}
                     </span>
                   ) : (
                     <span className="invisible">&nbsp;</span>
@@ -468,7 +485,7 @@ function PlaceCard({
               }
             }}
           >
-            <SegmentInfo data={segmentData?.primary} loading={isSegmentLoading} />
+            <SegmentInfo data={segmentData?.primary} loading={isSegmentLoading} index={index} />
           </button>
 
           {/* 차량 세부 경로 안내 (구간 선택/포커스 시 활성화) */}
@@ -491,7 +508,6 @@ export default function PlaceList({
   setLocalPlaces,
 }: PlaceListProps) {
   const { activeJourney } = useJourneyStore();
-  const [isDragging, setIsDragging] = useState(false);
   const draggedIndexRef = useRef<number | null>(null);
 
   if (!activeJourney || activeJourney.places.length === 0) {
@@ -523,7 +539,6 @@ export default function PlaceList({
       e.preventDefault();
       return;
     }
-    setIsDragging(true);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index.toString());
     draggedIndexRef.current = index;
@@ -544,7 +559,6 @@ export default function PlaceList({
   };
 
   const handleDragEnd = () => {
-    setIsDragging(false);
     draggedIndexRef.current = null;
   };
 

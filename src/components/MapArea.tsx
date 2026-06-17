@@ -371,14 +371,55 @@ export default function MapArea() {
             type="button"
             onClick={handleResetBounds}
             className="
-              flex items-center justify-center w-12 h-12 rounded-2xl bg-white border border-zinc-100 shadow-[0_8px_30px_rgb(0,0,0,0.08)]
+              flex items-center justify-center w-12 h-12 rounded-2xl bg-white border border-zinc-150 shadow-[0_8px_30px_rgb(0,0,0,0.08)]
               text-zinc-600 hover:text-blue-600 hover:scale-[1.04] hover:border-blue-100 active:scale-[0.96] transition-all duration-200
-              cursor-pointer
+              cursor-pointer select-none
             "
             title="전체 경로 보기"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h-4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              className="w-6 h-6"
+            >
+              {/* Route Path (connecting line) */}
+              <path
+                d="M5 18L12 11L19 15"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeDasharray="2.5 2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              
+              {/* Pin 1 (Start) */}
+              <path
+                d="M5 18c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="0.5"
+              />
+              <circle cx="5" cy="14.5" r="0.75" fill="white" />
+              
+              {/* Pin 2 (Middle) */}
+              <path
+                d="M12 11c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="0.5"
+              />
+              <circle cx="12" cy="7.5" r="0.75" fill="white" />
+              
+              {/* Pin 3 (End) */}
+              <path
+                d="M19 15c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="0.5"
+              />
+              <circle cx="19" cy="11.5" r="0.75" fill="white" />
             </svg>
           </button>
         </div>

@@ -47,6 +47,21 @@ export default function MapArea() {
     lng: 126.9780,
   });
 
+  const activeRouteOfFocusedSegment = useMemo(() => {
+    if (!focusedSegment) return null;
+    const places = activeJourney?.places ?? [];
+    const originPlace = places.find(p => p.id === focusedSegment.originId);
+    const destPlace = places.find(p => p.id === focusedSegment.destId);
+    if (!originPlace || !destPlace) return null;
+
+    const cacheKey = `${focusedSegment.originId}-${focusedSegment.destId}`;
+    const segmentData = directionsCache[cacheKey];
+    const transportType = activeJourney?.transport_type || 'public';
+    return originPlace.selected_route && originPlace.selected_route.destId === destPlace.id
+      ? originPlace.selected_route
+      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+  }, [focusedSegment, activeJourney, directionsCache]);
+
   const handlePlaceSelect = (place: SelectedPlace) => {
     const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
     setMapCenter(coord);
@@ -109,8 +124,21 @@ export default function MapArea() {
 
     if (places.length === 1) {
       const first = places[0];
-      map.setCenter(new navermaps.LatLng(first.lat, first.lng));
-      map.setZoom(15);
+      const latOffset = 0.0015;
+      const lngOffset = 0.0015;
+      const bounds = new navermaps.LatLngBounds(
+        new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
+        new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
+      );
+      map.fitBounds(bounds, {
+        top: 150,
+        right: 40,
+        bottom: 50,
+        left: 40,
+      });
+      if (map.getZoom() > 15) {
+        map.setZoom(15);
+      }
     } else {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places);
@@ -164,8 +192,21 @@ export default function MapArea() {
 
     if (places.length === 1) {
       const first = places[0];
-      map.setCenter(new navermaps.LatLng(first.lat, first.lng));
-      map.setZoom(15);
+      const latOffset = 0.0015;
+      const lngOffset = 0.0015;
+      const bounds = new navermaps.LatLngBounds(
+        new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
+        new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
+      );
+      map.fitBounds(bounds, {
+        top: 150,
+        right: 40,
+        bottom: 50,
+        left: 40,
+      });
+      if (map.getZoom() > 15) {
+        map.setZoom(15);
+      }
     } else {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places);
@@ -184,15 +225,17 @@ export default function MapArea() {
       new navermaps.LatLng(focusBounds.ne.lat, focusBounds.ne.lng)
     );
 
+    // 검색 바(약 80px 높이, top 32px) 아래 영역을 기준으로 중심이 오도록 top 패딩을 조정하되 여백을 줄여 확대 유도
     map.fitBounds(bounds, {
-      top: 100,
-      right: 100,
-      bottom: 100,
-      left: 100,
+      top: 150,
+      right: 40,
+      bottom: 50,
+      left: 40,
     });
 
-    if (map.getZoom() > 15) {
-      map.setZoom(15);
+    // 도보 마커와 탑승 마커가 인접할 때 겹침 현상을 방지하도록 줌 레벨 제한을 18로 상향 조정
+    if (map.getZoom() > 18) {
+      map.setZoom(18);
     }
   }, [focusBounds, map]);
 
@@ -415,7 +458,19 @@ export default function MapArea() {
               const isSegmentMarker = !!(focusedSegment && (place.id === focusedSegment.originId || place.id === focusedSegment.destId));
               // 일반 경로선(최대 5002)보다 항상 위에 노출되도록 기본 zIndex를 10000 이상으로 상향 조정
               const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
-              const isVisible = !focusedSegment || isSegmentMarker;
+              let isVisible = !focusedSegment || isSegmentMarker;
+
+              // 세부 노선 선택 시, 출발지 마커는 첫 번째 스텝에서만 보이고 그 외에는 가림. 도착지 마커는 마지막 스텝에서만 보이고 그 외에는 가림.
+              if (focusedSegment && focusedStep && isSegmentMarker) {
+                const isOrigin = place.id === focusedSegment.originId;
+                const isDest = place.id === focusedSegment.destId;
+                if (isOrigin) {
+                  isVisible = focusedStep.stepIndex === 0;
+                } else if (isDest) {
+                  const stepsCount = activeRouteOfFocusedSegment?.steps?.length || 0;
+                  isVisible = stepsCount > 0 && focusedStep.stepIndex === stepsCount - 1;
+                }
+              }
 
               const markerWidth = isSegmentMarker ? 30 : 24;
               const markerHeight = isSegmentMarker ? 40 : 32;
@@ -1042,59 +1097,98 @@ function TransferMarkers({
 
       if (transitSteps.length > 0) {
         const firstStep = transitSteps[0];
-        const firstLat = firstStep.startLat ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lat : undefined);
-        const firstLng = firstStep.startLng ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lng : undefined);
-        
-        if (firstLat !== undefined && firstLng !== undefined) {
-          points.push({
-            key: `transfer-${place.id}-${nextPlace.id}-0`,
-            originId: place.id,
-            destId: nextPlace.id,
-            position: { lat: firstLat, lng: firstLng },
-            busName: firstStep.name,
-            type: firstStep.type,
-            color: firstStep.color || '#4F46E5',
-            stationName: firstStep.startName || '탑승 정류장',
-            isFirst: true,
-            stepIndex: activeRoute.steps.indexOf(firstStep),
-          });
+        const firstStepIndex = activeRoute.steps.indexOf(firstStep);
+        const shouldShowFirstStep = !focusedStep || 
+                                    focusedStep.stepIndex === firstStepIndex ||
+                                    (focusedStep.originId === place.id && 
+                                     focusedStep.destId === nextPlace.id && 
+                                     focusedStep.stepIndex + 1 === firstStepIndex);
+
+        if (shouldShowFirstStep) {
+          const firstLat = firstStep.startLat ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lat : undefined);
+          const firstLng = firstStep.startLng ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lng : undefined);
+          
+          if (firstLat !== undefined && firstLng !== undefined) {
+            points.push({
+              key: `transfer-${place.id}-${nextPlace.id}-0`,
+              originId: place.id,
+              destId: nextPlace.id,
+              position: { lat: firstLat, lng: firstLng },
+              busName: firstStep.name,
+              type: firstStep.type,
+              color: firstStep.color || '#4F46E5',
+              stationName: firstStep.startName || '탑승 정류장',
+              isFirst: true,
+              stepIndex: firstStepIndex,
+            });
+          }
+        }
+      } else if (activeRoute.steps.length > 0 && !focusedStep) {
+        // 대중교통이 없고 단순 도보 등만 있는 경우, 구간 전체 표시 상태일 때 첫 도보 마커 표시
+        const firstStep = activeRoute.steps[0];
+        if (firstStep.type === 'walk') {
+          const firstLat = firstStep.startLat ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lat : undefined);
+          const firstLng = firstStep.startLng ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lng : undefined);
+          
+          if (firstLat !== undefined && firstLng !== undefined) {
+            points.push({
+              key: `walk-only-${place.id}-${nextPlace.id}-0`,
+              originId: place.id,
+              destId: nextPlace.id,
+              position: { lat: firstLat, lng: firstLng },
+              busName: '도보',
+              type: 'walk',
+              color: '#71717A',
+              stationName: '도보 출발지',
+              isFirst: true,
+              stepIndex: 0,
+            });
+          }
         }
       }
 
       for (let i = 1; i < transitSteps.length; i++) {
         const prevStep = transitSteps[i - 1];
         const currStep = transitSteps[i];
+        const currStepIndex = activeRoute.steps.indexOf(currStep);
+        const shouldShowCurrStep = !focusedStep || 
+                                   focusedStep.stepIndex === currStepIndex ||
+                                   (focusedStep.originId === place.id && 
+                                    focusedStep.destId === nextPlace.id && 
+                                    focusedStep.stepIndex + 1 === currStepIndex);
 
-        const prevEndLat = prevStep.endLat ?? (prevStep.pathPoints && prevStep.pathPoints.length > 0 ? prevStep.pathPoints[prevStep.pathPoints.length - 1].lat : undefined);
-        const prevEndLng = prevStep.endLng ?? (prevStep.pathPoints && prevStep.pathPoints.length > 0 ? prevStep.pathPoints[prevStep.pathPoints.length - 1].lng : undefined);
-        const currStartLat = currStep.startLat ?? (currStep.pathPoints && currStep.pathPoints.length > 0 ? currStep.pathPoints[0].lat : undefined);
-        const currStartLng = currStep.startLng ?? (currStep.pathPoints && currStep.pathPoints.length > 0 ? currStep.pathPoints[0].lng : undefined);
+        if (shouldShowCurrStep) {
+          const prevEndLat = prevStep.endLat ?? (prevStep.pathPoints && prevStep.pathPoints.length > 0 ? prevStep.pathPoints[prevStep.pathPoints.length - 1].lat : undefined);
+          const prevEndLng = prevStep.endLng ?? (prevStep.pathPoints && prevStep.pathPoints.length > 0 ? prevStep.pathPoints[prevStep.pathPoints.length - 1].lng : undefined);
+          const currStartLat = currStep.startLat ?? (currStep.pathPoints && currStep.pathPoints.length > 0 ? currStep.pathPoints[0].lat : undefined);
+          const currStartLng = currStep.startLng ?? (currStep.pathPoints && currStep.pathPoints.length > 0 ? currStep.pathPoints[0].lng : undefined);
 
-        const hasCoordinates = prevEndLat !== undefined && prevEndLng !== undefined &&
-                              currStartLat !== undefined && currStartLng !== undefined;
+          const hasCoordinates = prevEndLat !== undefined && prevEndLng !== undefined &&
+                                currStartLat !== undefined && currStartLng !== undefined;
 
-        const isSameName = !!(prevStep.endName && currStep.startName && 
-                              prevStep.endName.trim() === currStep.startName.trim());
-                              
-        const isClose = hasCoordinates && 
-                        calculateHaversineDistance(prevEndLat, prevEndLng, currStartLat, currStartLng) < 300;
+          const isSameName = !!(prevStep.endName && currStep.startName && 
+                                prevStep.endName.trim() === currStep.startName.trim());
+                                
+          const isClose = hasCoordinates && 
+                          calculateHaversineDistance(prevEndLat, prevEndLng, currStartLat, currStartLng) < 300;
 
-        if (isSameName || isClose) {
-          const lat = currStartLat;
-          const lng = currStartLng;
+          if (isSameName || isClose) {
+            const lat = currStartLat;
+            const lng = currStartLng;
 
-          if (lat && lng) {
-            points.push({
-              key: `transfer-${place.id}-${nextPlace.id}-${i}`,
-              originId: place.id,
-              destId: nextPlace.id,
-              position: { lat, lng },
-              busName: currStep.name,
-              type: currStep.type,
-              color: currStep.color || '#4F46E5',
-              stationName: currStep.startName || '환승 정류장',
-              stepIndex: activeRoute.steps.indexOf(currStep),
-            });
+            if (lat && lng) {
+              points.push({
+                key: `transfer-${place.id}-${nextPlace.id}-${i}`,
+                originId: place.id,
+                destId: nextPlace.id,
+                position: { lat, lng },
+                busName: currStep.name,
+                type: currStep.type,
+                color: currStep.color || '#4F46E5',
+                stationName: currStep.startName || '환승 정류장',
+                stepIndex: currStepIndex,
+              });
+            }
           }
         }
       }

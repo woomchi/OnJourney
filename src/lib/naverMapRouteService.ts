@@ -366,10 +366,10 @@ export class NaverMapRouteRenderer {
     });
 
     this.map.fitBounds(bounds, {
-      top: 100,
-      right: 100,
-      bottom: 100,
-      left: 100,
+      top: 150,
+      right: 40,
+      bottom: 50,
+      left: 40,
     });
 
     if (this.map.getZoom() > 15) {

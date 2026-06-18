@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionResult, DirectionsApiResponse, RouteGuideNode, SelectedRoute } from '@/types/journey';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
 
 interface PlaceListProps {
   editMode?: boolean;
@@ -140,9 +140,13 @@ interface SegmentInfoProps {
   data?: DirectionResult;
   loading?: boolean;
   index: number;
+  placeId?: string;
+  destId?: string;
 }
 
-function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
+function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps) {
+  const { focusedStep, setFocusedStep, focusedSegment, setFocusedSegment, setFocusBounds } = useJourneyStore();
+
   if (loading) {
     return <SegmentInfoSkeleton />;
   }
@@ -210,19 +214,59 @@ function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
 
           const isWalk = step.type === 'walk';
 
+          const isThisStepFocused = !!(
+            focusedStep &&
+            focusedStep.originId === placeId &&
+            focusedStep.destId === destId &&
+            focusedStep.stepIndex === idx
+          );
+          const hasFocusedStep = !!focusedStep;
+
           return (
             <div
               key={idx}
-              className="flex flex-col items-stretch min-w-0 relative"
+              className="flex flex-col items-stretch min-w-0 relative group/step cursor-pointer"
               style={{
                 width: `${pct}%`,
                 flexShrink: 0,
                 flexGrow: 0,
+                opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
+                transition: 'opacity 0.2s ease',
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!placeId || !destId) return;
+
+                // Ensure segment focus is active
+                const isSegmentFocused = focusedSegment && focusedSegment.originId === placeId && focusedSegment.destId === destId;
+                if (!isSegmentFocused) {
+                  setFocusedSegment({ originId: placeId, destId });
+                }
+
+                if (isThisStepFocused) {
+                  setFocusedStep(null);
+                  const bounds = calculateSegmentBounds(
+                    { lat: data.pathPoints[0].lat, lng: data.pathPoints[0].lng },
+                    { lat: data.pathPoints[data.pathPoints.length - 1].lat, lng: data.pathPoints[data.pathPoints.length - 1].lng },
+                    data
+                  );
+                  setFocusBounds(bounds);
+                } else {
+                  const bounds = calculateStepBounds(step);
+                  if (bounds) {
+                    setFocusBounds(bounds);
+                  }
+                  setFocusedStep({
+                    originId: placeId,
+                    destId,
+                    stepIndex: idx
+                  });
+                }
               }}
             >
                 {/* 아이콘 — 바 바깥에 배치하여 overflow-hidden에 잘리지 않도록 */}
                 <div
-                  className="absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20"
+                  className={`absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20 transition-all duration-200 ${isThisStepFocused ? 'scale-110' : ''}`}
                   style={{
                     borderColor: stepColor,
                     width: '16px',
@@ -235,7 +279,7 @@ function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
 
                 {/* 타임라인 바 조각 */}
                 <div
-                  className="relative flex items-center justify-center h-3 overflow-hidden"
+                  className={`relative flex items-center justify-center h-3 overflow-hidden transition-all duration-200 ${isThisStepFocused ? 'ring-2 ring-blue-500 ring-offset-1 z-10' : ''}`}
                   style={{
                     backgroundColor: stepColor,
                     borderTopLeftRadius: isFirst ? '9999px' : '0px',
@@ -283,7 +327,7 @@ interface AlternativeSegmentInfoProps {
 
 function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSelect }: AlternativeSegmentInfoProps) {
   const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>('public');
-  const { selectSegmentRoute, setFocusBounds, setFocusedSegment } = useJourneyStore();
+  const { selectSegmentRoute, setFocusBounds, setFocusedSegment, setFocusedStep } = useJourneyStore();
 
   if (loading) {
     return (
@@ -375,6 +419,7 @@ function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSele
                     const bounds = calculateSegmentBounds(place, nextPlace, selectedRoute);
                     setFocusBounds(bounds);
                     setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                    setFocusedStep(null);
                   }
                   onSelect?.();
                 }}
@@ -553,7 +598,7 @@ function PlaceCard({
   nextPlace,
   transportType,
 }: PlaceCardProps) {
-  const { directionsCache, directionsLoading, fetchSegmentDirections, setFocusBounds, focusedSegment, setFocusedSegment } = useJourneyStore();
+  const { directionsCache, directionsLoading, fetchSegmentDirections, setFocusBounds, focusedSegment, setFocusedSegment, setFocusedStep } = useJourneyStore();
   const [showAlternatives, setShowAlternatives] = useState(false);
 
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
@@ -682,15 +727,23 @@ function PlaceCard({
                   if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
                     setFocusedSegment(null);
                     setFocusBounds(null);
+                    setFocusedStep(null);
                   } else {
                     const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
                     setFocusBounds(bounds);
                     setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                    setFocusedStep(null);
                   }
                 }
               }}
             >
-              <SegmentInfo data={activeRoute} loading={isSegmentLoading} index={index} />
+              <SegmentInfo 
+              data={activeRoute} 
+              loading={isSegmentLoading} 
+              index={index} 
+              placeId={place.id}
+              destId={nextPlace?.id}
+            />
             </button>
 
             {/* 차량 세부 경로 안내 (구간 선택/포커스 시 활성화) */}

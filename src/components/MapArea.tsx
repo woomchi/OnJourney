@@ -10,7 +10,7 @@ import {
 } from 'react-naver-maps';
 import PlaceSearchBar from '@/components/PlaceSearchBar';
 import { useJourneyStore } from '@/stores/journey-store';
-import { NaverMapRouteRenderer, calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 
 const SEQUENCE_COLORS = [
   '#4F46E5', // 1번째 구간: Indigo Blue
@@ -35,7 +35,9 @@ export default function MapArea() {
     focusBounds,
     setFocusBounds,
     focusedSegment,
-    setFocusedSegment
+    setFocusedSegment,
+    focusedStep,
+    setFocusedStep
   } = useJourneyStore();
   const [map, setMap] = useState<naver.maps.Map | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(14);
@@ -79,6 +81,7 @@ export default function MapArea() {
     if (focusedSegment && focusedSegment.originId === originPlace.id && focusedSegment.destId === destPlace.id) {
       setFocusedSegment(null);
       setFocusBounds(null);
+      setFocusedStep(null);
     } else {
       // 신규 하이라이트 적용
       const cacheKey = `${originPlace.id}-${destPlace.id}`;
@@ -91,12 +94,14 @@ export default function MapArea() {
       const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
       setFocusBounds(bounds);
       setFocusedSegment({ originId: originPlace.id, destId: destPlace.id });
+      setFocusedStep(null);
     }
   };
 
   const handleResetBounds = () => {
     setFocusBounds(null);
     setFocusedSegment(null);
+    setFocusedStep(null);
     if (!map || places.length === 0) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
@@ -268,44 +273,87 @@ export default function MapArea() {
                   ? shiftedPath.map(pt => new navermaps.LatLng(pt.lat, pt.lng))
                   : shiftedPath;
 
+                // 특정 스텝(세부 노선) 포커스 여부 판별
+                const hasFocusedStep = !!focusedStep;
+                const isThisStepFocused = !!(
+                  focusedStep &&
+                  focusedStep.originId === place.id &&
+                  focusedStep.destId === nextPlace.id &&
+                  focusedStep.stepIndex === sIdx
+                );
+
                 // 포커스 세그먼트 매칭 여부 판별
                 const isSegmentFocused = focusedSegment
                   ? (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id)
                   : true;
 
                 // 순서가 빠를수록(idx가 작을수록) zIndex가 높도록 겹침 노출 순서 적용 (맨 위에 노출)
-                // 특정 세그먼트만 포커스 상태라면 해당 세그먼트를 5000 zIndex로 최상단으로 올림
-                const baseZIndex = isSegmentFocused
-                  ? (focusedSegment ? 5000 : (100 - idx) * 10)
-                  : (100 - idx);
+                // 특정 스텝만 포커스 상태라면 최상위(15000)로 올림
+                const baseZIndex = isThisStepFocused
+                  ? 15000
+                  : isSegmentFocused
+                    ? (focusedSegment ? 5000 + sIdx : (100 - idx) * 10)
+                    : (100 - idx);
 
                 // 교통수단 색상 대신 순서(idx) 기반 색상으로 매핑
                 const segmentColor = SEQUENCE_COLORS[idx % SEQUENCE_COLORS.length];
-                const strokeColor = isSegmentFocused
-                  ? segmentColor
-                  : '#D4D4D8'; // 포커스 해제된 선은 연한 회색으로 처리
+                const stepColor = step.color || segmentColor;
+                
+                let strokeColor = stepColor;
+                if (hasFocusedStep) {
+                  strokeColor = isThisStepFocused ? stepColor : '#D4D4D8';
+                } else {
+                  strokeColor = isSegmentFocused ? stepColor : '#D4D4D8';
+                }
 
                 const isThisSegmentSelected = !!(focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id);
 
-                const strokeOpacity = isThisSegmentSelected
-                  ? 0.95
-                  : (isSegmentFocused ? 0.8 : 0.15); // 선택되지 않은 다른 구간은 투명도를 더 낮춤
+                let strokeOpacity = 0.8;
+                let strokeWeight = 4.5;
 
-                const strokeWeight = isThisSegmentSelected
-                  ? 6.5
-                  : (isSegmentFocused ? 4.5 : 3.0);
+                if (hasFocusedStep) {
+                  if (isThisStepFocused) {
+                    strokeOpacity = 0.95;
+                    strokeWeight = 7.0;
+                  } else {
+                    strokeOpacity = 0.08;
+                    strokeWeight = 3.0;
+                  }
+                } else {
+                  strokeOpacity = isThisSegmentSelected
+                    ? 0.95
+                    : (isSegmentFocused ? 0.8 : 0.15);
+
+                  strokeWeight = isThisSegmentSelected
+                    ? 6.5
+                    : (isSegmentFocused ? 4.5 : 3.0);
+                }
 
                 const isWalk = step.type === 'walk';
 
                 if (isWalk) {
                   // 도보 구간: 얇은 회색 점선으로 표시 (방향 화살표 제외하여 깔끔하게 처리)
+                  let walkOpacity = isThisStepFocused
+                    ? 0.95
+                    : hasFocusedStep
+                      ? 0.05
+                      : isThisSegmentSelected
+                        ? 0.95
+                        : (isSegmentFocused ? 0.65 : 0.15);
+
+                  let walkWeight = isThisStepFocused
+                    ? 5.0
+                    : isThisSegmentSelected
+                      ? 4.5
+                      : (isSegmentFocused ? 2.5 : 1.5);
+
                   return (
                     <Polyline
                       key={`polyline-${place.id}-${nextPlace.id}-${sIdx}`}
                       path={pathPoints}
-                      strokeColor={isSegmentFocused ? '#A1A1AA' : '#E4E4E7'}
-                      strokeOpacity={isThisSegmentSelected ? 0.95 : (isSegmentFocused ? 0.65 : 0.15)}
-                      strokeWeight={isThisSegmentSelected ? 4.5 : (isSegmentFocused ? 2.5 : 1.5)}
+                      strokeColor={isThisStepFocused ? '#A1A1AA' : hasFocusedStep ? '#E4E4E7' : (isSegmentFocused ? '#A1A1AA' : '#E4E4E7')}
+                      strokeOpacity={walkOpacity}
+                      strokeWeight={walkWeight}
                       strokeStyle="shortdash"
                       strokeLineCap="round"
                       strokeLineJoin="round"
@@ -322,7 +370,7 @@ export default function MapArea() {
                     <Polyline
                       path={pathPoints}
                       strokeColor="#FFFFFF"
-                      strokeOpacity={isSegmentFocused ? 0.95 : 0.3}
+                      strokeOpacity={isThisStepFocused ? 0.95 : hasFocusedStep ? 0.2 : (isSegmentFocused ? 0.95 : 0.3)}
                       strokeWeight={strokeWeight + 1.8}
                       strokeStyle="solid"
                       strokeLineCap="round"
@@ -354,6 +402,7 @@ export default function MapArea() {
                 directionsCache={directionsCache}
                 activeJourney={activeJourney}
                 focusedSegment={focusedSegment}
+                focusedStep={focusedStep}
                 navermaps={navermaps}
                 zoomLevel={zoomLevel}
                 mapBounds={mapBounds}
@@ -610,6 +659,7 @@ interface DirectionalStripesProps {
   directionsCache: any;
   activeJourney: any;
   focusedSegment: any;
+  focusedStep: any;
   navermaps: any;
   zoomLevel: number;
   mapBounds: naver.maps.LatLngBounds | null;
@@ -621,6 +671,7 @@ function DirectionalStripes({
   directionsCache,
   activeJourney,
   focusedSegment,
+  focusedStep,
   navermaps,
   zoomLevel,
   mapBounds,
@@ -654,24 +705,11 @@ function DirectionalStripes({
       }
 
       // 특정 세그먼트가 선택(focus)되었을 때, 다른 세그먼트의 스트라이프는 표시하지 않음
-      if (focusedSegment) {
+      if (focusedSegment && !focusedStep) {
         const isCurrentSegment =
           focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
         if (!isCurrentSegment) return;
       }
-
-      // 포커스 세그먼트 매칭 여부 판별
-      const isSegmentFocused = focusedSegment
-        ? (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id)
-        : true;
-
-      // 순서가 빠를수록(idx가 작을수록) zIndex가 높도록 겹침 노출 순서 적용 (맨 위에 노출)
-      // 특정 세그먼트만 포커스 상태라면 해당 세그먼트를 5000 zIndex로 최상단으로 올림
-      const baseZIndex = isSegmentFocused
-        ? (focusedSegment ? 5000 : (100 - idx) * 10)
-        : (100 - idx);
-
-      const arrowZIndex = baseZIndex + 2;
 
       // 동일한 오프셋 수치를 적용하여 화살표 마커의 수평 평행이동 동기화
       const offsetMultiplier = idx === 0
@@ -681,6 +719,35 @@ function DirectionalStripes({
       activeRoute.steps.forEach((step: any, sIdx: number) => {
         const stepPath = step.pathPoints || [];
         if (stepPath.length < 2 || step.type === 'walk') return;
+
+        // 특정 스텝(세부 노선)이 선택되었을 때, 다른 스텝의 스트라이프는 표시하지 않음
+        if (focusedStep) {
+          const isCurrentStep =
+            focusedStep.originId === place.id &&
+            focusedStep.destId === nextPlace.id &&
+            focusedStep.stepIndex === sIdx;
+          if (!isCurrentStep) return;
+        }
+
+        const isThisStepFocused = !!(
+          focusedStep &&
+          focusedStep.originId === place.id &&
+          focusedStep.destId === nextPlace.id &&
+          focusedStep.stepIndex === sIdx
+        );
+
+        // 포커스 세그먼트 매칭 여부 판별
+        const isSegmentFocused = focusedSegment
+          ? (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id)
+          : true;
+
+        const baseZIndex = isThisStepFocused
+          ? 15000
+          : isSegmentFocused
+            ? (focusedSegment ? 5000 + sIdx : (100 - idx) * 10)
+            : (100 - idx);
+
+        const arrowZIndex = baseZIndex + 2;
 
         // 동일한 횡방향 오프셋 계산 적용
         const shiftedPath = getOffsetPath(stepPath, offsetMultiplier);
@@ -775,7 +842,7 @@ function DirectionalStripes({
     });
 
     return points;
-  }, [places, directionsCache, activeJourney, focusedSegment, navermaps, zoomLevel]);
+  }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps, zoomLevel]);
 
   // 현재 보이는 지도 영역(뷰포트) 바운드에 여유 패딩(15%)을 주어 필터링함으로써 
   // 화면 밖 불필요한 수백 개의 마커 렌더링 부하를 예방하고 줌/드래그 성능 최적화
@@ -853,15 +920,20 @@ function TransferMarkers({
   focusedSegment,
   navermaps,
 }: TransferMarkersProps) {
+  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
+
   const transferPoints = useMemo(() => {
     const points: Array<{
       key: string;
+      originId: string;
+      destId: string;
       position: { lat: number; lng: number };
       busName: string;
       type: 'bus' | 'subway';
       color: string;
       stationName: string;
       isFirst?: boolean;
+      stepIndex: number;
     }> = [];
 
     if (!navermaps || places.length < 2) return points;
@@ -898,12 +970,15 @@ function TransferMarkers({
         if (firstLat !== undefined && firstLng !== undefined) {
           points.push({
             key: `transfer-${place.id}-${nextPlace.id}-0`,
+            originId: place.id,
+            destId: nextPlace.id,
             position: { lat: firstLat, lng: firstLng },
             busName: firstStep.name,
             type: firstStep.type,
             color: firstStep.color || '#4F46E5',
             stationName: firstStep.startName || '탑승 정류장',
             isFirst: true,
+            stepIndex: activeRoute.steps.indexOf(firstStep),
           });
         }
       }
@@ -933,11 +1008,14 @@ function TransferMarkers({
           if (lat && lng) {
             points.push({
               key: `transfer-${place.id}-${nextPlace.id}-${i}`,
+              originId: place.id,
+              destId: nextPlace.id,
               position: { lat, lng },
               busName: currStep.name,
               type: currStep.type,
               color: currStep.color || '#4F46E5',
-              stationName: currStep.startName || '환승 정류장'
+              stationName: currStep.startName || '환승 정류장',
+              stepIndex: activeRoute.steps.indexOf(currStep),
             });
           }
         }
@@ -947,18 +1025,67 @@ function TransferMarkers({
     return points;
   }, [places, directionsCache, activeJourney, focusedSegment, navermaps]);
 
+  const handleTransferMarkerClick = (pt: any) => {
+    const originPlace = places.find(p => p.id === pt.originId);
+    const destPlace = places.find(p => p.id === pt.destId);
+    if (!originPlace || !destPlace) return;
+
+    const cacheKey = `${pt.originId}-${pt.destId}`;
+    const segmentData = directionsCache[cacheKey];
+    const transportType = activeJourney?.transport_type || 'public';
+    const activeRoute = originPlace.selected_route && originPlace.selected_route.destId === pt.destId
+      ? originPlace.selected_route
+      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+
+    if (!activeRoute) return;
+
+    if (
+      focusedStep &&
+      focusedStep.originId === pt.originId &&
+      focusedStep.destId === pt.destId &&
+      focusedStep.stepIndex === pt.stepIndex
+    ) {
+      // Toggle off step focus, go back to segment focus
+      setFocusedStep(null);
+      const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+      setFocusBounds(bounds);
+    } else {
+      // Toggle on step focus
+      const step = activeRoute.steps[pt.stepIndex];
+      if (step) {
+        const bounds = calculateStepBounds(step);
+        if (bounds) {
+          setFocusBounds(bounds);
+        }
+        setFocusedStep({
+          originId: pt.originId,
+          destId: pt.destId,
+          stepIndex: pt.stepIndex,
+        });
+      }
+    }
+  };
+
   return (
     <>
       {transferPoints.map((pt) => {
         const displayBusName = pt.busName.replace(' 버스', '');
         const labelText = pt.isFirst ? '탑승' : '환승';
         const zIndex = pt.isFirst ? 9000 : 15000;
+
+        const isThisStepFocused = !!(
+          focusedStep &&
+          focusedStep.originId === pt.originId &&
+          focusedStep.destId === pt.destId &&
+          focusedStep.stepIndex === pt.stepIndex
+        );
         
         return (
           <Marker
             key={pt.key}
             position={pt.position}
-            zIndex={zIndex}
+            zIndex={isThisStepFocused ? 25000 : zIndex}
+            onClick={() => handleTransferMarkerClick(pt)}
             icon={{
               content: `
                 <style>
@@ -969,19 +1096,19 @@ function TransferMarkers({
                     border: 2px solid ${pt.color};
                     border-radius: 9999px;
                     padding: 3.5px 8px 3.5px 4px;
-                    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+                    box-shadow: ${isThisStepFocused ? `0 0 0 4px ${pt.color}40, 0 6px 20px ${pt.color}50` : '0 4px 14px rgba(0, 0, 0, 0.16)'};
                     font-family: Pretendard, -apple-system, sans-serif;
                     white-space: nowrap;
                     position: relative;
                     cursor: pointer;
-                    transform: translate(-50%, -100%);
+                    transform: translate(-50%, -100%) ${isThisStepFocused ? 'scale(1.1)' : ''};
                     margin-top: -8px;
                     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                   }
                   .transfer-marker-${pt.key}:hover {
-                    transform: translate(-50%, -105%) scale(1.05);
-                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
-                    z-index: 2000;
+                    transform: translate(-50%, -105%) scale(${isThisStepFocused ? '1.15' : '1.05'});
+                    box-shadow: ${isThisStepFocused ? `0 0 0 4px ${pt.color}40, 0 8px 24px ${pt.color}60` : '0 6px 20px rgba(0, 0, 0, 0.22)'};
+                    z-index: 20000;
                   }
                 </style>
                 <div class="transfer-marker-${pt.key}">

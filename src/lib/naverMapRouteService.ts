@@ -102,6 +102,36 @@ export function calculateSegmentBounds(
   };
 }
 
+export function calculateStepBounds(step: any) {
+  const points: { lat: number; lng: number }[] = [];
+  if (step.pathPoints && step.pathPoints.length > 0) {
+    points.push(...step.pathPoints);
+  } else {
+    if (step.startLat !== undefined && step.startLng !== undefined) {
+      points.push({ lat: step.startLat, lng: step.startLng });
+    }
+    if (step.endLat !== undefined && step.endLng !== undefined) {
+      points.push({ lat: step.endLat, lng: step.endLng });
+    }
+  }
+
+  if (points.length === 0) return null;
+
+  const lats = points.map(p => p.lat);
+  const lngs = points.map(p => p.lng);
+
+  return {
+    sw: {
+      lat: Math.min(...lats),
+      lng: Math.min(...lngs),
+    },
+    ne: {
+      lat: Math.max(...lats),
+      lng: Math.max(...lngs),
+    },
+  };
+}
+
 
 /**
  * 1. API 통신 담당 클래스 (Service)

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral, FocusedSegment, SelectedRoute, DirectionResult } from '@/types/journey';
+import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral, FocusedSegment, SelectedRoute, DirectionResult, FocusedStep } from '@/types/journey';
 import { insertJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import { NaverDirectionService, calculateHaversineDistance } from '@/lib/naverMapRouteService';
@@ -27,6 +27,7 @@ interface JourneyStore {
   directionsLoading: Record<string, boolean>;
   focusBounds: LatLngBoundsLiteral | null;
   focusedSegment: FocusedSegment | null;
+  focusedStep: FocusedStep | null;
   setJourneys: (journeys: Journey[]) => void;
   openCreateForm: () => void;
   closeCreateForm: () => void;
@@ -42,6 +43,7 @@ interface JourneyStore {
   fetchJourneyDirections: () => Promise<void>;
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
+  setFocusedStep: (step: FocusedStep | null) => void;
   selectSegmentRoute: (placeId: string, route: SelectedRoute | null) => Promise<void>;
 }
 
@@ -57,6 +59,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
   directionsLoading: {},
   focusBounds: null,
   focusedSegment: null,
+  focusedStep: null,
 
   setJourneys: (journeys) => set({ journeys }),
   openCreateForm: () => set({ isCreateFormOpen: true }),
@@ -83,12 +86,12 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
   },
 
   setActiveJourney: (journey) => {
-    set({ activeJourney: journey, focusBounds: null, focusedSegment: null });
+    set({ activeJourney: journey, focusBounds: null, focusedSegment: null, focusedStep: null });
     if (journey) {
       get().fetchJourneyDirections();
     }
   },
-  clearJourney: () => set({ activeJourney: null, focusBounds: null, focusedSegment: null }),
+  clearJourney: () => set({ activeJourney: null, focusBounds: null, focusedSegment: null, focusedStep: null }),
 
   addPlace: async (place) => {
     const { activeJourney } = get();
@@ -103,6 +106,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
       journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
       focusBounds: null,
       focusedSegment: null,
+      focusedStep: null,
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
@@ -122,6 +126,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
       journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
       focusBounds: null,
       focusedSegment: null,
+      focusedStep: null,
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, updatedPlaces);
@@ -140,6 +145,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
       journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
       focusBounds: null,
       focusedSegment: null,
+      focusedStep: null,
     }));
     // DB 동기화
     await updateJourneyPlaces(activeJourney.id, cleanedPlaces);
@@ -287,4 +293,5 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
 
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
   setFocusedSegment: (segment) => set({ focusedSegment: segment }),
+  setFocusedStep: (step) => set({ focusedStep: step }),
 }));

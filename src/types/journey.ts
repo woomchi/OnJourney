@@ -88,4 +88,11 @@ export interface FocusedSegment {
   destId: string;
 }
 
+export interface FocusedStep {
+  originId: string;
+  destId: string;
+  stepIndex: number;
+}
+
+
 

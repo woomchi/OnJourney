@@ -275,14 +275,15 @@ function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
 // 3. 대안 구간 이동 정보 렌더링 컴포넌트
 interface AlternativeSegmentInfoProps {
   place: Place;
-  destId: string;
+  nextPlace: Place | null;
   segmentData?: DirectionsApiResponse;
   loading?: boolean;
+  onSelect?: () => void;
 }
 
-function AlternativeSegmentInfo({ place, destId, segmentData, loading }: AlternativeSegmentInfoProps) {
+function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSelect }: AlternativeSegmentInfoProps) {
   const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>('public');
-  const { selectSegmentRoute } = useJourneyStore();
+  const { selectSegmentRoute, setFocusBounds, setFocusedSegment } = useJourneyStore();
 
   if (loading) {
     return (
@@ -296,6 +297,7 @@ function AlternativeSegmentInfo({ place, destId, segmentData, loading }: Alterna
 
   if (!segmentData) return null;
 
+  const destId = nextPlace?.id || '';
   const routes = segmentData[activeTab] || [];
   const selectedRoute = place.selected_route && place.selected_route.destId === destId ? place.selected_route : null;
 
@@ -357,7 +359,7 @@ function AlternativeSegmentInfo({ place, destId, segmentData, loading }: Alterna
                 key={route.id}
                 type="button"
                 onClick={() => {
-                  selectSegmentRoute(place.id, {
+                  const selectedRoute = {
                     destId,
                     id: route.id,
                     type: route.type,
@@ -367,7 +369,14 @@ function AlternativeSegmentInfo({ place, destId, segmentData, loading }: Alterna
                     steps: route.steps,
                     pathPoints: route.pathPoints,
                     guide: route.guide,
-                  });
+                  };
+                  selectSegmentRoute(place.id, selectedRoute);
+                  if (nextPlace) {
+                    const bounds = calculateSegmentBounds(place, nextPlace, selectedRoute);
+                    setFocusBounds(bounds);
+                    setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                  }
+                  onSelect?.();
                 }}
                 className={`
                   flex items-center justify-between w-full h-[46px] px-3 rounded-lg border transition-all duration-200 text-left cursor-pointer
@@ -649,9 +658,10 @@ function PlaceCard({
       >
         <AlternativeSegmentInfo 
           place={place}
-          destId={nextPlace?.id || ''}
+          nextPlace={nextPlace}
           segmentData={segmentData} 
           loading={isSegmentLoading} 
+          onSelect={() => setShowAlternatives(false)}
         />
       </div>
 

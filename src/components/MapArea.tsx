@@ -274,10 +274,10 @@ export default function MapArea() {
                   : true;
 
                 // 순서가 빠를수록(idx가 작을수록) zIndex가 높도록 겹침 노출 순서 적용 (맨 위에 노출)
-                // 특정 세그먼트만 포커스 상태라면 해당 세그먼트를 500 zIndex로 최상단으로 올림
+                // 특정 세그먼트만 포커스 상태라면 해당 세그먼트를 5000 zIndex로 최상단으로 올림
                 const baseZIndex = isSegmentFocused
-                  ? (focusedSegment ? 500 : (100 - idx))
-                  : 10;
+                  ? (focusedSegment ? 5000 : (100 - idx) * 10)
+                  : (100 - idx);
 
                 // 교통수단 색상 대신 순서(idx) 기반 색상으로 매핑
                 const segmentColor = SEQUENCE_COLORS[idx % SEQUENCE_COLORS.length];
@@ -374,7 +374,8 @@ export default function MapArea() {
             {/* Marker는 반드시 NaverMap children 안에 있어야 함 */}
             {places.map((place, idx) => {
               const isSegmentMarker = !!(focusedSegment && (place.id === focusedSegment.originId || place.id === focusedSegment.destId));
-              const zIndex = (places.length - idx) + (isSegmentMarker ? 1000 : 0);
+              // 일반 경로선(최대 5002)보다 항상 위에 노출되도록 기본 zIndex를 10000 이상으로 상향 조정
+              const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
               const isVisible = !focusedSegment || isSegmentMarker;
 
               const markerWidth = isSegmentMarker ? 30 : 24;
@@ -566,6 +567,44 @@ function getOffsetPath(path: Point[], offsetMultiplier: number): Point[] {
   return offsetPath;
 }
 
+// 화살표 방향 및 줌 레벨에 맞는 V자형(Chevron) 경로 좌표를 생성하는 함수
+// 줌 레벨로부터 1픽셀이 몇 도(degree)인지 역산하여 항상 일정한 픽셀 크기의 셰브론을 생성함
+function getChevronPath(center: Point, bearing: number, zoomLevel: number): Point[] {
+  // 위도에 따른 경도 보정 계수 계산
+  const cosLat = Math.cos((center.lat * Math.PI) / 180);
+  // Web Mercator 투영 기준 해당 줌 레벨에서 1px이 차지하는 미터 수
+  const metersPerPixel = (156543.03392 * cosLat) / Math.pow(2, zoomLevel);
+  // 각 날개를 ~4px 크기로 고정
+  const legPixels = 4.0;
+  const legMeters = legPixels * metersPerPixel;
+  // 미터를 위도 도(degree) 단위로 환산 (1도 ≈ 111,111m)
+  const lenDeg = legMeters / 111111.0;
+
+  // bearing(0=북, 90=동 시계방향)을 수학 각도(반시계, 동쪽 기준)로 변환
+  const theta = ((90 - bearing) * Math.PI) / 180;
+  // 전진 방향으로부터 좌/우 135°에 날개 끝을 배치하여 90° 개각의 V자 형성
+  const angle1 = theta + (135 * Math.PI) / 180;
+  const angle2 = theta - (135 * Math.PI) / 180;
+
+  const pt1 = {
+    lat: center.lat + lenDeg * Math.sin(angle1),
+    lng: center.lng + (lenDeg * Math.cos(angle1)) / cosLat,
+  };
+  const pt2 = {
+    lat: center.lat + lenDeg * Math.sin(angle2),
+    lng: center.lng + (lenDeg * Math.cos(angle2)) / cosLat,
+  };
+
+  return [pt1, center, pt2];
+}
+
+// 줌 레벨에 따른 화살표 두께 반환 (원래 SVG 마커의 약 1.5px 실효 두께에 맞춤)
+function getChevronStrokeWeight(zoom: number): number {
+  if (zoom >= 17) return 2.0;
+  if (zoom >= 14) return 1.8;
+  return 1.5;
+}
+
 interface DirectionalStripesProps {
   places: any[];
   directionsCache: any;
@@ -593,6 +632,7 @@ function DirectionalStripes({
       bearing: number;
       color: string;
       transportType: string;
+      zIndex: number;
     }> = [];
 
     // 줌 레벨이 11 이하일 때는 화살표를 표시하지 않음 (오버헤드 방지 및 시인성 향상)
@@ -619,6 +659,19 @@ function DirectionalStripes({
           focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
         if (!isCurrentSegment) return;
       }
+
+      // 포커스 세그먼트 매칭 여부 판별
+      const isSegmentFocused = focusedSegment
+        ? (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id)
+        : true;
+
+      // 순서가 빠를수록(idx가 작을수록) zIndex가 높도록 겹침 노출 순서 적용 (맨 위에 노출)
+      // 특정 세그먼트만 포커스 상태라면 해당 세그먼트를 5000 zIndex로 최상단으로 올림
+      const baseZIndex = isSegmentFocused
+        ? (focusedSegment ? 5000 : (100 - idx) * 10)
+        : (100 - idx);
+
+      const arrowZIndex = baseZIndex + 2;
 
       // 동일한 오프셋 수치를 적용하여 화살표 마커의 수평 평행이동 동기화
       const offsetMultiplier = idx === 0
@@ -682,6 +735,7 @@ function DirectionalStripes({
               bearing,
               color: strokeColor,
               transportType,
+              zIndex: arrowZIndex,
             });
 
             remainingSegmentDist -= distanceToNextArrow;
@@ -713,6 +767,7 @@ function DirectionalStripes({
               bearing,
               color: strokeColor,
               transportType,
+              zIndex: arrowZIndex,
             });
           }
         }
@@ -760,22 +815,25 @@ function DirectionalStripes({
 
   return (
     <>
-      {visiblePoints.map((pt) => (
-        <Marker
-          key={pt.key}
-          position={pt.position}
-          icon={{
-            // 둥근 핀 배경과 그림자를 전부 걷어내고, 오직 선명한 셰브론 기호만 폴리라인 위에 노출시킴
-            // 서브픽셀 정렬 오차로 인한 미세한 어긋남을 방지하기 위해 단일 SVG 컨테이너로 구조를 간소화
-            // 폴리라인 본선(두께 6.5px) 내부에 쏙 핏되도록 14x14 캔버스 중앙에 7x7 셰브론을 정확히 배치
-            // 대중교통(public)은 선명한 흰색(0.95), 자차(driving 등)는 반투명한 부드러운 흰색(0.55)으로 셰브론을 적용
-            content: `<svg width="14" height="14" viewBox="0 0 48 48" fill="none" style="display: block; transform: rotate(${pt.bearing}deg); transform-origin: center; pointer-events: none;">
-              <path d="M16 28L24 20L32 28" stroke="${pt.transportType === 'public' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.55)'}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>`,
-            anchor: new navermaps.Point(7, 7),
-          }}
-        />
-      ))}
+      {visiblePoints.map((pt) => {
+        const pathPoints = navermaps
+          ? getChevronPath(pt.position, pt.bearing, zoomLevel).map(coord => new navermaps.LatLng(coord.lat, coord.lng))
+          : getChevronPath(pt.position, pt.bearing, zoomLevel);
+
+        return (
+          <Polyline
+            key={pt.key}
+            path={pathPoints}
+            strokeColor="#FFFFFF"
+            strokeOpacity={pt.transportType === 'public' ? 0.95 : 0.55}
+            strokeWeight={getChevronStrokeWeight(zoomLevel)}
+            strokeStyle="solid"
+            strokeLineCap="round"
+            strokeLineJoin="round"
+            zIndex={pt.zIndex}
+          />
+        );
+      })}
     </>
   );
 }
@@ -879,7 +937,7 @@ function TransferMarkers({
           <Marker
             key={pt.key}
             position={pt.position}
-            zIndex={1500}
+            zIndex={15000}
             icon={{
               content: `
                 <style>

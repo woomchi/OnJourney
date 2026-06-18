@@ -63,6 +63,47 @@ export function calculateHaversineDistance(lat1: number, lng1: number, lat2: num
 }
 
 /**
+ * 활성 경로의 상세 포인트를 포함하는 구간 바운드(SW, NE)를 계산하는 헬퍼 함수
+ */
+export function calculateSegmentBounds(
+  origin: { lat: number; lng: number },
+  dest: { lat: number; lng: number },
+  activeRoute?: any
+) {
+  const points: { lat: number; lng: number }[] = [
+    { lat: origin.lat, lng: origin.lng },
+    { lat: dest.lat, lng: dest.lng },
+  ];
+
+  if (activeRoute) {
+    if (activeRoute.pathPoints && activeRoute.pathPoints.length > 0) {
+      points.push(...activeRoute.pathPoints);
+    } else if (activeRoute.steps) {
+      activeRoute.steps.forEach((step: any) => {
+        if (step.pathPoints && step.pathPoints.length > 0) {
+          points.push(...step.pathPoints);
+        }
+      });
+    }
+  }
+
+  const lats = points.map(p => p.lat);
+  const lngs = points.map(p => p.lng);
+
+  return {
+    sw: {
+      lat: Math.min(...lats),
+      lng: Math.min(...lngs),
+    },
+    ne: {
+      lat: Math.max(...lats),
+      lng: Math.max(...lngs),
+    },
+  };
+}
+
+
+/**
  * 1. API 통신 담당 클래스 (Service)
  * 프록시 서버에 요청을 전송하여 다중 경유지 경로 원본 데이터를 가져옵니다.
  * 네이버 API 권한이 없는 경우(401)를 대비하여 자체적인 다중 경유지 Fallback 모크 데이터를 생성합니다.
@@ -300,6 +341,10 @@ export class NaverMapRouteRenderer {
       bottom: 100,
       left: 100,
     });
+
+    if (this.map.getZoom() > 15) {
+      this.map.setZoom(15);
+    }
   }
 
   /**

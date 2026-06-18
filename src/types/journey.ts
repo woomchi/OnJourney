@@ -1,3 +1,15 @@
+export interface SelectedRoute {
+  destId: string;      // 목적지 place.id
+  id: string;          // 대안 아이디 (public-0, taxi, walk 등)
+  type: 'public' | 'car' | 'taxi' | 'walk' | 'bicycle' | 'kickboard';
+  name: string;
+  duration: number;    // 소요시간 (분)
+  fare: number;        // 요금 (원)
+  steps: DirectionStep[];
+  pathPoints: { lat: number; lng: number }[];
+  guide?: RouteGuideNode[];
+}
+
 export interface Place {
   id: string;          // 고유 식별자 (nanoid)
   place_name: string;
@@ -5,6 +17,7 @@ export interface Place {
   category: string;
   lat: number;
   lng: number;
+  selected_route?: SelectedRoute;
 }
 
 export type TransportType = 'public' | 'car';
@@ -42,6 +55,9 @@ export interface RouteGuideNode {
 }
 
 export interface DirectionResult {
+  id: string;
+  type: 'public' | 'car' | 'taxi' | 'walk' | 'bicycle' | 'kickboard';
+  name: string;
   duration: number;
   fare: number;
   steps: DirectionStep[];
@@ -49,16 +65,10 @@ export interface DirectionResult {
   guide?: RouteGuideNode[];
 }
 
-export interface DirectionAlternative {
-  type: 'taxi' | 'walk' | 'public' | 'car';
-  name: string;
-  duration: number;
-  fare?: number;
-}
-
 export interface DirectionsApiResponse {
-  primary: DirectionResult;
-  alternatives: DirectionAlternative[];
+  public: DirectionResult[];
+  car: DirectionResult[];
+  walk: DirectionResult[];
 }
 
 export interface LatLngBoundsLiteral {

@@ -10,7 +10,7 @@ import {
 } from 'react-naver-maps';
 import PlaceSearchBar from '@/components/PlaceSearchBar';
 import { useJourneyStore } from '@/stores/journey-store';
-import { NaverMapRouteRenderer } from '@/lib/naverMapRouteService';
+import { NaverMapRouteRenderer, calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 
 const SEQUENCE_COLORS = [
   '#4F46E5', // 1번째 구간: Indigo Blue
@@ -38,6 +38,8 @@ export default function MapArea() {
     setFocusedSegment
   } = useJourneyStore();
   const [map, setMap] = useState<naver.maps.Map | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(14);
+  const [mapBounds, setMapBounds] = useState<naver.maps.LatLngBounds | null>(null);
   const [mapCenter, setMapCenter] = useState<naver.maps.CoordLiteral>({
     lat: 37.5665,
     lng: 126.9780,
@@ -79,15 +81,15 @@ export default function MapArea() {
       setFocusBounds(null);
     } else {
       // 신규 하이라이트 적용
-      const sw = {
-        lat: Math.min(originPlace.lat, destPlace.lat),
-        lng: Math.min(originPlace.lng, destPlace.lng),
-      };
-      const ne = {
-        lat: Math.max(originPlace.lat, destPlace.lat),
-        lng: Math.max(originPlace.lng, destPlace.lng),
-      };
-      setFocusBounds({ sw, ne });
+      const cacheKey = `${originPlace.id}-${destPlace.id}`;
+      const segmentData = directionsCache[cacheKey];
+      const transportType = activeJourney?.transport_type || 'public';
+      const activeRoute = originPlace.selected_route && originPlace.selected_route.destId === destPlace.id
+        ? originPlace.selected_route
+        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+
+      const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+      setFocusBounds(bounds);
       setFocusedSegment({ originId: originPlace.id, destId: destPlace.id });
     }
   };
@@ -134,14 +136,13 @@ export default function MapArea() {
   // activeJourney.places가 변경될 때 캐시에 누락된 세그먼트 경로 정보가 있다면 백그라운드에서 fetch 요청을 넣어 복구함
   useEffect(() => {
     if (!activeJourney || !places || places.length < 2) return;
-    const transportType = activeJourney.transport_type || 'public';
-    
+
     places.forEach((place, idx) => {
       if (idx === places.length - 1) return;
       const nextPlace = places[idx + 1];
-      const cacheKey = `${place.id}-${nextPlace.id}-${transportType}`;
+      const cacheKey = `${place.id}-${nextPlace.id}`;
       if (!directionsCache[cacheKey] && !directionsLoading[cacheKey]) {
-        fetchSegmentDirections(place, nextPlace, transportType);
+        fetchSegmentDirections(place, nextPlace);
       }
     });
   }, [activeJourney, places, directionsCache, directionsLoading, fetchSegmentDirections]);
@@ -184,7 +185,32 @@ export default function MapArea() {
       bottom: 100,
       left: 100,
     });
+
+    if (map.getZoom() > 15) {
+      map.setZoom(15);
+    }
   }, [focusBounds, map]);
+
+  // 지도 줌 레벨 및 뷰포트 바운드 변경 감지 리스너
+  useEffect(() => {
+    if (!map) return;
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    setZoomLevel(map.getZoom());
+    setMapBounds(map.getBounds() as naver.maps.LatLngBounds);
+
+    // 드래그나 줌 조작이 완전히 멈춘 유휴(idle) 상태일 때만 바운드와 줌 레벨을 갱신하여 렌더링 부하 최소화
+    const idleListener = navermaps.Event.addListener(map, 'idle', () => {
+      setZoomLevel(map.getZoom());
+      setMapBounds(map.getBounds() as naver.maps.LatLngBounds);
+    });
+
+    return () => {
+      navermaps.Event.removeListener(idleListener);
+    };
+  }, [map]);
 
   const navermaps = typeof window !== 'undefined' && window.naver?.maps;
 
@@ -202,10 +228,14 @@ export default function MapArea() {
               if (idx === places.length - 1) return null;
               const nextPlace = places[idx + 1];
               const transportType = activeJourney?.transport_type || 'public';
-              const cacheKey = `${place.id}-${nextPlace.id}-${transportType}`;
+              const cacheKey = `${place.id}-${nextPlace.id}`;
               const segmentData = directionsCache[cacheKey];
 
-              if (!segmentData || !segmentData.primary || !segmentData.primary.steps) {
+              const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
+                ? place.selected_route
+                : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+
+              if (!activeRoute || !activeRoute.steps) {
                 return null;
               }
 
@@ -214,26 +244,19 @@ export default function MapArea() {
                   setFocusedSegment(null);
                   setFocusBounds(null);
                 } else {
-                  const sw = {
-                    lat: Math.min(place.lat, nextPlace.lat),
-                    lng: Math.min(place.lng, nextPlace.lng),
-                  };
-                  const ne = {
-                    lat: Math.max(place.lat, nextPlace.lat),
-                    lng: Math.max(place.lng, nextPlace.lng),
-                  };
-                  setFocusBounds({ sw, ne });
+                  const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
+                  setFocusBounds(bounds);
                   setFocusedSegment({ originId: place.id, destId: nextPlace.id });
                 }
               };
 
               // 여정 순번(idx)에 맞게 횡방향 오프셋 값 결정
               // idx=0 -> 0(중앙), idx=1 -> 1(우측), idx=2 -> -1(좌측), idx=3 -> 2(우측 더), idx=4 -> -2(좌측 더)...
-              const offsetMultiplier = idx === 0 
-                ? 0 
+              const offsetMultiplier = idx === 0
+                ? 0
                 : (idx % 2 === 1 ? Math.ceil(idx / 2) : -Math.floor(idx / 2));
 
-              return segmentData.primary.steps.map((step, sIdx) => {
+              return activeRoute.steps.map((step, sIdx) => {
                 const stepPath = step.pathPoints || [];
                 if (stepPath.length < 2) return null;
 
@@ -262,9 +285,16 @@ export default function MapArea() {
                   ? segmentColor
                   : '#D4D4D8'; // 포커스 해제된 선은 연한 회색으로 처리
 
-                const strokeOpacity = isSegmentFocused ? 0.8 : 0.25;
-                // 두께를 가늘고 세련되게 줄여 오프셋 병렬 노선들의 가독성 극대화
-                const strokeWeight = isSegmentFocused ? 4.5 : 3.0;
+                const isThisSegmentSelected = !!(focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id);
+
+                const strokeOpacity = isThisSegmentSelected
+                  ? 0.95
+                  : (isSegmentFocused ? 0.8 : 0.15); // 선택되지 않은 다른 구간은 투명도를 더 낮춤
+
+                const strokeWeight = isThisSegmentSelected
+                  ? 6.5
+                  : (isSegmentFocused ? 4.5 : 3.0);
+
                 const isWalk = step.type === 'walk';
 
                 if (isWalk) {
@@ -274,8 +304,8 @@ export default function MapArea() {
                       key={`polyline-${place.id}-${nextPlace.id}-${sIdx}`}
                       path={pathPoints}
                       strokeColor={isSegmentFocused ? '#A1A1AA' : '#E4E4E7'}
-                      strokeOpacity={isSegmentFocused ? 0.65 : 0.2}
-                      strokeWeight={isSegmentFocused ? 2.5 : 1.5}
+                      strokeOpacity={isThisSegmentSelected ? 0.95 : (isSegmentFocused ? 0.65 : 0.15)}
+                      strokeWeight={isThisSegmentSelected ? 4.5 : (isSegmentFocused ? 2.5 : 1.5)}
                       strokeStyle="shortdash"
                       strokeLineCap="round"
                       strokeLineJoin="round"
@@ -325,6 +355,8 @@ export default function MapArea() {
                 activeJourney={activeJourney}
                 focusedSegment={focusedSegment}
                 navermaps={navermaps}
+                zoomLevel={zoomLevel}
+                mapBounds={mapBounds}
               />
             )}
 
@@ -333,6 +365,11 @@ export default function MapArea() {
               const isSegmentMarker = !!(focusedSegment && (place.id === focusedSegment.originId || place.id === focusedSegment.destId));
               const zIndex = (places.length - idx) + (isSegmentMarker ? 1000 : 0);
               const isVisible = !focusedSegment || isSegmentMarker;
+
+              const markerWidth = isSegmentMarker ? 30 : 24;
+              const markerHeight = isSegmentMarker ? 40 : 32;
+              const anchorX = isSegmentMarker ? 15 : 12;
+              const anchorY = isSegmentMarker ? 38 : 30;
 
               return (
                 <Marker
@@ -347,7 +384,7 @@ export default function MapArea() {
                       cursor: pointer;
                       filter: drop-shadow(0 3px 6px rgba(59, 130, 246, 0.35));
                     ">
-                      <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                           <linearGradient id="pinGrad-${idx}" x1="0%" y1="0%" x2="100%" y2="100%">
                             <stop offset="0%" stop-color="#3b82f6" />
@@ -362,10 +399,10 @@ export default function MapArea() {
                               stroke-linejoin="round"
                         />
                         <!-- 텍스트 숫자 배치 (y값 미세조정으로 정중앙 배치) -->
-                        <text x="12" y="16" fill="white" font-size="10.5" font-weight="800" font-family="Pretendard, -apple-system, sans-serif" text-anchor="middle">${idx + 1}</text>
+                        <text x="12" y="16" fill="white" font-size="${isSegmentMarker ? 11.5 : 10.5}" font-weight="800" font-family="Pretendard, -apple-system, sans-serif" text-anchor="middle">${idx + 1}</text>
                       </svg>
                     </div>`,
-                    anchor: new window.naver.maps.Point(12, 30),
+                    anchor: new window.naver.maps.Point(anchorX, anchorY),
                   }}
                 />
               );
@@ -403,7 +440,7 @@ export default function MapArea() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              
+
               {/* Pin 1 (Start) */}
               <path
                 d="M5 18c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
@@ -412,7 +449,7 @@ export default function MapArea() {
                 strokeWidth="0.5"
               />
               <circle cx="5" cy="14.5" r="0.75" fill="white" />
-              
+
               {/* Pin 2 (Middle) */}
               <path
                 d="M12 11c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
@@ -421,7 +458,7 @@ export default function MapArea() {
                 strokeWidth="0.5"
               />
               <circle cx="12" cy="7.5" r="0.75" fill="white" />
-              
+
               {/* Pin 3 (End) */}
               <path
                 d="M19 15c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
@@ -448,10 +485,10 @@ function getBearing(lat1: number, lng1: number, lat2: number, lng2: number): num
   const radLat1 = (lat1 * Math.PI) / 180;
   const radLat2 = (lat2 * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  
+
   const y = Math.sin(dLng) * Math.cos(radLat2);
   const x = Math.cos(radLat1) * Math.sin(radLat2) - Math.sin(radLat1) * Math.cos(radLat2) * Math.cos(dLng);
-  
+
   const brng = Math.atan2(y, x);
   return ((brng * 180) / Math.PI + 360) % 360;
 }
@@ -468,7 +505,7 @@ function getOffsetPath(path: Point[], offsetMultiplier: number): Point[] {
   // 대략 한국 위도(37도) 기준, 경도 1도와 위도 1도의 거리 스케일 보정인자 (1 / 0.82)
   const ASPECT_RATIO = 0.8;
   // 오프셋 1도당 이동거리 (약 0.000032도 = 약 3.5m)
-  const offsetDegree = 0.00003; 
+  const offsetDegree = 0.00003;
   const totalOffset = offsetMultiplier * offsetDegree;
 
   const offsetPath: Point[] = [];
@@ -524,6 +561,8 @@ interface DirectionalStripesProps {
   activeJourney: any;
   focusedSegment: any;
   navermaps: any;
+  zoomLevel: number;
+  mapBounds: naver.maps.LatLngBounds | null;
 }
 
 // 폴리라인 내부에 화살표 스트라이프 패턴을 렌더링하는 정적 마커 컴포넌트
@@ -533,6 +572,8 @@ function DirectionalStripes({
   activeJourney,
   focusedSegment,
   navermaps,
+  zoomLevel,
+  mapBounds,
 }: DirectionalStripesProps) {
   const stripePoints = useMemo(() => {
     const points: Array<{
@@ -543,16 +584,21 @@ function DirectionalStripes({
       transportType: string;
     }> = [];
 
-    if (!navermaps || places.length < 2) return points;
+    // 줌 레벨이 11 이하일 때는 화살표를 표시하지 않음 (오버헤드 방지 및 시인성 향상)
+    if (!navermaps || places.length < 2 || zoomLevel <= 10) return points;
 
     places.forEach((place: any, idx: number) => {
       if (idx === places.length - 1) return;
       const nextPlace = places[idx + 1];
       const transportType = activeJourney?.transport_type || 'public';
-      const cacheKey = `${place.id}-${nextPlace.id}-${transportType}`;
+      const cacheKey = `${place.id}-${nextPlace.id}`;
       const segmentData = directionsCache[cacheKey];
 
-      if (!segmentData || !segmentData.primary || !segmentData.primary.steps) {
+      const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
+        ? place.selected_route
+        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+
+      if (!activeRoute || !activeRoute.steps) {
         return;
       }
 
@@ -564,30 +610,92 @@ function DirectionalStripes({
       }
 
       // 동일한 오프셋 수치를 적용하여 화살표 마커의 수평 평행이동 동기화
-      const offsetMultiplier = idx === 0 
-        ? 0 
+      const offsetMultiplier = idx === 0
+        ? 0
         : (idx % 2 === 1 ? Math.ceil(idx / 2) : -Math.floor(idx / 2));
 
-      segmentData.primary.steps.forEach((step: any, sIdx: number) => {
+      activeRoute.steps.forEach((step: any, sIdx: number) => {
         const stepPath = step.pathPoints || [];
         if (stepPath.length < 2 || step.type === 'walk') return;
 
         // 동일한 횡방향 오프셋 계산 적용
         const shiftedPath = getOffsetPath(stepPath, offsetMultiplier);
 
-        const strokeColor = step.color || (transportType === 'public' ? '#3b82f6' : '#f59e0b');
+        const strokeColor = step.color || (activeRoute.type === 'public' ? '#3b82f6' : '#f59e0b');
         const stepLen = shiftedPath.length;
-        
-        // 대중교통은 더 촘촘하게(10개), 자차는 더 듬성듬성하게(16개) 간격을 주어 수단 구별 및 시각 피로 방지
-        const interval = transportType === 'public' ? 10 : 16;
 
-        if (stepLen <= interval) {
-          // 경로 길이가 간격보다 짧으면 중간 지점에 하나만 렌더링
+        // 지도 줌 레벨(zoomLevel)에 비례하여 적절한 화살표 배치 누적 간격(D, 미터)을 결정
+        // 줌 레벨이 클수록(상세할수록) 간격을 좁혀 촘촘히 묘사하고, 작아질수록 넓혀 과밀화를 방지함
+        // 줌 11 이하에서는 화살표를 그리지 않으므로 처리 제외
+        let D = 1000; // 기본 간격
+        if (zoomLevel >= 18) D = 60;
+        else if (zoomLevel === 17) D = 100;
+        else if (zoomLevel === 16) D = 200;
+        else if (zoomLevel === 15) D = 350;
+        else if (zoomLevel === 14) D = 600;
+        else if (zoomLevel === 13) D = 1200;
+        else if (zoomLevel === 12) D = 2400;
+
+        // 대중교통 노선은 자차보다 살짝 더 촘촘하게(0.75배) 묘사하여 가독성 증대
+        if (activeRoute.type === 'public') {
+          D = Math.max(20, D * 0.75);
+        }
+
+        const pointsBefore = points.length;
+        let accumulatedDistance = 0;
+
+        // 경로의 모든 포인트를 따라 누적 거리를 계산하여 D미터 간격마다 화살표 배치 (선형 보간 적용하여 간격 정밀 핏)
+        for (let i = 1; i < stepLen; i++) {
+          const pPrev = shiftedPath[i - 1];
+          const pCurr = shiftedPath[i];
+
+          const segmentDist = calculateHaversineDistance(pPrev.lat, pPrev.lng, pCurr.lat, pCurr.lng);
+          if (segmentDist === 0) continue;
+
+          let remainingSegmentDist = segmentDist;
+          let currentSegmentPosition = 0;
+
+          while (accumulatedDistance + remainingSegmentDist >= D) {
+            const distanceToNextArrow = D - accumulatedDistance;
+            const nextArrowPositionOnSegment = currentSegmentPosition + distanceToNextArrow;
+            const t = nextArrowPositionOnSegment / segmentDist;
+
+            // pPrev와 pCurr 사이를 선형보간하여 정확한 간격에 화살표 좌표 산출
+            const lat = pPrev.lat + (pCurr.lat - pPrev.lat) * t;
+            const lng = pPrev.lng + (pCurr.lng - pPrev.lng) * t;
+            const bearing = getBearing(pPrev.lat, pPrev.lng, pCurr.lat, pCurr.lng);
+
+            points.push({
+              key: `stripe-${place.id}-${nextPlace.id}-${sIdx}-${i}-${points.length}`,
+              position: { lat, lng },
+              bearing,
+              color: strokeColor,
+              transportType,
+            });
+
+            remainingSegmentDist -= distanceToNextArrow;
+            currentSegmentPosition = nextArrowPositionOnSegment;
+            accumulatedDistance = 0;
+          }
+
+          accumulatedDistance += remainingSegmentDist;
+        }
+
+        // 경로 전체 길이가 간격 D보다 짧아 화살표가 1개도 생기지 않았을 때
+        // 정가운데 지점에 화살표 1개 배치를 보장하여 방향 식별을 도움
+        if (points.length === pointsBefore && stepLen >= 2) {
           const midIdx = Math.floor(stepLen / 2);
           const p1 = shiftedPath[midIdx];
-          const p2 = shiftedPath[midIdx + 1] || shiftedPath[midIdx - 1];
+          let p2 = shiftedPath[midIdx + 1];
+          let isReverseBearing = false;
+          if (!p2 && shiftedPath[midIdx - 1]) {
+            p2 = shiftedPath[midIdx - 1];
+            isReverseBearing = true;
+          }
           if (p1 && p2) {
-            const bearing = getBearing(p1.lat, p1.lng, p2.lat, p2.lng);
+            const bearing = isReverseBearing
+              ? getBearing(p2.lat, p2.lng, p1.lat, p1.lng)
+              : getBearing(p1.lat, p1.lng, p2.lat, p2.lng);
             points.push({
               key: `stripe-${place.id}-${nextPlace.id}-${sIdx}-mid`,
               position: { lat: p1.lat, lng: p1.lng },
@@ -596,50 +704,63 @@ function DirectionalStripes({
               transportType,
             });
           }
-        } else {
-          // 경로가 길면 일정한 인덱스 간격으로 배치
-          // 시작과 끝 지점에 너무 붙지 않도록 오프셋(5)을 둠
-          for (let i = 5; i < stepLen - 3; i += interval) {
-            const p1 = shiftedPath[i];
-            const p2 = shiftedPath[i + 1];
-            if (p1 && p2) {
-              const bearing = getBearing(p1.lat, p1.lng, p2.lat, p2.lng);
-              points.push({
-                key: `stripe-${place.id}-${nextPlace.id}-${sIdx}-${i}`,
-                position: { lat: p1.lat, lng: p1.lng },
-                bearing,
-                color: strokeColor,
-                transportType,
-              });
-            }
-          }
         }
       });
     });
 
     return points;
-  }, [places, directionsCache, activeJourney, focusedSegment, navermaps]);
+  }, [places, directionsCache, activeJourney, focusedSegment, navermaps, zoomLevel]);
+
+  // 현재 보이는 지도 영역(뷰포트) 바운드에 여유 패딩(15%)을 주어 필터링함으로써 
+  // 화면 밖 불필요한 수백 개의 마커 렌더링 부하를 예방하고 줌/드래그 성능 최적화
+  // 렌더링 오버헤드를 완벽히 차단하기 위해 렌더링할 화살표 개수를 최대 120개로 제한
+  const visiblePoints = useMemo(() => {
+    if (!mapBounds || !navermaps) {
+      return stripePoints.slice(0, 120);
+    }
+    try {
+      const sw = mapBounds.getSW();
+      const ne = mapBounds.getNE();
+      if (!sw || !ne || typeof sw.lat !== 'function' || typeof ne.lat !== 'function') {
+        return stripePoints.slice(0, 120);
+      }
+
+      const latSpan = ne.lat() - sw.lat();
+      const lngSpan = ne.lng() - sw.lng();
+      const paddingLat = latSpan * 0.15;
+      const paddingLng = lngSpan * 0.15;
+
+      const minLat = sw.lat() - paddingLat;
+      const maxLat = ne.lat() + paddingLat;
+      const minLng = sw.lng() - paddingLng;
+      const maxLng = ne.lng() + paddingLng;
+
+      const filtered = stripePoints.filter(pt => {
+        const { lat, lng } = pt.position;
+        return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+      });
+
+      return filtered.slice(0, 120);
+    } catch (e) {
+      console.warn('[DirectionalStripes] Failed to filter points by bounds:', e);
+      return stripePoints.slice(0, 120);
+    }
+  }, [stripePoints, mapBounds, navermaps]);
 
   return (
     <>
-      {stripePoints.map((pt) => (
+      {visiblePoints.map((pt) => (
         <Marker
           key={pt.key}
           position={pt.position}
           icon={{
             // 둥근 핀 배경과 그림자를 전부 걷어내고, 오직 선명한 셰브론 기호만 폴리라인 위에 노출시킴
-            // 폴리라인 본선(두께 6.5px) 내부에 쏙 핏되도록 크기를 7x7로 초소형화하여 경계 밖 삐짐 방지
+            // 서브픽셀 정렬 오차로 인한 미세한 어긋남을 방지하기 위해 단일 SVG 컨테이너로 구조를 간소화
+            // 폴리라인 본선(두께 6.5px) 내부에 쏙 핏되도록 14x14 캔버스 중앙에 7x7 셰브론을 정확히 배치
             // 대중교통(public)은 선명한 흰색(0.95), 자차(driving 등)는 반투명한 부드러운 흰색(0.55)으로 셰브론을 적용
-            content: `<div style="
-              display: flex; align-items: center; justify-content: center;
-              width: 14px; height: 14px;
-              transform: rotate(${pt.bearing}deg);
-              pointer-events: none;
-            ">
-              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" style="display: block; pointer-events: none;">
-                <path d="M4 16L12 8L20 16" stroke="${pt.transportType === 'public' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.55)'}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>`,
+            content: `<svg width="14" height="14" viewBox="0 0 48 48" fill="none" style="display: block; transform: rotate(${pt.bearing}deg); transform-origin: center; pointer-events: none;">
+              <path d="M16 28L24 20L32 28" stroke="${pt.transportType === 'public' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.55)'}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>`,
             anchor: new navermaps.Point(7, 7),
           }}
         />

@@ -1,8 +1,21 @@
 import { create } from 'zustand';
-import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral, FocusedSegment } from '@/types/journey';
+import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral, FocusedSegment, SelectedRoute, DirectionResult } from '@/types/journey';
 import { insertJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import { NaverDirectionService, calculateHaversineDistance } from '@/lib/naverMapRouteService';
+
+function verifyAndCleanRoutes(places: Place[]): Place[] {
+  return places.map((place, idx) => {
+    const nextPlace = idx < places.length - 1 ? places[idx + 1] : null;
+    if (place.selected_route) {
+      if (!nextPlace || place.selected_route.destId !== nextPlace.id) {
+        const { selected_route, ...rest } = place;
+        return rest;
+      }
+    }
+    return place;
+  });
+}
 
 interface JourneyStore {
   journeys: Journey[];
@@ -25,10 +38,11 @@ interface JourneyStore {
   addPlace: (place: Place) => Promise<void>;
   removePlace: (placeId: string) => Promise<void>;
   reorderPlaces: (places: Place[]) => Promise<void>;
-  fetchSegmentDirections: (origin: Place, dest: Place, transportType: 'public' | 'car') => Promise<void>;
+  fetchSegmentDirections: (origin: Place, dest: Place, transportType?: 'public' | 'car') => Promise<void>;
   fetchJourneyDirections: () => Promise<void>;
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
+  selectSegmentRoute: (placeId: string, route: SelectedRoute | null) => Promise<void>;
 }
 
 
@@ -80,7 +94,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     const { activeJourney } = get();
     if (!activeJourney) return;
 
-    const updatedPlaces = [...(activeJourney.places || []), place];
+    const rawPlaces = [...(activeJourney.places || []), place];
+    const updatedPlaces = verifyAndCleanRoutes(rawPlaces);
     const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
     // 낙관적 업데이트: UI 먼저 반영
     set((state) => ({
@@ -98,7 +113,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     const { activeJourney } = get();
     if (!activeJourney) return;
 
-    const updatedPlaces = activeJourney.places.filter((p) => p.id !== placeId);
+    const rawPlaces = activeJourney.places.filter((p) => p.id !== placeId);
+    const updatedPlaces = verifyAndCleanRoutes(rawPlaces);
     const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
     // 낙관적 업데이트
     set((state) => ({
@@ -116,7 +132,8 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     const { activeJourney } = get();
     if (!activeJourney) return;
 
-    const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
+    const cleanedPlaces = verifyAndCleanRoutes(updatedPlaces);
+    const updatedActiveJourney = { ...activeJourney, places: cleanedPlaces };
     // 낙관적 업데이트
     set((state) => ({
       activeJourney: updatedActiveJourney,
@@ -125,12 +142,12 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
       focusedSegment: null,
     }));
     // DB 동기화
-    await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+    await updateJourneyPlaces(activeJourney.id, cleanedPlaces);
     get().fetchJourneyDirections();
   },
 
-  fetchSegmentDirections: async (origin, dest, transportType) => {
-    const cacheKey = `${origin.id}-${dest.id}-${transportType}`;
+  fetchSegmentDirections: async (origin, dest) => {
+    const cacheKey = `${origin.id}-${dest.id}`;
     const { directionsCache, directionsLoading } = get();
 
     if (directionsCache[cacheKey] || directionsLoading[cacheKey]) {
@@ -145,95 +162,84 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     }));
 
     try {
-      if (transportType === 'car') {
-        const response = await NaverDirectionService.fetchRoute(origin, dest, []);
-        const traoptimal = response.route?.traoptimal?.[0];
-        const path = traoptimal?.path || [];
-        const pathPoints = path.map(([lng, lat]) => ({ lat, lng }));
-
-        const durationMin = traoptimal
-          ? Math.max(1, Math.round(traoptimal.summary.duration / 1000 / 60))
-          : Math.max(3, Math.round((calculateHaversineDistance(origin.lat, origin.lng, dest.lat, dest.lng) / 1000 / 35) * 60 + 4));
-
-        const distanceKm = traoptimal
-          ? traoptimal.summary.distance / 1000
-          : calculateHaversineDistance(origin.lat, origin.lng, dest.lat, dest.lng) / 1000;
-
-        const fare = traoptimal?.summary.tollFare || traoptimal?.summary.taxiFare || (4800 + Math.round(distanceKm * 1100));
-
-        const guide = traoptimal?.guide
-          ? traoptimal.guide.map((g: any) => ({
-              instructions: g.instructions,
-              distance: g.distance,
-              duration: g.duration,
-            }))
-          : [
-              { instructions: '출발지에서 출발', distance: 0, duration: 0 },
-              { instructions: '목적지 도착', distance: Math.round(distanceKm * 1000), duration: durationMin * 60 * 1000 }
-            ];
-
-        set((state) => ({
-          directionsCache: {
-            ...state.directionsCache,
-            [cacheKey]: {
-              primary: {
-                duration: durationMin,
-                fare,
-                steps: [
-                  {
-                    type: 'car',
-                    name: '차량',
-                    duration: durationMin,
-                    color: '#F59E0B',
-                    pathPoints,
-                  },
-                ],
-                pathPoints,
-                guide,
-              },
-              alternatives: [
-                {
-                  type: 'taxi',
-                  name: '택시',
-                  duration: durationMin,
-                  fare,
-                },
-                {
-                  type: 'walk',
-                  name: '도보',
-                  duration: Math.round((distanceKm / 4.5) * 60),
-                  fare: 0,
-                },
-              ],
-            },
-          },
-          directionsLoading: {
-            ...state.directionsLoading,
-            [cacheKey]: false,
-          },
-        }));
-      } else {
-        const url = `/api/directions?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}&type=${transportType}`;
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error('이동 경로 요청 실패');
-        }
-        const data = await res.json();
-
-        set((state) => ({
-          directionsCache: {
-            ...state.directionsCache,
-            [cacheKey]: data,
-          },
-          directionsLoading: {
-            ...state.directionsLoading,
-            [cacheKey]: false,
-          },
-        }));
+      const url = `/api/directions?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error('이동 경로 요청 실패');
       }
+      const data = await res.json();
+
+      set((state) => ({
+        directionsCache: {
+          ...state.directionsCache,
+          [cacheKey]: data,
+        },
+        directionsLoading: {
+          ...state.directionsLoading,
+          [cacheKey]: false,
+        },
+      }));
     } catch (err) {
       console.error('[journey-store] fetchSegmentDirections error:', err);
+      // Fallback
+      const distanceKm = calculateHaversineDistance(origin.lat, origin.lng, dest.lat, dest.lng) / 1000;
+      const walkDuration = Math.round((distanceKm / 4.5) * 60);
+      const carDuration = Math.max(3, Math.round((distanceKm / 35) * 60 + 4));
+      const taxiFare = 4800 + Math.round(distanceKm * 1100);
+      const fallbackPath = [
+        { lat: origin.lat, lng: origin.lng },
+        { lat: dest.lat, lng: dest.lng }
+      ];
+
+      const publicFallback: DirectionResult = {
+        id: 'public-0',
+        type: 'public' as const,
+        name: '대중교통(예상)',
+        duration: Math.round(carDuration * 1.3),
+        fare: 1500,
+        steps: [{ type: 'bus' as const, name: '대중교통(예상)', duration: Math.round(carDuration * 1.3), color: '#0068b7', pathPoints: fallbackPath }],
+        pathPoints: fallbackPath
+      };
+
+      const taxiFallback: DirectionResult = {
+        id: 'taxi',
+        type: 'taxi' as const,
+        name: '택시',
+        duration: carDuration,
+        fare: taxiFare,
+        steps: [{ type: 'car' as const, name: '택시', duration: carDuration, color: '#F59E0B', pathPoints: fallbackPath }],
+        pathPoints: fallbackPath
+      };
+
+      const carFallback: DirectionResult = {
+        id: 'car',
+        type: 'car' as const,
+        name: '자차',
+        duration: carDuration,
+        fare: 0,
+        steps: [{ type: 'car' as const, name: '차량', duration: carDuration, color: '#F59E0B', pathPoints: fallbackPath }],
+        pathPoints: fallbackPath
+      };
+
+      const walkFallback: DirectionResult = {
+        id: 'walk',
+        type: 'walk' as const,
+        name: '도보',
+        duration: walkDuration,
+        fare: 0,
+        steps: [{ type: 'walk' as const, name: '도보', duration: walkDuration, color: '#A1A1AA', pathPoints: fallbackPath }],
+        pathPoints: fallbackPath
+      };
+
       set((state) => ({
+        directionsCache: {
+          ...state.directionsCache,
+          [cacheKey]: {
+            public: [publicFallback],
+            car: [taxiFallback, carFallback],
+            walk: [walkFallback]
+          },
+        },
         directionsLoading: {
           ...state.directionsLoading,
           [cacheKey]: false,
@@ -247,192 +253,36 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
     if (!activeJourney || !activeJourney.places || activeJourney.places.length < 2) return;
 
     const places = activeJourney.places;
-    const transportType = activeJourney.transport_type || 'public';
-
-    if (transportType === 'car') {
-      const start = places[0];
-      const goal = places[places.length - 1];
-      const waypoints = places.slice(1, -1);
-
-      // 경유지가 5개를 초과하는 경우, 각 구간별로 개별 호출 처리
-      if (waypoints.length > 5) {
-        const promises = [];
-        for (let i = 0; i < places.length - 1; i++) {
-          promises.push(fetchSegmentDirections(places[i], places[i + 1], transportType));
-        }
-        await Promise.all(promises);
-        return;
+    for (let i = 0; i < places.length - 1; i++) {
+      await fetchSegmentDirections(places[i], places[i + 1]);
+      // ODsay API 429 동시성 제한 방지를 위해 150ms 간격 순차 호출
+      if (i < places.length - 2) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
       }
-
-      const loadingStates: Record<string, boolean> = {};
-      for (let i = 0; i < places.length - 1; i++) {
-        const key = `${places[i].id}-${places[i+1].id}-car`;
-        loadingStates[key] = true;
-      }
-      set((state) => ({
-        directionsLoading: {
-          ...state.directionsLoading,
-          ...loadingStates,
-        },
-      }));
-
-      try {
-        const response = await NaverDirectionService.fetchRoute(start, goal, waypoints);
-        const traoptimal = response.route?.traoptimal?.[0];
-        const path = traoptimal?.path || [];
-        const isSingleSegment = places.length === 2;
-
-        const cacheUpdates: Record<string, DirectionsApiResponse> = {};
-        const loadingUpdates: Record<string, boolean> = {};
-
-        for (let i = 0; i < places.length - 1; i++) {
-          const origin = places[i];
-          const dest = places[i + 1];
-          const key = `${origin.id}-${dest.id}-car`;
-
-          let sectionPathPoints: { lat: number; lng: number }[] = [];
-          let sectionGuides: any[] = [];
-          let durationMin = 0;
-          let distanceKm = 0;
-          let fare = 0;
-
-          let legDistance = 0;
-          let legDuration = 0;
-          let startIdx = 0;
-          let endIdx = 0;
-
-          if (isSingleSegment && traoptimal) {
-            // 경유지가 없는 단일 구간의 경우 전체 경로 정보 적용
-            legDistance = traoptimal.summary.distance;
-            legDuration = traoptimal.summary.duration;
-            startIdx = 0;
-            endIdx = path.length - 1;
-          } else if (traoptimal) {
-            // 다중 경유지 구간 (Waypoints) 적용
-            const waypointArray = traoptimal.summary.waypoints || [];
-            const isLastLeg = i === places.length - 2;
-
-            if (isLastLeg) {
-              const targetNode = traoptimal.summary.goal;
-              legDistance = targetNode.distance;
-              legDuration = targetNode.duration;
-              startIdx = waypointArray.length > 0 ? (waypointArray[waypointArray.length - 1]?.pointIndex || 0) : 0;
-              endIdx = targetNode.pointIndex;
-            } else {
-              const targetNode = waypointArray[i];
-              if (targetNode) {
-                legDistance = targetNode.distance;
-                legDuration = targetNode.duration;
-                startIdx = i === 0 ? 0 : (waypointArray[i - 1]?.pointIndex || 0);
-                endIdx = targetNode.pointIndex;
-              } else {
-                // 예외 대비 fallback
-                legDistance = calculateHaversineDistance(origin.lat, origin.lng, dest.lat, dest.lng);
-                legDuration = Math.max(180000, Math.round((legDistance / 9.72) * 1000));
-                startIdx = 0;
-                endIdx = path.length - 1;
-              }
-            }
-          }
-
-          if (traoptimal && path.length > 0 && endIdx >= startIdx) {
-            sectionPathPoints = path
-              .slice(startIdx, endIdx + 1)
-              .map(([lng, lat]) => ({ lat, lng }));
-            
-            if (traoptimal.guide) {
-              sectionGuides = traoptimal.guide
-                .filter(
-                  (g: any) =>
-                    g.pointIndex >= startIdx &&
-                    g.pointIndex <= endIdx
-                )
-                .map((g: any) => ({
-                  instructions: g.instructions,
-                  distance: g.distance,
-                  duration: g.duration,
-                }));
-            }
-          } else {
-            sectionPathPoints = [
-              { lat: origin.lat, lng: origin.lng },
-              { lat: dest.lat, lng: dest.lng }
-            ];
-          }
-
-          durationMin = Math.max(1, Math.round(legDuration / 1000 / 60));
-          distanceKm = legDistance / 1000;
-          fare = 4800 + Math.round(distanceKm * 1100);
-
-          cacheUpdates[key] = {
-            primary: {
-              duration: durationMin,
-              fare,
-              steps: [
-                {
-                  type: 'car',
-                  name: '차량',
-                  duration: durationMin,
-                  color: '#F59E0B',
-                  pathPoints: sectionPathPoints,
-                },
-              ],
-              pathPoints: sectionPathPoints,
-              guide: sectionGuides.length > 0 ? sectionGuides : [
-                { instructions: '출발지에서 출발', distance: 0, duration: 0 },
-                { instructions: '목적지 도착', distance: Math.round(distanceKm * 1000), duration: durationMin * 60 * 1000 }
-              ],
-            },
-            alternatives: [
-              {
-                type: 'taxi',
-                name: '택시',
-                duration: durationMin,
-                fare: fare,
-              },
-              {
-                type: 'walk',
-                name: '도보',
-                duration: Math.round((distanceKm / 4.5) * 60),
-                fare: 0,
-              },
-            ],
-          };
-          loadingUpdates[key] = false;
-        }
-
-        set((state) => ({
-          directionsCache: {
-            ...state.directionsCache,
-            ...cacheUpdates,
-          },
-          directionsLoading: {
-            ...state.directionsLoading,
-            ...loadingUpdates,
-          },
-        }));
-
-      } catch (err) {
-        console.error('[journey-store] fetchJourneyDirections (car) error:', err);
-        const loadingUpdates: Record<string, boolean> = {};
-        for (let i = 0; i < places.length - 1; i++) {
-          const key = `${places[i].id}-${places[i+1].id}-car`;
-          loadingUpdates[key] = false;
-        }
-        set((state) => ({
-          directionsLoading: {
-            ...state.directionsLoading,
-            ...loadingUpdates,
-          },
-        }));
-      }
-    } else {
-      const promises = [];
-      for (let i = 0; i < places.length - 1; i++) {
-        promises.push(fetchSegmentDirections(places[i], places[i + 1], transportType));
-      }
-      await Promise.all(promises);
     }
+  },
+
+  selectSegmentRoute: async (placeId, route) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    const updatedPlaces = activeJourney.places.map((p) => {
+      if (p.id === placeId) {
+        return {
+          ...p,
+          selected_route: route || undefined,
+        };
+      }
+      return p;
+    });
+
+    const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+    }));
+
+    await updateJourneyPlaces(activeJourney.id, updatedPlaces);
   },
 
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),

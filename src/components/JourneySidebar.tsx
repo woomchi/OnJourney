@@ -247,6 +247,15 @@ export default function JourneySidebar() {
       e.preventDefault();
       return;
     }
+
+    const cardElement = (e.currentTarget as HTMLElement).querySelector('.journey-card-content');
+    if (cardElement) {
+      const rect = cardElement.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      e.dataTransfer.setDragImage(cardElement, x, y);
+    }
+
     setIsListDragging(true);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index.toString());
@@ -326,7 +335,7 @@ export default function JourneySidebar() {
       <>
         <aside className="w-[30%] min-w-[320px] max-w-[400px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
           {/* ── 헤더: 뒤로가기 | 제목 (center) | 편집 ── */}
-          <header className="flex items-center border-b border-zinc-100/80 bg-white/60 backdrop-blur-md flex-shrink-0 h-14">
+          <header className={`flex items-center border-b border-zinc-100/80 flex-shrink-0 h-14 ${isEditMode ? 'bg-white' : 'bg-white/60 backdrop-blur-md'}`}>
             {/* 뒤로가기 */}
             <button
               type="button"
@@ -391,7 +400,7 @@ export default function JourneySidebar() {
           />
 
           {/* ── 하단 고정: 장소 추가 or 삭제 버튼 ── */}
-          <div className="p-6 bg-white/80 backdrop-blur-md border-t border-zinc-100 flex-shrink-0">
+          <div className={`p-6 border-t border-zinc-100 flex-shrink-0 ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-md'}`}>
             {isEditMode ? (
               <button
                 type="button"
@@ -438,7 +447,7 @@ export default function JourneySidebar() {
       <aside className="w-[30%] min-w-[320px] max-w-[400px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
 
         {/* 앱 로고 헤더 */}
-        <header className="px-8 py-7 border-b border-zinc-100/80 bg-white/50 backdrop-blur-md flex-shrink-0">
+        <header className={`px-8 py-7 border-b border-zinc-100/80 flex-shrink-0 ${isListEditMode ? 'bg-white' : 'bg-white/50 backdrop-blur-md'}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-lg shadow-blue-500/20 flex items-center justify-center">
@@ -549,7 +558,7 @@ export default function JourneySidebar() {
                     type="button"
                     onClick={() => !isListEditMode && setActiveJourney(journey)}
                     disabled={isListEditMode}
-                    className={`flex-1 text-left bg-white border border-zinc-100 rounded-2xl p-5 shadow-sm transition-all flex flex-col gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${isListEditMode ? 'opacity-90 cursor-default' : 'hover:border-blue-500 hover:shadow-md cursor-pointer'
+                    className={`journey-card-content flex-1 text-left bg-white border border-zinc-100 rounded-2xl p-5 shadow-sm transition-all flex flex-col gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${isListEditMode ? 'opacity-90 cursor-default' : 'hover:border-blue-500 hover:shadow-md cursor-pointer'
                       }`}
                   >
                     <div>
@@ -595,7 +604,7 @@ export default function JourneySidebar() {
 
         {/* 여정 생성 or 삭제 버튼 */}
         {!isLoading && (
-          <div className="p-6 bg-white/80 backdrop-blur-md border-t border-zinc-100 flex-shrink-0">
+          <div className={`p-6 border-t border-zinc-100 flex-shrink-0 ${isListEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-md'}`}>
             {isListEditMode ? (
               <button
                 type="button"

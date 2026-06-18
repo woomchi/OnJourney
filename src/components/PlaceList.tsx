@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { Place, DirectionResult, DirectionAlternative, RouteGuideNode } from '@/types/journey';
+import type { Place, DirectionResult, DirectionsApiResponse, RouteGuideNode, SelectedRoute } from '@/types/journey';
+import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 
 interface PlaceListProps {
   editMode?: boolean;
@@ -181,11 +182,16 @@ function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
 
 // 3. 대안 구간 이동 정보 렌더링 컴포넌트
 interface AlternativeSegmentInfoProps {
-  alternatives?: DirectionAlternative[];
+  place: Place;
+  destId: string;
+  segmentData?: DirectionsApiResponse;
   loading?: boolean;
 }
 
-function AlternativeSegmentInfo({ alternatives, loading }: AlternativeSegmentInfoProps) {
+function AlternativeSegmentInfo({ place, destId, segmentData, loading }: AlternativeSegmentInfoProps) {
+  const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>('public');
+  const { selectSegmentRoute } = useJourneyStore();
+
   if (loading) {
     return (
       <div className="mx-4 px-4 py-3 bg-white rounded-xl border border-zinc-200 shadow-sm animate-pulse flex flex-col gap-2">
@@ -196,38 +202,132 @@ function AlternativeSegmentInfo({ alternatives, loading }: AlternativeSegmentInf
     );
   }
 
-  if (!alternatives || alternatives.length === 0) return null;
+  if (!segmentData) return null;
+
+  const routes = segmentData[activeTab] || [];
+  const selectedRoute = place.selected_route && place.selected_route.destId === destId ? place.selected_route : null;
+
+  const getEmoji = (type: string, name: string) => {
+    if (type === 'public') {
+      if (name.includes('지하철') || name.includes('선')) return '🚇';
+      return '🚌';
+    }
+    if (type === 'taxi') return '🚕';
+    if (type === 'car') return '🚗';
+    if (type === 'walk') return '🚶';
+    if (type === 'bicycle') return '🚴';
+    if (type === 'kickboard') return '🛴';
+    return '🚶';
+  };
 
   return (
-    <div className="mx-4 px-4 py-3 bg-white rounded-xl border border-zinc-200 shadow-sm">
-      <div className="text-[11px] font-semibold text-zinc-600 mb-2">대안 이동 수단</div>
-      <div className="flex flex-col gap-2">
-        {alternatives.map((alt, idx) => {
-          let emoji = '🚶';
-          if (alt.type === 'taxi') emoji = '🚕';
-          else if (alt.type === 'public') emoji = '🚌';
-          else if (alt.type === 'car') emoji = '🚗';
+    <div className="mx-4 px-4 py-3 bg-white rounded-xl border border-zinc-200 shadow-sm flex flex-col gap-3">
+      {/* Title */}
+      <div className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">대안 이동 수단</div>
 
+      {/* Tabs */}
+      <div className="flex bg-zinc-50 p-0.5 rounded-lg border border-zinc-100">
+        {(['public', 'car', 'walk'] as const).map((tab) => {
+          const label = tab === 'public' ? '대중교통' : tab === 'car' ? '차량' : '도보';
+          const isActive = activeTab === tab;
           return (
-            <div
-              key={idx}
-              className="flex items-center justify-between w-full p-2 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200 text-left text-xs"
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`
+                flex-1 py-1 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer
+                ${isActive
+                  ? 'bg-white text-blue-600 shadow-sm border border-zinc-150'
+                  : 'text-zinc-500 hover:text-zinc-800'
+                }
+              `}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{emoji}</span>
-                <span className="font-medium text-zinc-700">
-                  {alt.name}
-                  {alt.fare !== undefined && alt.fare > 0 && (
-                    <span className="text-[10px] text-zinc-400 font-normal ml-1">
-                      ({alt.fare.toLocaleString()}원)
-                    </span>
-                  )}
-                </span>
-              </div>
-              <span className="font-bold text-zinc-900">{alt.duration}분</span>
-            </div>
+              {label}
+            </button>
           );
         })}
+      </div>
+
+      {/* List Container with fixed height for exactly 2.5 items */}
+      <div className="max-h-[126px] overflow-y-auto pr-1 flex flex-col gap-1.5 scrollbar-thin">
+        {routes.length === 0 ? (
+          <div className="text-center py-6 text-xs text-zinc-400">
+            선택 가능한 경로가 없습니다.
+          </div>
+        ) : (
+          routes.map((route) => {
+            const isSelected = selectedRoute ? selectedRoute.id === route.id : false;
+            const emoji = getEmoji(route.type, route.name);
+
+            return (
+              <button
+                key={route.id}
+                type="button"
+                onClick={() => {
+                  selectSegmentRoute(place.id, {
+                    destId,
+                    id: route.id,
+                    type: route.type,
+                    name: route.name,
+                    duration: route.duration,
+                    fare: route.fare,
+                    steps: route.steps,
+                    pathPoints: route.pathPoints,
+                    guide: route.guide,
+                  });
+                }}
+                className={`
+                  flex items-center justify-between w-full h-[46px] px-3 rounded-lg border transition-all duration-200 text-left cursor-pointer
+                  ${isSelected
+                    ? 'border-blue-500 bg-blue-50/50 shadow-sm'
+                    : 'border-zinc-100 bg-zinc-50/30 hover:border-zinc-300 hover:bg-zinc-50'
+                  }
+                `}
+              >
+                {/* Left: Icon and Name/Fare */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base flex-shrink-0">{emoji}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className={`text-[11px] font-bold truncate leading-tight ${isSelected ? 'text-blue-700' : 'text-zinc-700'}`}>
+                      {route.name}
+                    </span>
+                    {route.fare > 0 ? (
+                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                        {route.fare.toLocaleString()}원
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                        무료
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: Duration & Status Check */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`text-[11px] font-extrabold ${isSelected ? 'text-blue-600' : 'text-zinc-800'}`}>
+                    {route.duration}분
+                  </span>
+                  {isSelected && (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-4 h-4 text-blue-500"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
+              </button>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -355,15 +455,15 @@ function PlaceCard({
   const { directionsCache, directionsLoading, fetchSegmentDirections, setFocusBounds, focusedSegment, setFocusedSegment } = useJourneyStore();
   const [showAlternatives, setShowAlternatives] = useState(false);
 
-  const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}-${transportType}` : '';
+  const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
   const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
   const isSegmentLoading = nextPlace ? directionsLoading[cacheKey] : false;
 
   useEffect(() => {
     if (!editMode && nextPlace) {
-      fetchSegmentDirections(place, nextPlace, transportType);
+      fetchSegmentDirections(place, nextPlace);
     }
-  }, [editMode, place, nextPlace, transportType, fetchSegmentDirections]);
+  }, [editMode, place, nextPlace, fetchSegmentDirections]);
 
   return (
     <li
@@ -398,7 +498,7 @@ function PlaceCard({
         </div>
 
         {/* 장소 카드 */}
-        <div className="flex-1 min-w-0 mx-2 mb-1 bg-white border border-zinc-100 rounded-2xl shadow-sm group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)] transition-all duration-200">
+        <div className="place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border border-zinc-100 rounded-2xl shadow-sm group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)] transition-all duration-200">
           <div className="flex items-center px-4 py-3 gap-2">
             {/* 장소 정보 */}
             <div className="flex-1 min-w-0">
@@ -452,50 +552,54 @@ function PlaceCard({
 
       {/* 대안 이동 정보 (아코디언 토글, 장소 카드 바로 밑) */}
       <div
-        className={`pl-10 overflow-hidden transition-all duration-300 ease-in-out ${showAlternatives && !editMode && !isLast ? 'max-h-96 opacity-100 mb-3' : 'max-h-0 opacity-0'
+        className={`pl-10 overflow-hidden transition-all duration-300 ease-in-out ${showAlternatives && !editMode && !isLast ? 'max-h-[260px] opacity-100 mb-3' : 'max-h-0 opacity-0'
           }`}
       >
-        <AlternativeSegmentInfo alternatives={segmentData?.alternatives} loading={isSegmentLoading} />
+        <AlternativeSegmentInfo 
+          place={place}
+          destId={nextPlace?.id || ''}
+          segmentData={segmentData} 
+          loading={isSegmentLoading} 
+        />
       </div>
 
       {/* 기본 구간 이동 정보 (항상 노출) */}
-      {!editMode && !isLast && (
-        <div className="pl-10 pb-1 flex flex-col gap-1">
-          <button
-            type="button"
-            className="w-full text-left focus:outline-none"
-            onClick={() => {
-              if (nextPlace) {
-                // 이미 해당 구간이 포커스된 경우 토글 해제
-                if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
-                  setFocusedSegment(null);
-                  setFocusBounds(null);
-                } else {
-                  const sw = {
-                    lat: Math.min(place.lat, nextPlace.lat),
-                    lng: Math.min(place.lng, nextPlace.lng),
-                  };
-                  const ne = {
-                    lat: Math.max(place.lat, nextPlace.lat),
-                    lng: Math.max(place.lng, nextPlace.lng),
-                  };
-                  setFocusBounds({ sw, ne });
-                  setFocusedSegment({ originId: place.id, destId: nextPlace.id });
-                }
-              }
-            }}
-          >
-            <SegmentInfo data={segmentData?.primary} loading={isSegmentLoading} index={index} />
-          </button>
+      {!editMode && !isLast && (() => {
+        const activeRoute = place.selected_route && nextPlace && place.selected_route.destId === nextPlace.id
+          ? place.selected_route
+          : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
 
-          {/* 차량 세부 경로 안내 (구간 선택/포커스 시 활성화) */}
-          {!isSegmentLoading && transportType === 'car' && focusedSegment && focusedSegment.originId === place.id && nextPlace && focusedSegment.destId === nextPlace.id && segmentData?.primary && (
-            <div className="overflow-hidden transition-all duration-300">
-              <CarRouteGuide guide={segmentData.primary.guide} />
-            </div>
-          )}
-        </div>
-      )}
+        return (
+          <div className="pl-10 pb-1 flex flex-col gap-1">
+            <button
+              type="button"
+              className="w-full text-left focus:outline-none"
+              onClick={() => {
+                if (nextPlace) {
+                  // 이미 해당 구간이 포커스된 경우 토글 해제
+                  if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
+                    setFocusedSegment(null);
+                    setFocusBounds(null);
+                  } else {
+                    const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
+                    setFocusBounds(bounds);
+                    setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                  }
+                }
+              }}
+            >
+              <SegmentInfo data={activeRoute} loading={isSegmentLoading} index={index} />
+            </button>
+
+            {/* 차량 세부 경로 안내 (구간 선택/포커스 시 활성화) */}
+            {!isSegmentLoading && activeRoute && activeRoute.guide && focusedSegment && focusedSegment.originId === place.id && nextPlace && focusedSegment.destId === nextPlace.id && (
+              <div className="overflow-hidden transition-all duration-300">
+                <CarRouteGuide guide={activeRoute.guide} />
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </li>
   );
 }
@@ -508,7 +612,7 @@ export default function PlaceList({
   setLocalPlaces,
 }: PlaceListProps) {
   const { activeJourney } = useJourneyStore();
-  const draggedIndexRef = useRef<number | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
@@ -539,27 +643,36 @@ export default function PlaceList({
       e.preventDefault();
       return;
     }
+
+    // Find the clean card element to use as the drag preview
+    const cardElement = (e.currentTarget as HTMLElement).querySelector('.place-card-content');
+    if (cardElement) {
+      const rect = cardElement.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      e.dataTransfer.setDragImage(cardElement, x, y);
+    }
+
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index.toString());
-    draggedIndexRef.current = index;
+    setDraggedIndex(index);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     if (!editMode) return;
     e.preventDefault();
-    const draggedIndex = draggedIndexRef.current;
     if (draggedIndex === null || draggedIndex === index) return;
 
     // Shift places dynamically
     const updated = [...localPlaces];
     const [draggedItem] = updated.splice(draggedIndex, 1);
     updated.splice(index, 0, draggedItem);
-    draggedIndexRef.current = index;
+    setDraggedIndex(index);
     setLocalPlaces(updated);
   };
 
   const handleDragEnd = () => {
-    draggedIndexRef.current = null;
+    setDraggedIndex(null);
   };
 
   const transportType = activeJourney.transport_type || 'public';
@@ -577,7 +690,7 @@ export default function PlaceList({
             onDragStart={(e) => handleDragStart(e, idx)}
             onDragOver={(e) => handleDragOver(e, idx)}
             onDragEnd={handleDragEnd}
-            isDragged={draggedIndexRef.current === idx}
+            isDragged={draggedIndex === idx}
             isSelected={selectedIds.includes(place.id)}
             onToggleSelect={() => onToggleSelect(place.id)}
             nextPlace={idx < localPlaces.length - 1 ? localPlaces[idx + 1] : null}

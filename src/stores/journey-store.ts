@@ -185,7 +185,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
       const distanceKm = calculateHaversineDistance(origin.lat, origin.lng, dest.lat, dest.lng) / 1000;
       const walkDuration = Math.round((distanceKm / 4.5) * 60);
       const carDuration = Math.max(3, Math.round((distanceKm / 35) * 60 + 4));
-      const taxiFare = 4800 + Math.round(distanceKm * 1100);
+      const taxiFare = 4800 + Math.round(distanceKm * 1.3 * 1100);
       const fallbackPath = [
         { lat: origin.lat, lng: origin.lng },
         { lat: dest.lat, lng: dest.lng }

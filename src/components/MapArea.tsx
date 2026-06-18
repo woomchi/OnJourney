@@ -861,6 +861,7 @@ function TransferMarkers({
       type: 'bus' | 'subway';
       color: string;
       stationName: string;
+      isFirst?: boolean;
     }> = [];
 
     if (!navermaps || places.length < 2) return points;
@@ -880,14 +881,32 @@ function TransferMarkers({
         return;
       }
 
-      // 특정 세그먼트가 선택(focus)되었을 때, 다른 세그먼트의 환승 마커는 표시하지 않음
-      if (focusedSegment) {
-        const isCurrentSegment =
-          focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
-        if (!isCurrentSegment) return;
-      }
+      // 전체 여정 뷰(focusedSegment가 없을 때)에서는 마커를 노출하지 않음
+      if (!focusedSegment) return;
+
+      const isCurrentSegment =
+        focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
+      if (!isCurrentSegment) return;
 
       const transitSteps = activeRoute.steps.filter((s: any) => s.type === 'bus' || s.type === 'subway');
+
+      if (transitSteps.length > 0) {
+        const firstStep = transitSteps[0];
+        const firstLat = firstStep.startLat ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lat : undefined);
+        const firstLng = firstStep.startLng ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lng : undefined);
+        
+        if (firstLat !== undefined && firstLng !== undefined) {
+          points.push({
+            key: `transfer-${place.id}-${nextPlace.id}-0`,
+            position: { lat: firstLat, lng: firstLng },
+            busName: firstStep.name,
+            type: firstStep.type,
+            color: firstStep.color || '#4F46E5',
+            stationName: firstStep.startName || '탑승 정류장',
+            isFirst: true,
+          });
+        }
+      }
 
       for (let i = 1; i < transitSteps.length; i++) {
         const prevStep = transitSteps[i - 1];
@@ -932,12 +951,14 @@ function TransferMarkers({
     <>
       {transferPoints.map((pt) => {
         const displayBusName = pt.busName.replace(' 버스', '');
+        const labelText = pt.isFirst ? '탑승' : '환승';
+        const zIndex = pt.isFirst ? 9000 : 15000;
         
         return (
           <Marker
             key={pt.key}
             position={pt.position}
-            zIndex={15000}
+            zIndex={zIndex}
             icon={{
               content: `
                 <style>
@@ -986,7 +1007,7 @@ function TransferMarkers({
                     flex-direction: column;
                     justify-content: center;
                   ">
-                    <span style="font-size: 7.5px; color: #71717a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1;">환승</span>
+                    <span style="font-size: 7.5px; color: #71717a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1;">${labelText}</span>
                     <span style="font-size: 11px; font-weight: 800; color: #18181b; line-height: 1.1; margin-top: 1px;">${displayBusName}</span>
                   </div>
                   <!-- 아래쪽 꼭지점 화살표 -->

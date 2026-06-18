@@ -14,6 +14,7 @@ interface DirectionResult {
   name: string;
   duration: number; // 분
   fare: number; // 원
+  distance?: number; // 주행 거리 (km)
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
   guide?: {
@@ -372,7 +373,7 @@ async function fetchPublicTransitOptions(
     // 대용량 노선 목록에 대한 직관적인 대안 경로명(예: "2호선 + 360") 빌드
     const transitNames = steps
       .filter(s => s.type !== 'walk')
-      .map(s => s.name.replace(' 버스', '').replace('호선', ''));
+      .map(s => s.name.replace(' 버스', ''));
     const displayTitle = transitNames.length > 0 
       ? transitNames.join(' + ') 
       : '도보 이동';
@@ -442,6 +443,7 @@ async function fetchCarRoute(
     name: '자차',
     duration: durationMin,
     fare: summary.tollFare || 0,
+    distance: summary.distance / 1000, // 실제 도로 주행 거리 (km)
     steps: [
       {
         type: 'car',
@@ -470,7 +472,9 @@ function calculateCarFallback(
   const duration = Math.max(3, Math.round((distance / 35) * 60 + 4));
 
   // 예상 택시 요금 계산: 기본 요금 4,800원 + 1km 당 약 1,100원 추가 가산
-  const taxiFare = 4800 + Math.round(distance * 1100);
+  // 직선 거리에 보정계수(×1.3)를 적용하여 실제 도로 주행 거리를 추정
+  const estimatedRoadDistance = distance * 1.3;
+  const taxiFare = 4800 + Math.round(estimatedRoadDistance * 1100);
 
   const fallbackPath = [
     { lat: sy, lng: sx },
@@ -587,13 +591,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Taxi Option (index 0)
-    const taxiFare = 4800 + Math.round(distanceKm * 1100);
+    // 실제 도로 주행 거리가 있으면 사용, 없으면 직선 거리에 보정계수(×1.3) 적용
+    const actualDistanceKm = baseCarResult.distance || distanceKm * 1.3;
+    const taxiFare = 4800 + Math.round(actualDistanceKm * 1100);
     const taxiResult: DirectionResult = {
       ...baseCarResult,
       id: 'taxi',
       type: 'taxi' as const,
       name: '택시',
-      fare: baseCarResult.fare || taxiFare,
+      fare: taxiFare,
       steps: baseCarResult.steps.map(s => ({ ...s, name: '택시', type: 'car' as const }))
     };
 

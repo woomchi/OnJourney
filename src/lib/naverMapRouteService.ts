@@ -191,7 +191,7 @@ export class NaverDirectionService {
 
     // 대략적인 택시 요금 계산
     const distanceKm = totalDistance / 1000;
-    const taxiFare = 4800 + Math.round(distanceKm * 1100);
+    const taxiFare = 4800 + Math.round(distanceKm * 1.3 * 1100);
 
     return {
       code: 0,

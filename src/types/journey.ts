@@ -66,6 +66,7 @@ export interface DirectionResult {
   name: string;
   duration: number;
   fare: number;
+  distance?: number; // 주행 거리 (km)
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
   guide?: RouteGuideNode[];

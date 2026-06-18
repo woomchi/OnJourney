@@ -291,7 +291,7 @@ export default function JourneySidebar() {
   if (!mounted) {
     return (
       <>
-        <aside className="w-[30%] min-w-[320px] max-w-[400px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+        <aside className="w-[35%] min-w-[380px] max-w-[480px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
           <header className="px-8 py-7 border-b border-zinc-100/80 bg-white/50 backdrop-blur-md flex-shrink-0">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -333,7 +333,7 @@ export default function JourneySidebar() {
   if (activeJourney) {
     return (
       <>
-        <aside className="w-[30%] min-w-[320px] max-w-[400px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+        <aside className="w-[35%] min-w-[380px] max-w-[480px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
           {/* ── 헤더: 뒤로가기 | 제목 (center) | 편집 ── */}
           <header className={`flex items-center border-b border-zinc-100/80 flex-shrink-0 h-14 ${isEditMode ? 'bg-white' : 'bg-white/60 backdrop-blur-md'}`}>
             {/* 뒤로가기 */}
@@ -444,7 +444,7 @@ export default function JourneySidebar() {
   // ── 로딩 or 여정 없음 상태 ────────────────────────────
   return (
     <>
-      <aside className="w-[30%] min-w-[320px] max-w-[400px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+      <aside className="w-[35%] min-w-[380px] max-w-[480px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
 
         {/* 앱 로고 헤더 */}
         <header className={`px-8 py-7 border-b border-zinc-100/80 flex-shrink-0 ${isListEditMode ? 'bg-white' : 'bg-white/50 backdrop-blur-md'}`}>

@@ -336,12 +336,27 @@ async function fetchPublicTransitOptions(
         }
       }
 
+      let startName = sp.startName || '';
+      let endName = sp.endName || '';
+      if (!startName && sp.passStopList?.stations?.length > 0) {
+        startName = sp.passStopList.stations[0].stationName || '';
+      }
+      if (!endName && sp.passStopList?.stations?.length > 0) {
+        endName = sp.passStopList.stations[sp.passStopList.stations.length - 1].stationName || '';
+      }
+
       return {
         type,
         name,
         duration: sp.sectionTime,
         color,
         pathPoints: stepPathPoints,
+        startName: startName || undefined,
+        endName: endName || undefined,
+        startLat: !isNaN(startLat) ? startLat : undefined,
+        startLng: !isNaN(startLng) ? startLng : undefined,
+        endLat: !isNaN(endLat) ? endLat : undefined,
+        endLng: !isNaN(endLng) ? endLng : undefined,
       };
     }).filter((step: DirectionStep) => step.duration > 0);
 

@@ -46,6 +46,12 @@ export interface DirectionStep {
   duration: number;
   color?: string;
   pathPoints?: { lat: number; lng: number }[];
+  startName?: string;
+  endName?: string;
+  startLat?: number;
+  startLng?: number;
+  endLat?: number;
+  endLng?: number;
 }
 
 export interface RouteGuideNode {

@@ -64,6 +64,77 @@ const SEQUENCE_COLORS = [
   '#DC2626', // 5번째 이상: Rose Red
 ];
 
+// 타임라인 바 내 소요시간 표시 (공간에 따라 적응적으로 표시)
+// 공간 충분: "5분" / 부족: "2.." / 매우 부족: "1"
+function FittedDuration({ duration, isWalk }: { duration: number; isWalk: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [displayText, setDisplayText] = useState(`${duration}분`);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const measure = () => {
+      const availableWidth = container.clientWidth;
+      if (availableWidth === 0) return;
+
+      const measurer = document.createElement('span');
+      measurer.style.cssText =
+        'position:absolute;visibility:hidden;font-size:9px;font-weight:700;white-space:nowrap;';
+      document.body.appendChild(measurer);
+
+      // 1) Try full text: "5분"
+      const fullText = `${duration}분`;
+      measurer.textContent = fullText;
+      if (measurer.offsetWidth <= availableWidth) {
+        setDisplayText(fullText);
+        document.body.removeChild(measurer);
+        return;
+      }
+
+      // 2) Measure number width and dot width
+      const numStr = `${duration}`;
+      measurer.textContent = numStr;
+      const numWidth = measurer.offsetWidth;
+
+      measurer.textContent = '.';
+      const dotWidth = measurer.offsetWidth;
+
+      // 3) Number + as many dots as fit (max 3)
+      const spaceForDots = availableWidth - numWidth;
+      const maxDots = Math.min(Math.max(Math.floor(spaceForDots / dotWidth), 0), 3);
+
+      if (maxDots > 0) {
+        setDisplayText(numStr + '.'.repeat(maxDots));
+      } else if (numWidth <= availableWidth) {
+        setDisplayText(numStr);
+      } else {
+        setDisplayText('');
+      }
+
+      document.body.removeChild(measurer);
+    };
+
+    // Initial + resize observer
+    const raf = requestAnimationFrame(measure);
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
+  }, [duration]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`w-full font-bold text-[9px] whitespace-nowrap text-center overflow-hidden leading-[12px] ${isWalk ? 'text-zinc-700' : 'text-white'}`}
+    >
+      {displayText}
+    </div>
+  );
+}
+
 // 2. 실시간 구간 이동 정보 렌더링 컴포넌트
 interface SegmentInfoProps {
   data?: DirectionResult;
@@ -88,6 +159,19 @@ function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
   const transitSteps = data.steps.filter((s) => s.type !== 'walk');
   const hasTransit = transitSteps.length > 0;
 
+  // Calculate percentage widths using a power-curve to compress proportions
+  // This prevents long transit segments from dominating while giving walks enough room
+  // e.g. 23min bus vs 1min walk: linear = 23x, compressed(^0.3) ≈ 2.5x
+  const COMPRESS_POWER = 0.3;
+  const MIN_PCT = 12; // minimum percentage for any step — guarantees room for "1…"
+  const compressed = data.steps.map(s => Math.pow(Math.max(s.duration, 1), COMPRESS_POWER));
+  const compressedTotal = compressed.reduce((a, b) => a + b, 0) || 1;
+  const rawPcts = compressed.map(c => (c / compressedTotal) * 100);
+  // Clamp all to at least MIN_PCT, then normalize to sum to 100
+  const clampedPcts = rawPcts.map(p => Math.max(p, MIN_PCT));
+  const clampedSum = clampedPcts.reduce((a, b) => a + b, 0);
+  const normalizedPcts = clampedPcts.map(p => (p / clampedSum) * 100);
+
   return (
     <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99] transition-all duration-200 cursor-pointer">
       {/* 상단 정보: 총 이동 시간, 요금, 실시간 상태 */}
@@ -110,11 +194,11 @@ function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
       </div>
 
       {/* 동적 타임라인 바 및 하단 노선 정보 */}
-      <div className="flex ml-3 -mr-2 mt-4 mb-2 relative">
+      <div className="flex mt-4 mb-2 relative" style={{ paddingLeft: '8px', paddingRight: '4px' }}>
         {data.steps.map((step, idx) => {
           const isFirst = idx === 0;
           const isLast = idx === data.steps.length - 1;
-          const widthPercent = `${(step.duration / totalStepDuration) * 100}%`;
+          const pct = normalizedPcts[idx];
           
           let icon = '🚶';
           if (step.type === 'subway') icon = '🚇';
@@ -124,58 +208,66 @@ function SegmentInfo({ data, loading, index }: SegmentInfoProps) {
           const segmentColor = SEQUENCE_COLORS[index % SEQUENCE_COLORS.length];
           const stepColor = step.type === 'walk' ? (step.color || '#E4E4E7') : segmentColor;
 
+          const isWalk = step.type === 'walk';
+
           return (
             <div
               key={idx}
-              className="flex flex-col items-stretch"
+              className="flex flex-col items-stretch min-w-0 relative"
               style={{
-                width: widthPercent,
-                minWidth: '42px',
+                width: `${pct}%`,
+                flexShrink: 0,
+                flexGrow: 0,
               }}
             >
-              {/* 타임라인 바 조각 */}
-              <div
-                className="relative flex items-center justify-center h-3 pl-[10px] pr-[10px]"
-                style={{
-                  backgroundColor: stepColor,
-                  borderTopLeftRadius: isFirst ? '9999px' : '0px',
-                  borderBottomLeftRadius: isFirst ? '9999px' : '0px',
-                  borderTopRightRadius: isLast ? '9999px' : '0px',
-                  borderBottomRightRadius: isLast ? '9999px' : '0px',
-                }}
-              >
+                {/* 아이콘 — 바 바깥에 배치하여 overflow-hidden에 잘리지 않도록 */}
                 <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm w-4 h-4 z-10 border"
-                  style={{ borderColor: stepColor }}
+                  className="absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20"
+                  style={{
+                    borderColor: stepColor,
+                    width: '16px',
+                    height: '16px',
+                    top: '-2px',
+                  }}
                 >
-                  <span className="text-[9px]">{icon}</span>
+                  <span className="text-[9px] leading-none">{icon}</span>
                 </div>
-                <span className={`font-bold whitespace-nowrap text-[9px] ${step.type === 'walk' ? 'text-zinc-700' : 'text-white'}`}>
-                  {step.duration}분
-                </span>
-              </div>
 
-              {/* 하단 노선명 텍스트 */}
-              {hasTransit && (
-                <div 
-                  className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px]"
-                  title={step.type !== 'walk' ? step.name : undefined}
+                {/* 타임라인 바 조각 */}
+                <div
+                  className="relative flex items-center justify-center h-3 overflow-hidden"
+                  style={{
+                    backgroundColor: stepColor,
+                    borderTopLeftRadius: isFirst ? '9999px' : '0px',
+                    borderBottomLeftRadius: isFirst ? '9999px' : '0px',
+                    borderTopRightRadius: isLast ? '9999px' : '0px',
+                    borderBottomRightRadius: isLast ? '9999px' : '0px',
+                  }}
                 >
-                  {step.type !== 'walk' ? (
-                    <span style={{ color: stepColor }}>
-                      {step.type === 'subway'
-                        ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
-                        : step.name.replace(' 버스', '')}
-                    </span>
-                  ) : (
-                    <span className="invisible">&nbsp;</span>
-                  )}
+                  <FittedDuration duration={step.duration} isWalk={isWalk} />
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+
+                {/* 하단 노선명 텍스트 */}
+                {hasTransit && (
+                  <div 
+                    className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden"
+                    title={step.type !== 'walk' ? step.name : undefined}
+                  >
+                    {step.type !== 'walk' ? (
+                      <span style={{ color: stepColor }} className="truncate">
+                        {step.type === 'subway'
+                          ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
+                          : step.name.replace(' 버스', '')}
+                      </span>
+                    ) : (
+                      <span className="invisible">&nbsp;</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
     </div>
   );
 }

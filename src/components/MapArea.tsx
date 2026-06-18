@@ -360,6 +360,17 @@ export default function MapArea() {
               />
             )}
 
+            {/* 환승 안내 마커 렌더링 */}
+            {navermaps && (
+              <TransferMarkers
+                places={places}
+                directionsCache={directionsCache}
+                activeJourney={activeJourney}
+                focusedSegment={focusedSegment}
+                navermaps={navermaps}
+              />
+            )}
+
             {/* Marker는 반드시 NaverMap children 안에 있어야 함 */}
             {places.map((place, idx) => {
               const isSegmentMarker = !!(focusedSegment && (place.id === focusedSegment.originId || place.id === focusedSegment.destId));
@@ -765,6 +776,180 @@ function DirectionalStripes({
           }}
         />
       ))}
+    </>
+  );
+}
+
+interface TransferMarkersProps {
+  places: any[];
+  directionsCache: any;
+  activeJourney: any;
+  focusedSegment: any;
+  navermaps: any;
+}
+
+function TransferMarkers({
+  places,
+  directionsCache,
+  activeJourney,
+  focusedSegment,
+  navermaps,
+}: TransferMarkersProps) {
+  const transferPoints = useMemo(() => {
+    const points: Array<{
+      key: string;
+      position: { lat: number; lng: number };
+      busName: string;
+      type: 'bus' | 'subway';
+      color: string;
+      stationName: string;
+    }> = [];
+
+    if (!navermaps || places.length < 2) return points;
+
+    places.forEach((place: any, idx: number) => {
+      if (idx === places.length - 1) return;
+      const nextPlace = places[idx + 1];
+      const transportType = activeJourney?.transport_type || 'public';
+      const cacheKey = `${place.id}-${nextPlace.id}`;
+      const segmentData = directionsCache[cacheKey];
+
+      const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
+        ? place.selected_route
+        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+
+      if (!activeRoute || !activeRoute.steps) {
+        return;
+      }
+
+      // 특정 세그먼트가 선택(focus)되었을 때, 다른 세그먼트의 환승 마커는 표시하지 않음
+      if (focusedSegment) {
+        const isCurrentSegment =
+          focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
+        if (!isCurrentSegment) return;
+      }
+
+      const transitSteps = activeRoute.steps.filter((s: any) => s.type === 'bus' || s.type === 'subway');
+
+      for (let i = 1; i < transitSteps.length; i++) {
+        const prevStep = transitSteps[i - 1];
+        const currStep = transitSteps[i];
+
+        const prevEndLat = prevStep.endLat ?? (prevStep.pathPoints && prevStep.pathPoints.length > 0 ? prevStep.pathPoints[prevStep.pathPoints.length - 1].lat : undefined);
+        const prevEndLng = prevStep.endLng ?? (prevStep.pathPoints && prevStep.pathPoints.length > 0 ? prevStep.pathPoints[prevStep.pathPoints.length - 1].lng : undefined);
+        const currStartLat = currStep.startLat ?? (currStep.pathPoints && currStep.pathPoints.length > 0 ? currStep.pathPoints[0].lat : undefined);
+        const currStartLng = currStep.startLng ?? (currStep.pathPoints && currStep.pathPoints.length > 0 ? currStep.pathPoints[0].lng : undefined);
+
+        const hasCoordinates = prevEndLat !== undefined && prevEndLng !== undefined &&
+                              currStartLat !== undefined && currStartLng !== undefined;
+
+        const isSameName = !!(prevStep.endName && currStep.startName && 
+                              prevStep.endName.trim() === currStep.startName.trim());
+                              
+        const isClose = hasCoordinates && 
+                        calculateHaversineDistance(prevEndLat, prevEndLng, currStartLat, currStartLng) < 300;
+
+        if (isSameName || isClose) {
+          const lat = currStartLat;
+          const lng = currStartLng;
+
+          if (lat && lng) {
+            points.push({
+              key: `transfer-${place.id}-${nextPlace.id}-${i}`,
+              position: { lat, lng },
+              busName: currStep.name,
+              type: currStep.type,
+              color: currStep.color || '#4F46E5',
+              stationName: currStep.startName || '환승 정류장'
+            });
+          }
+        }
+      }
+    });
+
+    return points;
+  }, [places, directionsCache, activeJourney, focusedSegment, navermaps]);
+
+  return (
+    <>
+      {transferPoints.map((pt) => {
+        const displayBusName = pt.busName.replace(' 버스', '');
+        
+        return (
+          <Marker
+            key={pt.key}
+            position={pt.position}
+            zIndex={1500}
+            icon={{
+              content: `
+                <style>
+                  .transfer-marker-${pt.key} {
+                    display: flex;
+                    align-items: center;
+                    background: #ffffff;
+                    border: 2px solid ${pt.color};
+                    border-radius: 9999px;
+                    padding: 3.5px 8px 3.5px 4px;
+                    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+                    font-family: Pretendard, -apple-system, sans-serif;
+                    white-space: nowrap;
+                    position: relative;
+                    cursor: pointer;
+                    transform: translate(-50%, -100%);
+                    margin-top: -8px;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                  }
+                  .transfer-marker-${pt.key}:hover {
+                    transform: translate(-50%, -105%) scale(1.05);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+                    z-index: 2000;
+                  }
+                </style>
+                <div class="transfer-marker-${pt.key}">
+                  <!-- 아이콘 원형 -->
+                  <div style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: ${pt.color};
+                    color: white;
+                    border-radius: 50%;
+                    width: 18px;
+                    height: 18px;
+                    font-size: 10px;
+                    margin-right: 5px;
+                    box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.25);
+                  ">
+                    ${pt.type === 'subway' ? '🚇' : '🚌'}
+                  </div>
+                  <!-- 정보 텍스트 -->
+                  <div style="
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                  ">
+                    <span style="font-size: 7.5px; color: #71717a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1;">환승</span>
+                    <span style="font-size: 11px; font-weight: 800; color: #18181b; line-height: 1.1; margin-top: 1px;">${displayBusName}</span>
+                  </div>
+                  <!-- 아래쪽 꼭지점 화살표 -->
+                  <div style="
+                    position: absolute;
+                    bottom: -6px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: 5px solid transparent;
+                    border-right: 5px solid transparent;
+                    border-top: 6px solid ${pt.color};
+                  "></div>
+                </div>
+              `,
+              anchor: new navermaps.Point(0, 0),
+            }}
+          />
+        );
+      })}
     </>
   );
 }

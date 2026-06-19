@@ -270,6 +270,15 @@ export default function MapArea() {
             defaultCenter={mapCenter}
             defaultZoom={14}
             ref={setMap}
+            logoControlOptions={{
+              position: navermaps ? navermaps.Position.BOTTOM_RIGHT : 12,
+            }}
+            scaleControlOptions={{
+              position: navermaps ? navermaps.Position.BOTTOM_RIGHT : 12,
+            }}
+            mapDataControlOptions={{
+              position: navermaps ? navermaps.Position.BOTTOM_LEFT : 10,
+            }}
           >
             {/* 구간별 이동경로 Polyline 렌더링 */}
             {places.map((place, idx) => {
@@ -348,7 +357,7 @@ export default function MapArea() {
                 // 교통수단 색상 대신 순서(idx) 기반 색상으로 매핑
                 const segmentColor = SEQUENCE_COLORS[idx % SEQUENCE_COLORS.length];
                 const stepColor = step.color || segmentColor;
-                
+
                 const strokeColor = stepColor;
 
                 let strokeOpacity = 0.8;
@@ -517,9 +526,9 @@ export default function MapArea() {
         </MapDiv>
       </NavermapsProvider>
 
-      {/* 전체 보기 플로팅 버튼 (우측 상단) */}
+      {/* 전체 보기 플로팅 버튼 (우측 하단) */}
       {places.length > 0 && (
-        <div className="absolute top-8 right-6 z-[100] flex flex-col gap-2">
+        <div className="absolute bottom-8 right-6 z-[100] flex flex-col gap-2">
           <button
             type="button"
             onClick={handleResetBounds}
@@ -579,7 +588,7 @@ export default function MapArea() {
       )}
 
       {/* 검색바: 지도 위에 absolute로 올림 (MapDiv 밖) */}
-      <div className="absolute top-8 left-1/2 -translate-x-1/2 w-full max-w-lg z-[100] px-4">
+      <div className="absolute top-4 left-4 w-full max-w-lg z-[100]">
         <PlaceSearchBar onPlaceSelect={handlePlaceSelect} />
       </div>
     </div>
@@ -1011,7 +1020,7 @@ function TransferMarkers({
         if (step && step.type === 'walk') {
           const firstLat = step.startLat ?? (step.pathPoints && step.pathPoints.length > 0 ? step.pathPoints[0].lat : undefined);
           const firstLng = step.startLng ?? (step.pathPoints && step.pathPoints.length > 0 ? step.pathPoints[0].lng : undefined);
-          
+
           if (firstLat !== undefined && firstLng !== undefined) {
             points.push({
               key: `walk-${place.id}-${nextPlace.id}-${focusedStep.stepIndex}`,
@@ -1035,7 +1044,7 @@ function TransferMarkers({
           if (nextStep && nextStep.type === 'walk') {
             const nextLat = nextStep.startLat ?? (nextStep.pathPoints && nextStep.pathPoints.length > 0 ? nextStep.pathPoints[0].lat : undefined);
             const nextLng = nextStep.startLng ?? (nextStep.pathPoints && nextStep.pathPoints.length > 0 ? nextStep.pathPoints[0].lng : undefined);
-            
+
             if (nextLat !== undefined && nextLng !== undefined) {
               points.push({
                 key: `walk-next-${place.id}-${nextPlace.id}-${nextStepIndex}`,
@@ -1098,16 +1107,16 @@ function TransferMarkers({
       if (transitSteps.length > 0) {
         const firstStep = transitSteps[0];
         const firstStepIndex = activeRoute.steps.indexOf(firstStep);
-        const shouldShowFirstStep = !focusedStep || 
-                                    focusedStep.stepIndex === firstStepIndex ||
-                                    (focusedStep.originId === place.id && 
-                                     focusedStep.destId === nextPlace.id && 
-                                     focusedStep.stepIndex + 1 === firstStepIndex);
+        const shouldShowFirstStep = !focusedStep ||
+          focusedStep.stepIndex === firstStepIndex ||
+          (focusedStep.originId === place.id &&
+            focusedStep.destId === nextPlace.id &&
+            focusedStep.stepIndex + 1 === firstStepIndex);
 
         if (shouldShowFirstStep) {
           const firstLat = firstStep.startLat ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lat : undefined);
           const firstLng = firstStep.startLng ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lng : undefined);
-          
+
           if (firstLat !== undefined && firstLng !== undefined) {
             points.push({
               key: `transfer-${place.id}-${nextPlace.id}-0`,
@@ -1129,7 +1138,7 @@ function TransferMarkers({
         if (firstStep.type === 'walk') {
           const firstLat = firstStep.startLat ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lat : undefined);
           const firstLng = firstStep.startLng ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lng : undefined);
-          
+
           if (firstLat !== undefined && firstLng !== undefined) {
             points.push({
               key: `walk-only-${place.id}-${nextPlace.id}-0`,
@@ -1151,11 +1160,11 @@ function TransferMarkers({
         const prevStep = transitSteps[i - 1];
         const currStep = transitSteps[i];
         const currStepIndex = activeRoute.steps.indexOf(currStep);
-        const shouldShowCurrStep = !focusedStep || 
-                                   focusedStep.stepIndex === currStepIndex ||
-                                   (focusedStep.originId === place.id && 
-                                    focusedStep.destId === nextPlace.id && 
-                                    focusedStep.stepIndex + 1 === currStepIndex);
+        const shouldShowCurrStep = !focusedStep ||
+          focusedStep.stepIndex === currStepIndex ||
+          (focusedStep.originId === place.id &&
+            focusedStep.destId === nextPlace.id &&
+            focusedStep.stepIndex + 1 === currStepIndex);
 
         if (shouldShowCurrStep) {
           const prevEndLat = prevStep.endLat ?? (prevStep.pathPoints && prevStep.pathPoints.length > 0 ? prevStep.pathPoints[prevStep.pathPoints.length - 1].lat : undefined);
@@ -1164,13 +1173,13 @@ function TransferMarkers({
           const currStartLng = currStep.startLng ?? (currStep.pathPoints && currStep.pathPoints.length > 0 ? currStep.pathPoints[0].lng : undefined);
 
           const hasCoordinates = prevEndLat !== undefined && prevEndLng !== undefined &&
-                                currStartLat !== undefined && currStartLng !== undefined;
+            currStartLat !== undefined && currStartLng !== undefined;
 
-          const isSameName = !!(prevStep.endName && currStep.startName && 
-                                prevStep.endName.trim() === currStep.startName.trim());
-                                
-          const isClose = hasCoordinates && 
-                          calculateHaversineDistance(prevEndLat, prevEndLng, currStartLat, currStartLng) < 300;
+          const isSameName = !!(prevStep.endName && currStep.startName &&
+            prevStep.endName.trim() === currStep.startName.trim());
+
+          const isClose = hasCoordinates &&
+            calculateHaversineDistance(prevEndLat, prevEndLng, currStartLat, currStartLng) < 300;
 
           if (isSameName || isClose) {
             const lat = currStartLat;
@@ -1257,7 +1266,7 @@ function TransferMarkers({
           focusedStep.destId === pt.destId &&
           focusedStep.stepIndex === pt.stepIndex
         );
-        
+
         return (
           <Marker
             key={pt.key}

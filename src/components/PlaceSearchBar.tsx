@@ -294,7 +294,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
           inputRef.current?.focus();
         }}
         className={`
-          flex items-center gap-3 px-5 py-3.5
+          flex items-center gap-3 px-4 py-2
           bg-white/90 backdrop-blur-xl
           rounded-2xl border transition-all duration-300
           cursor-text

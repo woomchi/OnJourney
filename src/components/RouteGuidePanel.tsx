@@ -122,7 +122,7 @@ export default function RouteGuidePanel({
 
         {/* Summary Info */}
         <div className="flex items-baseline gap-1.5 mt-2">
-          <span className="text-2xl font-black text-blue-600 tracking-tight">{route.duration}분</span>
+          <span className="text-2xl font-black text-zinc-900 tracking-tight">{route.duration}분</span>
           <span className="text-xs font-semibold text-zinc-400">
             {route.type === 'public' ? (
               route.fare > 0 ? `요금 ${route.fare.toLocaleString()}원` : '요금 정보 없음'

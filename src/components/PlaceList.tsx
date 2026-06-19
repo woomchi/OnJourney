@@ -236,8 +236,6 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
                 width: `${pct}%`,
                 flexShrink: 0,
                 flexGrow: 0,
-                opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
-                transition: 'opacity 0.2s ease',
               }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -270,6 +268,12 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
                 }
               }}
             >
+                {/* 아이콘 백그라운드 컷아웃 (바 위에 덮어씌워져서 바가 움푹 파인 듯한 효과) */}
+                <div 
+                  className="absolute left-0 -translate-x-1/2 bg-white rounded-full z-[15] transition-all duration-200"
+                  style={{ width: '20px', height: '20px', top: '-4px' }}
+                />
+
                 {/* 아이콘 — 바 바깥에 배치하여 overflow-hidden에 잘리지 않도록 */}
                 <div
                   className={`absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20 transition-all duration-200 ${isThisStepFocused ? 'scale-110' : ''}`}
@@ -278,6 +282,7 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
                     width: '16px',
                     height: '16px',
                     top: '-2px',
+                    opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
                   }}
                 >
                   <span className="text-[9px] leading-none">{icon}</span>
@@ -285,13 +290,15 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
 
                 {/* 타임라인 바 조각 */}
                 <div
-                  className={`relative flex items-center justify-center h-3 overflow-hidden transition-all duration-200 ${isThisStepFocused ? 'ring-2 ring-blue-500 ring-offset-1 z-10' : ''}`}
+                  className="relative flex items-center justify-center h-3 overflow-hidden transition-all duration-200"
                   style={{
                     backgroundColor: stepColor,
                     borderTopLeftRadius: isFirst ? '9999px' : '0px',
                     borderBottomLeftRadius: isFirst ? '9999px' : '0px',
                     borderTopRightRadius: isLast ? '9999px' : '0px',
                     borderBottomRightRadius: isLast ? '9999px' : '0px',
+                    opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
+                    zIndex: isThisStepFocused ? 10 : 1,
                   }}
                 >
                   <FittedDuration duration={step.duration} isWalk={isWalk} />
@@ -300,7 +307,10 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
                 {/* 하단 노선명 텍스트 */}
                 {hasTransit && (
                   <div 
-                    className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden"
+                    className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden transition-all duration-200"
+                    style={{
+                      opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
+                    }}
                     title={step.type !== 'walk' ? step.name : undefined}
                   >
                     {step.type !== 'walk' ? (

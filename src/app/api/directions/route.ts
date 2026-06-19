@@ -347,6 +347,15 @@ async function fetchPublicTransitOptions(
         endName = sp.passStopList.stations[sp.passStopList.stations.length - 1].stationName || '';
       }
 
+      if (type === 'subway') {
+        if (startName && !startName.endsWith('역')) {
+          startName = `${startName}역`;
+        }
+        if (endName && !endName.endsWith('역')) {
+          endName = `${endName}역`;
+        }
+      }
+
       return {
         type,
         name,

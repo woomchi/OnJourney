@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
+import { useJourneyStore } from '@/stores/journey-store';
+import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
 
 interface RouteGuidePanelProps {
   route: SelectedRoute | DirectionResult;
@@ -41,6 +43,33 @@ export default function RouteGuidePanel({
   const guide = route.guide || [];
   const steps = route.steps || [];
   const hasGuide = guide.length > 0;
+
+  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
+
+  const handleStepClick = (idx: number, step: any) => {
+    const isThisStepFocused = !!(
+      focusedStep &&
+      focusedStep.originId === originPlace.id &&
+      focusedStep.destId === destPlace.id &&
+      focusedStep.stepIndex === idx
+    );
+
+    if (isThisStepFocused) {
+      setFocusedStep(null);
+      const bounds = calculateSegmentBounds(originPlace, destPlace, route);
+      setFocusBounds(bounds);
+    } else {
+      const bounds = calculateStepBounds(step);
+      if (bounds) {
+        setFocusBounds(bounds);
+      }
+      setFocusedStep({
+        originId: originPlace.id,
+        destId: destPlace.id,
+        stepIndex: idx
+      });
+    }
+  };
 
   return (
     <div
@@ -182,7 +211,7 @@ export default function RouteGuidePanel({
           // 대중교통 또는 도보 step-by-step 노선 리스트 노출
           <div className="relative pl-1 flex flex-col gap-6">
             {/* 세로 연결선 */}
-            <div className="absolute left-[11px] top-4 bottom-4 w-[3px] bg-zinc-100" />
+            <div className="absolute left-[24.5px] top-4 bottom-4 w-[3px] bg-zinc-100" />
 
             {steps.map((step, idx) => {
               const stepColor = step.color || '#A1A1AA';
@@ -205,11 +234,39 @@ export default function RouteGuidePanel({
                 iconColor = 'text-white border-transparent';
               }
 
+              const isThisStepFocused = !!(
+                focusedStep &&
+                focusedStep.originId === originPlace.id &&
+                focusedStep.destId === destPlace.id &&
+                focusedStep.stepIndex === idx
+              );
+              const isAnyStepFocused = !!(
+                focusedStep &&
+                focusedStep.originId === originPlace.id &&
+                focusedStep.destId === destPlace.id
+              );
+
               return (
-                <div key={idx} className="relative flex gap-4 pl-9 items-start group">
+                <div
+                  key={idx}
+                  onClick={() => handleStepClick(idx, step)}
+                  className={`relative flex gap-4 pl-9 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none ${
+                    isThisStepFocused
+                      ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
+                      : isAnyStepFocused
+                      ? 'bg-transparent border-transparent opacity-40 hover:opacity-75 hover:bg-zinc-50/50'
+                      : 'bg-transparent border-transparent hover:bg-zinc-50/50 hover:border-zinc-100'
+                  }`}
+                  style={{
+                    opacity: isAnyStepFocused ? (isThisStepFocused ? 1 : 0.4) : 1,
+                    transition: 'opacity 0.2s ease',
+                  }}
+                >
                   {/* 타임라인 노드 아이콘 */}
                   <div
-                    className={`absolute left-0 top-0.5 w-6 h-6 rounded-full border flex items-center justify-center font-bold z-10 transition-all duration-200 group-hover:scale-110 shadow-sm ${iconColor}`}
+                    className={`absolute left-2.5 top-2.5 w-6 h-6 rounded-full border flex items-center justify-center font-bold z-10 transition-all duration-200 group-hover:scale-110 shadow-sm ${iconColor} ${
+                      isThisStepFocused ? 'ring-2 ring-blue-500/30' : ''
+                    }`}
                     style={{
                       backgroundColor: step.type === 'walk' ? '#F4F4F5' : stepColor,
                       borderColor: step.type === 'walk' ? '#E4E4E7' : 'transparent',
@@ -220,10 +277,31 @@ export default function RouteGuidePanel({
 
                   {/* 경로 설명 및 거리/시간 */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <h4 className="text-[14px] font-bold text-zinc-800 group-hover:text-blue-600 transition-colors">
-                        {step.type === 'walk' ? '도보 이동' : step.name}
-                      </h4>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h4 className="text-[14px] font-bold text-zinc-800 group-hover:text-blue-600 transition-colors truncate">
+                          {step.type === 'walk' ? '도보 이동' : step.name}
+                        </h4>
+                        {step.type !== 'walk' && (
+                          <div className="flex items-center gap-1 text-[9px] font-black text-rose-500 bg-rose-50 border border-rose-100/50 px-1.5 py-0.5 rounded-full select-none flex-shrink-0">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
+                            </span>
+                            {step.type === 'subway' ? (
+                              <>
+                                <span className="text-rose-500">2분</span>
+                                <span className="text-zinc-400 font-bold ml-1">전역</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-rose-500">5분</span>
+                                <span className="text-zinc-400 font-bold ml-1">3전</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <span className="text-[12px] font-bold text-zinc-600 flex-shrink-0">
                         {step.duration}분
                       </span>

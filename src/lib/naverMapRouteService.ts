@@ -119,8 +119,8 @@ export function expandBounds(
   const effectiveLngDiff = lngDiff === 0 ? 0.0015 : lngDiff;
 
   // 침범 방지 및 안전 여백 확보를 위해 항상 양수(확장) 비율만 사용하도록 보장합니다.
-  // ratio가 음수이거나 너무 작다면 기본 안전 마진(0.08, 즉 8% 확장)을 적용합니다.
-  const safeRatio = ratio <= 0 ? 0.08 : ratio;
+  // ratio가 음수이거나 너무 작다면 기본 안전 마진(0.03, 즉 3% 확장)을 적용합니다.
+  const safeRatio = ratio <= 0 ? 0.03 : ratio;
 
   const latExpansion = effectiveLatDiff * safeRatio;
   const lngExpansion = effectiveLngDiff * safeRatio;
@@ -447,7 +447,7 @@ export class NaverMapRouteRenderer {
     places: Array<{ id: string; lat: number; lng: number; selected_route?: any }>,
     directionsCache: Record<string, any>,
     transportType: string = 'public',
-    padding: any = { top: 180, right: 20, bottom: 20, left: 20 }
+    padding: any = { top: 40, right: 30, bottom: 45, left: 30 }
   ): void {
     const navermaps = window.naver?.maps;
     if (!navermaps || places.length === 0) return;
@@ -455,7 +455,7 @@ export class NaverMapRouteRenderer {
     const boundsObj = calculateJourneyBounds(places, directionsCache, transportType);
     if (!boundsObj) return;
 
-    const expanded = expandBounds(boundsObj, 0.10); // 10% 확장하여 충분한 안전 마진 확보
+    const expanded = expandBounds(boundsObj, 0.03); // 3% 확장하여 충분한 안전 마진 확보
 
     const bounds = new navermaps.LatLngBounds(
       new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),

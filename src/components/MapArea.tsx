@@ -114,18 +114,18 @@ export default function MapArea() {
     const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
     const mapWidth = windowWidth - sidebarWidth;
     
-    // 상단 검색바 제거에 따른 상단 패딩 축소
-    const topPadding = 60; 
+    // 상단 검색바 제거에 따른 상단 패딩 축소 (최적의 핏을 위해 여백 최소화)
+    const topPadding = 40; 
     
     // 모바일 등 창이 작을 때 여백 축소
-    const rightPadding = mapWidth < 600 ? 20 : 40;
-    const bottomPadding = mapWidth < 600 ? 40 : 80;
+    const rightPadding = mapWidth < 600 ? 16 : 30;
+    const bottomPadding = mapWidth < 600 ? 30 : 45;
     
     // 경로 안내 패널이 열려 있을 때 좌측 패딩
     // 패널 너비를 고려하되, 맵 너비가 너무 작으면 지도가 찌그러지는 것을 방지하기 위해 최대값 제한
-    let leftPadding = mapWidth < 600 ? 20 : 40;
+    let leftPadding = mapWidth < 600 ? 16 : 30;
     if (isPanelOpen) {
-      leftPadding = Math.min(420, mapWidth * 0.5);
+      leftPadding = Math.min(390, mapWidth * 0.45);
     }
 
     return {
@@ -291,7 +291,7 @@ export default function MapArea() {
 
     map.setOptions({ padding: currentMapPadding });
 
-    const expanded = expandBounds(focusBounds, 0.10); // 10% 확장하여 상/하/좌/우 잘림 방지
+    const expanded = expandBounds(focusBounds, 0.03); // 3% 확장하여 더욱 조밀하고 가득 차게 핏팅
     const bounds = new navermaps.LatLngBounds(
       new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)

@@ -102,6 +102,62 @@ export function calculateSegmentBounds(
   };
 }
 
+/**
+ * 전체 여정의 모든 경유지와 캐시된 경로 좌표를 포함하는 바운드(SW, NE)를 계산하는 헬퍼 함수
+ */
+export function calculateJourneyBounds(
+  places: Array<{ id: string; lat: number; lng: number; selected_route?: any }>,
+  directionsCache: Record<string, any>,
+  transportType: string = 'public'
+) {
+  if (places.length === 0) return null;
+
+  const points: { lat: number; lng: number }[] = [];
+
+  // 1. 모든 경유지 좌표 추가
+  places.forEach((p) => {
+    points.push({ lat: p.lat, lng: p.lng });
+  });
+
+  // 2. 캐시된 활성 경로의 모든 상세 경로 포인트 추가
+  for (let i = 0; i < places.length - 1; i++) {
+    const origin = places[i];
+    const dest = places[i + 1];
+    const cacheKey = `${origin.id}-${dest.id}`;
+    const segmentData = directionsCache[cacheKey];
+
+    const activeRoute = origin.selected_route && origin.selected_route.destId === dest.id
+      ? origin.selected_route
+      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+
+    if (activeRoute) {
+      if (activeRoute.pathPoints && activeRoute.pathPoints.length > 0) {
+        points.push(...activeRoute.pathPoints);
+      } else if (activeRoute.steps) {
+        activeRoute.steps.forEach((step: any) => {
+          if (step.pathPoints && step.pathPoints.length > 0) {
+            points.push(...step.pathPoints);
+          }
+        });
+      }
+    }
+  }
+
+  const lats = points.map(p => p.lat);
+  const lngs = points.map(p => p.lng);
+
+  return {
+    sw: {
+      lat: Math.min(...lats),
+      lng: Math.min(...lngs),
+    },
+    ne: {
+      lat: Math.max(...lats),
+      lng: Math.max(...lngs),
+    },
+  };
+}
+
 export function calculateStepBounds(step: any) {
   const points: { lat: number; lng: number }[] = [];
   if (step.pathPoints && step.pathPoints.length > 0) {
@@ -350,30 +406,41 @@ export class NaverMapRouteRenderer {
   }
 
   /**
-   * 경로 상의 마커들을 모두 포함하도록 지도의 시야(Viewport)를 자동으로 맞춥니다.
+   * 경로 상의 모든 마커와 상세 경로 좌표를 포함하도록 지도의 시야(Viewport)를 자동으로 맞춥니다.
+   * top 패딩을 180px로 상향하여 검색바 영역과의 겹침을 방지합니다.
    */
-  public fitMapBounds(coordinates: Array<{ lat: number; lng: number }>): void {
+  public fitMapBounds(
+    places: Array<{ id: string; lat: number; lng: number; selected_route?: any }>,
+    directionsCache: Record<string, any>,
+    transportType: string = 'public'
+  ): void {
     const navermaps = window.naver?.maps;
-    if (!navermaps || coordinates.length === 0) return;
+    if (!navermaps || places.length === 0) return;
+
+    const boundsObj = calculateJourneyBounds(places, directionsCache, transportType);
+    if (!boundsObj) return;
 
     const bounds = new navermaps.LatLngBounds(
-      new navermaps.LatLng(coordinates[0].lat, coordinates[0].lng),
-      new navermaps.LatLng(coordinates[0].lat, coordinates[0].lng)
+      new navermaps.LatLng(boundsObj.sw.lat, boundsObj.sw.lng),
+      new navermaps.LatLng(boundsObj.ne.lat, boundsObj.ne.lng)
     );
 
-    coordinates.forEach(coord => {
-      bounds.extend(new navermaps.LatLng(coord.lat, coord.lng));
-    });
+    const latDiff = boundsObj.ne.lat - boundsObj.sw.lat;
+    const lngDiff = boundsObj.ne.lng - boundsObj.sw.lng;
+    const isHorizontal = lngDiff > latDiff;
+    const horizontalPadding = isHorizontal ? 200 : 50;
 
     this.map.fitBounds(bounds, {
-      top: 150,
-      right: 40,
-      bottom: 50,
-      left: 40,
+      top: 180, // 검색바 높이 + 마커 크기 + 마진을 고려한 충분한 상단 여백
+      right: horizontalPadding,
+      bottom: 60,
+      left: horizontalPadding,
     });
+    
+    this.map.setZoom(this.map.getZoom() + 1);
 
-    if (this.map.getZoom() > 15) {
-      this.map.setZoom(15);
+    if (this.map.getZoom() > 16) {
+      this.map.setZoom(16);
     }
   }
 

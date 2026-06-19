@@ -546,20 +546,23 @@ export default function JourneySidebar() {
                     }`}
                 >
                   {isListEditMode && (
-                    <input
-                      type="checkbox"
-                      id={`checkbox-${journey.id}`}
-                      checked={selectedIds.includes(journey.id)}
-                      onChange={() => handleToggleSelect(journey.id)}
-                      className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0"
-                    />
+                    <div
+                      onClick={() => handleToggleSelect(journey.id)}
+                      className="w-5 h-5 flex items-center justify-center cursor-pointer flex-shrink-0"
+                    >
+                      <input
+                        type="checkbox"
+                        id={`checkbox-${journey.id}`}
+                        checked={selectedIds.includes(journey.id)}
+                        readOnly
+                        className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                      />
+                    </div>
                   )}
                   <button
                     type="button"
-                    onClick={() => !isListEditMode && setActiveJourney(journey)}
-                    disabled={isListEditMode}
-                    className={`journey-card-content flex-1 text-left bg-white border border-zinc-100 rounded-2xl p-5 shadow-sm transition-all flex flex-col gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${isListEditMode ? 'opacity-90 cursor-default' : 'hover:border-blue-500 hover:shadow-md cursor-pointer'
-                      }`}
+                    onClick={() => isListEditMode ? handleToggleSelect(journey.id) : setActiveJourney(journey)}
+                    className={`journey-card-content flex-1 text-left bg-white border border-zinc-100 rounded-2xl p-5 shadow-sm transition-all flex flex-col gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer hover:border-blue-500 hover:shadow-md ${isListEditMode ? 'opacity-90' : ''}`}
                   >
                     <div>
                       <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full transition-colors group-hover:bg-blue-100">

@@ -624,12 +624,15 @@ function PlaceCard({
         {/* 번호 + 세로선 컬럼 */}
         <div className="flex flex-col items-center w-10 flex-shrink-0 self-stretch select-none">
           {editMode ? (
-            <div className="w-8 h-8 flex items-center justify-center z-10 flex-shrink-0">
+            <div
+              onClick={onToggleSelect}
+              className="w-8 h-8 flex items-center justify-center z-10 flex-shrink-0 cursor-pointer"
+            >
               <input
                 type="checkbox"
                 checked={isSelected}
-                onChange={onToggleSelect}
-                className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                readOnly
+                className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
               />
             </div>
           ) : (
@@ -644,7 +647,14 @@ function PlaceCard({
         </div>
 
         {/* 장소 카드 */}
-        <div className="place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border border-zinc-100 rounded-2xl shadow-sm group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)] transition-all duration-200">
+        <div
+          onClick={editMode ? onToggleSelect : undefined}
+          className={`place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all duration-200 ${
+            editMode
+              ? 'cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+              : 'group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+          }`}
+        >
           <div className="flex items-center px-4 py-3 gap-2">
             {/* 장소 정보 */}
             <div className="flex-1 min-w-0">
@@ -677,7 +687,10 @@ function PlaceCard({
 
             {/* 드래그 핸들 - 편집 상태에만 오른쪽에 노출 */}
             {editMode && (
-              <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 transition-colors">
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 transition-colors"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                   <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
                 </svg>

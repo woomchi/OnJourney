@@ -19,12 +19,29 @@ export default function RouteGuidePanel({
   onClose
 }: RouteGuidePanelProps) {
   const [mounted, setMounted] = useState(false);
+  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
   useEffect(() => {
     // Small delay to trigger the slide-in transition
     const timer = setTimeout(() => setMounted(true), 50);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (
+      mounted &&
+      focusedStep &&
+      focusedStep.originId === originPlace.id &&
+      focusedStep.destId === destPlace.id
+    ) {
+      const element = document.getElementById(`step-${originPlace.id}-${destPlace.id}-${focusedStep.stepIndex}`);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [focusedStep, originPlace.id, destPlace.id, mounted]);
 
   const formatDistance = (meters: number) => {
     if (meters < 10) return '';
@@ -43,8 +60,6 @@ export default function RouteGuidePanel({
   const guide = route.guide || [];
   const steps = route.steps || [];
   const hasGuide = guide.length > 0;
-
-  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
   const handleStepClick = (idx: number, step: any) => {
     const isThisStepFocused = !!(
@@ -249,6 +264,7 @@ export default function RouteGuidePanel({
               return (
                 <div
                   key={idx}
+                  id={`step-${originPlace.id}-${destPlace.id}-${idx}`}
                   onClick={() => handleStepClick(idx, step)}
                   className={`relative flex gap-4 pl-9 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none ${
                     isThisStepFocused

@@ -8,7 +8,6 @@ import {
   Marker,
   Polyline,
 } from 'react-naver-maps';
-import PlaceSearchBar from '@/components/PlaceSearchBar';
 import RouteGuidePanel from '@/components/RouteGuidePanel';
 import { useJourneyStore } from '@/stores/journey-store';
 import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance, expandBounds } from '@/lib/naverMapRouteService';
@@ -114,11 +113,6 @@ export default function MapArea() {
     map.setOptions({ padding: currentMapPadding });
   }, [map, currentMapPadding]);
 
-  const handlePlaceSelect = (place: SelectedPlace) => {
-    const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
-    setMapCenter(coord);
-    map?.panTo(coord);
-  };
 
   const handleMarkerClick = (place: SelectedPlace & { id: string }, idx: number) => {
     // 1. 지도 중심 이동
@@ -173,7 +167,7 @@ export default function MapArea() {
     if (!focusBounds) {
       if (!map || places.length === 0) return;
       map.setOptions({ padding: currentMapPadding });
-      
+
       const navermaps = typeof window !== 'undefined' && window.naver?.maps;
       if (!navermaps) return;
 
@@ -572,64 +566,44 @@ export default function MapArea() {
             type="button"
             onClick={handleResetBounds}
             className="
-              flex items-center justify-center w-12 h-12 rounded-2xl bg-white border border-zinc-150 shadow-[0_8px_30px_rgb(0,0,0,0.08)]
-              text-zinc-600 hover:text-blue-600 hover:scale-[1.04] hover:border-blue-100 active:scale-[0.96] transition-all duration-200
+              group flex items-center justify-center w-12 h-12 rounded-2xl
+              bg-white border border-zinc-200/80
+              shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
+              hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)]
+              hover:border-blue-200 hover:bg-blue-50/40
+              active:scale-[0.94] hover:scale-[1.06]
+              transition-all duration-200 ease-out
               cursor-pointer select-none
             "
             title="전체 경로 보기"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 32 32"
               fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="w-6 h-6"
+              className="w-8 h-8 transition-transform group-hover:scale-110 duration-200"
             >
-              {/* Route Path (connecting line) */}
+              {/* 핀 */}
               <path
-                d="M5 18L12 11L19 15"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeDasharray="2.5 2.5"
+                d="M21 2C17.5 2 15 5 15 8.5C15 13.5 21 19 21 19C21 19 27 13.5 27 8.5C27 5 24.5 2 21 2Z"
+                className="fill-[#8A8A93] group-hover:fill-blue-500 transition-colors duration-200"
+              />
+              <circle cx="21" cy="8" r="2.5" fill="white" />
+
+              {/* 경로 선 */}
+              <path
+                d="M 6 29 Q 13.8 27.7, 21.5 25.4 Q 23 25, 21.5 24.5 Q 17.0 23.5, 12.4 21.5 Q 11 21, 12.5 20.7 Q 16.8 20.3, 21 19"
+                strokeWidth="1.75"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="stroke-[#64748B] group-hover:stroke-blue-500 transition-colors duration-200"
+                fill="none"
               />
-
-              {/* Pin 1 (Start) */}
-              <path
-                d="M5 18c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
-                fill="currentColor"
-                stroke="currentColor"
-                strokeWidth="0.5"
-              />
-              <circle cx="5" cy="14.5" r="0.75" fill="white" />
-
-              {/* Pin 2 (Middle) */}
-              <path
-                d="M12 11c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
-                fill="currentColor"
-                stroke="currentColor"
-                strokeWidth="0.5"
-              />
-              <circle cx="12" cy="7.5" r="0.75" fill="white" />
-
-              {/* Pin 3 (End) */}
-              <path
-                d="M19 15c-1.8-3-1.8-5 0-5s1.8 2 0 5z"
-                fill="currentColor"
-                stroke="currentColor"
-                strokeWidth="0.5"
-              />
-              <circle cx="19" cy="11.5" r="0.75" fill="white" />
             </svg>
           </button>
         </div>
       )}
 
-      {/* 검색바: 지도 위에 absolute로 올림 (MapDiv 밖) */}
-      <div className="absolute top-4 left-4 w-full max-w-lg z-[100]">
-        <PlaceSearchBar onPlaceSelect={handlePlaceSelect} />
-      </div>
 
       {/* 상세 경로 안내 패널: 사이드바 오른쪽에 따로 띄움 */}
       {activeRouteOfFocusedSegment && focusedPlaces && (

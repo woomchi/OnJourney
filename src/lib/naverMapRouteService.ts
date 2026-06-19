@@ -115,43 +115,15 @@ export function expandBounds(
   const lngDiff = boundsObj.ne.lng - boundsObj.sw.lng;
   
   // 단일 마커 등 크기가 0인 경우 최소값 보장
-  const effectiveLatDiff = latDiff === 0 ? 0.001 : latDiff;
-  const effectiveLngDiff = lngDiff === 0 ? 0.001 : lngDiff;
+  const effectiveLatDiff = latDiff === 0 ? 0.0015 : latDiff;
+  const effectiveLngDiff = lngDiff === 0 ? 0.0015 : lngDiff;
 
-  // 한국 위도(37.5도) 기준 실질 거리 비율 보정 (경도 1도 ≈ 88km, 위도 1도 ≈ 111km)
-  const physicalWidth = effectiveLngDiff * 88;
-  const physicalHeight = effectiveLatDiff * 111;
-  const aspect = physicalWidth / (physicalHeight || 0.0001);
+  // 침범 방지 및 안전 여백 확보를 위해 항상 양수(확장) 비율만 사용하도록 보장합니다.
+  // ratio가 음수이거나 너무 작다면 기본 안전 마진(0.08, 즉 8% 확장)을 적용합니다.
+  const safeRatio = ratio <= 0 ? 0.08 : ratio;
 
-  let latRatio = ratio; // 기본적으로 -0.20
-  let lngRatio = ratio; // 기본적으로 -0.20
-
-  // 1. 가로축 (Longitude) 줌 제어 완화
-  // 가로 방향이 길어질수록 가로축 경계선 축소 비율(줌인 강도)을 낮추고, 아주 길어지면 여백을 확보하도록 확장함 (잘림 방지)
-  if (aspect > 1.2) {
-    if (aspect >= 1.8) {
-      lngRatio = 0.05; // 5% 확장하여 좌우 잘림을 완전히 방지하고 충분한 안전 마진 확보
-    } else {
-      // 1.2 < aspect < 1.8 구간 선형 보간 (aspect가 1.2일 때 ratio, 1.8일 때 0.05)
-      const t = (aspect - 1.2) / (1.8 - 1.2);
-      lngRatio = ratio * (1 - t) + 0.05 * t;
-    }
-  }
-
-  // 2. 세로축 (Latitude) 줌 제어 완화
-  // 세로 방향이 길어질수록 세로축 경계선 축소 비율을 완화하되, 여전히 적절한 줌인이 되도록 -0.06(6% 수축)을 하한선으로 설정 (기존 0.05 확장에서 수정)
-  if (aspect < 1.2) {
-    if (aspect <= 0.6) {
-      latRatio = -0.06; // 6% 수축하여 상하단 잘림 방지하면서도 충분한 줌인 보장 (과도한 축소 현상 해결)
-    } else {
-      // 0.6 < aspect < 1.2 구간 선형 보간 (aspect가 1.2일 때 ratio, 0.6일 때 -0.06)
-      const t = (1.2 - aspect) / (1.2 - 0.6);
-      latRatio = ratio * (1 - t) + (-0.06) * t;
-    }
-  }
-
-  const latExpansion = effectiveLatDiff * latRatio;
-  const lngExpansion = effectiveLngDiff * lngRatio;
+  const latExpansion = effectiveLatDiff * safeRatio;
+  const lngExpansion = effectiveLngDiff * safeRatio;
   
   return {
     sw: {
@@ -474,7 +446,8 @@ export class NaverMapRouteRenderer {
   public fitMapBounds(
     places: Array<{ id: string; lat: number; lng: number; selected_route?: any }>,
     directionsCache: Record<string, any>,
-    transportType: string = 'public'
+    transportType: string = 'public',
+    padding: any = { top: 180, right: 20, bottom: 20, left: 20 }
   ): void {
     const navermaps = window.naver?.maps;
     if (!navermaps || places.length === 0) return;
@@ -482,23 +455,15 @@ export class NaverMapRouteRenderer {
     const boundsObj = calculateJourneyBounds(places, directionsCache, transportType);
     if (!boundsObj) return;
 
-    const expanded = expandBounds(boundsObj, -0.20); // 20% 축소하여 줌을 확실하게 당김
+    const expanded = expandBounds(boundsObj, 0.10); // 10% 확장하여 충분한 안전 마진 확보
 
     const bounds = new navermaps.LatLngBounds(
       new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    this.map.fitBounds(bounds, {
-      top: 180, // 검색바 높이 + 마커 크기 + 마진을 고려한 충분한 상단 여백
-      right: 20,
-      bottom: 20,
-      left: 20,
-    });
-
-    if (this.map.getZoom() > 16) {
-      this.map.setZoom(16);
-    }
+    this.map.setOptions({ padding });
+    this.map.fitBounds(bounds, { maxZoom: 16 });
   }
 
   /**

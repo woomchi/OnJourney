@@ -21,12 +21,7 @@ const SEQUENCE_COLORS = [
   '#DC2626', // 5번째 이상: Rose Red
 ];
 
-const MAP_PADDING = {
-  top: 180, // 검색바 영역(높이 ~80px + 마커 핀 크기 ~40px + 안전 마진)에 경로/마커가 겹치지 않도록 조절
-  right: 20,
-  bottom: 20,
-  left: 20,
-};
+
 
 interface SelectedPlace {
   lat: number;
@@ -93,6 +88,21 @@ export default function MapArea() {
     return { originPlace, destPlace };
   }, [focusedSegment, activeJourney]);
 
+  const isPanelOpen = !!(activeRouteOfFocusedSegment && focusedPlaces);
+
+  const currentMapPadding = useMemo(() => ({
+    top: 180,
+    right: 40,
+    bottom: 80,
+    left: isPanelOpen ? 460 : 40, // 360 (패널 넓이) + 100 (추가 여백)으로 우측 여백 밸런스 조정
+  }), [isPanelOpen]);
+
+  // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
+  useEffect(() => {
+    if (!map) return;
+    map.setOptions({ padding: currentMapPadding });
+  }, [map, currentMapPadding]);
+
   const handlePlaceSelect = (place: SelectedPlace) => {
     const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
     setMapCenter(coord);
@@ -101,9 +111,12 @@ export default function MapArea() {
 
   const handleMarkerClick = (place: SelectedPlace & { id: string }, idx: number) => {
     // 1. 지도 중심 이동
-    const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
-    setMapCenter(coord);
-    map?.panTo(coord);
+    if (map) {
+      map.setOptions({ padding: currentMapPadding });
+      const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
+      setMapCenter(coord);
+      map.panTo(coord);
+    }
 
     // 2. 이동 경로 하이라이트 인터랙션 적용
     if (places.length < 2) return;
@@ -145,30 +158,34 @@ export default function MapArea() {
   };
 
   const handleResetBounds = () => {
+    // 만약 이미 전체 화면 상태라면, 패딩 재적용 및 수동 핏팅 수행 (사용자 조작 복구용)
+    if (!focusBounds) {
+      if (!map || places.length === 0) return;
+      map.setOptions({ padding: currentMapPadding });
+      
+      const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+      if (!navermaps) return;
+
+      if (places.length === 1) {
+        const first = places[0];
+        const latOffset = 0.0015;
+        const lngOffset = 0.0015;
+        const bounds = new navermaps.LatLngBounds(
+          new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
+          new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
+        );
+        map.fitBounds(bounds, { maxZoom: 16 });
+      } else {
+        const renderer = new NaverMapRouteRenderer(map);
+        renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
+      }
+      return;
+    }
+
+    // 포커스 상태를 클리어하면 useEffect에 의해 자동으로 최적의 unpadded 뷰포트로 핏팅됨
     setFocusBounds(null);
     setFocusedSegment(null);
     setFocusedStep(null);
-    if (!map || places.length === 0) return;
-
-    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-    if (!navermaps) return;
-
-    if (places.length === 1) {
-      const first = places[0];
-      const latOffset = 0.0015;
-      const lngOffset = 0.0015;
-      const bounds = new navermaps.LatLngBounds(
-        new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
-        new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
-      );
-      map.fitBounds(bounds, MAP_PADDING);
-      if (map.getZoom() > 16) {
-        map.setZoom(16);
-      }
-    } else {
-      const renderer = new NaverMapRouteRenderer(map);
-      renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public');
-    }
   };
 
   if (!clientId) {
@@ -214,6 +231,8 @@ export default function MapArea() {
     // 만약 사용자가 이미 개별 세그먼트에 포커스(focusBounds가 활성 상태) 중이라면 자동 전체 fitBounds 무시
     if (focusBounds) return;
 
+    map.setOptions({ padding: currentMapPadding });
+
     if (places.length === 1) {
       const first = places[0];
       const latOffset = 0.0015;
@@ -222,15 +241,12 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
-      map.fitBounds(bounds, MAP_PADDING);
-      if (map.getZoom() > 16) {
-        map.setZoom(16);
-      }
+      map.fitBounds(bounds, { maxZoom: 16 });
     } else {
       const renderer = new NaverMapRouteRenderer(map);
-      renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public');
+      renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
     }
-  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type]);
+  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, currentMapPadding]);
 
   // focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
   useEffect(() => {
@@ -239,20 +255,17 @@ export default function MapArea() {
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
 
-    const expanded = expandBounds(focusBounds, -0.20); // 20% 축소하여 줌을 확실하게 당김
+    map.setOptions({ padding: currentMapPadding });
+
+    const expanded = expandBounds(focusBounds, 0.10); // 10% 확장하여 상/하/좌/우 잘림 방지
     const bounds = new navermaps.LatLngBounds(
       new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    // 검색 바 영역 아래쪽 공간을 타겟으로 MAP_PADDING 적용하여 초점 설정
-    map.fitBounds(bounds, MAP_PADDING);
+    map.fitBounds(bounds, { maxZoom: 18 });
 
-    // 도보 마커와 탑승 마커가 인접할 때 겹침 현상을 방지하도록 줌 레벨 제한을 18로 상향 조정
-    if (map.getZoom() > 19) {
-      map.setZoom(19);
-    }
-  }, [focusBounds, map]);
+  }, [focusBounds, map, currentMapPadding]);
 
   // 지도 줌 레벨 및 뷰포트 바운드 변경 감지 리스너
   useEffect(() => {

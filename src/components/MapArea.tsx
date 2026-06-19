@@ -100,12 +100,41 @@ export default function MapArea() {
 
   const isPanelOpen = !!(activeRouteOfFocusedSegment && focusedPlaces);
 
-  const currentMapPadding = useMemo(() => ({
-    top: 180,
-    right: 40,
-    bottom: 80,
-    left: isPanelOpen ? 460 : 40, // 360 (패널 넓이) + 100 (추가 여백)으로 우측 여백 밸런스 조정
-  }), [isPanelOpen]);
+  const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const currentMapPadding = useMemo(() => {
+    // 맵 컨테이너의 예상 너비 계산 (사이드바 너비 고려)
+    const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
+    const mapWidth = windowWidth - sidebarWidth;
+    
+    // 상단 검색바 제거에 따른 상단 패딩 축소
+    const topPadding = 60; 
+    
+    // 모바일 등 창이 작을 때 여백 축소
+    const rightPadding = mapWidth < 600 ? 20 : 40;
+    const bottomPadding = mapWidth < 600 ? 40 : 80;
+    
+    // 경로 안내 패널이 열려 있을 때 좌측 패딩
+    // 패널 너비를 고려하되, 맵 너비가 너무 작으면 지도가 찌그러지는 것을 방지하기 위해 최대값 제한
+    let leftPadding = mapWidth < 600 ? 20 : 40;
+    if (isPanelOpen) {
+      leftPadding = Math.min(420, mapWidth * 0.5);
+    }
+
+    return {
+      top: topPadding,
+      right: rightPadding,
+      bottom: bottomPadding,
+      left: leftPadding,
+    };
+  }, [isPanelOpen, windowWidth]);
 
   // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
   useEffect(() => {

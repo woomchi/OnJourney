@@ -5,6 +5,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
 import { fetchLatestJourney, fetchJourneys, deleteJourneys } from '@/lib/journeys';
 import CreateJourneyModal from '@/components/CreateJourneyModal';
+import EditJourneyModal from '@/components/EditJourneyModal';
 import AuthModal from '@/components/AuthModal';
 import PlaceList from '@/components/PlaceList';
 import AddPlaceModal from '@/components/AddPlaceModal';
@@ -60,6 +61,7 @@ export default function JourneySidebar() {
   }, []);
 
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isListEditMode, setIsListEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
@@ -350,13 +352,37 @@ export default function JourneySidebar() {
 
             {/* 여정 제목 (가운데) */}
             <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-1">
-              <h2 className="text-sm font-bold text-zinc-900 truncate max-w-full leading-tight">
-                {activeJourney.title}
-              </h2>
-              <p className="text-[10px] text-zinc-400 mt-0.5">
-                {formatJourneyDate(activeJourney.journey_date)}&nbsp;·&nbsp;
-                {activeJourney.transport_type === 'public' ? '대중교통' : '차량'}
-              </p>
+              {isEditMode ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="w-full flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 hover:bg-blue-50/60 cursor-pointer border border-dashed border-transparent hover:border-blue-200/80 select-none group"
+                  title="여정 정보 수정"
+                >
+                  <div className="flex items-center gap-1 max-w-full justify-center">
+                    <span className="text-sm font-extrabold text-zinc-900 group-hover:text-blue-600 truncate leading-tight transition-colors">
+                      {activeJourney.title}
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                    </svg>
+                  </div>
+                  <p className="text-[10px] text-zinc-400 group-hover:text-blue-500/70 mt-0.5 font-semibold transition-colors">
+                    {formatJourneyDate(activeJourney.journey_date)}&nbsp;·&nbsp;
+                    {activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}
+                  </p>
+                </button>
+              ) : (
+                <>
+                  <h2 className="text-sm font-bold text-zinc-900 truncate max-w-full leading-tight">
+                    {activeJourney.title}
+                  </h2>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">
+                    {formatJourneyDate(activeJourney.journey_date)}&nbsp;·&nbsp;
+                    {activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}
+                  </p>
+                </>
+              )}
             </div>
 
             {/* 편집 */}
@@ -435,6 +461,11 @@ export default function JourneySidebar() {
         </aside>
 
         <CreateJourneyModal />
+        <EditJourneyModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          journey={activeJourney}
+        />
         <AuthModal />
         <AddPlaceModal />
       </>

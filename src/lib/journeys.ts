@@ -1,12 +1,12 @@
 import { createClient } from '@/lib/supabase/client';
 import { toJourneyErrorMessage } from '@/lib/journeys/errors';
-import type { CreateJourneyInput, Journey, Place } from '@/types/journey';
+import type { CreateJourneyInput, Journey, Place, TransportType } from '@/types/journey';
 
 interface JourneyRow {
   id: string;
   user_id: string;
   title: string;
-  transport_type: 'public' | 'car';
+  transport_type: TransportType;
   journey_date: string;
   places: Place[];
   current_step: number;
@@ -131,5 +131,32 @@ export async function deleteJourneys(ids: string[]): Promise<void> {
   if (error) {
     throw new Error(toJourneyErrorMessage(error));
   }
+}
+
+export async function updateJourney(
+  journeyId: string,
+  updates: {
+    title?: string;
+    journey_date?: string;
+    transport_type?: TransportType;
+  }
+): Promise<Journey> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('journeys')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', journeyId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(toJourneyErrorMessage(error));
+  }
+
+  return mapRowToJourney(data as JourneyRow);
 }
 

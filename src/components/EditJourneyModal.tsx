@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { TransportType } from '@/types/journey';
+import type { Journey, TransportType } from '@/types/journey';
 
 const TRANSPORT_OPTIONS = [
   { value: 'public' as const, label: '대중교통', icon: '🚌' },
@@ -10,18 +10,30 @@ const TRANSPORT_OPTIONS = [
   { value: 'walk' as const, label: '도보', icon: '🚶' },
 ];
 
-export default function CreateJourneyModal() {
-  const { isCreateFormOpen, closeCreateForm, createJourney, isLoading } =
-    useJourneyStore();
+interface EditJourneyModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  journey: Journey;
+}
+
+export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourneyModalProps) {
+  const { updateJourneyInfo, isLoading } = useJourneyStore();
 
   const [title, setTitle] = useState('');
   const [transportType, setTransportType] = useState<TransportType>('public');
-  const [journeyDate, setJourneyDate] = useState(
-    () => new Date().toISOString().slice(0, 10),
-  );
+  const [journeyDate, setJourneyDate] = useState('');
   const [error, setError] = useState('');
 
-  if (!isCreateFormOpen) return null;
+  useEffect(() => {
+    if (isOpen && journey) {
+      setTitle(journey.title);
+      setTransportType(journey.transport_type);
+      setJourneyDate(journey.journey_date);
+      setError('');
+    }
+  }, [isOpen, journey]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,18 +50,11 @@ export default function CreateJourneyModal() {
     setError('');
 
     try {
-      await createJourney({
-        title,
-        transport_type: transportType,
-        journey_date: journeyDate,
-      });
-
-      setTitle('');
-      setTransportType('public');
-      setJourneyDate(new Date().toISOString().slice(0, 10));
+      await updateJourneyInfo(title, journeyDate, transportType);
+      onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : '여정 저장에 실패했습니다.',
+        err instanceof Error ? err.message : '여정 수정에 실패했습니다.',
       );
     }
   };
@@ -57,7 +62,7 @@ export default function CreateJourneyModal() {
   const handleClose = () => {
     if (isLoading) return;
     setError('');
-    closeCreateForm();
+    onClose();
   };
 
   return (
@@ -73,16 +78,16 @@ export default function CreateJourneyModal() {
         className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-zinc-100 p-8"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="create-journey-title"
+        aria-labelledby="edit-journey-title"
       >
         <h2
-          id="create-journey-title"
+          id="edit-journey-title"
           className="text-2xl font-black text-zinc-900 mb-1"
         >
-          새 여정 만들기
+          여정 정보 수정
         </h2>
         <p className="text-sm text-zinc-500 mb-8">
-          여정 정보를 입력하고 장소를 추가해보세요.
+          여정명, 날짜, 기본 이동 수단을 수정할 수 있습니다.
         </p>
 
         <label className="block mb-6">
@@ -109,7 +114,7 @@ export default function CreateJourneyModal() {
                 type="button"
                 disabled={isLoading}
                 onClick={() => setTransportType(opt.value)}
-                className={`py-3 px-4 rounded-xl border-2 font-semibold text-sm transition-all disabled:opacity-50 ${
+                className={`py-3 px-4 rounded-xl border-2 font-semibold text-sm transition-all disabled:opacity-50 cursor-pointer ${
                   transportType === opt.value
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-zinc-200 text-zinc-600 hover:border-zinc-300'
@@ -143,16 +148,16 @@ export default function CreateJourneyModal() {
             type="button"
             onClick={handleClose}
             disabled={isLoading}
-            className="flex-1 py-3.5 rounded-2xl border border-zinc-200 text-zinc-600 font-bold text-[15px] hover:bg-zinc-50 transition-colors disabled:opacity-50"
+            className="flex-1 py-3.5 rounded-2xl border border-zinc-200 text-zinc-600 font-bold text-[15px] hover:bg-zinc-50 transition-colors disabled:opacity-50 cursor-pointer"
           >
             취소
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 py-3.5 rounded-2xl bg-zinc-900 text-white font-bold text-[15px] hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            className="flex-1 py-3.5 rounded-2xl bg-zinc-900 text-white font-bold text-[15px] hover:bg-zinc-800 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            {isLoading ? '저장 중...' : '여정 시작하기'}
+            {isLoading ? '저장 중...' : '저장하기'}
           </button>
         </div>
       </form>

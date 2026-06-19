@@ -190,7 +190,7 @@ export function calculateJourneyBounds(
 
     const activeRoute = origin.selected_route && origin.selected_route.destId === dest.id
       ? origin.selected_route
-      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
 
     if (activeRoute) {
       if (activeRoute.pathPoints && activeRoute.pathPoints.length > 0) {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral, FocusedSegment, SelectedRoute, DirectionResult, FocusedStep } from '@/types/journey';
-import { insertJourney } from '@/lib/journeys';
+import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, LatLngBoundsLiteral, FocusedSegment, SelectedRoute, DirectionResult, FocusedStep, TransportType } from '@/types/journey';
+import { insertJourney, updateJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import { NaverDirectionService, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 
@@ -34,12 +34,13 @@ interface JourneyStore {
   openAddPlace: () => void;
   closeAddPlace: () => void;
   createJourney: (input: CreateJourneyInput) => Promise<void>;
+  updateJourneyInfo: (title: string, journeyDate: string, transportType: TransportType) => Promise<void>;
   setActiveJourney: (journey: Journey | null) => void;
   clearJourney: () => void;
   addPlace: (place: Place) => Promise<void>;
   removePlace: (placeId: string) => Promise<void>;
   reorderPlaces: (places: Place[]) => Promise<void>;
-  fetchSegmentDirections: (origin: Place, dest: Place, transportType?: 'public' | 'car') => Promise<void>;
+  fetchSegmentDirections: (origin: Place, dest: Place, transportType?: 'public' | 'car' | 'walk') => Promise<void>;
   fetchJourneyDirections: () => Promise<void>;
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
@@ -82,6 +83,38 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
       throw err instanceof Error
         ? err
         : new Error('여정 저장에 실패했습니다.');
+    }
+  },
+
+  updateJourneyInfo: async (title, journeyDate, transportType) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    set({ isLoading: true });
+    try {
+      const updated = await updateJourney(activeJourney.id, {
+        title: title.trim(),
+        journey_date: journeyDate,
+        transport_type: transportType,
+      });
+
+      const updatedActiveJourney = {
+        ...updated,
+        places: activeJourney.places,
+      };
+
+      set((state) => ({
+        activeJourney: updatedActiveJourney,
+        journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+        isLoading: false,
+      }));
+
+      get().fetchJourneyDirections();
+    } catch (err) {
+      set({ isLoading: false });
+      throw err instanceof Error
+        ? err
+        : new Error('여정 정보 수정에 실패했습니다.');
     }
   },
 

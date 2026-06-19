@@ -21,7 +21,7 @@ export interface Place {
   selected_route?: SelectedRoute;
 }
 
-export type TransportType = 'public' | 'car';
+export type TransportType = 'public' | 'car' | 'walk';
 
 export interface Journey {
   id: string;

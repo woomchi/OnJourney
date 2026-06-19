@@ -25,7 +25,7 @@ interface PlaceCardProps {
   isSelected: boolean;
   onToggleSelect: () => void;
   nextPlace: Place | null;
-  transportType: 'public' | 'car';
+  transportType: 'public' | 'car' | 'walk';
 }
 
 function ChevronDownIcon({ open }: { open: boolean }) {
@@ -329,10 +329,11 @@ interface AlternativeSegmentInfoProps {
   segmentData?: DirectionsApiResponse;
   loading?: boolean;
   onSelect?: () => void;
+  transportType: 'public' | 'car' | 'walk';
 }
 
-function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSelect }: AlternativeSegmentInfoProps) {
-  const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>('public');
+function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSelect, transportType }: AlternativeSegmentInfoProps) {
+  const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>(transportType);
   const { selectSegmentRoute, setFocusBounds, setFocusedSegment, setFocusedStep } = useJourneyStore();
 
   if (loading) {
@@ -731,6 +732,7 @@ function PlaceCard({
           segmentData={segmentData} 
           loading={isSegmentLoading} 
           onSelect={() => setShowAlternatives(false)}
+          transportType={transportType}
         />
       </div>
 
@@ -738,7 +740,7 @@ function PlaceCard({
       {!editMode && !isLast && (() => {
         const activeRoute = place.selected_route && nextPlace && place.selected_route.destId === nextPlace.id
           ? place.selected_route
-          : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+          : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
 
         return (
           <div className="pl-10 pb-1 flex flex-col gap-1">

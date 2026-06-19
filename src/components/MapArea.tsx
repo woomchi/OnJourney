@@ -10,7 +10,7 @@ import {
 } from 'react-naver-maps';
 import PlaceSearchBar from '@/components/PlaceSearchBar';
 import { useJourneyStore } from '@/stores/journey-store';
-import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance, expandBounds } from '@/lib/naverMapRouteService';
 
 const SEQUENCE_COLORS = [
   '#4F46E5', // 1번째 구간: Indigo Blue
@@ -22,9 +22,9 @@ const SEQUENCE_COLORS = [
 
 const MAP_PADDING = {
   top: 180, // 검색바 영역(높이 ~80px + 마커 핀 크기 ~40px + 안전 마진)에 경로/마커가 겹치지 않도록 조절
-  right: 50,
-  bottom: 60,
-  left: 50,
+  right: 20,
+  bottom: 20,
+  left: 20,
 };
 
 interface SelectedPlace {
@@ -152,7 +152,6 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
       map.fitBounds(bounds, MAP_PADDING);
-      map.setZoom(map.getZoom() + 1);
       if (map.getZoom() > 16) {
         map.setZoom(16);
       }
@@ -214,7 +213,6 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
       map.fitBounds(bounds, MAP_PADDING);
-      map.setZoom(map.getZoom() + 1);
       if (map.getZoom() > 16) {
         map.setZoom(16);
       }
@@ -231,19 +229,14 @@ export default function MapArea() {
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
 
+    const expanded = expandBounds(focusBounds, -0.20); // 20% 축소하여 줌을 확실하게 당김
     const bounds = new navermaps.LatLngBounds(
-      new navermaps.LatLng(focusBounds.sw.lat, focusBounds.sw.lng),
-      new navermaps.LatLng(focusBounds.ne.lat, focusBounds.ne.lng)
+      new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
+      new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    const latDiff = focusBounds.ne.lat - focusBounds.sw.lat;
-    const lngDiff = focusBounds.ne.lng - focusBounds.sw.lng;
-    const isHorizontal = lngDiff > latDiff;
-    const horizontalPadding = isHorizontal ? 200 : 50;
-
     // 검색 바 영역 아래쪽 공간을 타겟으로 MAP_PADDING 적용하여 초점 설정
-    map.fitBounds(bounds, { ...MAP_PADDING, left: horizontalPadding, right: horizontalPadding });
-    map.setZoom(map.getZoom() + 1);
+    map.fitBounds(bounds, MAP_PADDING);
 
     // 도보 마커와 탑승 마커가 인접할 때 겹침 현상을 방지하도록 줌 레벨 제한을 18로 상향 조정
     if (map.getZoom() > 19) {

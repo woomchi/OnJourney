@@ -103,6 +103,68 @@ export function calculateSegmentBounds(
 }
 
 /**
+ * 지정된 비율만큼 경계 상자(Bounds)를 팽창/수축시킵니다.
+ * @param boundsObj 원본 경계 (sw, ne 객체)
+ * @param ratio 팽창 비율 (양수면 팽창, 음수면 수축. 예: 0.1은 10% 팽창)
+ */
+export function expandBounds(
+  boundsObj: { sw: { lat: number; lng: number }; ne: { lat: number; lng: number } },
+  ratio: number
+) {
+  const latDiff = boundsObj.ne.lat - boundsObj.sw.lat;
+  const lngDiff = boundsObj.ne.lng - boundsObj.sw.lng;
+  
+  // 단일 마커 등 크기가 0인 경우 최소값 보장
+  const effectiveLatDiff = latDiff === 0 ? 0.001 : latDiff;
+  const effectiveLngDiff = lngDiff === 0 ? 0.001 : lngDiff;
+
+  // 한국 위도(37.5도) 기준 실질 거리 비율 보정 (경도 1도 ≈ 88km, 위도 1도 ≈ 111km)
+  const physicalWidth = effectiveLngDiff * 88;
+  const physicalHeight = effectiveLatDiff * 111;
+  const aspect = physicalWidth / (physicalHeight || 0.0001);
+
+  let latRatio = ratio; // 기본적으로 -0.20
+  let lngRatio = ratio; // 기본적으로 -0.20
+
+  // 1. 가로축 (Longitude) 줌 제어 완화
+  // 가로 방향이 길어질수록 가로축 경계선 축소 비율(줌인 강도)을 낮추고, 아주 길어지면 여백을 확보하도록 확장함 (잘림 방지)
+  if (aspect > 1.2) {
+    if (aspect >= 1.8) {
+      lngRatio = 0.05; // 5% 확장하여 좌우 잘림을 완전히 방지하고 충분한 안전 마진 확보
+    } else {
+      // 1.2 < aspect < 1.8 구간 선형 보간 (aspect가 1.2일 때 ratio, 1.8일 때 0.05)
+      const t = (aspect - 1.2) / (1.8 - 1.2);
+      lngRatio = ratio * (1 - t) + 0.05 * t;
+    }
+  }
+
+  // 2. 세로축 (Latitude) 줌 제어 완화
+  // 세로 방향이 길어질수록 세로축 경계선 축소 비율을 완화하되, 여전히 적절한 줌인이 되도록 -0.06(6% 수축)을 하한선으로 설정 (기존 0.05 확장에서 수정)
+  if (aspect < 1.2) {
+    if (aspect <= 0.6) {
+      latRatio = -0.06; // 6% 수축하여 상하단 잘림 방지하면서도 충분한 줌인 보장 (과도한 축소 현상 해결)
+    } else {
+      // 0.6 < aspect < 1.2 구간 선형 보간 (aspect가 1.2일 때 ratio, 0.6일 때 -0.06)
+      const t = (1.2 - aspect) / (1.2 - 0.6);
+      latRatio = ratio * (1 - t) + (-0.06) * t;
+    }
+  }
+
+  const latExpansion = effectiveLatDiff * latRatio;
+  const lngExpansion = effectiveLngDiff * lngRatio;
+  
+  return {
+    sw: {
+      lat: boundsObj.sw.lat - latExpansion,
+      lng: boundsObj.sw.lng - lngExpansion,
+    },
+    ne: {
+      lat: boundsObj.ne.lat + latExpansion,
+      lng: boundsObj.ne.lng + lngExpansion,
+    }
+  };
+}
+/**
  * 전체 여정의 모든 경유지와 캐시된 경로 좌표를 포함하는 바운드(SW, NE)를 계산하는 헬퍼 함수
  */
 export function calculateJourneyBounds(
@@ -420,24 +482,19 @@ export class NaverMapRouteRenderer {
     const boundsObj = calculateJourneyBounds(places, directionsCache, transportType);
     if (!boundsObj) return;
 
-    const bounds = new navermaps.LatLngBounds(
-      new navermaps.LatLng(boundsObj.sw.lat, boundsObj.sw.lng),
-      new navermaps.LatLng(boundsObj.ne.lat, boundsObj.ne.lng)
-    );
+    const expanded = expandBounds(boundsObj, -0.20); // 20% 축소하여 줌을 확실하게 당김
 
-    const latDiff = boundsObj.ne.lat - boundsObj.sw.lat;
-    const lngDiff = boundsObj.ne.lng - boundsObj.sw.lng;
-    const isHorizontal = lngDiff > latDiff;
-    const horizontalPadding = isHorizontal ? 200 : 50;
+    const bounds = new navermaps.LatLngBounds(
+      new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
+      new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
+    );
 
     this.map.fitBounds(bounds, {
       top: 180, // 검색바 높이 + 마커 크기 + 마진을 고려한 충분한 상단 여백
-      right: horizontalPadding,
-      bottom: 60,
-      left: horizontalPadding,
+      right: 20,
+      bottom: 20,
+      left: 20,
     });
-    
-    this.map.setZoom(this.map.getZoom() + 1);
 
     if (this.map.getZoom() > 16) {
       this.map.setZoom(16);

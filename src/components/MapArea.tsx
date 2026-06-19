@@ -88,6 +88,17 @@ export default function MapArea() {
     return { originPlace, destPlace };
   }, [focusedSegment, activeJourney]);
 
+  // 현재 선택된 세그먼트 이후의 다음 세그먼트 정보 계산
+  const nextSegmentInfo = useMemo(() => {
+    if (!focusedSegment || !activeJourney) return null;
+    const places = activeJourney.places ?? [];
+    const destIndex = places.findIndex(p => p.id === focusedSegment.destId);
+    if (destIndex < 0 || destIndex >= places.length - 1) return null;
+    const nextOriginPlace = places[destIndex];
+    const nextDestPlace = places[destIndex + 1];
+    return { nextOriginPlace, nextDestPlace };
+  }, [focusedSegment, activeJourney]);
+
   const isPanelOpen = !!(activeRouteOfFocusedSegment && focusedPlaces);
 
   const currentMapPadding = useMemo(() => ({
@@ -631,6 +642,20 @@ export default function MapArea() {
             setFocusedStep(null);
             setFocusBounds(null);
           }}
+          onNextSegment={nextSegmentInfo ? () => {
+            const { nextOriginPlace, nextDestPlace } = nextSegmentInfo;
+            const cacheKey = `${nextOriginPlace.id}-${nextDestPlace.id}`;
+            const segmentData = directionsCache[cacheKey];
+            const transportType = activeJourney?.transport_type || 'public';
+            const nextRoute = nextOriginPlace.selected_route && nextOriginPlace.selected_route.destId === nextDestPlace.id
+              ? nextOriginPlace.selected_route
+              : (segmentData ? (transportType === 'car' ? segmentData.car?.[0] : transportType === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
+            const bounds = calculateSegmentBounds(nextOriginPlace, nextDestPlace, nextRoute);
+            setFocusBounds(bounds);
+            setFocusedSegment({ originId: nextOriginPlace.id, destId: nextDestPlace.id });
+            setFocusedStep(null);
+          } : undefined}
+          nextDestPlace={nextSegmentInfo?.nextDestPlace}
         />
       )}
     </div>

@@ -561,14 +561,19 @@ export default function JourneySidebar() {
                   onDragStart={(e) => handleJourneyDragStart(e, idx)}
                   onDragOver={(e) => handleJourneyDragOver(e, idx)}
                   onDragEnd={handleJourneyDragEnd}
-                  className={`flex items-center gap-3 w-full transition-all duration-200 ${isDragged ? 'opacity-40 scale-[0.98]' : ''
-                    }`}
+                  className={`journey-card-content relative flex items-center w-full bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all group ${
+                    isListEditMode
+                      ? 'cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+                      : 'hover:border-blue-500 hover:shadow-md'
+                  } ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${isListEditMode ? 'opacity-90' : ''}`}
+                  onClick={() => {
+                    if (isListEditMode) {
+                      handleToggleSelect(journey.id);
+                    }
+                  }}
                 >
                   {isListEditMode && (
-                    <div
-                      onClick={() => handleToggleSelect(journey.id)}
-                      className="w-5 h-5 flex items-center justify-center cursor-pointer flex-shrink-0"
-                    >
+                    <div className="pl-4 flex-shrink-0 flex items-center justify-center">
                       <input
                         type="checkbox"
                         id={`checkbox-${journey.id}`}
@@ -580,8 +585,17 @@ export default function JourneySidebar() {
                   )}
                   <button
                     type="button"
-                    onClick={() => isListEditMode ? handleToggleSelect(journey.id) : setActiveJourney(journey)}
-                    className={`journey-card-content flex-1 text-left bg-white border border-zinc-100 rounded-2xl p-5 shadow-sm transition-all flex flex-col gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer hover:border-blue-500 hover:shadow-md ${isListEditMode ? 'opacity-90' : ''}`}
+                    onClick={(e) => {
+                      if (isListEditMode) {
+                        e.stopPropagation();
+                        handleToggleSelect(journey.id);
+                      } else {
+                        setActiveJourney(journey);
+                      }
+                    }}
+                    className={`flex-1 text-left p-5 flex flex-col gap-3 focus:outline-none ${
+                      isListEditMode ? 'pl-4' : ''
+                    }`}
                   >
                     <div>
                       <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full transition-colors group-hover:bg-blue-100">
@@ -597,7 +611,7 @@ export default function JourneySidebar() {
                     </div>
                   </button>
                   {isListEditMode && (
-                    <div className="cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 flex-shrink-0 transition-colors">
+                    <div className="pr-4 flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 transition-colors p-1 rounded hover:bg-zinc-100">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                         <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
                       </svg>

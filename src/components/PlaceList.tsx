@@ -543,23 +543,9 @@ function PlaceCard({
       <div className="flex items-center gap-0 group">
         {/* 번호 + 세로선 컬럼 */}
         <div className="flex flex-col items-center w-10 flex-shrink-0 self-stretch select-none">
-          {editMode ? (
-            <div
-              onClick={onToggleSelect}
-              className="w-8 h-8 flex items-center justify-center z-10 flex-shrink-0 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={isSelected}
-                readOnly
-                className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
-              />
-            </div>
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-200 flex items-center justify-center text-white text-xs font-bold z-10 flex-shrink-0">
-              {index + 1}
-            </div>
-          )}
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-200 flex items-center justify-center text-white text-xs font-bold z-10 flex-shrink-0">
+            {index + 1}
+          </div>
           {/* 세로 연결선 (마지막 카드 제외) */}
           {!isLast && (
             <div className="flex-1 w-px bg-gradient-to-b from-blue-200 via-blue-100 to-transparent min-h-[2rem] mt-1" />
@@ -576,6 +562,18 @@ function PlaceCard({
           }`}
         >
           <div className="flex items-center px-4 py-3 gap-2">
+            {/* 체크박스 - 편집 상태에만 왼쪽에 노출 */}
+            {editMode && (
+              <div className="flex-shrink-0 flex items-center justify-center mr-1">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  readOnly
+                  className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                />
+              </div>
+            )}
+            
             {/* 장소 정보 */}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-zinc-800 truncate leading-tight">

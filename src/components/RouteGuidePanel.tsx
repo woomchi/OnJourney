@@ -92,7 +92,7 @@ export default function RouteGuidePanel({
 
   return (
     <div
-      className={`absolute top-[84px] left-4 z-40 w-[360px] h-[calc(100vh-108px)] bg-white/95 backdrop-blur-md rounded-3xl border border-zinc-150/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex flex-col transition-all duration-300 ease-out transform ${
+      className={`absolute top-6 bottom-6 left-4 z-40 w-[360px] bg-white/95 backdrop-blur-md rounded-3xl border border-zinc-150/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex flex-col transition-all duration-300 ease-out transform ${
         mounted ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
       }`}
     >
@@ -411,21 +411,34 @@ export default function RouteGuidePanel({
       {/* 최종 목적지 배너 */}
       {!onNextSegment && (
         <div className="flex-shrink-0 px-4 pb-4">
-          <div className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-rose-50 to-amber-50 border border-rose-100 select-none">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-rose-400 to-amber-400 flex items-center justify-center shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
-                <path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.343 7.587.829.799 1.655 1.38 2.274 1.765.31.192.57.337.757.433.113.06.211.107.282.14l.017.008.006.003zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">
-                최종 목적지
+          <button
+            type="button"
+            onClick={onClose}
+            className="
+              group w-full flex items-center justify-between gap-3
+              px-5 py-3.5 rounded-2xl
+              bg-gradient-to-r from-blue-50 to-indigo-50
+              border border-blue-100 hover:border-blue-300
+              hover:from-blue-100 hover:to-indigo-100
+              hover:shadow-[0_4px_16px_rgba(59,130,246,0.12)]
+              active:scale-[0.98]
+              transition-all duration-200 cursor-pointer
+            "
+          >
+            <div className="flex flex-col items-start gap-0.5 min-w-0">
+              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider select-none">
+                최종 목적지 도착
               </span>
-              <span className="text-[13px] font-bold text-rose-700 truncate" title={destPlace.place_name}>
+              <span className="text-[13px] font-bold text-blue-700 truncate max-w-[230px]" title={destPlace.place_name}>
                 {destPlace.place_name}
               </span>
             </div>
-          </div>
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 group-hover:bg-blue-600 flex items-center justify-center shadow-sm transition-colors duration-200">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white group-hover:scale-110 transition-transform duration-300">
+                <path fillRule="evenodd" d="M3 2.25a.75.75 0 0 1 .75.75v.54l1.838-.46a9.75 9.75 0 0 1 6.725.738l.108.054a8.25 8.25 0 0 0 5.58.652l3.109-.732a.75.75 0 0 1 .917.81 47.784 47.784 0 0 0 .005 10.337.75.75 0 0 1-.574.812l-3.114.733a9.75 9.75 0 0 1-6.594-.77l-.108-.054a8.25 8.25 0 0 0-5.69-.625l-2.202.55V21a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </button>
         </div>
       )}
     </div>

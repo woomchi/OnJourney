@@ -9,6 +9,7 @@ import {
   Polyline,
 } from 'react-naver-maps';
 import PlaceSearchBar from '@/components/PlaceSearchBar';
+import RouteGuidePanel from '@/components/RouteGuidePanel';
 import { useJourneyStore } from '@/stores/journey-store';
 import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance, expandBounds } from '@/lib/naverMapRouteService';
 
@@ -82,6 +83,15 @@ export default function MapArea() {
       ? originPlace.selected_route
       : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
   }, [focusedSegment, activeJourney, directionsCache]);
+
+  const focusedPlaces = useMemo(() => {
+    if (!focusedSegment) return null;
+    const places = activeJourney?.places ?? [];
+    const originPlace = places.find(p => p.id === focusedSegment.originId);
+    const destPlace = places.find(p => p.id === focusedSegment.destId);
+    if (!originPlace || !destPlace) return null;
+    return { originPlace, destPlace };
+  }, [focusedSegment, activeJourney]);
 
   const handlePlaceSelect = (place: SelectedPlace) => {
     const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
@@ -596,6 +606,20 @@ export default function MapArea() {
       <div className="absolute top-4 left-4 w-full max-w-lg z-[100]">
         <PlaceSearchBar onPlaceSelect={handlePlaceSelect} />
       </div>
+
+      {/* 상세 경로 안내 패널: 사이드바 오른쪽에 따로 띄움 */}
+      {activeRouteOfFocusedSegment && focusedPlaces && (
+        <RouteGuidePanel
+          route={activeRouteOfFocusedSegment}
+          originPlace={focusedPlaces.originPlace}
+          destPlace={focusedPlaces.destPlace}
+          onClose={() => {
+            setFocusedSegment(null);
+            setFocusedStep(null);
+            setFocusBounds(null);
+          }}
+        />
+      )}
     </div>
   );
 }

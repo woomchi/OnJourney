@@ -5,6 +5,7 @@ export interface SelectedRoute {
   name: string;
   duration: number;    // 소요시간 (분)
   fare: number;        // 요금 (원)
+  taxiFare?: number;   // 택시 요금 (원)
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
   guide?: RouteGuideNode[];
@@ -66,6 +67,7 @@ export interface DirectionResult {
   name: string;
   duration: number;
   fare: number;
+  taxiFare?: number;   // 택시 요금 (원)
   distance?: number; // 주행 거리 (km)
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];

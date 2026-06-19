@@ -80,7 +80,7 @@ export default function MapArea() {
     const transportType = activeJourney?.transport_type || 'public';
     return originPlace.selected_route && originPlace.selected_route.destId === destPlace.id
       ? originPlace.selected_route
-      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
   }, [focusedSegment, activeJourney, directionsCache]);
 
   const handlePlaceSelect = (place: SelectedPlace) => {
@@ -125,7 +125,7 @@ export default function MapArea() {
       const transportType = activeJourney?.transport_type || 'public';
       const activeRoute = originPlace.selected_route && originPlace.selected_route.destId === destPlace.id
         ? originPlace.selected_route
-        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
 
       const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
       setFocusBounds(bounds);
@@ -295,7 +295,7 @@ export default function MapArea() {
 
               const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
                 ? place.selected_route
-                : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+                : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
 
               if (!activeRoute || !activeRoute.steps) {
                 return null;
@@ -757,7 +757,7 @@ function DirectionalStripes({
 
       const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
         ? place.selected_route
-        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
 
       if (!activeRoute || !activeRoute.steps) {
         return;
@@ -1006,7 +1006,7 @@ function TransferMarkers({
 
       const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
         ? place.selected_route
-        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
 
       if (!activeRoute || !activeRoute.steps) {
         return;
@@ -1083,7 +1083,7 @@ function TransferMarkers({
         const nextSegmentData = directionsCache[nextCacheKey];
         const nextActiveRoute = nextSegmentOrigin.selected_route && nextSegmentOrigin.selected_route.destId === nextSegmentDest.id
           ? nextSegmentOrigin.selected_route
-          : (nextSegmentData ? (transportType === 'car' ? (nextSegmentData.car?.[1] || nextSegmentData.car?.[0]) : nextSegmentData.public?.[0]) : undefined);
+          : (nextSegmentData ? (transportType === 'car' ? (nextSegmentData.car?.[0]) : nextSegmentData.public?.[0]) : undefined);
 
         if (nextActiveRoute && nextActiveRoute.steps && nextActiveRoute.steps.length > 0) {
           const nextFirstStep = nextActiveRoute.steps[0];
@@ -1221,7 +1221,7 @@ function TransferMarkers({
     const transportType = activeJourney?.transport_type || 'public';
     const activeRoute = originPlace.selected_route && originPlace.selected_route.destId === pt.destId
       ? originPlace.selected_route
-      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
 
     if (!activeRoute) return;
 

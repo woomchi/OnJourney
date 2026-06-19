@@ -185,7 +185,13 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
             {data.duration}분
           </span>
           <span className="text-[12px] font-medium text-zinc-400 pb-[0.5px] whitespace-nowrap">
-            {data.fare > 0 ? `${data.fare.toLocaleString()}원` : '요금 정보 없음'}
+            {data.type === 'car' || data.type === 'taxi' ? (
+              `택시 ${data.taxiFare?.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}`
+            ) : data.fare > 0 ? (
+              `${data.fare.toLocaleString()}원`
+            ) : (
+              '요금 정보 없음'
+            )}
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] font-semibold text-rose-500 bg-rose-50 px-2 py-1 rounded-full border border-rose-100 flex-shrink-0">
@@ -410,6 +416,7 @@ function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSele
                     name: route.name,
                     duration: route.duration,
                     fare: route.fare,
+                    taxiFare: route.taxiFare,
                     steps: route.steps,
                     pathPoints: route.pathPoints,
                     guide: route.guide,
@@ -438,7 +445,11 @@ function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSele
                     <span className={`text-[11px] font-bold truncate leading-tight ${isSelected ? 'text-blue-700' : 'text-zinc-700'}`}>
                       {route.name}
                     </span>
-                    {route.fare > 0 ? (
+                    {activeTab === 'car' ? (
+                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                        택시 {route.taxiFare?.toLocaleString()}원 {route.fare > 0 ? `(통행료 ${route.fare.toLocaleString()}원)` : '(통행료 무료)'}
+                      </span>
+                    ) : route.fare > 0 ? (
                       <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
                         {route.fare.toLocaleString()}원
                       </span>
@@ -727,7 +738,7 @@ function PlaceCard({
       {!editMode && !isLast && (() => {
         const activeRoute = place.selected_route && nextPlace && place.selected_route.destId === nextPlace.id
           ? place.selected_route
-          : (segmentData ? (transportType === 'car' ? (segmentData.car?.[1] || segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
+          : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : segmentData.public?.[0]) : undefined);
 
         return (
           <div className="pl-10 pb-1 flex flex-col gap-1">

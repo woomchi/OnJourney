@@ -207,22 +207,13 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
         pathPoints: fallbackPath
       };
 
-      const taxiFallback: DirectionResult = {
-        id: 'taxi',
-        type: 'taxi' as const,
-        name: '택시',
-        duration: carDuration,
-        fare: taxiFare,
-        steps: [{ type: 'car' as const, name: '택시', duration: carDuration, color: '#F59E0B', pathPoints: fallbackPath }],
-        pathPoints: fallbackPath
-      };
-
       const carFallback: DirectionResult = {
-        id: 'car',
+        id: 'car-trafast',
         type: 'car' as const,
-        name: '자차',
+        name: '실시간 빠른길(예상)',
         duration: carDuration,
         fare: 0,
+        taxiFare,
         steps: [{ type: 'car' as const, name: '차량', duration: carDuration, color: '#F59E0B', pathPoints: fallbackPath }],
         pathPoints: fallbackPath
       };
@@ -242,7 +233,7 @@ export const useJourneyStore = create<JourneyStore>((set, get) => ({
           ...state.directionsCache,
           [cacheKey]: {
             public: [publicFallback],
-            car: [taxiFallback, carFallback],
+            car: [carFallback],
             walk: [walkFallback]
           },
         },

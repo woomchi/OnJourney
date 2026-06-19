@@ -14,6 +14,7 @@ interface DirectionResult {
   name: string;
   duration: number; // 분
   fare: number; // 원
+  taxiFare?: number; // 택시 요금 (원)
   distance?: number; // 주행 거리 (km)
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
@@ -398,7 +399,7 @@ async function fetchCarRoute(
   sy: number,
   ex: number,
   ey: number
-): Promise<DirectionResult> {
+): Promise<DirectionResult[]> {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
 
@@ -406,7 +407,7 @@ async function fetchCarRoute(
     throw new Error('Naver Directions API ID/Secret이 설정되지 않았습니다.');
   }
 
-  const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${sx},${sy}&goal=${ex},${ey}&option=trafast`;
+  const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${sx},${sy}&goal=${ex},${ey}&option=trafast:traoptimal:traavoidtoll`;
 
   const res = await fetch(url, {
     headers: {
@@ -423,39 +424,58 @@ async function fetchCarRoute(
 
   const data = await res.json();
 
-  if (!data.route || !data.route.trafast || data.route.trafast.length === 0) {
+  if (!data.route) {
     throw new Error('차량 경로를 찾을 수 없습니다.');
   }
 
-  const route = data.route.trafast[0];
-  const summary = route.summary;
-  const durationMin = Math.max(1, Math.round(summary.duration / 1000 / 60)); // ms -> min
-  const pathPoints = route.path ? route.path.map(([lng, lat]: [number, number]) => ({ lat, lng })) : [];
-  const guide = route.guide ? route.guide.map((g: any) => ({
-    instructions: g.instructions,
-    distance: g.distance,
-    duration: g.duration,
-  })) : [];
+  const results: DirectionResult[] = [];
+  const optionsMap = [
+    { key: 'trafast', name: '실시간 빠른길' },
+    { key: 'traoptimal', name: '실시간 최적길' },
+    { key: 'traavoidtoll', name: '무료 도로' }
+  ];
 
-  return {
-    id: 'car',
-    type: 'car' as const,
-    name: '자차',
-    duration: durationMin,
-    fare: summary.tollFare || 0,
-    distance: summary.distance / 1000, // 실제 도로 주행 거리 (km)
-    steps: [
-      {
-        type: 'car',
-        name: '차량',
+  for (const option of optionsMap) {
+    const routeArray = data.route[option.key];
+    if (routeArray && routeArray.length > 0) {
+      const route = routeArray[0];
+      const summary = route.summary;
+      const durationMin = Math.max(1, Math.round(summary.duration / 1000 / 60)); // ms -> min
+      const pathPoints = route.path ? route.path.map(([lng, lat]: [number, number]) => ({ lat, lng })) : [];
+      const guide = route.guide ? route.guide.map((g: any) => ({
+        instructions: g.instructions,
+        distance: g.distance,
+        duration: g.duration,
+      })) : [];
+
+      results.push({
+        id: `car-${option.key}`,
+        type: 'car' as const,
+        name: option.name,
         duration: durationMin,
-        color: '#F59E0B', // 노란색/주황색 계열
+        fare: summary.tollFare || 0,
+        taxiFare: summary.taxiFare || 0,
+        distance: summary.distance / 1000, // 실제 도로 주행 거리 (km)
+        steps: [
+          {
+            type: 'car',
+            name: '차량',
+            duration: durationMin,
+            color: '#F59E0B', // 노란색/주황색 계열
+            pathPoints,
+          },
+        ],
         pathPoints,
-      },
-    ],
-    pathPoints,
-    guide,
-  };
+        guide,
+      });
+    }
+  }
+
+  if (results.length === 0) {
+    throw new Error('차량 경로를 찾을 수 없습니다.');
+  }
+
+  return results;
 }
 
 // 3. 네이버 API 호출 실패 및 구독 미신청 대비 Fallback 계산 함수
@@ -482,11 +502,13 @@ function calculateCarFallback(
   ];
 
   return {
-    id: 'car',
+    id: 'car-trafast',
     type: 'car' as const,
-    name: '자차(예상)',
+    name: '실시간 빠른길(예상)',
     duration,
-    fare: taxiFare, // 자동차 경로 결과의 요금은 택시 요금을 기반으로 노출
+    fare: 0, // 자동차 경로 결과의 요금은 택시 요금을 기반으로 노출
+    taxiFare,
+    distance: estimatedRoadDistance,
     steps: [
       {
         type: 'car',
@@ -579,40 +601,18 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // 2. 차량 대안 목록 구성 (자차 및 택시)
+    // 2. 차량 대안 목록 구성
     let carResults: DirectionResult[] = [];
-    let baseCarResult: DirectionResult;
+    let baseCarResults: DirectionResult[];
 
     if (carRes.status === 'fulfilled') {
-      baseCarResult = carRes.value;
+      baseCarResults = carRes.value;
     } else {
       console.warn('[directions] fetchCarRoute failed, using fallback:', carRes.reason);
-      baseCarResult = calculateCarFallback(sx, sy, ex, ey);
+      baseCarResults = [calculateCarFallback(sx, sy, ex, ey)];
     }
 
-    // Taxi Option (index 0)
-    // 실제 도로 주행 거리가 있으면 사용, 없으면 직선 거리에 보정계수(×1.3) 적용
-    const actualDistanceKm = baseCarResult.distance || distanceKm * 1.3;
-    const taxiFare = 4800 + Math.round(actualDistanceKm * 1100);
-    const taxiResult: DirectionResult = {
-      ...baseCarResult,
-      id: 'taxi',
-      type: 'taxi' as const,
-      name: '택시',
-      fare: taxiFare,
-      steps: baseCarResult.steps.map(s => ({ ...s, name: '택시', type: 'car' as const }))
-    };
-
-    // Personal Car Option (index 1)
-    const carResult: DirectionResult = {
-      ...baseCarResult,
-      id: 'car',
-      type: 'car' as const,
-      name: '자차',
-      steps: baseCarResult.steps.map(s => ({ ...s, name: '차량', type: 'car' as const }))
-    };
-
-    carResults = [taxiResult, carResult];
+    carResults = baseCarResults;
 
     // 3. 도보 대안 목록 구성 (도보, 자전거, 공유 킥보드)
     const walkDuration = Math.round((distanceKm / 4.5) * 60);

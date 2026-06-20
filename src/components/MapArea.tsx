@@ -599,7 +599,7 @@ export default function MapArea() {
               bg-white border border-zinc-200/80
               shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
               hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)]
-              hover:border-blue-200 hover:bg-blue-50/40
+              hover:border-blue-200 hover:bg-blue-50
               active:scale-[0.94] hover:scale-[1.06]
               transition-all duration-200 ease-out
               cursor-pointer select-none
@@ -621,7 +621,7 @@ export default function MapArea() {
 
               {/* 경로 선 */}
               <path
-                d="M 6 29 Q 13.8 27.7, 21.5 25.4 Q 23 25, 21.5 24.5 Q 17.0 23.5, 12.4 21.5 Q 11 21, 12.5 20.7 Q 16.8 20.3, 21 19"
+                d="M 6 29 Q 13.8 27.7, 21.0 25.8 Q 24.5 24.8, 20.5 23.8 Q 16.5 22.8, 12.5 21.8 Q 8.5 20.8, 13.0 19.8 Q 17.5 19.0, 21 19"
                 strokeWidth="1.75"
                 strokeLinecap="round"
                 strokeLinejoin="round"

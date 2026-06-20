@@ -144,7 +144,9 @@ export default function RouteGuidePanel({
           <span className="text-2xl font-black text-zinc-900 tracking-tight">{route.duration}분</span>
           <span className="text-xs font-semibold text-zinc-400">
             {route.type === 'public' ? (
-              route.fare > 0 ? `요금 ${route.fare.toLocaleString()}원` : '요금 정보 없음'
+              (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? '예매처 확인' : route.fare > 0 ? (route.isFareEstimated ? `요금 약 ${route.fare.toLocaleString()}원` : `요금 ${route.fare.toLocaleString()}원`) : '요금 정보 없음'
+            ) : route.type === 'walk' || route.type === 'bicycle' ? (
+              '무료'
             ) : (
               <>
                 {route.distance ? `${route.distance.toFixed(1)}km` : ''}
@@ -154,6 +156,68 @@ export default function RouteGuidePanel({
             )}
           </span>
         </div>
+
+        {/* 예매처 빠른 링크 버튼 (장거리 노선이며 요금이 0인 경우 표출) */}
+        {route.type === 'public' && (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 && (
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {route.steps.some(s => s.type === 'train') && (
+              <>
+                {route.steps.some(s => s.type === 'train' && s.name.includes('SRT')) && (
+                  <a
+                    href="https://etk.srail.kr/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-bold text-[#582E55] bg-[#582E55]/5 border border-[#582E55]/20 hover:bg-[#582E55]/10 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                  >
+                    <span>SRT 예매</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                  </a>
+                )}
+                {route.steps.some(s => s.type === 'train' && !s.name.includes('SRT')) && (
+                  <a
+                    href="https://www.letskorail.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-bold text-[#003366] bg-[#003366]/5 border border-[#003366]/20 hover:bg-[#003366]/10 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                  >
+                    <span>코레일 예매</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                  </a>
+                )}
+              </>
+            )}
+            {route.steps.some(s => s.type === 'expressbus') && (
+              <>
+                <a
+                  href="https://www.kobus.co.kr/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                >
+                  <span>고속버스 예매</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
+                </a>
+                <a
+                  href="https://www.bustago.or.kr/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-100 hover:bg-orange-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                >
+                  <span>시외버스 예매</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
+                </a>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Guide List */}
@@ -251,6 +315,12 @@ export default function RouteGuidePanel({
               } else if (step.type === 'car') {
                 icon = '🚗';
                 iconColor = 'text-white border-transparent';
+              } else if (step.type === 'train') {
+                icon = '🚄';
+                iconColor = 'text-white border-transparent';
+              } else if (step.type === 'expressbus') {
+                icon = '🚌';
+                iconColor = 'text-white border-transparent';
               }
 
               const isThisStepFocused = !!(
@@ -347,6 +417,27 @@ export default function RouteGuidePanel({
                             <span className="truncate">{step.endName}</span>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* 예약 링크 추가 */}
+                    {(step.type === 'train' || step.type === 'expressbus') && (
+                      <div className="mt-2 flex justify-end">
+                        <a
+                          href={
+                            step.type === 'train'
+                              ? (step.name.includes('SRT') ? 'https://etk.srail.kr/' : 'https://www.letskorail.com/')
+                              : (step.name.includes('고속') ? 'https://www.kobus.co.kr/' : 'https://www.bustago.or.kr/')
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 bg-blue-50 px-2.5 py-1.5 rounded-xl border border-blue-100/50 hover:bg-blue-100/50 transition-colors"
+                        >
+                          <span>{step.name} 예매</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                          </svg>
+                        </a>
                       </div>
                     )}
 

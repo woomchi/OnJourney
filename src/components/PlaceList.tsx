@@ -187,8 +187,12 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
           <span className="text-[12px] font-medium text-zinc-400 pb-[0.5px] whitespace-nowrap">
             {data.type === 'car' || data.type === 'taxi' ? (
               `택시 ${data.taxiFare?.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}`
+            ) : data.type === 'walk' || data.type === 'bicycle' ? (
+              '무료'
+            ) : (data.isIntercity || data.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && data.fare === 0 ? (
+              '예매처 확인'
             ) : data.fare > 0 ? (
-              `${data.fare.toLocaleString()}원`
+              data.isFareEstimated ? `약 ${data.fare.toLocaleString()}원` : `${data.fare.toLocaleString()}원`
             ) : (
               '요금 정보 없음'
             )}
@@ -214,6 +218,8 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
           if (step.type === 'subway') icon = '🚇';
           else if (step.type === 'bus') icon = '🚌';
           else if (step.type === 'car') icon = '🚗';
+          else if (step.type === 'train') icon = '🚄';
+          else if (step.type === 'expressbus') icon = '🚌';
 
           const segmentColor = SEQUENCE_COLORS[index % SEQUENCE_COLORS.length];
           const stepColor = step.type === 'walk' ? (step.color || '#E4E4E7') : segmentColor;
@@ -364,6 +370,7 @@ function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSele
 
   const getEmoji = (type: string, name: string) => {
     if (type === 'public') {
+      if (name.includes('기차') || name.includes('KTX') || name.includes('SRT') || name.includes('새마을') || name.includes('무궁화') || name.includes('ITX')) return '🚄';
       if (name.includes('지하철') || name.includes('선')) return '🚇';
       return '🚌';
     }
@@ -429,6 +436,8 @@ function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSele
                     fare: route.fare,
                     taxiFare: route.taxiFare,
                     distance: route.distance,
+                    isIntercity: route.isIntercity,
+                    isFareEstimated: route.isFareEstimated,
                     steps: route.steps,
                     pathPoints: route.pathPoints,
                     guide: route.guide,
@@ -461,13 +470,21 @@ function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSele
                       <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
                         택시 {route.taxiFare?.toLocaleString()}원 {route.fare > 0 ? `(통행료 ${route.fare.toLocaleString()}원)` : '(통행료 무료)'}
                       </span>
+                    ) : activeTab === 'walk' ? (
+                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                        무료
+                      </span>
+                    ) : (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? (
+                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                        예매처 확인
+                      </span>
                     ) : route.fare > 0 ? (
                       <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                        {route.fare.toLocaleString()}원
+                        {route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}
                       </span>
                     ) : (
                       <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                        무료
+                        요금 정보 없음
                       </span>
                     )}
                   </div>

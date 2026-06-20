@@ -143,8 +143,12 @@ async function fetchPublicTransitOptions(
     let lastWalkTime = 0;
     let maxTransferWalkTime = 0;
 
-    const hasTransit = path.subPath.some((sp: any) => sp.trafficType === 1 || sp.trafficType === 2);
+    const hasTransit = path.subPath.some((sp: any) => [1, 2, 4, 5, 6].includes(sp.trafficType));
     if (!hasTransit) return false;
+
+    const isIntercity = path.subPath.some((sp: any) => [4, 5, 6].includes(sp.trafficType));
+    const maxWalkTime = isIntercity ? 60 : 15;
+    const maxTotalWalkTime = isIntercity ? 120 : 25;
 
     const subPathsList = path.subPath;
     subPathsList.forEach((sp: any, i: number) => {
@@ -162,14 +166,14 @@ async function fetchPublicTransitOptions(
       }
     });
 
-    // 1) 첫 탑승 정류장까지 도보 15분(약 1km) 초과 시 필터링
-    if (firstWalkTime > 15) return false;
-    // 2) 하차 후 최종 목적지까지 도보 15분(약 1km) 초과 시 필터링
-    if (lastWalkTime > 15) return false;
-    // 3) 환승 시 도보 10분 초과 시 필터링
-    if (maxTransferWalkTime > 10) return false;
-    // 4) 경로 내 총 도보 시간 합계 25분 초과 시 필터링
-    if (totalWalkTime > 25) return false;
+    // 1) 첫 탑승 정류장까지 도보 초과 시 필터링
+    if (firstWalkTime > maxWalkTime) return false;
+    // 2) 하차 후 최종 목적지까지 도보 초과 시 필터링
+    if (lastWalkTime > maxWalkTime) return false;
+    // 3) 환승 시 도보 초과 시 필터링
+    if (maxTransferWalkTime > (isIntercity ? 60 : 10)) return false;
+    // 4) 경로 내 총 도보 시간 합계 초과 시 필터링
+    if (totalWalkTime > maxTotalWalkTime) return false;
 
     return true;
   });
@@ -297,6 +301,34 @@ async function fetchPublicTransitOptions(
           });
         }
         transitIndex++;
+      } else if (sp.trafficType === 4 || sp.trafficType === 5 || sp.trafficType === 6) {
+        type = sp.trafficType === 4 ? 'train' : 'expressbus';
+        if (sp.trafficType === 4) {
+          const trainTypes: Record<number, string> = {
+            1: 'KTX', 2: '새마을호', 3: '무궁화호', 4: '누리로',
+            6: 'ITX-새마을', 7: 'SRT', 8: 'ITX-청춘', 9: 'ITX-마음'
+          };
+          name = trainTypes[sp.trainType] || '기차';
+        } else {
+          name = sp.trafficType === 5 ? '고속버스' : '시외버스';
+        }
+        
+        if (type === 'train') {
+          color = name.includes('SRT') ? '#582E55' : name.includes('KTX') ? '#003366' : '#2C3E50';
+        } else {
+          color = '#e60012'; // 고속/시외버스는 빨간색 계열
+        }
+
+        if (sp.passStopList && sp.passStopList.stations) {
+          sp.passStopList.stations.forEach((station: any) => {
+            const lat = parseFloat(station.y);
+            const lng = parseFloat(station.x);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              stepPathPoints.push({ lat, lng });
+            }
+          });
+        }
+        transitIndex++;
       } else {
         type = 'walk';
         name = '도보';
@@ -347,7 +379,7 @@ async function fetchPublicTransitOptions(
         endName = sp.passStopList.stations[sp.passStopList.stations.length - 1].stationName || '';
       }
 
-      if (type === 'subway') {
+      if (type === 'subway' || type === 'train') {
         if (startName && !startName.endsWith('역')) {
           startName = `${startName}역`;
         }
@@ -388,12 +420,30 @@ async function fetchPublicTransitOptions(
       ? transitNames.join(' + ') 
       : '도보 이동';
 
+    const isIntercity = steps.some(s => s.type === 'train' || s.type === 'expressbus');
+    let fare = (info.payment && info.payment > 0) ? info.payment : 0;
+    let isFareEstimated = false;
+
+    if (fare === 0) {
+      // 장거리 노선인 경우 각 구간의 payment 합산 시도
+      const subPathsPayment = subPaths.reduce((sum: number, sp: any) => sum + (sp.payment || 0), 0);
+      if (subPathsPayment > 0) {
+        fare = subPathsPayment;
+      } else if (!isIntercity) {
+        const hasWideAreaBus = steps.some(s => s.type === 'bus' && s.color === '#e60012');
+        fare = hasWideAreaBus ? 3000 : 1400;
+        isFareEstimated = true;
+      }
+    }
+
     return {
       id: `public-${pathIdx}`,
       type: 'public' as const,
       name: displayTitle,
       duration: info.totalTime,
-      fare: info.payment || 0,
+      fare,
+      isFareEstimated: isFareEstimated ? true : undefined,
+      isIntercity: isIntercity ? true : undefined,
       steps,
       pathPoints,
     };

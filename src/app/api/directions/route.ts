@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 interface DirectionStep {
-  type: 'walk' | 'subway' | 'bus' | 'car';
+  type: 'walk' | 'subway' | 'bus' | 'car' | 'train' | 'expressbus';
   name: string;
   duration: number;
   color?: string;
   pathPoints?: { lat: number; lng: number }[];
+  startName?: string;
+  endName?: string;
+  startLat?: number;
+  startLng?: number;
+  endLat?: number;
+  endLng?: number;
 }
 
 interface DirectionResult {
@@ -16,6 +22,8 @@ interface DirectionResult {
   fare: number; // 원
   taxiFare?: number; // 택시 요금 (원)
   distance?: number; // 주행 거리 (km)
+  isFareEstimated?: boolean;
+  isIntercity?: boolean;
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
   guide?: {
@@ -209,7 +217,7 @@ async function fetchPublicTransitOptions(
 
     let transitIndex = 0;
     const steps: DirectionStep[] = subPaths.map((sp: any, idx: number) => {
-      let type: 'walk' | 'subway' | 'bus' | 'car' = 'walk';
+      let type: DirectionStep['type'] = 'walk';
       let name = '도보';
       let color = '#E4E4E7'; // 도보 회색
       const stepPathPoints: { lat: number; lng: number }[] = [];

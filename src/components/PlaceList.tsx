@@ -179,12 +179,12 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
   return (
     <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99] transition-all duration-200 cursor-pointer">
       {/* 상단 정보: 총 이동 시간, 요금, 실시간 상태 */}
-      <div className="flex items-center justify-between mb-3.5">
-        <div className="flex items-end gap-1.5 flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 mb-3.5">
+        <div className="flex-1 min-w-0 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
           <span className="text-lg font-extrabold text-zinc-800 leading-none tracking-tight">
             {data.duration}분
           </span>
-          <span className="text-[12px] font-medium text-zinc-400 pb-[0.5px] whitespace-nowrap">
+          <span className="text-[12px] font-medium text-zinc-400 pb-[0.5px] leading-tight">
             {data.type === 'car' || data.type === 'taxi' ? (
               `택시 ${data.taxiFare?.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}`
             ) : data.type === 'walk' || data.type === 'bicycle' ? (
@@ -452,7 +452,7 @@ function AlternativeSegmentInfo({ place, nextPlace, segmentData, loading, onSele
                   onSelect?.();
                 }}
                 className={`
-                  flex items-center justify-between w-full h-[46px] px-3 rounded-lg border transition-all duration-200 text-left cursor-pointer
+                  flex items-center justify-between w-full min-h-[46px] py-1.5 px-3 rounded-lg border transition-all duration-200 text-left cursor-pointer
                   ${isSelected
                     ? 'border-blue-500 bg-blue-50/50 shadow-sm'
                     : 'border-zinc-100 bg-zinc-50/30 hover:border-zinc-300 hover:bg-zinc-50'

@@ -392,12 +392,22 @@ export default function MapArea() {
 
                 // 특정 스텝(세부 노선) 포커스 여부 판별
                 const hasFocusedStep = !!focusedStep;
-                const isThisStepFocused = !!(
+                let isThisStepFocused = !!(
                   focusedStep &&
                   focusedStep.originId === place.id &&
                   focusedStep.destId === nextPlace.id &&
                   focusedStep.stepIndex === sIdx
                 );
+
+                if (
+                  focusedStep &&
+                  focusedStep.originId === place.id &&
+                  focusedStep.destId === nextPlace.id &&
+                  focusedStep.subType === 'dest' &&
+                  sIdx === activeRoute.steps.length - 1
+                ) {
+                  isThisStepFocused = true;
+                }
 
                 // 포커스 세그먼트 매칭 여부 판별
                 const isSegmentFocused = focusedSegment
@@ -532,19 +542,8 @@ export default function MapArea() {
               const isSegmentMarker = !!(focusedSegment && (place.id === focusedSegment.originId || place.id === focusedSegment.destId));
               // 일반 경로선(최대 5002)보다 항상 위에 노출되도록 기본 zIndex를 10000 이상으로 상향 조정
               const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
-              let isVisible = !focusedSegment || isSegmentMarker;
-
-              // 세부 노선 선택 시, 출발지 마커는 첫 번째 스텝에서만 보이고 그 외에는 가림. 도착지 마커는 마지막 스텝에서만 보이고 그 외에는 가림.
-              if (focusedSegment && focusedStep && isSegmentMarker) {
-                const isOrigin = place.id === focusedSegment.originId;
-                const isDest = place.id === focusedSegment.destId;
-                if (isOrigin) {
-                  isVisible = focusedStep.stepIndex === 0;
-                } else if (isDest) {
-                  const stepsCount = activeRouteOfFocusedSegment?.steps?.length || 0;
-                  isVisible = stepsCount > 0 && focusedStep.stepIndex === stepsCount - 1;
-                }
-              }
+              // 세부 구간 조회 시에는 일반 숫자 장소 마커를 가려 지도를 정돈하고, 대신 탑승/출발/도착 전용 마커로 가독성을 높임
+              const isVisible = !focusedSegment;
 
               const markerWidth = isSegmentMarker ? 30 : 24;
               const markerHeight = isSegmentMarker ? 40 : 32;
@@ -1081,10 +1080,13 @@ function TransferMarkers({
       destId: string;
       position: { lat: number; lng: number };
       busName: string;
-      type: 'bus' | 'subway' | 'walk';
+      type: string;
       color: string;
       stationName: string;
       isFirst?: boolean;
+      isStart?: boolean;
+      isDest?: boolean;
+      isAlighting?: boolean;
       stepIndex: number;
     }> = [];
 
@@ -1112,16 +1114,42 @@ function TransferMarkers({
         focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
       if (!isCurrentSegment) return;
 
+      const transitSteps = activeRoute.steps.filter((s: any) => s.type === 'bus' || s.type === 'subway');
+      
+      const startColor = '#3B82F6'; // 출발지 기본색: 서비스 테마 블루
+      const startType: 'bus' | 'subway' | 'walk' = 'walk';
+      const mergedFirstTransit = false;
+
+      // 1. 출발지 전용 마커 추가
+      const shouldShowStart = !focusedStep || focusedStep.stepIndex === 0;
+      if (shouldShowStart) {
+        points.push({
+          key: `start-${place.id}-${nextPlace.id}`,
+          originId: place.id,
+          destId: nextPlace.id,
+          position: { lat: place.lat, lng: place.lng },
+          busName: place.place_name,
+          type: startType,
+          color: startColor,
+          stationName: '출발지',
+          isStart: true,
+          stepIndex: 0,
+        });
+      }
+
       // 만약 현재 스텝이 도보 스텝이고 focusedStep인 경우, 도보 출발 마커 추가
       if (focusedStep && focusedStep.originId === place.id && focusedStep.destId === nextPlace.id) {
-        const step = activeRoute.steps[focusedStep.stepIndex];
-        if (step && step.type === 'walk') {
+        const effectiveStepIndex = focusedStep.subType === 'dest' ? activeRoute.steps.length - 1 : focusedStep.stepIndex;
+        const step = activeRoute.steps[effectiveStepIndex];
+        // 첫 번째 도보 단계이고 출발 마커가 이미 그려졌다면(overlapping) 중복 표시를 방지하기 위해 스킵
+        const isOverlappingStart = effectiveStepIndex === 0;
+        if (step && step.type === 'walk' && !isOverlappingStart) {
           const firstLat = step.startLat ?? (step.pathPoints && step.pathPoints.length > 0 ? step.pathPoints[0].lat : undefined);
           const firstLng = step.startLng ?? (step.pathPoints && step.pathPoints.length > 0 ? step.pathPoints[0].lng : undefined);
 
           if (firstLat !== undefined && firstLng !== undefined) {
             points.push({
-              key: `walk-${place.id}-${nextPlace.id}-${focusedStep.stepIndex}`,
+              key: `walk-${place.id}-${nextPlace.id}-${effectiveStepIndex}`,
               originId: place.id,
               destId: nextPlace.id,
               position: { lat: firstLat, lng: firstLng },
@@ -1130,14 +1158,14 @@ function TransferMarkers({
               color: '#71717A',
               stationName: '도보 출발지',
               isFirst: true,
-              stepIndex: focusedStep.stepIndex,
+              stepIndex: effectiveStepIndex,
             });
           }
         }
 
         // 현재 포커스된 스텝의 다음 스텝이 도보인 경우, 그 도보 스텝의 시작지점에 도보 마커 추가
         const nextStepIndex = focusedStep.stepIndex + 1;
-        if (nextStepIndex < activeRoute.steps.length) {
+        if (nextStepIndex < activeRoute.steps.length && focusedStep.subType !== 'end') {
           const nextStep = activeRoute.steps[nextStepIndex];
           if (nextStep && nextStep.type === 'walk') {
             const nextLat = nextStep.startLat ?? (nextStep.pathPoints && nextStep.pathPoints.length > 0 ? nextStep.pathPoints[0].lat : undefined);
@@ -1166,7 +1194,7 @@ function TransferMarkers({
         focusedStep &&
         focusedStep.originId === place.id &&
         focusedStep.destId === nextPlace.id &&
-        focusedStep.stepIndex === activeRoute.steps.length - 1
+        (focusedStep.stepIndex === activeRoute.steps.length - 1 || focusedStep.subType === 'dest')
       );
 
       if (isLastStepFocused && idx + 2 < places.length) {
@@ -1200,8 +1228,6 @@ function TransferMarkers({
         }
       }
 
-      const transitSteps = activeRoute.steps.filter((s: any) => s.type === 'bus' || s.type === 'subway');
-
       if (transitSteps.length > 0) {
         const firstStep = transitSteps[0];
         const firstStepIndex = activeRoute.steps.indexOf(firstStep);
@@ -1211,7 +1237,8 @@ function TransferMarkers({
             focusedStep.destId === nextPlace.id &&
             focusedStep.stepIndex + 1 === firstStepIndex);
 
-        if (shouldShowFirstStep) {
+        // 첫 대중교통 탑승지가 출발지와 병합되었다면, 중복 렌더링 방지를 위해 첫 탑승 마커는 생략
+        if (shouldShowFirstStep && !mergedFirstTransit) {
           const firstLat = firstStep.startLat ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lat : undefined);
           const firstLng = firstStep.startLng ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lng : undefined);
 
@@ -1232,26 +1259,7 @@ function TransferMarkers({
         }
       } else if (activeRoute.steps.length > 0 && !focusedStep) {
         // 대중교통이 없고 단순 도보 등만 있는 경우, 구간 전체 표시 상태일 때 첫 도보 마커 표시
-        const firstStep = activeRoute.steps[0];
-        if (firstStep.type === 'walk') {
-          const firstLat = firstStep.startLat ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lat : undefined);
-          const firstLng = firstStep.startLng ?? (firstStep.pathPoints && firstStep.pathPoints.length > 0 ? firstStep.pathPoints[0].lng : undefined);
-
-          if (firstLat !== undefined && firstLng !== undefined) {
-            points.push({
-              key: `walk-only-${place.id}-${nextPlace.id}-0`,
-              originId: place.id,
-              destId: nextPlace.id,
-              position: { lat: firstLat, lng: firstLng },
-              busName: '도보',
-              type: 'walk',
-              color: '#71717A',
-              stationName: '도보 출발지',
-              isFirst: true,
-              stepIndex: 0,
-            });
-          }
-        }
+        // 이미 출발 마커(도보타입)가 추가되므로 중복 렌더링을 방지하기 위해 생략
       }
 
       for (let i = 1; i < transitSteps.length; i++) {
@@ -1262,7 +1270,8 @@ function TransferMarkers({
           focusedStep.stepIndex === currStepIndex ||
           (focusedStep.originId === place.id &&
             focusedStep.destId === nextPlace.id &&
-            focusedStep.stepIndex + 1 === currStepIndex);
+            focusedStep.stepIndex + 1 === currStepIndex &&
+            focusedStep.subType !== 'end');
 
         if (shouldShowCurrStep) {
           const prevEndLat = prevStep.endLat ?? (prevStep.pathPoints && prevStep.pathPoints.length > 0 ? prevStep.pathPoints[prevStep.pathPoints.length - 1].lat : undefined);
@@ -1298,6 +1307,95 @@ function TransferMarkers({
             }
           }
         }
+      }
+
+      // 세그먼트의 도착지 마커 추가 (도착 마커)
+      const isAlightingOnLastStep = !!(
+        focusedStep &&
+        focusedStep.originId === place.id &&
+        focusedStep.destId === nextPlace.id &&
+        focusedStep.subType === 'end' &&
+        focusedStep.stepIndex === activeRoute.steps.length - 1
+      );
+
+      const shouldShowDest = !focusedStep ||
+        (focusedStep.stepIndex === activeRoute.steps.length - 1 && !isAlightingOnLastStep) ||
+        focusedStep.subType === 'dest';
+
+      if (shouldShowDest) {
+        points.push({
+          key: `destination-${place.id}-${nextPlace.id}`,
+          originId: place.id,
+          destId: nextPlace.id,
+          position: { lat: nextPlace.lat, lng: nextPlace.lng },
+          busName: nextPlace.place_name,
+          type: 'destination',
+          color: '#EF4444', // 도착지는 Rose Red 계열
+          stationName: '도착지',
+          isDest: true,
+          stepIndex: activeRoute.steps.length - 1,
+        });
+      }
+
+      // 하차 마커 추가 (focusedStep.subType === 'end' 인 경우에만 노출)
+      if (
+        focusedStep &&
+        focusedStep.originId === place.id &&
+        focusedStep.destId === nextPlace.id &&
+        focusedStep.subType === 'end'
+      ) {
+        const step = activeRoute.steps[focusedStep.stepIndex];
+        if (step) {
+          let endLat = step.endLat;
+          let endLng = step.endLng;
+          if (endLat === undefined || endLng === undefined) {
+            if (step.pathPoints && step.pathPoints.length > 0) {
+              const pt = step.pathPoints[step.pathPoints.length - 1];
+              endLat = pt.lat;
+              endLng = pt.lng;
+            }
+          }
+          if (endLat !== undefined && endLng !== undefined) {
+            points.push({
+              key: `alighting-${place.id}-${nextPlace.id}-${focusedStep.stepIndex}`,
+              originId: place.id,
+              destId: nextPlace.id,
+              position: { lat: endLat, lng: endLng },
+              busName: step.endName || step.name || '하차지',
+              type: step.type,
+              color: '#F43F5E', // 하차는 Rose Red
+              stationName: step.endName || '하차 정류장',
+              isAlighting: true,
+              stepIndex: focusedStep.stepIndex,
+            });
+          }
+        }
+      }
+    });
+
+    // 중복 마커 분리를 위한 오프셋(offsetX) 할당 로직
+    const groups: { [key: string]: typeof points } = {};
+    points.forEach((pt) => {
+      const key = `${pt.position.lat.toFixed(5)},${pt.position.lng.toFixed(5)}`;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(pt);
+    });
+
+    Object.values(groups).forEach((group) => {
+      if (group.length > 1) {
+        group.sort((a, b) => {
+          const scoreA = a.isStart ? 1 : (a.isDest ? 3 : 2);
+          const scoreB = b.isStart ? 1 : (b.isDest ? 3 : 2);
+          return scoreA - scoreB;
+        });
+
+        const N = group.length;
+        const spacing = 80; // 좌우 마커 간의 중심 간격 (픽셀)
+        group.forEach((pt, i) => {
+          (pt as any).offsetX = (i - (N - 1) / 2) * spacing;
+        });
       }
     });
 
@@ -1357,17 +1455,45 @@ function TransferMarkers({
   return (
     <>
       {transferPoints.map((pt) => {
-        const displayBusName = pt.type === 'walk' ? '도보 이동' : pt.busName.replace(' 버스', '');
-        const labelText = pt.type === 'walk' ? '도보' : (pt.isFirst ? '탑승' : '환승');
-        const iconEmoji = pt.type === 'walk' ? '🚶' : (pt.type === 'subway' ? '🚇' : '🚌');
-        const zIndex = pt.type === 'walk' ? 12000 : (pt.isFirst ? 9000 : 15000);
+        const displayBusName = pt.isAlighting
+          ? pt.busName
+          : ((pt.isDest || pt.isStart) ? pt.busName : (pt.type === 'walk' ? '도보 이동' : pt.busName.replace(' 버스', '')));
+        const labelText = pt.isAlighting
+          ? '하차'
+          : (pt.isDest ? '도착' : (pt.isStart ? '출발' : (pt.type === 'walk' ? '도보' : (pt.isFirst ? '탑승' : '환승'))));
+        
+        const siteIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 10px; height: 10px; color: white;" class="start-icon-svg-${pt.key}"><path d="M12 4L4 18h16Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>`;
+        const iconEmoji = pt.isDest 
+          ? '🚩' 
+          : (pt.isStart && pt.type === 'walk' ? siteIconSvg : (pt.type === 'walk' ? '🚶' : (pt.type === 'subway' ? '🚇' : '🚌')));
+        
+        // 출발 마커가 항상 탑승 마커(최대 15000) 위에 나타나도록 zIndex를 23000으로 조정
+        const zIndex = pt.isStart ? 23000 : ((pt.isDest || pt.isAlighting) ? 22000 : (pt.type === 'walk' ? 12000 : (pt.isFirst ? 14000 : 15000)));
 
-        const isThisStepFocused = !!(
-          focusedStep &&
-          focusedStep.originId === pt.originId &&
-          focusedStep.destId === pt.destId &&
-          focusedStep.stepIndex === pt.stepIndex
-        );
+        const isThisStepFocused = (() => {
+          if (!focusedStep) return false;
+          if (focusedStep.originId !== pt.originId || focusedStep.destId !== pt.destId) return false;
+
+          // 도착 페이지 포커스 시
+          if (focusedStep.subType === 'dest') {
+            return !!(pt.isDest || pt.stepIndex === focusedStep.stepIndex - 1);
+          }
+
+          // 승차(탑승/환승) 페이지 포커스 시
+          if (focusedStep.subType === 'start') {
+            return pt.stepIndex === focusedStep.stepIndex && !pt.isAlighting && !pt.isDest;
+          }
+
+          // 하차 페이지 포커스 시
+          if (focusedStep.subType === 'end') {
+            return pt.stepIndex === focusedStep.stepIndex && !!pt.isAlighting;
+          }
+
+          // 도보 등 기타 페이지 포커스 시
+          return pt.stepIndex === focusedStep.stepIndex;
+        })();
+
+        const offsetX = (pt as any).offsetX || 0;
 
         return (
           <Marker
@@ -1378,6 +1504,14 @@ function TransferMarkers({
             icon={{
               content: `
                 <style>
+                  .start-icon-svg-${pt.key} {
+                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    transform-origin: center;
+                    transform: rotate(${isThisStepFocused ? '90deg' : '0deg'});
+                  }
+                  .transfer-marker-${pt.key}:hover .start-icon-svg-${pt.key} {
+                    transform: rotate(${isThisStepFocused ? '0deg' : '90deg'});
+                  }
                   .transfer-marker-${pt.key} {
                     display: flex;
                     align-items: center;
@@ -1390,12 +1524,12 @@ function TransferMarkers({
                     white-space: nowrap;
                     position: relative;
                     cursor: pointer;
-                    transform: translate(-50%, -100%) ${isThisStepFocused ? 'scale(1.1)' : ''};
+                    transform: translate(calc(-50% + ${offsetX}px), -100%) ${isThisStepFocused ? 'scale(1.1)' : ''};
                     margin-top: -8px;
                     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                   }
                   .transfer-marker-${pt.key}:hover {
-                    transform: translate(-50%, -105%) scale(${isThisStepFocused ? '1.15' : '1.05'});
+                    transform: translate(calc(-50% + ${offsetX}px), -105%) scale(${isThisStepFocused ? '1.15' : '1.05'});
                     box-shadow: ${isThisStepFocused ? `0 0 0 4px ${pt.color}40, 0 8px 24px ${pt.color}60` : '0 6px 20px rgba(0, 0, 0, 0.22)'};
                     z-index: 20000;
                   }
@@ -1423,14 +1557,14 @@ function TransferMarkers({
                     flex-direction: column;
                     justify-content: center;
                   ">
-                    <span style="font-size: 7.5px; color: #71717a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1;">${labelText}</span>
-                    <span style="font-size: 11px; font-weight: 800; color: #18181b; line-height: 1.1; margin-top: 1px;">${displayBusName}</span>
+                    <span style="font-size: 8px; color: #71717a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1;">${labelText}</span>
+                    <span style="font-size: 10.5px; font-weight: 800; color: #18181b; line-height: 1.1; margin-top: 1px;">${displayBusName}</span>
                   </div>
                   <!-- 아래쪽 꼭지점 화살표 -->
                   <div style="
                     position: absolute;
                     bottom: -6px;
-                    left: 50%;
+                    left: calc(50% - ${offsetX}px);
                     transform: translateX(-50%);
                     width: 0;
                     height: 0;

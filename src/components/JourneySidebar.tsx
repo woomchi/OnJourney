@@ -10,6 +10,7 @@ import AuthModal from '@/components/AuthModal';
 import PlaceList from '@/components/PlaceList';
 import AddPlaceModal from '@/components/AddPlaceModal';
 import type { Journey, Place } from '@/types/journey';
+import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 
 function formatJourneyDate(dateStr: string) {
   if (!dateStr || !dateStr.includes('-')) return dateStr || '';
@@ -51,7 +52,11 @@ export default function JourneySidebar() {
     openAddPlace,
     setActiveJourney,
     clearJourney,
-    reorderPlaces
+    reorderPlaces,
+    focusedStep,
+    setFocusedStep,
+    setFocusedSegment,
+    setFocusBounds
   } = useJourneyStore();
   const [isHydrating, setIsHydrating] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -336,7 +341,7 @@ export default function JourneySidebar() {
     return (
       <>
         <aside className="w-[35%] min-w-[380px] max-w-[480px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
-          {/* ── 헤더: 뒤로가기 | 제목 (center) | 편집 ── */}
+          {/* ── 헤더: 뒤로가기 | 제목 (center) & 재생 | 편집 ── */}
           <header className={`flex items-center border-b border-zinc-100/80 flex-shrink-0 h-14 ${isEditMode ? 'bg-white' : 'bg-white/60 backdrop-blur-md'}`}>
             {/* 뒤로가기 / 취소 */}
             <button
@@ -360,12 +365,12 @@ export default function JourneySidebar() {
               {isEditMode ? '취소' : '뒤로'}
             </button>
 
-            {/* 여정 제목 (가운데) */}
-            <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-1">
+            {/* 여정 제목 (가운데) & 재생 버튼 */}
+            <div className="flex-1 flex items-center justify-center gap-3 min-w-0 px-1">
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(true)}
-                className="w-full flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 hover:bg-zinc-100/70 cursor-pointer border border-dashed border-transparent hover:border-zinc-200 select-none group"
+                className="flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 hover:bg-zinc-100/70 cursor-pointer border border-dashed border-transparent hover:border-zinc-200 select-none group max-w-[calc(100%-40px)]"
                 title="여정 정보 수정"
               >
                 <div className="flex items-center gap-1 max-w-full justify-center">
@@ -376,11 +381,83 @@ export default function JourneySidebar() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                   </svg>
                 </div>
-                <p className="text-[10px] text-zinc-400 group-hover:text-blue-500/70 mt-0.5 transition-colors">
+                <p className="text-[10px] text-zinc-400 group-hover:text-blue-500/70 mt-0.5 transition-colors truncate">
                   {formatJourneyDate(activeJourney.journey_date)}&nbsp;·&nbsp;
                   {activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}
                 </p>
               </button>
+
+              {!isEditMode && activeJourney.places.length >= 2 && (() => {
+                const isPlaying = !!focusedStep;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isPlaying) {
+                        setFocusedStep(null);
+                        setFocusedSegment(null);
+                        setFocusBounds(null);
+                      } else {
+                        const firstPlace = activeJourney.places[0];
+                        const secondPlace = activeJourney.places[1];
+                        const { directionsCache } = useJourneyStore.getState();
+                        
+                        const cacheKey = `${firstPlace.id}-${secondPlace.id}`;
+                        const segmentData = directionsCache[cacheKey];
+                        const activeRoute = firstPlace.selected_route && firstPlace.selected_route.destId === secondPlace.id
+                          ? firstPlace.selected_route
+                          : (segmentData ? (activeJourney.transport_type === 'car' ? segmentData.car?.[0] : activeJourney.transport_type === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
+
+                        if (activeRoute && activeRoute.steps && activeRoute.steps.length > 0) {
+                          const firstStep = activeRoute.steps[0];
+                          let subType: 'start' | 'end' | undefined = undefined;
+                          if (firstStep.type !== 'walk' && firstStep.startName) {
+                            subType = 'start';
+                          } else if (firstStep.type !== 'walk' && firstStep.endName) {
+                            subType = 'end';
+                          }
+
+                          let lat = subType === 'start' ? firstStep.startLat : (subType === 'end' ? firstStep.endLat : undefined);
+                          let lng = subType === 'start' ? firstStep.startLng : (subType === 'end' ? firstStep.endLng : undefined);
+                          
+                          if (lat === undefined || lng === undefined) {
+                            if (firstStep.pathPoints && firstStep.pathPoints.length > 0) {
+                              lat = firstStep.pathPoints[0].lat;
+                              lng = firstStep.pathPoints[0].lng;
+                            }
+                          }
+                          
+                          setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
+                          setFocusedStep({ originId: firstPlace.id, destId: secondPlace.id, stepIndex: 0, subType });
+
+                          if (lat !== undefined && lng !== undefined) {
+                            setFocusBounds({ sw: { lat, lng }, ne: { lat, lng } });
+                          } else {
+                            // Fallback to segment bounds if step has no points
+                            const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
+                            setFocusBounds(bounds);
+                          }
+                        }
+                      }
+                    }}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center shadow-sm transition-all active:scale-95 flex-shrink-0 ${
+                      isPlaying ? 'bg-zinc-800 hover:bg-zinc-900 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    }`}
+                    title={isPlaying ? "전체 여정 보기" : "전체 여정 재생"}
+                  >
+                    {isPlaying ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                        <rect x="5.5" y="4.5" width="4.5" height="15" rx="1.5" />
+                        <rect x="14" y="4.5" width="4.5" height="15" rx="1.5" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5">
+                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })()}
             </div>
 
             {/* 편집 */}

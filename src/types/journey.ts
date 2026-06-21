@@ -101,6 +101,7 @@ export interface FocusedStep {
   originId: string;
   destId: string;
   stepIndex: number;
+  subType?: 'start' | 'end' | 'dest';
 }
 
 export interface SubwayArrival {

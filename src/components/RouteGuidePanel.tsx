@@ -528,13 +528,9 @@ export default function RouteGuidePanel({
                     isThisStepFocused
                       ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
                       : isAnyStepFocused
-                      ? 'bg-transparent border-transparent opacity-40 hover:opacity-75 hover:bg-zinc-50/50'
+                      ? 'bg-transparent border-transparent opacity-40 hover:opacity-100 hover:bg-zinc-50/50'
                       : 'bg-transparent border-transparent hover:bg-zinc-50/50 hover:border-zinc-100'
                   }`}
-                  style={{
-                    opacity: isAnyStepFocused ? (isThisStepFocused ? 1 : 0.4) : 1,
-                    transition: 'opacity 0.2s ease',
-                  }}
                 >
                   {/* 타임라인 노드 아이콘 */}
                   <div

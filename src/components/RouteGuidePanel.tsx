@@ -28,12 +28,20 @@ function SubwayStepBadge({
   const [lastSuccessData, setLastSuccessData] = useState<SubwayArrival | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
-  const loadArrivalData = async () => {
+  const loadArrivalData = async (isManualRefresh = false) => {
     if (!startName) return;
     const cleanStart = startName.replace(/역$/, '').trim();
 
     try {
-      const res = await fetch(`/api/subway/realtime?station=${encodeURIComponent(cleanStart)}&wayCode=${wayCode || ''}`);
+      const fetchPromise = fetch(`/api/subway/realtime?station=${encodeURIComponent(cleanStart)}&wayCode=${wayCode || ''}`);
+      let res;
+      if (isManualRefresh) {
+        const delayPromise = new Promise(resolve => setTimeout(resolve, 800));
+        const [resolvedRes] = await Promise.all([fetchPromise, delayPromise]);
+        res = resolvedRes;
+      } else {
+        res = await fetchPromise;
+      }
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
       
@@ -113,7 +121,7 @@ function SubwayStepBadge({
     if (cooldown > 0 || isRefreshing) return;
     setIsRefreshing(true);
     setCooldown(5);
-    await loadArrivalData();
+    await loadArrivalData(true);
   };
 
   if (loading && !arrival) {
@@ -187,13 +195,21 @@ function BusStepBadge({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  const loadArrivalData = async () => {
+  const loadArrivalData = async (isManualRefresh = false) => {
     if (!startName || !busNo) return;
     const cleanStart = startName.replace(/역$/, '').trim();
     const cleanBusNo = busNo.replace(/번\s*버스$/, '').trim();
 
     try {
-      const res = await fetch(`/api/bus/realtime?station=${encodeURIComponent(cleanStart)}&busNo=${encodeURIComponent(cleanBusNo)}`);
+      const fetchPromise = fetch(`/api/bus/realtime?station=${encodeURIComponent(cleanStart)}&busNo=${encodeURIComponent(cleanBusNo)}`);
+      let res;
+      if (isManualRefresh) {
+        const delayPromise = new Promise(resolve => setTimeout(resolve, 800));
+        const [resolvedRes] = await Promise.all([fetchPromise, delayPromise]);
+        res = resolvedRes;
+      } else {
+        res = await fetchPromise;
+      }
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
       setArrival(data);
@@ -221,7 +237,7 @@ function BusStepBadge({
     if (cooldown > 0 || isRefreshing) return;
     setIsRefreshing(true);
     setCooldown(5);
-    await loadArrivalData();
+    await loadArrivalData(true);
   };
 
   if (loading) {

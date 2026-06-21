@@ -48,61 +48,7 @@ const CITY_MAP: Record<string, string> = {
   "가평": "31370",
   "양평": "31380"
 };
-// 간단한 문자열 해시 함수
-function getHashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash);
-}
-
-// 시간의 흐름에 따라 1분씩 줄어드는 동적 버스 도착 정보 생성 함수
-function generateSimulatedBusArrival(station: string, busNo: string) {
-  const cleanStation = station.trim();
-  const cleanBusNo = busNo.replace(/번\s*버스$/, '').trim();
-  
-  const seed = getHashCode(cleanStation + cleanBusNo);
-  const nowSec = Math.floor(Date.now() / 1000);
-  const currentMinutes = Math.floor(nowSec / 60);
-
-  // 배차 간격 12분 가정
-  const interval = 12;
-  const elapsedCycleTime = (currentMinutes + seed) % interval;
-  
-  // 남은 분은 1분씩 감소하다가 0이 되면 12분으로 리셋됨
-  let minutesLeft1 = interval - elapsedCycleTime;
-  if (minutesLeft1 <= 0) minutesLeft1 = interval;
-  
-  // 두 번째 버스는 첫 번째 버스보다 8분 뒤에 오도록 설정
-  const minutesLeft2 = minutesLeft1 + 8;
-
-  // 정류장 수 계산 (평균 2분당 1정류장)
-  const stationNum1 = Math.max(1, Math.ceil(minutesLeft1 / 2));
-  const stationNum2 = Math.max(stationNum1 + 2, Math.ceil(minutesLeft2 / 2));
-
-  const isApproaching1 = minutesLeft1 <= 2;
-  const isApproaching2 = false;
-
-  const statusText1 = isApproaching1 
-    ? '곧 도착' 
-    : `${minutesLeft1}분 (${stationNum1}전)`;
-
-  const statusText2 = `${minutesLeft2}분 (${stationNum2}전)`;
-
-  return {
-    busNo: cleanBusNo,
-    stationName: cleanStation,
-    predictTime1: minutesLeft1,
-    stationNum1,
-    predictTime2: minutesLeft2,
-    stationNum2,
-    statusText1,
-    statusText2,
-    isApproaching1,
-    isApproaching2,
-  };
-}
+// (Mock data generator removed to prevent fake data)
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -120,8 +66,17 @@ export async function GET(request: NextRequest) {
   const tagoKey = process.env.REAL_TIME_BUS_API_KEY;
 
   if (!tagoKey || !odsayKey || tagoKey === 'PLACEHOLDER' || odsayKey === 'PLACEHOLDER' || tagoKey.trim() === '') {
-    const mock = generateSimulatedBusArrival(station, busNo);
-    return NextResponse.json(mock);
+    return NextResponse.json({
+      busNo: busNo.replace(/번\s*버스$/, '').replace(/번$/, '').trim(),
+      stationName: station,
+      predictTime1: 0,
+      stationNum1: 0,
+      statusText1: '정보 없음 (API 키 누락)',
+      statusText2: '',
+      isApproaching1: false,
+      isApproaching2: false,
+      isRealtime: false
+    });
   }
 
   try {
@@ -303,9 +258,17 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error: any) {
-    // console.error(`[bus] Exception while fetching live arrivals for ${station}: ${error.name || 'Error'} - ${error.message || 'Unknown error'}`);
-    // 에러 발생 시에만 시뮬레이터로 폴백
-    const mock = generateSimulatedBusArrival(station, busNo);
-    return NextResponse.json(mock);
+    console.error(`[bus] Exception while fetching live arrivals for ${station}: ${error.name || 'Error'} - ${error.message || 'Unknown error'}`);
+    return NextResponse.json({
+      busNo: busNo.replace(/번\s*버스$/, '').replace(/번$/, '').trim(),
+      stationName: station,
+      predictTime1: 0,
+      stationNum1: 0,
+      statusText1: '정보 조회 지연',
+      statusText2: '',
+      isApproaching1: false,
+      isApproaching2: false,
+      isRealtime: false
+    });
   }
 }

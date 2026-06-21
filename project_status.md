@@ -1,6 +1,6 @@
 # On-Journey 프로젝트 진행 상황
 
-> 마지막 업데이트: 2026-06-19
+> 마지막 업데이트: 2026-06-21
 
 ## 📌 프로젝트 개요
 
@@ -23,6 +23,8 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 - [x] `zustand` — 클라이언트 상태 관리
 - [x] `react-naver-maps` — 지도 렌더링
 - [x] `pg` — DB 직접 연결 (마이그레이션 스크립트용)
+- [x] `fast-xml-parser` — 공공 API XML 응답 파싱 (버스/지하철 실시간 도착 정보)
+- [x] `xlsx` — 철도 운행거리 데이터 처리
 
 ### 인증 시스템
 - [x] `src/providers/AuthProvider.tsx` — Supabase Auth 상태 관리 Provider
@@ -43,6 +45,20 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 - [x] `src/app/api/places/route.ts` — 네이버 장소 검색 API 프록시
 - [x] `src/app/api/directions/route.ts` — 통합 경로 탐색 API (ODsay 대중교통 + 네이버 Directions 5 차량 + 도보/자전거/킥보드)
 - [x] `src/app/api/directions-waypoints/route.ts` — 네이버 Directions 5 다중 경유지 차량 경로 프록시
+- [x] `src/app/api/subway/realtime/route.ts` — 지하철 실시간 도착 정보 API (서울시 실시간 지하철 + TAGO 시간표 Fallback)
+- [x] `src/app/api/bus/realtime/route.ts` — 버스 실시간 도착 정보 API (TAGO + 경기도 공공 API 이중 조회)
+
+### 실시간 교통 정보 서비스 모듈
+- [x] `src/lib/subwayService.ts` — 지하철 실시간 도착 정보 서비스 모듈:
+  - `calculateSubwayETADynamic()` — 실시간 ETA 동적 계산 (barvlDt 보정, 역간거리 DB 기반 Fallback)
+  - `calculateNextTrainFromTimetable()` — TAGO 시간표 기반 다음 열차 도착 계산
+  - `fetchAndCacheTimetable()` — 시간표 캐싱 (3시간 TTL, 에러 시 5분 쿨다운)
+  - `fetchStationId()` — TAGO SubwayInfo API 역 ID 조회 (메모리 캐시)
+  - `fetchDynamicTravelTimeSec()` — 시간표 기반 동적 이동시간 계산
+  - `calculateTimeBetweenStations()` — 역간거리 JSON DB 기반 소요시간 계산
+  - `extractCurrentStation()`, `extractRemainingStations()` — 실시간 메시지 파싱 유틸리티
+- [x] `src/data/subway_distances.json` — 지하철 역간거리 데이터
+- [x] `서울교통공사_역간거리.json` — 서울교통공사 역간거리 원본 데이터
 
 ### Zustand 상태 관리
 - [x] `src/stores/journey-store.ts` — 확장된 상태 및 액션 관리:
@@ -60,9 +76,15 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
   - `Place` (+ `selected_route` 필드)
   - `Journey`, `CreateJourneyInput`
   - `TransportType` (`'public' | 'car' | 'walk'`)
-  - `SelectedRoute`, `DirectionStep`, `RouteGuideNode`
-  - `DirectionResult`, `DirectionsApiResponse`
-  - `LatLngBoundsLiteral`, `FocusedSegment`, `FocusedStep`
+  - `SelectedRoute` (+ `isFareEstimated`, `isIntercity` 필드)
+  - `DirectionStep` (+ `type: 'train' | 'expressbus'`, `headsign`, `wayCode` 필드)
+  - `RouteGuideNode`
+  - `DirectionResult` (+ `isFareEstimated`, `isIntercity` 필드)
+  - `DirectionsApiResponse`
+  - `LatLngBoundsLiteral`, `FocusedSegment`
+  - `FocusedStep` (+ `subType: 'start' | 'end' | 'dest'`)
+  - `SubwayArrival` — 지하철 실시간 도착 정보 타입
+  - `BusArrival` — 버스 실시간 도착 정보 타입
 
 ### 핵심 UI 컴포넌트
 - [x] `src/components/JourneySidebar.tsx` — 좌측 사이드바 (여정 목록 드래그앤드롭 순서 변경, 여정 다중 선택 삭제, 여정 상세 및 장소 관리 분기)
@@ -72,7 +94,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 - [x] `src/components/PlaceSearchBar.tsx` — 네이버 장소 API 연동 검색창 및 실시간 검색 목록 표시
 - [x] `src/components/AddPlaceModal.tsx` — 검색된 장소를 선택해 여정에 추가하는 모달
 - [x] `src/components/MapArea.tsx` — 네이버 지도 (구간별 폴리라인, 방향 화살표, 환승 마커, 세그먼트/스텝 포커스, 동적 패딩)
-- [x] `src/components/RouteGuidePanel.tsx` — 상세 경로 안내 플로팅 패널 (대중교통 step-by-step / 차량 turn-by-turn 안내)
+- [x] `src/components/RouteGuidePanel.tsx` — 상세 경로 안내 플로팅 패널 (대중교통 step-by-step / 차량 turn-by-turn 안내, 장거리 노선 예매 링크, 세부 구간 탐색 네비게이션)
 
 ### 지도 서비스 모듈
 - [x] `src/lib/naverMapRouteService.ts` — 지도 관련 유틸리티 모듈:
@@ -86,7 +108,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 ### 레이아웃 & 환경
 - [x] `src/app/page.tsx` — 메인 레이아웃 (사이드바 + 지도 영역)
 - [x] `src/app/layout.tsx` — 루트 레이아웃 (AuthProvider, QueryClientProvider)
-- [x] `.env.local` — Supabase URL/KEY, 네이버 클라이언트 ID, ODsay API KEY 등 환경변수
+- [x] `.env.local` — Supabase URL/KEY, 네이버 클라이언트 ID, ODsay API KEY, 서울시 지하철 API KEY, TAGO 실시간 버스 API KEY, 경기도 버스 API KEY 등 환경변수
 - [x] `docs/OnJourney.md` — 프로젝트 컨텍스트 문서
 - [x] `docs/datatable.md` — DB 스키마 및 데이터 구조 정의서
 
@@ -108,12 +130,14 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | 이동 대안 선택 | ✅ 완료 | 대중교통/차량/도보 카테고리별 복수 대안 아코디언 UI, 경로 선택 시 DB 동기화 |
 | 상세 경로 안내 패널 | ✅ 완료 | 대중교통 step-by-step (탑승/하차 정보) + 차량 turn-by-turn 안내 |
 | 세그먼트/스텝 포커스 | ✅ 완료 | 구간 클릭 시 하이라이트+줌 인, 개별 step 포커스, 연속 구간 탐색 |
+| 실시간 지하철 도착 정보 | ✅ 완료 | 서울시 실시간 API + TAGO 시간표 Fallback, ETA 동적 계산, 역간거리 DB 기반 소요시간 |
+| 실시간 버스 도착 정보 | ✅ 완료 | TAGO 전국 버스 도착 API + 경기도 전용 API 이중 조회, ODsay 정류소 검색 캐싱 |
+| 장거리 노선 (기차/시외버스) 지원 | ✅ 완료 | KTX/SRT/무궁화 등 기차 및 고속/시외버스 경로 표시, 예매 링크 (SRT, 코레일, 고속버스, 시외버스) |
 
 ## 🚧 아직 구현되지 않은 기능 (추후 확장)
 
 | 기능 | 상태 | 비고 |
 |------|------|------|
-| 실시간 버스/지하철 도착 정보 | ❌ 미구현 | 공공데이터포털 실시간 도착 API 연동 필요 (현재 RouteGuidePanel에 플레이스홀더 표시) |
 | PWA (Progressive Web App) | ❌ 미구현 | 모바일 네이티브 앱 경험 제공을 위한 PWA 도입 검토 |
 | 여정 후기 기능 | ❌ 미구현 | 여정 복수 선택 → 후기 작성 기능 |
 | 여정 캘린더 | ❌ 미구현 | 캘린더 뷰에서 여정 일정 확인 |
@@ -130,6 +154,8 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `@supabase/ssr` | ✅ | Supabase SSR 통합 |
 | `@supabase/supabase-js` | ✅ | Supabase 클라이언트 |
 | `pg` | ✅ | DB 마이그레이션 스크립트용 |
+| `fast-xml-parser` | ✅ | 공공 API XML 응답 파싱 (버스/지하철) |
+| `xlsx` | ✅ | 철도 운행거리 데이터 처리 |
 | `@tanstack/react-query` | ❌ | 보류 (현재 Zustand로 데이터 페칭 충분) |
 | `@atlaskit/pragmatic-drag-and-drop` | ❌ | 불필요 (HTML5 Native DnD로 대체 구현) |
 | `shadcn/ui` | ❌ | 보류 (Vanilla CSS + Tailwind로 커스텀 구현) |
@@ -138,6 +164,6 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 
 ## 🗺️ 다음 단계 제안
 
-1. **실시간 도착 정보 연동** — 공공데이터포털 버스/지하철 실시간 도착 API 연동을 통해 RouteGuidePanel의 도착 정보 플레이스홀더를 실제 데이터로 교체
-2. **PWA 도입** — 모바일 환경에서 네이티브 앱처럼 동작하도록 PWA 세팅 검토
-3. **여정 후기/공유** — Phase 2 기능으로 여정 후기 작성 및 공유 기능 구현
+1. **PWA 도입** — 모바일 환경에서 네이티브 앱처럼 동작하도록 PWA 세팅 검토
+2. **여정 후기/공유** — Phase 2 기능으로 여정 후기 작성 및 공유 기능 구현
+3. **여정 캘린더** — 캘린더 뷰에서 여정 일정 시각화

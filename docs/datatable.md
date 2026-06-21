@@ -2,7 +2,7 @@
 
 본 문서는 실행(Execution) 중심의 다중 경유지 경로 최적화 서비스 '온저니(On-Journey)'의 Supabase 데이터베이스 스키마 및 프론트엔드 데이터 구조 정의서입니다. AI 바이브 코딩 시 데이터 흐름의 기준점(Ground Truth)으로 사용합니다.
 
-> 마지막 업데이트: 2026-06-19
+> 마지막 업데이트: 2026-06-21
 
 ---
 
@@ -73,7 +73,7 @@ CREATE POLICY "사용자는 자신의 여정을 삭제할 수 있습니다."
 ```json
 [
   { "id": "12709706-375546-0", "place_name": "서울역 (출발지)", "address": "서울특별시 중구 한강대로 405", "category": "교통편 > 기차역 > KTX역", "lat": 37.5546, "lng": 126.9706 },
-  { "id": "12709753-375599-1", "place_name": "숭례문 (경유지)", "address": "서울특별시 중구 세종대로 40", "category": "문화재 > 성 > 대문", "lat": 37.5599, "lng": 126.9753, "selected_route": { "destId": "12709882-375511-2", "id": "public-0", "type": "public", "name": "1호선", "duration": 5, "fare": 1350, "steps": [...], "pathPoints": [...] } },
+  { "id": "12709753-375599-1", "place_name": "숭례문 (경유지)", "address": "서울특별시 중구 세종대로 40", "category": "문화재 > 성 > 대문", "lat": 37.5599, "lng": 126.9753, "selected_route": { "destId": "12709882-375511-2", "id": "public-0", "type": "public", "name": "1호선", "duration": 5, "fare": 1350, "isFareEstimated": false, "isIntercity": false, "steps": [...], "pathPoints": [...] } },
   { "id": "12709882-375511-2", "place_name": "남산서울타워 (목적지)", "address": "서울특별시 용산구 남산공원길 105", "category": "여행 > 관광명소 > 전망대", "lat": 37.5511, "lng": 126.9882 }
 ]
 ```
@@ -86,13 +86,15 @@ CREATE POLICY "사용자는 자신의 여정을 삭제할 수 있습니다."
 // ─── 경로 안내 관련 타입 ───
 
 export interface DirectionStep {
-  type: 'walk' | 'subway' | 'bus' | 'car';
+  type: 'walk' | 'subway' | 'bus' | 'car' | 'train' | 'expressbus';
   name: string;
   duration: number;       // 소요시간 (분)
   color?: string;         // 노선 색상 (예: '#0052A4')
   pathPoints?: { lat: number; lng: number }[];
   startName?: string;     // 탑승 정류장/역명
   endName?: string;       // 하차 정류장/역명
+  headsign?: string;      // 열차 행선지 (기차 노선용)
+  wayCode?: number;       // 상행/하행 코드 (지하철 실시간 조회용)
   startLat?: number;
   startLng?: number;
   endLat?: number;
@@ -114,6 +116,8 @@ export interface SelectedRoute {
   fare: number;            // 요금 (원)
   taxiFare?: number;       // 택시 요금 (원)
   distance?: number;       // 주행 거리 (km)
+  isFareEstimated?: boolean; // 요금 추정 여부 (장거리 노선 등)
+  isIntercity?: boolean;     // 기차/시외 구간 포함 여부
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
   guide?: RouteGuideNode[];
@@ -161,6 +165,8 @@ export interface DirectionResult {
   fare: number;            // 요금 (원)
   taxiFare?: number;       // 택시 요금 (원)
   distance?: number;       // 주행 거리 (km)
+  isFareEstimated?: boolean; // 요금 추정 여부
+  isIntercity?: boolean;     // 기차/시외 구간 포함 여부
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
   guide?: RouteGuideNode[];
@@ -188,5 +194,35 @@ export interface FocusedStep {
   originId: string;
   destId: string;
   stepIndex: number;  // 해당 세그먼트 내 step 인덱스
+  subType?: 'start' | 'end' | 'dest';  // 탑승/하차/도착지 세부 포커스 타입
+}
+
+// ─── 실시간 교통 정보 타입 ───
+
+export interface SubwayArrival {
+  subwayId: string;         // 지하철 노선 코드 (예: '1001')
+  updnLine: string;         // 상행/하행 (예: '상행', '하행')
+  trainNo: string;          // 열차 번호
+  statnNm: string;          // 역명
+  arvlMsg2: string;         // 도착 메시지 원문 (예: '서울역 진입', '[2]전역 출발')
+  recptnDt: string;         // 수신 시각
+  statusText: string;       // 가공된 상태 텍스트 (예: '3분 [2전역]')
+  minutesLeft: number;      // 도착 예상 분
+  arrivalTime: string;      // 도착 예상 시각 (HH:mm)
+  isApproaching: boolean;   // 곧 도착 여부
+  isRealtime?: boolean;     // 실시간 데이터 여부 (false면 시간표 기반)
+}
+
+export interface BusArrival {
+  busNo: string;            // 버스 번호
+  stationName: string;      // 정류소명
+  predictTime1: number;     // 첫 번째 버스 도착 예정 시간 (분)
+  stationNum1: number;      // 첫 번째 버스 남은 정류소 수
+  predictTime2?: number;    // 두 번째 버스 도착 예정 시간 (분)
+  stationNum2?: number;     // 두 번째 버스 남은 정류소 수
+  statusText1: string;      // 첫 번째 버스 상태 텍스트
+  statusText2?: string;     // 두 번째 버스 상태 텍스트
+  isApproaching1: boolean;  // 첫 번째 버스 곧 도착 여부
+  isApproaching2?: boolean; // 두 번째 버스 곧 도착 여부
 }
 ```

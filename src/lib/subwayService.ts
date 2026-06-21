@@ -1,5 +1,90 @@
+import fs from 'fs';
+import path from 'path';
+
 // Live memory caches to optimize API performance and prevent duplicate network hits
 const stationIdCache: Record<string, string> = {};
+
+// 역간거리 데이터 로드 캐시
+let stationDistanceData: any = null;
+
+function getStationDistanceData() {
+  if (stationDistanceData) return stationDistanceData;
+  try {
+    const filePath = path.join(process.cwd(), '서울교통공사_역간거리.json');
+    if (fs.existsSync(filePath)) {
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      stationDistanceData = JSON.parse(fileContent);
+      return stationDistanceData;
+    }
+  } catch (e) {
+    console.error('[subway] Failed to load station distance JSON:', e);
+  }
+  return null;
+}
+
+// "M:SS" 형식의 문자열을 초(seconds)로 변환하는 헬퍼 함수
+function parseHmToSeconds(hmStr: string): number {
+  if (!hmStr) return 0;
+  const parts = hmStr.split(':').map(Number);
+  if (parts.length === 2) {
+    const m = parts[0] || 0;
+    const s = parts[1] || 0;
+    return m * 60 + s;
+  }
+  return 0;
+}
+
+/**
+ * DB(서울교통공사_역간거리.json)를 이용하여 현재역과 목적지역 사이의 소요 시간을 계산합니다.
+ */
+export function calculateTimeBetweenStations(
+  subwayId: string,
+  currentStation: string,
+  targetStation: string
+): number | null {
+  const db = getStationDistanceData();
+  if (!db || !db.DATA) return null;
+
+  // subwayId를 1~8호선 문자열로 매핑 (예: "1001" -> "1")
+  let lineCode = '';
+  if (subwayId.startsWith('100')) {
+    lineCode = subwayId.substring(3); // "1" ~ "8"
+  } else if (subwayId === '1009') {
+    lineCode = '9';
+  }
+
+  if (!lineCode) return null;
+
+  const cleanCurrent = currentStation.replace(/역$/, '').trim();
+  const cleanTarget = targetStation.replace(/역$/, '').trim();
+
+  // 해당 호선의 역 목록 필터링
+  const lineStations = db.DATA.filter((row: any) => String(row.sbwy_rout_ln) === lineCode);
+  if (lineStations.length === 0) return null;
+
+  // 목적지 역과 현재 역의 인덱스 찾기
+  const currentIdx = lineStations.findIndex((row: any) => 
+    row.sbwy_stns_nm.replace(/역$/, '').trim() === cleanCurrent
+  );
+  const targetIdx = lineStations.findIndex((row: any) => 
+    row.sbwy_stns_nm.replace(/역$/, '').trim() === cleanTarget
+  );
+
+  if (currentIdx === -1 || targetIdx === -1) return null;
+
+  // 방향성 판단 및 누적 소요 시간 합산
+  const startIdx = Math.min(currentIdx, targetIdx);
+  const endIdx = Math.max(currentIdx, targetIdx);
+
+  let totalSeconds = 0;
+  // startIdx + 1 부터 endIdx 까지의 hm 값을 더해준다.
+  for (let i = startIdx + 1; i <= endIdx; i++) {
+    const row = lineStations[i];
+    totalSeconds += parseHmToSeconds(row.hm);
+  }
+
+  return totalSeconds;
+}
 
 
 
@@ -313,7 +398,8 @@ export async function calculateSubwayETADynamic(
   targetStation: string,
   trainNo: string,
   updnLine?: string,
-  barvlDt?: number
+  barvlDt?: number,
+  subwayId?: string
 ): Promise<{
   statusText: string;
   minutesLeft: number;
@@ -329,13 +415,18 @@ export async function calculateSubwayETADynamic(
 
   if (isDirectlyAtTarget) {
     const detail = arvlMsg2.includes(`${targetClean} 출발`) ? '출발함' : '곧 도착';
+    const subDetail = arvlMsg2.includes(`${targetClean} 진입`) ? '진입' :
+                      arvlMsg2.includes(`${targetClean} 도착`) ? '도착' : '출발';
     return {
-      statusText: detail,
+      statusText: `${detail} [${subDetail}]`,
       minutesLeft: 0,
       arrivalTime: '',
       isApproaching: true
     };
   }
+
+  // 남은 역 개수 추출
+  const remainingStations = extractRemainingStations(arvlMsg2);
 
   // 2. 초 단위 실시간 도착 예정 시간(barvlDt)이 있는 경우 (서울시 관할 노선)
   if (barvlDt && barvlDt > 0) {
@@ -365,8 +456,20 @@ export async function calculateSubwayETADynamic(
     const mins = String(arrivalDate.getMinutes()).padStart(2, '0');
     const arrivalTime = `${hours}:${mins}`;
 
+    // 버스 형식인 "X분 [Y전역]" 포맷팅
+    let statusText = `${minutesLeft}분`;
+    if (remainingStations !== null) {
+      if (remainingStations === 0) {
+        statusText = `곧 도착 [진입]`;
+      } else if (remainingStations === 1) {
+        statusText = `${minutesLeft}분 [전역]`;
+      } else {
+        statusText = `${minutesLeft}분 [${remainingStations}전역]`;
+      }
+    }
+
     return {
-      statusText: `약 ${minutesLeft}분 뒤 도착 예정 (${arrivalTime})`,
+      statusText,
       minutesLeft,
       arrivalTime,
       isApproaching: minutesLeft <= 1
@@ -375,11 +478,31 @@ export async function calculateSubwayETADynamic(
 
   // 3. 코레일 관할 노선 등 초 단위 시간(barvlDt)이 없는 경우
   // 일괄적으로 시간표 계산을 하지 않고 순수 실시간 정보(arvlMsg2)만 텍스트로 노출
-  const fallbackStations = extractRemainingStations(arvlMsg2);
-  const minutesLeft = fallbackStations !== null ? Math.max(1, fallbackStations * 2) : 99; // 정렬용 임시 분 계산
+  const fallbackStations = remainingStations;
+  let minutesLeft = fallbackStations !== null ? Math.max(1, fallbackStations * 2) : 99; // 기본 fallback
+
+  // DB 기반 소요 시간 계산 시도
+  const currentStation = extractCurrentStation(arvlMsg2, targetClean, updnLine);
+  if (currentStation && subwayId) {
+    const dbSeconds = calculateTimeBetweenStations(subwayId, currentStation, targetClean);
+    if (dbSeconds !== null && dbSeconds > 0) {
+      minutesLeft = Math.ceil(dbSeconds / 60);
+    }
+  }
+
+  let statusText = arvlMsg2;
+  if (fallbackStations !== null) {
+    if (fallbackStations === 0) {
+      statusText = `곧 도착`;
+    } else if (fallbackStations === 1) {
+      statusText = `${minutesLeft}분 [전역]`;
+    } else {
+      statusText = `${minutesLeft}분 [${fallbackStations}전역]`;
+    }
+  }
 
   return {
-    statusText: arvlMsg2,
+    statusText,
     minutesLeft,
     arrivalTime: '',
     isApproaching: fallbackStations !== null && fallbackStations <= 1

@@ -101,8 +101,6 @@ function SubwayStepBadge({
 
   useEffect(() => {
     loadArrivalData();
-    const interval = setInterval(loadArrivalData, 15000);
-    return () => clearInterval(interval);
   }, [startName, endName]);
 
   useEffect(() => {
@@ -150,9 +148,11 @@ function SubwayStepBadge({
         <span className={`relative inline-flex rounded-full h-1 w-1 ${isRealtime ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
       </span>
       
-      <span className={`px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight ${isRealtime ? 'bg-emerald-100/50 text-emerald-700' : 'bg-amber-100/50 text-amber-700'}`}>
-        {isRealtime ? '실시간' : '시간표'}
-      </span>
+      {!isRealtime && (
+        <span className="px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight bg-amber-100/50 text-amber-700">
+          시간표
+        </span>
+      )}
 
       <span>{badgeText}</span>
       <button
@@ -207,8 +207,6 @@ function BusStepBadge({
 
   useEffect(() => {
     loadArrivalData();
-    const interval = setInterval(loadArrivalData, 15000);
-    return () => clearInterval(interval);
   }, [startName, busNo]);
 
   useEffect(() => {
@@ -257,9 +255,7 @@ function BusStepBadge({
         <span className={`relative inline-flex rounded-full h-1 w-1 bg-emerald-500`}></span>
       </span>
 
-      <span className={`px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight bg-emerald-100/50 text-emerald-700`}>
-        실시간
-      </span>
+
 
       <span>{arrival.statusText1}</span>
       <button

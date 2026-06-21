@@ -200,7 +200,7 @@ function SubwayRealtimeTimer({
         if (!matched) {
           matched = data[0];
         }
-        
+
         setArrival(matched);
         setLastSuccessData(matched);
         setLastFetchTime(Date.now());
@@ -211,19 +211,19 @@ function SubwayRealtimeTimer({
     } catch (err) {
       const newFailCount = failCount + 1;
       setFailCount(newFailCount);
-      
+
       if (newFailCount <= 3 && lastSuccessData) {
         const elapsedMinutes = Math.floor((Date.now() - lastFetchTime) / 60000);
         let newMinutes = lastSuccessData.minutesLeft;
         let newStatusText = lastSuccessData.statusText;
         let isApproaching = lastSuccessData.isApproaching;
-        
+
         if (elapsedMinutes > 0 && newMinutes < 99) {
           newMinutes = Math.max(1, newMinutes - elapsedMinutes);
           newStatusText = newStatusText.replace(/\d+분/, `${newMinutes}분`);
           isApproaching = newMinutes <= 1;
         }
-        
+
         setArrival({
           ...lastSuccessData,
           minutesLeft: newMinutes,
@@ -241,8 +241,6 @@ function SubwayRealtimeTimer({
 
   useEffect(() => {
     loadArrivalData();
-    const interval = setInterval(loadArrivalData, 15000);
-    return () => clearInterval(interval);
   }, [startName, endName]);
 
   useEffect(() => {
@@ -267,7 +265,7 @@ function SubwayRealtimeTimer({
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
         </svg>
-        불러오는 중
+        조회 중
       </div>
     );
   }
@@ -285,8 +283,7 @@ function SubwayRealtimeTimer({
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full select-none border transition-all duration-300 ${
-          isRealtime ? 'text-emerald-600 bg-emerald-50 border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]' : 'text-amber-600 bg-amber-50 border-amber-100 shadow-sm'
+      className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full select-none border transition-all duration-300 ${isRealtime ? 'text-emerald-600 bg-emerald-50 border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]' : 'text-amber-600 bg-amber-50 border-amber-100 shadow-sm'
         } ${isApproaching ? 'animate-pulse' : ''}`}
       title={`${arrival.trainNo ? `열차번호 ${arrival.trainNo} · ` : ''}위치: ${arrival.arvlMsg2 || '정보 없음'}`}
     >
@@ -295,9 +292,11 @@ function SubwayRealtimeTimer({
         <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isRealtime ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
       </span>
 
-      <span className={`px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight ${isRealtime ? 'bg-emerald-100/50 text-emerald-700' : 'bg-amber-100/50 text-amber-700'}`}>
-        {isRealtime ? '실시간' : '시간표'}
-      </span>
+      {!isRealtime && (
+        <span className="px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight bg-amber-100/50 text-amber-700">
+          시간표
+        </span>
+      )}
 
       <span>{arrival.statusText}</span>
       <button
@@ -358,8 +357,6 @@ function BusRealtimeTimer({
 
   useEffect(() => {
     loadArrivalData();
-    const interval = setInterval(loadArrivalData, 15000);
-    return () => clearInterval(interval);
   }, [startName, busNo]);
 
   useEffect(() => {
@@ -384,7 +381,7 @@ function BusRealtimeTimer({
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
         </svg>
-        실시간 조회 중
+        조회 중
       </div>
     );
   }
@@ -409,9 +406,7 @@ function BusRealtimeTimer({
         <span className={`relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500`}></span>
       </span>
 
-      <span className={`px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight bg-emerald-100/50 text-emerald-700`}>
-        실시간
-      </span>
+
 
       <span>{arrival.statusText1}</span>
       <button
@@ -507,7 +502,7 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
               <span className="relative flex h-1.5 w-1.5">
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-zinc-400"></span>
               </span>
-              실시간 정보
+              정보
             </div>
           )
         ) : null}
@@ -879,8 +874,8 @@ function PlaceCard({
         <div
           onClick={editMode ? onToggleSelect : undefined}
           className={`place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all duration-200 ${editMode
-              ? 'cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
-              : 'group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+            ? 'cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+            : 'group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
             }`}
         >
           <div className="flex items-center px-4 py-3 gap-2">

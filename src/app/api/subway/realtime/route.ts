@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
       const trainNo = String(row.btrainNo || row.trainNo || '');
       const barvlDt = Number(row.barvlDt || 0);
       
-      const eta = await calculateSubwayETADynamic(liveMsg, recTime, cleanStation, trainNo, lineName, barvlDt);
+      const eta = await calculateSubwayETADynamic(liveMsg, recTime, cleanStation, trainNo, lineName, barvlDt, String(row.subwayId || ''));
 
       return {
         subwayId: String(row.subwayId || ''),

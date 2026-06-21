@@ -3,6 +3,10 @@ import { XMLParser } from 'fast-xml-parser';
 
 export const dynamic = 'force-dynamic';
 
+// ODsay 정류소 검색 결과를 임시 캐싱하여 불필요한 API 호출 방지
+const stationCache: Record<string, { data: any, timestamp: number }> = {};
+const CACHE_TTL = 1000 * 60 * 60 * 24; // 24시간
+
 const CITY_MAP: Record<string, string> = {
   "서울": "11",
   "부산": "21",
@@ -121,10 +125,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1단계: ODsay API로 정류소 검색
-    const odsayUrl = `https://api.odsay.com/v1/api/searchStation?lang=0&stationName=${encodeURIComponent(station)}&stationClass=1&apiKey=${encodeURIComponent(odsayKey)}`;
-    const odsayRes = await fetch(odsayUrl, { signal: AbortSignal.timeout(3000) });
-    const odsayData = await odsayRes.json();
+    // 1단계: ODsay API로 정류소 검색 (캐시 확인)
+    let odsayData = null;
+    const cacheKey = station;
+
+    if (stationCache[cacheKey] && Date.now() - stationCache[cacheKey].timestamp < CACHE_TTL) {
+      odsayData = stationCache[cacheKey].data;
+    } else {
+      const odsayUrl = `https://api.odsay.com/v1/api/searchStation?lang=0&stationName=${encodeURIComponent(station)}&stationClass=1&apiKey=${encodeURIComponent(odsayKey)}`;
+      const odsayRes = await fetch(odsayUrl, { signal: AbortSignal.timeout(3000) });
+      odsayData = await odsayRes.json();
+      
+      if (odsayData?.result?.station?.length > 0) {
+        stationCache[cacheKey] = { data: odsayData, timestamp: Date.now() };
+      }
+    }
     
     if (odsayData?.result?.station?.length > 0) {
       const targetBusNo = busNo.replace(/번\s*버스$/, '').replace(/번$/, '').trim();

@@ -170,21 +170,22 @@ export default function MapArea() {
 
     if (!originPlace || !destPlace) return;
 
-    // 이미 해당 세그먼트가 선택(하이라이트)되어 있는 경우 클릭 시 해제처리
+    // 세그먼트 데이터 및 경로 가져오기
+    const cacheKey = `${originPlace.id}-${destPlace.id}`;
+    const segmentData = directionsCache[cacheKey];
+    const transportType = activeJourney?.transport_type || 'public';
+    const activeRoute = originPlace.selected_route && originPlace.selected_route.destId === destPlace.id
+      ? originPlace.selected_route
+      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
+
+    const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+
+    // 이미 해당 세그먼트가 선택(하이라이트)되어 있는 경우 클릭 시 전체 여정으로 돌아가지 않고, 해당 구간을 다시 핏팅 (세부 스텝 포커스 해제)
     if (focusedSegment && focusedSegment.originId === originPlace.id && focusedSegment.destId === destPlace.id) {
-      setFocusedSegment(null);
-      setFocusBounds(null);
+      setFocusBounds({ ...bounds });
       setFocusedStep(null);
     } else {
       // 신규 하이라이트 적용
-      const cacheKey = `${originPlace.id}-${destPlace.id}`;
-      const segmentData = directionsCache[cacheKey];
-      const transportType = activeJourney?.transport_type || 'public';
-      const activeRoute = originPlace.selected_route && originPlace.selected_route.destId === destPlace.id
-        ? originPlace.selected_route
-        : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
-
-      const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
       setFocusBounds(bounds);
       setFocusedSegment({ originId: originPlace.id, destId: destPlace.id });
       setFocusedStep(null);
@@ -359,13 +360,15 @@ export default function MapArea() {
               }
 
               const handlePolylineClick = () => {
+                const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
                 if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
-                  setFocusedSegment(null);
-                  setFocusBounds(null);
+                  // 이미 포커스된 상태에서 다시 클릭하면, 전체 구간 보기로 돌아가도록(zoom-out to segment) bounds 재적용
+                  setFocusBounds({ ...bounds });
+                  setFocusedStep(null);
                 } else {
-                  const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
                   setFocusBounds(bounds);
                   setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                  setFocusedStep(null);
                 }
               };
 

@@ -672,13 +672,12 @@ function PlaceCard({
               className="w-full text-left focus:outline-none"
               onClick={() => {
                 if (nextPlace) {
-                  // 이미 해당 구간이 포커스된 경우 토글 해제
+                  const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
                   if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
-                    setFocusedSegment(null);
-                    setFocusBounds(null);
+                    // 이미 포커스된 상태에서 다시 클릭하면, 전체 구간 보기로 돌아가도록(zoom-out to segment) bounds 재적용
+                    setFocusBounds({ ...bounds });
                     setFocusedStep(null);
                   } else {
-                    const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
                     setFocusBounds(bounds);
                     setFocusedSegment({ originId: place.id, destId: nextPlace.id });
                     setFocusedStep(null);

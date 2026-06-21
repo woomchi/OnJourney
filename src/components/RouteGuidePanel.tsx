@@ -237,18 +237,21 @@ export default function RouteGuidePanel({
           <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-bold tracking-wide uppercase select-none">
             {route.type === 'public' ? (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-500">
-                  <path d="M4.5 2A2.5 2.5 0 0 0 2 4.5v11A2.5 2.5 0 0 0 4.5 18h11a2.5 2.5 0 0 0 2.5-2.5v-11A2.5 2.5 0 0 0 15.5 2h-11ZM4 4.5A1.5 1.5 0 0 1 5.5 3h9A1.5 1.5 0 0 1 16 4.5v3h-12v-3ZM16 9v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 16V9h12Z" />
-                  <circle cx="7" cy="12" r="1" />
-                  <circle cx="13" cy="12" r="1" />
-                </svg>
+                <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-500 to-indigo-500 shadow shadow-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-white translate-x-[0.5px]">
+                    <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+                  </svg>
+                </div>
                 대중교통 경로 안내
               </>
             ) : (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-500">
-                  <path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.343 7.587.829.799 1.655 1.38 2.274 1.765.31.192.57.337.757.433.113.06.211.107.282.14l.017.008.006.003zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
+                <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-emerald-500 to-teal-500 shadow shadow-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-white">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                  </svg>
+                </div>
                 상세 경로 안내
               </>
             )}
@@ -430,6 +433,46 @@ export default function RouteGuidePanel({
           <div className="relative pl-1 flex flex-col gap-6">
             {/* 세로 연결선 */}
             <div className="absolute left-[24.5px] top-4 bottom-4 w-[3px] bg-zinc-100" />
+
+            {/* 최초 출발지 마커 (리스트 시작) */}
+            {(() => {
+              const isOriginFocused = !focusedStep || (focusedStep.originId !== originPlace.id) || (focusedStep.destId !== destPlace.id);
+
+              return (
+                <div
+                  id={`step-${originPlace.id}-${destPlace.id}-origin`}
+                  onClick={() => {
+                    setFocusedStep(null);
+                    const bounds = calculateSegmentBounds(originPlace, destPlace, route);
+                    setFocusBounds(bounds);
+                  }}
+                  className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none mb-1 ${
+                    isOriginFocused
+                      ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
+                      : 'opacity-40 hover:opacity-100 border-transparent hover:bg-zinc-50'
+                  }`}
+                >
+                  {/* 타임라인 노드 아이콘 */}
+                  <div className="absolute left-1.5 top-2 w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shadow-sm z-10 transition-transform group-hover:scale-110">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-white">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                    </svg>
+                  </div>
+
+                  <div className="flex-1 min-w-0 flex items-center pt-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[10px] font-bold text-white bg-blue-600 px-1.5 py-0.5 rounded flex-shrink-0">
+                        출발
+                      </span>
+                      <h4 className="text-[14px] font-bold text-zinc-800 transition-colors truncate">
+                        {originPlace.place_name}
+                      </h4>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {steps.map((step, idx) => {
               const stepColor = step.color || '#A1A1AA';
@@ -673,7 +716,7 @@ export default function RouteGuidePanel({
             type="button"
             onClick={onPrevSegment}
             disabled={!onPrevSegment}
-            className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-default transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
             aria-label="이전 이동 정보"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -692,7 +735,7 @@ export default function RouteGuidePanel({
                 type="button"
                 onClick={handlePrevStep}
                 disabled={!isPanelFocused || pages.length === 0}
-                className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-default transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
                 aria-label="이전 세부 구간"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 rotate-180">
@@ -729,7 +772,8 @@ export default function RouteGuidePanel({
               >
                 {!showPlayIcon ? (
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                    <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clipRule="evenodd" />
+                    <rect x="6" y="4.5" width="4.5" height="15" rx="1.5" />
+                    <rect x="13.5" y="4.5" width="4.5" height="15" rx="1.5" />
                   </svg>
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 ml-1">
@@ -751,7 +795,7 @@ export default function RouteGuidePanel({
                 type="button"
                 onClick={handleNextStep}
                 disabled={isDisabled}
-                className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-default transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
                 aria-label="다음 세부 구간"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -766,7 +810,7 @@ export default function RouteGuidePanel({
             type="button"
             onClick={onNextSegment}
             disabled={!onNextSegment}
-            className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-default transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
             aria-label="다음 이동 정보"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">

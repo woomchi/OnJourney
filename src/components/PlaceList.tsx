@@ -240,7 +240,7 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
             focusedStep.destId === destId &&
             focusedStep.stepIndex === idx
           );
-          const hasFocusedStep = !!focusedStep;
+          const hasFocusedStep = !!(focusedStep && focusedStep.subType !== 'dest');
 
           return (
             <div
@@ -543,8 +543,23 @@ function PlaceCard({
   nextPlace,
   transportType,
 }: PlaceCardProps) {
-  const { directionsCache, directionsLoading, fetchSegmentDirections, setFocusBounds, focusedSegment, setFocusedSegment, setFocusedStep } = useJourneyStore();
+  const { directionsCache, directionsLoading, fetchSegmentDirections, setFocusBounds, focusedSegment, setFocusedSegment, setFocusedStep, focusedStep } = useJourneyStore();
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const cardRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (!editMode) {
+      const isFocused = 
+        (focusedSegment?.originId === place.id && focusedSegment?.destId === nextPlace?.id) ||
+        (focusedStep?.originId === place.id && focusedStep?.destId === nextPlace?.id);
+      
+      if (isFocused && cardRef.current) {
+        setTimeout(() => {
+          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+      }
+    }
+  }, [focusedSegment, focusedStep, place.id, nextPlace?.id, editMode]);
 
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
   const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
@@ -558,6 +573,7 @@ function PlaceCard({
 
   return (
     <li
+      ref={cardRef}
       draggable={editMode}
       onDragStart={onDragStart}
       onDragOver={onDragOver}

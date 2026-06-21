@@ -182,8 +182,16 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
   const isSubway = firstTransitStep?.type === 'subway';
   const isBus = firstTransitStep?.type === 'bus';
 
+  const isThisSegmentFocused = focusedSegment?.originId === placeId && focusedSegment?.destId === destId;
+
   return (
-    <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99] transition-all duration-200 cursor-pointer">
+    <div 
+      className={`mx-4 mb-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer ${
+        isThisSegmentFocused
+          ? 'bg-blue-50/50 border-2 border-blue-400 shadow-[0_4px_20px_rgba(59,130,246,0.2)] scale-[1.02]'
+          : 'bg-white border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]'
+      }`}
+    >
       {/* 상단 정보: 총 이동 시간, 요금, 실시간 상태 */}
       <div className="flex items-center justify-between gap-2 mb-3.5">
         <div className="flex-1 min-w-0 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">

@@ -16,6 +16,7 @@ interface RouteGuidePanelProps {
   destPlace: Place;
   onClose: () => void;
   onNextSegment?: () => void;
+  onPrevSegment?: () => void;
   nextDestPlace?: Place;
 }
 
@@ -25,6 +26,7 @@ export default function RouteGuidePanel({
   destPlace,
   onClose,
   onNextSegment,
+  onPrevSegment,
   nextDestPlace,
 }: RouteGuidePanelProps) {
   const [mounted, setMounted] = useState(false);
@@ -165,6 +167,11 @@ export default function RouteGuidePanel({
     if (currentIndex > 0) {
       const prevPage = pages[currentIndex - 1];
       handleStepClick(prevPage.idx, prevPage.step, prevPage.subType);
+    } else if (currentIndex === 0) {
+      // 첫 세부 구간에서 이전 버튼을 누르면 전체 경로 보기로 전환
+      setFocusedStep(null);
+      const bounds = calculateSegmentBounds(originPlace, destPlace, route);
+      setFocusBounds(bounds);
     }
   };
 
@@ -657,188 +664,163 @@ export default function RouteGuidePanel({
         )}
       </div>
 
-      {/* 세부 구간 조작 네비게이션 */}
-      {steps.length > 0 && (() => {
-        const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
-        return (
-          <div className={`flex-shrink-0 px-5 py-3 flex items-center border-t border-zinc-100 bg-white/50 ${isPanelFocused ? 'justify-between' : 'justify-center'}`}>
-            {isPanelFocused && (() => {
-              const pages = getPages();
-              let currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex && p.subType === focusedStep.subType);
-              if (currentIdx === -1) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-              return (
-                <button
-                  type="button"
-                  onClick={handlePrevStep}
-                  disabled={currentIdx <= 0}
-                  className="w-9 h-9 flex items-center justify-center rounded-full bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 text-zinc-600"
-                  aria-label="이전 세부 구간"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                  </svg>
-                </button>
-              );
-            })()}
-            
-            <div className="flex flex-col items-center justify-center">
-              {!isPanelFocused ? (
-                <>
-                  <style>
-                    {`
-                      .panel-play-icon {
-                        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                        transform-origin: center;
-                        transform: rotate(0deg);
-                      }
-                      .panel-play-btn:hover .panel-play-icon {
-                        transform: rotate(90deg);
-                      }
-                    `}
-                  </style>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const pages = getPages();
-                      if (pages.length > 0) handleStepClick(pages[0].idx, pages[0].step, pages[0].subType);
-                    }}
-                    className="panel-play-btn w-10 h-10 flex items-center justify-center rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-md transition-all active:scale-95 border border-blue-400 group"
-                    aria-label="여정 시작"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="panel-play-icon w-4 h-4">
-                      <path d="M12 4L4 18h16Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-0.5 select-none">
-                    세부 구간 탐색
-                  </span>
-                  <span className="text-[13px] font-extrabold text-zinc-700 select-none tracking-wide">
-                    {(() => {
-                      const pages = getPages();
-                      let currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex && p.subType === focusedStep.subType);
-                      if (currentIdx === -1) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-                      return `${currentIdx >= 0 ? currentIdx + 1 : 1} / ${pages.length}`;
-                    })()}
-                  </span>
-                </>
-              )}
-            </div>
-
-            {isPanelFocused && (() => {
-              const pages = getPages();
-              let currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex && p.subType === focusedStep.subType);
-              if (currentIdx === -1) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-              const isDisabled = currentIdx >= pages.length - 1 && !onNextSegment;
-              return (
-                <button
-                  type="button"
-                  onClick={handleNextStep}
-                  disabled={isDisabled}
-                  className="w-9 h-9 flex items-center justify-center rounded-full bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 text-zinc-600"
-                  aria-label="다음 세부 구간"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </button>
-              );
-            })()}
-          </div>
-        );
-      })()}
-
-      {/* 다음 이동 정보 버튼 */}
-      {onNextSegment && nextDestPlace && (() => {
-        const isDestFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id && focusedStep.subType === 'dest');
-        return (
-        <div className="flex-shrink-0 px-4 pb-4">
+      {/* 재생바 영역 (Playback Bar) */}
+      <div className="flex-shrink-0 p-5 bg-white/60 backdrop-blur-md border-t border-zinc-100 rounded-b-3xl flex flex-col items-center">
+        {/* 컨트롤 버튼부 */}
+        <div className="flex items-center justify-center gap-4 mb-3">
+          {/* 이전 이동 정보 (<<) */}
           <button
             type="button"
-            onClick={() => {
-              if (isDestFocused) {
-                onNextSegment();
-              } else {
-                handleStepClick(steps.length, { isDestinationPage: true }, 'dest');
-              }
-            }}
-            className={`
-              group w-full flex items-center justify-between gap-3
-              px-5 py-3.5 rounded-2xl
-              bg-gradient-to-r from-blue-50 to-indigo-50
-              border transition-all duration-200 cursor-pointer
-              ${isDestFocused 
-                ? 'border-blue-400 shadow-[0_4px_16px_rgba(59,130,246,0.2)] scale-[1.01] from-blue-100 to-indigo-100' 
-                : 'border-blue-100 hover:border-blue-300 hover:from-blue-100 hover:to-indigo-100 hover:shadow-[0_4px_16px_rgba(59,130,246,0.12)] active:scale-[0.98]'
-              }
-            `}
+            onClick={onPrevSegment}
+            disabled={!onPrevSegment}
+            className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-default transition-colors"
+            aria-label="이전 이동 정보"
           >
-            <div className="flex flex-col items-start gap-0.5 min-w-0">
-              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider select-none">
-                다음 이동 정보
-              </span>
-              <span className="text-[13px] font-bold text-blue-700 truncate max-w-[230px]" title={nextDestPlace.place_name}>
-                {destPlace.place_name}
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3 inline-block mx-1 text-blue-400 flex-shrink-0">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+              <path d="M19.332 3.167a.75.75 0 0 1 .743.743v16.18a.75.75 0 0 1-1.258.552L10.378 13.91a.75.75 0 0 1 0-1.076L18.817 6.1a.75.75 0 0 1 .515-.221ZM10.5 3.167a.75.75 0 0 1 .743.743v16.18a.75.75 0 0 1-1.258.552L1.547 13.91a.75.75 0 0 1 0-1.076L9.986 6.1a.75.75 0 0 1 .514-.221Z" />
+            </svg>
+          </button>
+
+          {/* 이전 세부 구간 (<) */}
+          {(() => {
+            const pages = getPages();
+            let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
+            if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
+            const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
+            return (
+              <button
+                type="button"
+                onClick={handlePrevStep}
+                disabled={!isPanelFocused || pages.length === 0}
+                className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-default transition-colors"
+                aria-label="이전 세부 구간"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 rotate-180">
+                  <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
                 </svg>
-                {nextDestPlace.place_name}
-              </span>
-            </div>
-            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-colors duration-200 ${isDestFocused ? 'bg-blue-600' : 'bg-blue-500 group-hover:bg-blue-600'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-white">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-              </svg>
-            </div>
-          </button>
-        </div>
-      );
-      })()}
+              </button>
+            );
+          })()}
 
-      {/* 최종 목적지 배너 */}
-      {!onNextSegment && (() => {
-        const isDestFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id && focusedStep.subType === 'dest');
-        return (
-        <div className="flex-shrink-0 px-4 pb-4">
+          {/* 재생/일시정지 버튼 (Play/Pause) */}
+          {(() => {
+            const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
+            const pages = getPages();
+            let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
+            if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
+            
+            const isAtEnd = isPanelFocused && currentIdx === pages.length - 1;
+            const showPlayIcon = !isPanelFocused || isAtEnd;
+
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isPanelFocused && !isAtEnd) {
+                    setFocusedStep(null);
+                    const bounds = calculateSegmentBounds(originPlace, destPlace, route);
+                    setFocusBounds(bounds);
+                  } else {
+                    if (pages.length > 0) handleStepClick(pages[0].idx, pages[0].step, pages[0].subType);
+                  }
+                }}
+                className="w-14 h-14 flex items-center justify-center rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-[0_4px_16px_rgba(59,130,246,0.3)] transition-all active:scale-95 border border-blue-400 group"
+                aria-label={showPlayIcon ? "여정 재생" : "여정 일시정지"}
+              >
+                {!showPlayIcon ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                    <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 ml-1">
+                    <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            );
+          })()}
+
+          {/* 다음 세부 구간 (>) */}
+          {(() => {
+            const pages = getPages();
+            let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
+            if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
+            const isDisabled = pages.length === 0 || currentIdx >= pages.length - 1;
+            return (
+              <button
+                type="button"
+                onClick={handleNextStep}
+                disabled={isDisabled}
+                className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-default transition-colors"
+                aria-label="다음 세부 구간"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                  <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
+                </svg>
+              </button>
+            );
+          })()}
+
+          {/* 다음 이동 정보 (>>) */}
           <button
             type="button"
-            onClick={() => {
-              if (!isDestFocused) {
-                handleStepClick(steps.length, { isDestinationPage: true }, 'dest');
-              } else {
-                onClose();
-              }
-            }}
-            className={`
-              group w-full flex items-center justify-between gap-3
-              px-5 py-3.5 rounded-2xl
-              bg-gradient-to-r from-blue-50 to-indigo-50
-              border transition-all duration-200 cursor-pointer
-              ${isDestFocused 
-                ? 'border-blue-400 shadow-[0_4px_16px_rgba(59,130,246,0.2)] scale-[1.01] from-blue-100 to-indigo-100' 
-                : 'border-blue-100 hover:border-blue-300 hover:from-blue-100 hover:to-indigo-100 hover:shadow-[0_4px_16px_rgba(59,130,246,0.12)] active:scale-[0.98]'
-              }
-            `}
+            onClick={onNextSegment}
+            disabled={!onNextSegment}
+            className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-default transition-colors"
+            aria-label="다음 이동 정보"
           >
-            <div className="flex flex-col items-start gap-0.5 min-w-0">
-              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider select-none">
-                최종 목적지 도착
-              </span>
-              <span className="text-[13px] font-bold text-blue-700 truncate max-w-[230px]" title={destPlace.place_name}>
-                {destPlace.place_name}
-              </span>
-            </div>
-            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-colors duration-200 ${isDestFocused ? 'bg-blue-600' : 'bg-blue-500 group-hover:bg-blue-600'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white group-hover:scale-110 transition-transform duration-300">
-                <path fillRule="evenodd" d="M3 2.25a.75.75 0 0 1 .75.75v.54l1.838-.46a9.75 9.75 0 0 1 6.725.738l.108.054a8.25 8.25 0 0 0 5.58.652l3.109-.732a.75.75 0 0 1 .917.81 47.784 47.784 0 0 0 .005 10.337.75.75 0 0 1-.574.812l-3.114.733a9.75 9.75 0 0 1-6.594-.77l-.108-.054a8.25 8.25 0 0 0-5.69-.625l-2.202.55V21a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
-              </svg>
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+              <path d="M4.668 20.833a.75.75 0 0 1-.743-.743V3.91a.75.75 0 0 1 1.258-.552l8.439 6.734a.75.75 0 0 1 0 1.076l-8.439 6.734a.75.75 0 0 1-.515.221ZM13.5 20.833a.75.75 0 0 1-.743-.743V3.91a.75.75 0 0 1 1.258-.552l8.439 6.734a.75.75 0 0 1 0 1.076l-8.439 6.734a.75.75 0 0 1-.514.221Z" />
+            </svg>
           </button>
         </div>
-        );
-      })()}
+
+        {/* 곡 제목 영역 (Origin -> Dest) */}
+        <div className="flex flex-col items-center justify-center w-full mb-3">
+          <div className="text-[13px] font-extrabold text-zinc-800 flex items-center gap-1.5 truncate max-w-full px-2">
+            <span className="truncate max-w-[120px]" title={originPlace.place_name}>{originPlace.place_name}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+            <span className="truncate max-w-[120px]" title={destPlace.place_name}>{destPlace.place_name}</span>
+          </div>
+        </div>
+
+        {/* 타임라인 바 (Progress Bar) */}
+        {(() => {
+          const pages = getPages();
+          const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
+          let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
+          if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
+          
+          const totalStepsNum = pages.length;
+          const currentStepNum = isPanelFocused && currentIdx >= 0 ? currentIdx + 1 : 0;
+          const progressPercent = totalStepsNum > 0 ? (currentStepNum / totalStepsNum) * 100 : 0;
+
+          const formatTime = (stepNum: number) => {
+            const min = Math.floor(stepNum / 60);
+            const sec = stepNum % 60;
+            return `${min}:${sec.toString().padStart(2, '0')}`;
+          };
+
+          return (
+            <div className="w-full flex items-center gap-2.5 px-2">
+              <span className="text-[10px] font-bold text-zinc-400 w-7 text-right select-none">
+                {formatTime(currentStepNum)}
+              </span>
+              <div className="relative flex-1 h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+                <div 
+                  className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-300 ease-out"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-bold text-zinc-400 w-7 select-none">
+                {formatTime(totalStepsNum)}
+              </span>
+            </div>
+          );
+        })()}
+      </div>
     </div>
   );
 }

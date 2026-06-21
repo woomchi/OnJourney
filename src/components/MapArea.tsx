@@ -98,6 +98,17 @@ export default function MapArea() {
     return { nextOriginPlace, nextDestPlace };
   }, [focusedSegment, activeJourney]);
 
+  // 현재 선택된 세그먼트 이전의 세그먼트 정보 계산
+  const prevSegmentInfo = useMemo(() => {
+    if (!focusedSegment || !activeJourney) return null;
+    const places = activeJourney.places ?? [];
+    const originIndex = places.findIndex(p => p.id === focusedSegment.originId);
+    if (originIndex <= 0) return null;
+    const prevOriginPlace = places[originIndex - 1];
+    const prevDestPlace = places[originIndex];
+    return { prevOriginPlace, prevDestPlace };
+  }, [focusedSegment, activeJourney]);
+
   const isPanelOpen = !!(activeRouteOfFocusedSegment && focusedPlaces);
 
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -658,6 +669,19 @@ export default function MapArea() {
             const bounds = calculateSegmentBounds(nextOriginPlace, nextDestPlace, nextRoute);
             setFocusBounds(bounds);
             setFocusedSegment({ originId: nextOriginPlace.id, destId: nextDestPlace.id });
+            setFocusedStep(null);
+          } : undefined}
+          onPrevSegment={prevSegmentInfo ? () => {
+            const { prevOriginPlace, prevDestPlace } = prevSegmentInfo;
+            const cacheKey = `${prevOriginPlace.id}-${prevDestPlace.id}`;
+            const segmentData = directionsCache[cacheKey];
+            const transportType = activeJourney?.transport_type || 'public';
+            const prevRoute = prevOriginPlace.selected_route && prevOriginPlace.selected_route.destId === prevDestPlace.id
+              ? prevOriginPlace.selected_route
+              : (segmentData ? (transportType === 'car' ? segmentData.car?.[0] : transportType === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
+            const bounds = calculateSegmentBounds(prevOriginPlace, prevDestPlace, prevRoute);
+            setFocusBounds(bounds);
+            setFocusedSegment({ originId: prevOriginPlace.id, destId: prevDestPlace.id });
             setFocusedStep(null);
           } : undefined}
           nextDestPlace={nextSegmentInfo?.nextDestPlace}

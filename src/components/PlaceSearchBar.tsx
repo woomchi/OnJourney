@@ -321,7 +321,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
             if (results.length > 0) setIsOpen(true);
           }}
           placeholder="방문할 장소를 검색해보세요"
-          className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-[15px] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-[15px] disabled:cursor-default disabled:opacity-50"
         />
 
         {/* 로딩 / 클리어 */}

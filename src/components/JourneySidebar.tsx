@@ -509,7 +509,7 @@ export default function JourneySidebar() {
                 disabled={selectedPlaceIds.length === 0}
                 className={`w-full py-4 rounded-2xl font-bold text-[15px] transition-all duration-300 flex justify-center items-center gap-2 ${selectedPlaceIds.length > 0
                   ? 'bg-red-600 hover:bg-red-700 text-white hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(220,38,38,0.15)] cursor-pointer shadow-sm'
-                  : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                  : 'bg-zinc-100 text-zinc-300 cursor-default'
                   }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
@@ -735,7 +735,7 @@ export default function JourneySidebar() {
                 disabled={selectedIds.length === 0}
                 className={`w-full py-4 rounded-2xl font-bold text-[15px] transition-all duration-300 flex justify-center items-center gap-2 ${selectedIds.length > 0
                   ? 'bg-red-600 hover:bg-red-700 text-white hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(220,38,38,0.15)] cursor-pointer shadow-sm'
-                  : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                  : 'bg-zinc-100 text-zinc-300 cursor-default'
                   }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">

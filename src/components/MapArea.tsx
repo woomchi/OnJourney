@@ -665,7 +665,7 @@ export default function MapArea() {
   );
 }
 
-// 두 위경도 좌표 간 방위각(Bearing)을 0~360도 각도로 구하는 함수
+// 두 위경도 좌표 간 방위각(Bearing)을 0~360도 각도로 구하는 함수 (Great Circle)
 function getBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const radLat1 = (lat1 * Math.PI) / 180;
   const radLat2 = (lat2 * Math.PI) / 180;
@@ -675,6 +675,24 @@ function getBearing(lat1: number, lng1: number, lat2: number, lng2: number): num
   const x = Math.cos(radLat1) * Math.sin(radLat2) - Math.sin(radLat1) * Math.cos(radLat2) * Math.cos(dLng);
 
   const brng = Math.atan2(y, x);
+  return ((brng * 180) / Math.PI + 360) % 360;
+}
+
+// 위도를 Web Mercator Y 좌표로 변환
+function getMercatorY(lat: number): number {
+  return Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+}
+
+// Web Mercator Y 좌표를 위도로 변환
+function getInverseMercatorY(y: number): number {
+  return (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * (180 / Math.PI);
+}
+
+// 두 좌표 간 평면(Mercator) 방위각(Rhumb Bearing) 계산
+function getRhumbBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const dY = getMercatorY(lat2) - getMercatorY(lat1);
+  const brng = Math.atan2(dLng, dY);
   return ((brng * 180) / Math.PI + 360) % 360;
 }
 
@@ -810,8 +828,8 @@ function DirectionalStripes({
       zIndex: number;
     }> = [];
 
-    // 줌 레벨이 11 이하일 때는 화살표를 표시하지 않음 (오버헤드 방지 및 시인성 향상)
-    if (!navermaps || places.length < 2 || zoomLevel <= 10) return points;
+    // 줌 레벨이 5 이하일 때는 화살표를 표시하지 않음 (오버헤드 방지 및 시인성 향상)
+    if (!navermaps || places.length < 2 || zoomLevel <= 5) return points;
 
     places.forEach((place: any, idx: number) => {
       if (idx === places.length - 1) return;
@@ -881,7 +899,6 @@ function DirectionalStripes({
 
         // 지도 줌 레벨(zoomLevel)에 비례하여 적절한 화살표 배치 누적 간격(D, 미터)을 결정
         // 줌 레벨이 클수록(상세할수록) 간격을 좁혀 촘촘히 묘사하고, 작아질수록 넓혀 과밀화를 방지함
-        // 줌 11 이하에서는 화살표를 그리지 않으므로 처리 제외
         let D = 1000; // 기본 간격
         if (zoomLevel >= 18) D = 60;
         else if (zoomLevel === 17) D = 100;
@@ -890,6 +907,11 @@ function DirectionalStripes({
         else if (zoomLevel === 14) D = 600;
         else if (zoomLevel === 13) D = 1200;
         else if (zoomLevel === 12) D = 2400;
+        else if (zoomLevel === 11) D = 4800;
+        else if (zoomLevel === 10) D = 9600;
+        else if (zoomLevel === 9) D = 19200;
+        else if (zoomLevel === 8) D = 38400;
+        else if (zoomLevel <= 7) D = 76800;
 
         // 대중교통 노선은 자차보다 살짝 더 촘촘하게(0.75배) 묘사하여 가독성 증대
         if (activeRoute.type === 'public') {
@@ -915,10 +937,13 @@ function DirectionalStripes({
             const nextArrowPositionOnSegment = currentSegmentPosition + distanceToNextArrow;
             const t = nextArrowPositionOnSegment / segmentDist;
 
-            // pPrev와 pCurr 사이를 선형보간하여 정확한 간격에 화살표 좌표 산출
-            const lat = pPrev.lat + (pCurr.lat - pPrev.lat) * t;
+            // pPrev와 pCurr 사이를 Mercator 투영 상 선형보간하여 정확한 직선 간격에 화살표 좌표 산출
             const lng = pPrev.lng + (pCurr.lng - pPrev.lng) * t;
-            const bearing = getBearing(pPrev.lat, pPrev.lng, pCurr.lat, pCurr.lng);
+            const yPrev = getMercatorY(pPrev.lat);
+            const yCurr = getMercatorY(pCurr.lat);
+            const y = yPrev + (yCurr - yPrev) * t;
+            const lat = getInverseMercatorY(y);
+            const bearing = getRhumbBearing(pPrev.lat, pPrev.lng, pCurr.lat, pCurr.lng);
 
             points.push({
               key: `stripe-${place.id}-${nextPlace.id}-${sIdx}-${i}-${points.length}`,
@@ -950,8 +975,8 @@ function DirectionalStripes({
           }
           if (p1 && p2) {
             const bearing = isReverseBearing
-              ? getBearing(p2.lat, p2.lng, p1.lat, p1.lng)
-              : getBearing(p1.lat, p1.lng, p2.lat, p2.lng);
+              ? getRhumbBearing(p2.lat, p2.lng, p1.lat, p1.lng)
+              : getRhumbBearing(p1.lat, p1.lng, p2.lat, p2.lng);
             points.push({
               key: `stripe-${place.id}-${nextPlace.id}-${sIdx}-mid`,
               position: { lat: p1.lat, lng: p1.lng },

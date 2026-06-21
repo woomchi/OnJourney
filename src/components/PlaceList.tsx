@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { Place, DirectionResult, DirectionsApiResponse, RouteGuideNode, SelectedRoute } from '@/types/journey';
+import type { Place, DirectionResult, DirectionsApiResponse, RouteGuideNode, SelectedRoute, SubwayArrival, BusArrival } from '@/types/journey';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
 
 interface PlaceListProps {
@@ -144,6 +144,301 @@ interface SegmentInfoProps {
   destId?: string;
 }
 
+const LINE1_STATIONS = [
+  '서울', '남영', '용산', '노량진', '대방', '영등포', '신도림', '구로',
+  '가산디지털단지', '금천구청', '석수', '관악', '안양', '명학', '금정',
+  '군포', '당정', '의왕', '성균관대', '화서', '수원', '세류', '병점',
+  '세마', '오산대', '오산', '진위', '송탄', '서정리', '평택지제', '평택',
+  '성환', '직산', '두정', '천안'
+];
+
+function getDirection(start: string, end: string): '상행' | '하행' | null {
+  const s = start.replace(/역$/, '').trim();
+  const e = end.replace(/역$/, '').trim();
+  const sIdx = LINE1_STATIONS.indexOf(s);
+  const eIdx = LINE1_STATIONS.indexOf(e);
+  if (sIdx !== -1 && eIdx !== -1) {
+    return sIdx < eIdx ? '하행' : '상행';
+  }
+  return null;
+}
+
+function SubwayRealtimeTimer({
+  startName,
+  endName
+}: {
+  startName: string;
+  endName?: string;
+}) {
+  const [arrival, setArrival] = useState<SubwayArrival | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // State Manager
+  const [failCount, setFailCount] = useState(0);
+  const [lastSuccessData, setLastSuccessData] = useState<SubwayArrival | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+
+  const loadArrivalData = async () => {
+    if (!startName) return;
+    const cleanStart = startName.replace(/역$/, '').trim();
+    const cleanEnd = endName ? endName.replace(/역$/, '').trim() : '';
+
+    try {
+      const expectedDir = cleanEnd ? getDirection(cleanStart, cleanEnd) : null;
+      const wayCode = expectedDir === '상행' ? 1 : expectedDir === '하행' ? 2 : '';
+      const res = await fetch(`/api/subway/realtime?station=${encodeURIComponent(cleanStart)}&wayCode=${wayCode}`);
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+
+      if (Array.isArray(data) && data.length > 0) {
+        let matched = null;
+        if (expectedDir) {
+          matched = data.find((item: any) => item.updnLine?.includes(expectedDir));
+        }
+        if (!matched) {
+          matched = data[0];
+        }
+        
+        setArrival(matched);
+        setLastSuccessData(matched);
+        setLastFetchTime(Date.now());
+        setFailCount(0);
+      } else {
+        throw new Error('No data');
+      }
+    } catch (err) {
+      const newFailCount = failCount + 1;
+      setFailCount(newFailCount);
+      
+      if (newFailCount <= 3 && lastSuccessData) {
+        const elapsedMinutes = Math.floor((Date.now() - lastFetchTime) / 60000);
+        let newMinutes = lastSuccessData.minutesLeft;
+        let newStatusText = lastSuccessData.statusText;
+        let isApproaching = lastSuccessData.isApproaching;
+        
+        if (elapsedMinutes > 0 && newMinutes < 99) {
+          newMinutes = Math.max(1, newMinutes - elapsedMinutes);
+          newStatusText = newStatusText.replace(/\d+분/, `${newMinutes}분`);
+          isApproaching = newMinutes <= 1;
+        }
+        
+        setArrival({
+          ...lastSuccessData,
+          minutesLeft: newMinutes,
+          statusText: newStatusText,
+          isApproaching
+        });
+      } else {
+        setArrival(null);
+      }
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadArrivalData();
+    const interval = setInterval(loadArrivalData, 15000);
+    return () => clearInterval(interval);
+  }, [startName, endName]);
+
+  useEffect(() => {
+    if (cooldown === 0) return;
+    const timer = setTimeout(() => {
+      setCooldown((c) => c - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const handleRefresh = async () => {
+    if (cooldown > 0 || isRefreshing) return;
+    setIsRefreshing(true);
+    setCooldown(5);
+    await loadArrivalData();
+  };
+
+  if (loading && !arrival) {
+    return (
+      <div className="inline-flex items-center gap-1 text-[9px] font-bold text-zinc-400 bg-zinc-50 border border-zinc-150 px-2 py-0.5 rounded-full select-none">
+        <svg className="w-2.5 h-2.5 animate-spin text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        불러오는 중
+      </div>
+    );
+  }
+
+  if (!arrival) {
+    return (
+      <div className="inline-flex items-center gap-1 text-[9px] font-bold text-zinc-400 bg-zinc-50 border border-zinc-100 px-2 py-0.5 rounded-full select-none">
+        정보 없음
+      </div>
+    );
+  }
+
+  const isApproaching = arrival.isApproaching;
+  const isRealtime = arrival.isRealtime !== false;
+
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full select-none border transition-all duration-300 ${
+          isRealtime ? 'text-emerald-600 bg-emerald-50 border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]' : 'text-amber-600 bg-amber-50 border-amber-100 shadow-sm'
+        } ${isApproaching ? 'animate-pulse' : ''}`}
+      title={`${arrival.trainNo ? `열차번호 ${arrival.trainNo} · ` : ''}위치: ${arrival.arvlMsg2 || '정보 없음'}`}
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isRealtime ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isRealtime ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+      </span>
+
+      <span className={`px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight ${isRealtime ? 'bg-emerald-100/50 text-emerald-700' : 'bg-amber-100/50 text-amber-700'}`}>
+        {isRealtime ? '실시간' : '시간표'}
+      </span>
+
+      <span>{arrival.statusText}</span>
+      <button
+        type="button"
+        disabled={cooldown > 0}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRefresh();
+        }}
+        className={`ml-1 p-0.5 rounded-full hover:bg-black/5 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${cooldown > 0 ? 'text-zinc-300 cursor-not-allowed' : (isRealtime ? 'text-emerald-600/70 hover:text-emerald-800' : 'text-amber-600/70 hover:text-amber-800')
+          }`}
+        title={cooldown > 0 ? `${cooldown}초 후 새로고침 가능` : '새로고침'}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={3}
+          stroke="currentColor"
+          className={`w-2.5 h-2.5 ${isRefreshing ? 'animate-spin' : ''}`}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function BusRealtimeTimer({
+  startName,
+  busNo
+}: {
+  startName: string;
+  busNo: string;
+}) {
+  const [arrival, setArrival] = useState<BusArrival | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  const loadArrivalData = async () => {
+    if (!startName || !busNo) return;
+    const cleanStart = startName.replace(/역$/, '').trim();
+    const cleanBusNo = busNo.replace(/번\s*버스$/, '').trim();
+
+    try {
+      const res = await fetch(`/api/bus/realtime?station=${encodeURIComponent(cleanStart)}&busNo=${encodeURIComponent(cleanBusNo)}`);
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      setArrival(data);
+    } catch (err) {
+      console.error('Failed to fetch bus realtime:', err);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadArrivalData();
+    const interval = setInterval(loadArrivalData, 15000);
+    return () => clearInterval(interval);
+  }, [startName, busNo]);
+
+  useEffect(() => {
+    if (cooldown === 0) return;
+    const timer = setTimeout(() => {
+      setCooldown((c) => c - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const handleRefresh = async () => {
+    if (cooldown > 0 || isRefreshing) return;
+    setIsRefreshing(true);
+    setCooldown(5);
+    await loadArrivalData();
+  };
+
+  if (loading && !arrival) {
+    return (
+      <div className="inline-flex items-center gap-1 text-[9px] font-bold text-zinc-400 bg-zinc-50 border border-zinc-150 px-2 py-0.5 rounded-full select-none">
+        <svg className="w-2.5 h-2.5 animate-spin text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        실시간 조회 중
+      </div>
+    );
+  }
+
+  if (!arrival) {
+    return (
+      <div className="inline-flex items-center gap-1 text-[9px] font-bold text-zinc-400 bg-zinc-50 border border-zinc-100 px-2 py-0.5 rounded-full select-none">
+        정보 없음
+      </div>
+    );
+  }
+
+  const isApproaching = arrival.isApproaching1;
+
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full select-none border transition-all duration-300 text-emerald-600 bg-emerald-50 border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)] ${isApproaching ? 'animate-pulse' : ''}`}
+      title={arrival.predictTime2 ? `다음 버스: ${arrival.statusText2}` : undefined}
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-emerald-400`}></span>
+        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500`}></span>
+      </span>
+
+      <span className={`px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight bg-emerald-100/50 text-emerald-700`}>
+        실시간
+      </span>
+
+      <span>{arrival.statusText1}</span>
+      <button
+        type="button"
+        disabled={cooldown > 0}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRefresh();
+        }}
+        className={`ml-1 p-0.5 rounded-full hover:bg-black/5 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${cooldown > 0 ? 'text-zinc-300 cursor-not-allowed' : 'text-emerald-600/70 hover:text-emerald-800'}`}
+        title={cooldown > 0 ? `${cooldown}초 후 새로고침 가능` : '새로고침'}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={3}
+          stroke="currentColor"
+          className={`w-2.5 h-2.5 ${isRefreshing ? 'animate-spin' : ''}`}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps) {
   const { focusedStep, setFocusedStep, focusedSegment, setFocusedSegment, setFocusBounds } = useJourneyStore();
 
@@ -176,6 +471,10 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
   const clampedSum = clampedPcts.reduce((a, b) => a + b, 0);
   const normalizedPcts = clampedPcts.map(p => (p / clampedSum) * 100);
 
+  const firstTransitStep = data.steps.find((s) => s.type !== 'walk');
+  const isSubway = firstTransitStep?.type === 'subway';
+  const isBus = firstTransitStep?.type === 'bus';
+
   return (
     <div className="mx-4 mb-3 px-4 py-3 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99] transition-all duration-200 cursor-pointer">
       {/* 상단 정보: 총 이동 시간, 요금, 실시간 상태 */}
@@ -198,13 +497,20 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
             )}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-rose-500 bg-rose-50 px-2 py-1 rounded-full border border-rose-100 flex-shrink-0">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
-          </span>
-          실시간 정보
-        </div>
+        {firstTransitStep ? (
+          isSubway && firstTransitStep.startName ? (
+            <SubwayRealtimeTimer startName={firstTransitStep.startName} endName={firstTransitStep.endName} />
+          ) : isBus && firstTransitStep.startName ? (
+            <BusRealtimeTimer startName={firstTransitStep.startName} busNo={firstTransitStep.name} />
+          ) : (
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-zinc-500 bg-zinc-50 px-2 py-1 rounded-full border border-zinc-200 flex-shrink-0">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-zinc-400"></span>
+              </span>
+              실시간 정보
+            </div>
+          )
+        ) : null}
       </div>
 
       {/* 동적 타임라인 바 및 하단 노선 정보 */}
@@ -213,7 +519,7 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
           const isFirst = idx === 0;
           const isLast = idx === data.steps.length - 1;
           const pct = normalizedPcts[idx];
-          
+
           let icon = '🚶';
           if (step.type === 'subway') icon = '🚇';
           else if (step.type === 'bus') icon = '🚌';
@@ -274,66 +580,66 @@ function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps
                 }
               }}
             >
-                {/* 아이콘 백그라운드 컷아웃 (바 위에 덮어씌워져서 바가 움푹 파인 듯한 효과) */}
-                <div 
-                  className="absolute left-0 -translate-x-1/2 bg-white rounded-full z-[15] transition-all duration-200"
-                  style={{ width: '20px', height: '20px', top: '-4px' }}
-                />
+              {/* 아이콘 백그라운드 컷아웃 (바 위에 덮어씌워져서 바가 움푹 파인 듯한 효과) */}
+              <div
+                className="absolute left-0 -translate-x-1/2 bg-white rounded-full z-[15] transition-all duration-200"
+                style={{ width: '20px', height: '20px', top: '-4px' }}
+              />
 
-                {/* 아이콘 — 바 바깥에 배치하여 overflow-hidden에 잘리지 않도록 */}
-                <div
-                  className={`absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20 transition-all duration-200 ${isThisStepFocused ? 'scale-110' : ''}`}
-                  style={{
-                    borderColor: stepColor,
-                    width: '16px',
-                    height: '16px',
-                    top: '-2px',
-                    opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
-                  }}
-                >
-                  <span className="text-[9px] leading-none">{icon}</span>
-                </div>
-
-                {/* 타임라인 바 조각 */}
-                <div
-                  className="relative flex items-center justify-center h-3 overflow-hidden transition-all duration-200"
-                  style={{
-                    backgroundColor: stepColor,
-                    borderTopLeftRadius: isFirst ? '9999px' : '0px',
-                    borderBottomLeftRadius: isFirst ? '9999px' : '0px',
-                    borderTopRightRadius: isLast ? '9999px' : '0px',
-                    borderBottomRightRadius: isLast ? '9999px' : '0px',
-                    opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
-                    zIndex: isThisStepFocused ? 10 : 1,
-                  }}
-                >
-                  <FittedDuration duration={step.duration} isWalk={isWalk} />
-                </div>
-
-                {/* 하단 노선명 텍스트 */}
-                {hasTransit && (
-                  <div 
-                    className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden transition-all duration-200"
-                    style={{
-                      opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
-                    }}
-                    title={step.type !== 'walk' ? step.name : undefined}
-                  >
-                    {step.type !== 'walk' ? (
-                      <span style={{ color: stepColor }} className="truncate">
-                        {step.type === 'subway'
-                          ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
-                          : step.name.replace(' 버스', '')}
-                      </span>
-                    ) : (
-                      <span className="invisible">&nbsp;</span>
-                    )}
-                  </div>
-                )}
+              {/* 아이콘 — 바 바깥에 배치하여 overflow-hidden에 잘리지 않도록 */}
+              <div
+                className={`absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20 transition-all duration-200 ${isThisStepFocused ? 'scale-110' : ''}`}
+                style={{
+                  borderColor: stepColor,
+                  width: '16px',
+                  height: '16px',
+                  top: '-2px',
+                  opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
+                }}
+              >
+                <span className="text-[9px] leading-none">{icon}</span>
               </div>
-            );
-          })}
-        </div>
+
+              {/* 타임라인 바 조각 */}
+              <div
+                className="relative flex items-center justify-center h-3 overflow-hidden transition-all duration-200"
+                style={{
+                  backgroundColor: stepColor,
+                  borderTopLeftRadius: isFirst ? '9999px' : '0px',
+                  borderBottomLeftRadius: isFirst ? '9999px' : '0px',
+                  borderTopRightRadius: isLast ? '9999px' : '0px',
+                  borderBottomRightRadius: isLast ? '9999px' : '0px',
+                  opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
+                  zIndex: isThisStepFocused ? 10 : 1,
+                }}
+              >
+                <FittedDuration duration={step.duration} isWalk={isWalk} />
+              </div>
+
+              {/* 하단 노선명 텍스트 */}
+              {hasTransit && (
+                <div
+                  className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden transition-all duration-200"
+                  style={{
+                    opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
+                  }}
+                  title={step.type !== 'walk' ? step.name : undefined}
+                >
+                  {step.type !== 'walk' ? (
+                    <span style={{ color: stepColor }} className="truncate">
+                      {step.type === 'subway'
+                        ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
+                        : step.name.replace(' 버스', '')}
+                    </span>
+                  ) : (
+                    <span className="invisible">&nbsp;</span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -572,11 +878,10 @@ function PlaceCard({
         {/* 장소 카드 */}
         <div
           onClick={editMode ? onToggleSelect : undefined}
-          className={`place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all duration-200 ${
-            editMode
+          className={`place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all duration-200 ${editMode
               ? 'cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
               : 'group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
-          }`}
+            }`}
         >
           <div className="flex items-center px-4 py-3 gap-2">
             {/* 체크박스 - 편집 상태에만 왼쪽에 노출 */}
@@ -590,7 +895,7 @@ function PlaceCard({
                 />
               </div>
             )}
-            
+
             {/* 장소 정보 */}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-zinc-800 truncate leading-tight">
@@ -649,11 +954,11 @@ function PlaceCard({
         className={`pl-10 overflow-hidden transition-all duration-300 ease-in-out ${showAlternatives && !editMode && !isLast ? 'max-h-[260px] opacity-100 mb-3' : 'max-h-0 opacity-0'
           }`}
       >
-        <AlternativeSegmentInfo 
+        <AlternativeSegmentInfo
           place={place}
           nextPlace={nextPlace}
-          segmentData={segmentData} 
-          loading={isSegmentLoading} 
+          segmentData={segmentData}
+          loading={isSegmentLoading}
           onSelect={() => setShowAlternatives(false)}
           transportType={transportType}
         />
@@ -667,9 +972,10 @@ function PlaceCard({
 
         return (
           <div className="pl-10 pb-1 flex flex-col gap-1">
-            <button
-              type="button"
-              className="w-full text-left focus:outline-none"
+            <div
+              role="button"
+              tabIndex={0}
+              className="w-full text-left focus:outline-none cursor-pointer"
               onClick={() => {
                 if (nextPlace) {
                   const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
@@ -684,15 +990,31 @@ function PlaceCard({
                   }
                 }
               }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  if (nextPlace) {
+                    const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
+                    if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
+                      setFocusBounds({ ...bounds });
+                      setFocusedStep(null);
+                    } else {
+                      setFocusBounds(bounds);
+                      setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                      setFocusedStep(null);
+                    }
+                  }
+                }
+              }}
             >
-              <SegmentInfo 
-              data={activeRoute} 
-              loading={isSegmentLoading} 
-              index={index} 
-              placeId={place.id}
-              destId={nextPlace?.id}
-            />
-            </button>
+              <SegmentInfo
+                data={activeRoute}
+                loading={isSegmentLoading}
+                index={index}
+                placeId={place.id}
+                destId={nextPlace?.id}
+              />
+            </div>
 
 
           </div>

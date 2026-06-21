@@ -1,0 +1,674 @@
+[
+  {
+    "from_station": "서울",
+    "to_station": "남영",
+    "distance_km": 1.7,
+    "travel_time_sec": 153
+  },
+  {
+    "from_station": "남영",
+    "to_station": "서울",
+    "distance_km": 1.7,
+    "travel_time_sec": 153
+  },
+  {
+    "from_station": "남영",
+    "to_station": "용산",
+    "distance_km": 1.5,
+    "travel_time_sec": 135
+  },
+  {
+    "from_station": "용산",
+    "to_station": "남영",
+    "distance_km": 1.5,
+    "travel_time_sec": 135
+  },
+  {
+    "from_station": "용산",
+    "to_station": "노량진",
+    "distance_km": 2.6,
+    "travel_time_sec": 234
+  },
+  {
+    "from_station": "노량진",
+    "to_station": "용산",
+    "distance_km": 2.6,
+    "travel_time_sec": 234
+  },
+  {
+    "from_station": "노량진",
+    "to_station": "대방",
+    "distance_km": 1.5,
+    "travel_time_sec": 135
+  },
+  {
+    "from_station": "대방",
+    "to_station": "노량진",
+    "distance_km": 1.5,
+    "travel_time_sec": 135
+  },
+  {
+    "from_station": "대방",
+    "to_station": "영등포",
+    "distance_km": 1.8,
+    "travel_time_sec": 162
+  },
+  {
+    "from_station": "영등포",
+    "to_station": "대방",
+    "distance_km": 1.8,
+    "travel_time_sec": 162
+  },
+  {
+    "from_station": "영등포",
+    "to_station": "신도림",
+    "distance_km": 1.5,
+    "travel_time_sec": 135
+  },
+  {
+    "from_station": "신도림",
+    "to_station": "영등포",
+    "distance_km": 1.5,
+    "travel_time_sec": 135
+  },
+  {
+    "from_station": "신도림",
+    "to_station": "구로",
+    "distance_km": 1.1,
+    "travel_time_sec": 99
+  },
+  {
+    "from_station": "구로",
+    "to_station": "신도림",
+    "distance_km": 1.1,
+    "travel_time_sec": 99
+  },
+  {
+    "from_station": "구로",
+    "to_station": "가산디지털단지",
+    "distance_km": 2.4,
+    "travel_time_sec": 216
+  },
+  {
+    "from_station": "가산디지털단지",
+    "to_station": "구로",
+    "distance_km": 2.4,
+    "travel_time_sec": 216
+  },
+  {
+    "from_station": "가산디지털단지",
+    "to_station": "금천구청",
+    "distance_km": 3.2,
+    "travel_time_sec": 288
+  },
+  {
+    "from_station": "금천구청",
+    "to_station": "가산디지털단지",
+    "distance_km": 3.2,
+    "travel_time_sec": 288
+  },
+  {
+    "from_station": "금천구청",
+    "to_station": "석수",
+    "distance_km": 2.3,
+    "travel_time_sec": 207
+  },
+  {
+    "from_station": "석수",
+    "to_station": "금천구청",
+    "distance_km": 2.3,
+    "travel_time_sec": 207
+  },
+  {
+    "from_station": "석수",
+    "to_station": "관악",
+    "distance_km": 1.9,
+    "travel_time_sec": 171
+  },
+  {
+    "from_station": "관악",
+    "to_station": "석수",
+    "distance_km": 1.9,
+    "travel_time_sec": 171
+  },
+  {
+    "from_station": "관악",
+    "to_station": "안양",
+    "distance_km": 2.4,
+    "travel_time_sec": 216
+  },
+  {
+    "from_station": "안양",
+    "to_station": "관악",
+    "distance_km": 2.4,
+    "travel_time_sec": 216
+  },
+  {
+    "from_station": "창내",
+    "to_station": "신대",
+    "distance_km": 5.5,
+    "travel_time_sec": 495
+  },
+  {
+    "from_station": "신대",
+    "to_station": "창내",
+    "distance_km": 5.5,
+    "travel_time_sec": 495
+  },
+  {
+    "from_station": "신대",
+    "to_station": "평택",
+    "distance_km": 2.1,
+    "travel_time_sec": 189
+  },
+  {
+    "from_station": "평택",
+    "to_station": "신대",
+    "distance_km": 2.1,
+    "travel_time_sec": 189
+  },
+  {
+    "from_station": "신대",
+    "to_station": "지제",
+    "distance_km": 2.2,
+    "travel_time_sec": 198
+  },
+  {
+    "from_station": "지제",
+    "to_station": "신대",
+    "distance_km": 2.2,
+    "travel_time_sec": 198
+  },
+  {
+    "from_station": "안양",
+    "to_station": "명학",
+    "distance_km": 2.2,
+    "travel_time_sec": 198
+  },
+  {
+    "from_station": "명학",
+    "to_station": "안양",
+    "distance_km": 2.2,
+    "travel_time_sec": 198
+  },
+  {
+    "from_station": "명학",
+    "to_station": "금정",
+    "distance_km": 1.4,
+    "travel_time_sec": 126
+  },
+  {
+    "from_station": "금정",
+    "to_station": "명학",
+    "distance_km": 1.4,
+    "travel_time_sec": 126
+  },
+  {
+    "from_station": "금정",
+    "to_station": "군포",
+    "distance_km": 2.2,
+    "travel_time_sec": 198
+  },
+  {
+    "from_station": "군포",
+    "to_station": "금정",
+    "distance_km": 2.2,
+    "travel_time_sec": 198
+  },
+  {
+    "from_station": "군포",
+    "to_station": "당정",
+    "distance_km": 1.6,
+    "travel_time_sec": 144
+  },
+  {
+    "from_station": "당정",
+    "to_station": "군포",
+    "distance_km": 1.6,
+    "travel_time_sec": 144
+  },
+  {
+    "from_station": "당정",
+    "to_station": "의왕",
+    "distance_km": 2.6,
+    "travel_time_sec": 234
+  },
+  {
+    "from_station": "의왕",
+    "to_station": "당정",
+    "distance_km": 2.6,
+    "travel_time_sec": 234
+  },
+  {
+    "from_station": "의왕",
+    "to_station": "성균관대",
+    "distance_km": 2.9,
+    "travel_time_sec": 261
+  },
+  {
+    "from_station": "성균관대",
+    "to_station": "의왕",
+    "distance_km": 2.9,
+    "travel_time_sec": 261
+  },
+  {
+    "from_station": "성균관대",
+    "to_station": "화서",
+    "distance_km": 2.6,
+    "travel_time_sec": 234
+  },
+  {
+    "from_station": "화서",
+    "to_station": "성균관대",
+    "distance_km": 2.6,
+    "travel_time_sec": 234
+  },
+  {
+    "from_station": "화서",
+    "to_station": "수원",
+    "distance_km": 2.1,
+    "travel_time_sec": 189
+  },
+  {
+    "from_station": "수원",
+    "to_station": "화서",
+    "distance_km": 2.1,
+    "travel_time_sec": 189
+  },
+  {
+    "from_station": "서울",
+    "to_station": "수원",
+    "distance_km": 41.5,
+    "travel_time_sec": 3735
+  },
+  {
+    "from_station": "수원",
+    "to_station": "서울",
+    "distance_km": 41.5,
+    "travel_time_sec": 3735
+  },
+  {
+    "from_station": "수원",
+    "to_station": "세류",
+    "distance_km": 2.9,
+    "travel_time_sec": 261
+  },
+  {
+    "from_station": "세류",
+    "to_station": "수원",
+    "distance_km": 2.9,
+    "travel_time_sec": 261
+  },
+  {
+    "from_station": "세류",
+    "to_station": "병점",
+    "distance_km": 4.3,
+    "travel_time_sec": 387
+  },
+  {
+    "from_station": "병점",
+    "to_station": "세류",
+    "distance_km": 4.3,
+    "travel_time_sec": 387
+  },
+  {
+    "from_station": "병점",
+    "to_station": "세마",
+    "distance_km": 2.4,
+    "travel_time_sec": 216
+  },
+  {
+    "from_station": "세마",
+    "to_station": "병점",
+    "distance_km": 2.4,
+    "travel_time_sec": 216
+  },
+  {
+    "from_station": "세마",
+    "to_station": "오산대",
+    "distance_km": 2.7,
+    "travel_time_sec": 243
+  },
+  {
+    "from_station": "오산대",
+    "to_station": "세마",
+    "distance_km": 2.7,
+    "travel_time_sec": 243
+  },
+  {
+    "from_station": "오산대",
+    "to_station": "오산",
+    "distance_km": 2.7,
+    "travel_time_sec": 243
+  },
+  {
+    "from_station": "오산",
+    "to_station": "오산대",
+    "distance_km": 2.7,
+    "travel_time_sec": 243
+  },
+  {
+    "from_station": "오산",
+    "to_station": "진위",
+    "distance_km": 4,
+    "travel_time_sec": 360
+  },
+  {
+    "from_station": "진위",
+    "to_station": "오산",
+    "distance_km": 4,
+    "travel_time_sec": 360
+  },
+  {
+    "from_station": "진위",
+    "to_station": "송탄",
+    "distance_km": 3.8,
+    "travel_time_sec": 342
+  },
+  {
+    "from_station": "송탄",
+    "to_station": "진위",
+    "distance_km": 3.8,
+    "travel_time_sec": 342
+  },
+  {
+    "from_station": "송탄",
+    "to_station": "서정리",
+    "distance_km": 2.2,
+    "travel_time_sec": 198
+  },
+  {
+    "from_station": "서정리",
+    "to_station": "송탄",
+    "distance_km": 2.2,
+    "travel_time_sec": 198
+  },
+  {
+    "from_station": "서정리",
+    "to_station": "평택지제",
+    "distance_km": 4.8,
+    "travel_time_sec": 432
+  },
+  {
+    "from_station": "평택지제",
+    "to_station": "서정리",
+    "distance_km": 4.8,
+    "travel_time_sec": 432
+  },
+  {
+    "from_station": "평택지제",
+    "to_station": "평택",
+    "distance_km": 3.7,
+    "travel_time_sec": 333
+  },
+  {
+    "from_station": "평택",
+    "to_station": "평택지제",
+    "distance_km": 3.7,
+    "travel_time_sec": 333
+  },
+  {
+    "from_station": "병점",
+    "to_station": "병점기지",
+    "distance_km": 1.4,
+    "travel_time_sec": 126
+  },
+  {
+    "from_station": "병점기지",
+    "to_station": "병점",
+    "distance_km": 1.4,
+    "travel_time_sec": 126
+  },
+  {
+    "from_station": "평택",
+    "to_station": "성환",
+    "distance_km": 9.4,
+    "travel_time_sec": 846
+  },
+  {
+    "from_station": "성환",
+    "to_station": "평택",
+    "distance_km": 9.4,
+    "travel_time_sec": 846
+  },
+  {
+    "from_station": "병점기지",
+    "to_station": "서동탄",
+    "distance_km": 0.8,
+    "travel_time_sec": 72
+  },
+  {
+    "from_station": "서동탄",
+    "to_station": "병점기지",
+    "distance_km": 0.8,
+    "travel_time_sec": 72
+  },
+  {
+    "from_station": "성환",
+    "to_station": "직산",
+    "distance_km": 5.4,
+    "travel_time_sec": 486
+  },
+  {
+    "from_station": "직산",
+    "to_station": "성환",
+    "distance_km": 5.4,
+    "travel_time_sec": 486
+  },
+  {
+    "from_station": "직산",
+    "to_station": "두정",
+    "distance_km": 3.8,
+    "travel_time_sec": 342
+  },
+  {
+    "from_station": "두정",
+    "to_station": "직산",
+    "distance_km": 3.8,
+    "travel_time_sec": 342
+  },
+  {
+    "from_station": "두정",
+    "to_station": "천안",
+    "distance_km": 3,
+    "travel_time_sec": 270
+  },
+  {
+    "from_station": "천안",
+    "to_station": "두정",
+    "distance_km": 3,
+    "travel_time_sec": 270
+  },
+  {
+    "from_station": "천안",
+    "to_station": "소정리",
+    "distance_km": 10.8,
+    "travel_time_sec": 972
+  },
+  {
+    "from_station": "소정리",
+    "to_station": "천안",
+    "distance_km": 10.8,
+    "travel_time_sec": 972
+  },
+  {
+    "from_station": "소정리",
+    "to_station": "전의",
+    "distance_km": 7.5,
+    "travel_time_sec": 675
+  },
+  {
+    "from_station": "전의",
+    "to_station": "소정리",
+    "distance_km": 7.5,
+    "travel_time_sec": 675
+  },
+  {
+    "from_station": "전의",
+    "to_station": "전동",
+    "distance_km": 7.7,
+    "travel_time_sec": 693
+  },
+  {
+    "from_station": "전동",
+    "to_station": "전의",
+    "distance_km": 7.7,
+    "travel_time_sec": 693
+  },
+  {
+    "from_station": "전동",
+    "to_station": "서창",
+    "distance_km": 3.5,
+    "travel_time_sec": 315
+  },
+  {
+    "from_station": "서창",
+    "to_station": "전동",
+    "distance_km": 3.5,
+    "travel_time_sec": 315
+  },
+  {
+    "from_station": "서창",
+    "to_station": "조치원",
+    "distance_km": 3.2,
+    "travel_time_sec": 288
+  },
+  {
+    "from_station": "조치원",
+    "to_station": "서창",
+    "distance_km": 3.2,
+    "travel_time_sec": 288
+  },
+  {
+    "from_station": "조치원",
+    "to_station": "내판",
+    "distance_km": 5.6,
+    "travel_time_sec": 504
+  },
+  {
+    "from_station": "내판",
+    "to_station": "조치원",
+    "distance_km": 5.6,
+    "travel_time_sec": 504
+  },
+  {
+    "from_station": "대전",
+    "to_station": "서대전",
+    "distance_km": 5.7,
+    "travel_time_sec": 513
+  },
+  {
+    "from_station": "서대전",
+    "to_station": "대전",
+    "distance_km": 5.7,
+    "travel_time_sec": 513
+  },
+  {
+    "from_station": "의왕",
+    "to_station": "오봉",
+    "distance_km": 3,
+    "travel_time_sec": 270
+  },
+  {
+    "from_station": "오봉",
+    "to_station": "의왕",
+    "distance_km": 3,
+    "travel_time_sec": 270
+  },
+  {
+    "from_station": "부강",
+    "to_station": "부강화물",
+    "distance_km": 2.9,
+    "travel_time_sec": 261
+  },
+  {
+    "from_station": "부강화물",
+    "to_station": "부강",
+    "distance_km": 2.9,
+    "travel_time_sec": 261
+  },
+  {
+    "from_station": "서창",
+    "to_station": "오송",
+    "distance_km": 3.6,
+    "travel_time_sec": 324
+  },
+  {
+    "from_station": "오송",
+    "to_station": "서창",
+    "distance_km": 3.6,
+    "travel_time_sec": 324
+  },
+  {
+    "from_station": "내판",
+    "to_station": "부강",
+    "distance_km": 4.9,
+    "travel_time_sec": 441
+  },
+  {
+    "from_station": "부강",
+    "to_station": "내판",
+    "distance_km": 4.9,
+    "travel_time_sec": 441
+  },
+  {
+    "from_station": "부강",
+    "to_station": "매포",
+    "distance_km": 4.6,
+    "travel_time_sec": 414
+  },
+  {
+    "from_station": "매포",
+    "to_station": "부강",
+    "distance_km": 4.6,
+    "travel_time_sec": 414
+  },
+  {
+    "from_station": "매포",
+    "to_station": "신탄진",
+    "distance_km": 7.5,
+    "travel_time_sec": 675
+  },
+  {
+    "from_station": "신탄진",
+    "to_station": "매포",
+    "distance_km": 7.5,
+    "travel_time_sec": 675
+  },
+  {
+    "from_station": "신탄진",
+    "to_station": "회덕",
+    "distance_km": 5.6,
+    "travel_time_sec": 504
+  },
+  {
+    "from_station": "회덕",
+    "to_station": "신탄진",
+    "distance_km": 5.6,
+    "travel_time_sec": 504
+  },
+  {
+    "from_station": "회덕",
+    "to_station": "대전조",
+    "distance_km": 4.1,
+    "travel_time_sec": 369
+  },
+  {
+    "from_station": "대전조",
+    "to_station": "회덕",
+    "distance_km": 4.1,
+    "travel_time_sec": 369
+  },
+  {
+    "from_station": "대전조",
+    "to_station": "대전",
+    "distance_km": 4.7,
+    "travel_time_sec": 423
+  },
+  {
+    "from_station": "대전",
+    "to_station": "대전조",
+    "distance_km": 4.7,
+    "travel_time_sec": 423
+  }
+]

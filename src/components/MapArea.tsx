@@ -1337,10 +1337,14 @@ function TransferMarkers({
       // Toggle on step focus
       const step = activeRoute.steps[pt.stepIndex];
       if (step) {
-        const bounds = calculateStepBounds(step);
-        if (bounds) {
-          setFocusBounds(bounds);
-        }
+        // 탑승/시작 지점으로 줌인 (마커 좌표)
+        const lat = pt.position.lat;
+        const lng = pt.position.lng;
+        setFocusBounds({
+          sw: { lat, lng },
+          ne: { lat, lng }
+        });
+
         setFocusedStep({
           originId: pt.originId,
           destId: pt.destId,

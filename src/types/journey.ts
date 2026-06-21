@@ -52,6 +52,8 @@ export interface DirectionStep {
   pathPoints?: { lat: number; lng: number }[];
   startName?: string;
   endName?: string;
+  headsign?: string;
+  wayCode?: number;
   startLat?: number;
   startLng?: number;
   endLat?: number;
@@ -101,5 +103,29 @@ export interface FocusedStep {
   stepIndex: number;
 }
 
+export interface SubwayArrival {
+  subwayId: string;
+  updnLine: string;
+  trainNo: string;
+  statnNm: string;
+  arvlMsg2: string;
+  recptnDt: string;
+  statusText: string;
+  minutesLeft: number;
+  arrivalTime: string;
+  isApproaching: boolean;
+  isRealtime?: boolean;
+}
 
-
+export interface BusArrival {
+  busNo: string;
+  stationName: string;
+  predictTime1: number;
+  stationNum1: number;
+  predictTime2?: number;
+  stationNum2?: number;
+  statusText1: string;
+  statusText2?: string;
+  isApproaching1: boolean;
+  isApproaching2?: boolean;
+}

@@ -404,6 +404,8 @@ async function fetchPublicTransitOptions(
         pathPoints: stepPathPoints,
         startName: startName || undefined,
         endName: endName || undefined,
+        headsign: sp.way || undefined,
+        wayCode: sp.wayCode || undefined,
         startLat: !isNaN(startLat) ? startLat : undefined,
         startLng: !isNaN(startLng) ? startLng : undefined,
         endLat: !isNaN(endLat) ? endLat : undefined,

@@ -338,16 +338,26 @@ export default function JourneySidebar() {
         <aside className="w-[35%] min-w-[380px] max-w-[480px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
           {/* ── 헤더: 뒤로가기 | 제목 (center) | 편집 ── */}
           <header className={`flex items-center border-b border-zinc-100/80 flex-shrink-0 h-14 ${isEditMode ? 'bg-white' : 'bg-white/60 backdrop-blur-md'}`}>
-            {/* 뒤로가기 */}
+            {/* 뒤로가기 / 취소 */}
             <button
               type="button"
-              onClick={() => clearJourney()}
+              onClick={() => {
+                if (isEditMode) {
+                  setIsEditMode(false);
+                } else {
+                  clearJourney();
+                }
+              }}
               className="flex items-center gap-1 px-4 h-full text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold flex-shrink-0 w-20"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-              </svg>
-              뒤로
+              {isEditMode ? (
+                <div className="w-4 h-4" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+              )}
+              {isEditMode ? '취소' : '뒤로'}
             </button>
 
             {/* 여정 제목 (가운데) */}

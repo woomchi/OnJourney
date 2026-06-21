@@ -1,9 +1,287 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
+import type { Place, SelectedRoute, DirectionResult, SubwayArrival, BusArrival } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
+
+
+
+function SubwayStepBadge({ 
+  startName, 
+  endName,
+  headsign,
+  wayCode
+}: { 
+  startName: string; 
+  endName?: string; 
+  headsign?: string;
+  wayCode?: number;
+}) {
+  const [arrival, setArrival] = useState<SubwayArrival | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // State Manager states
+  const [failCount, setFailCount] = useState(0);
+  const [lastSuccessData, setLastSuccessData] = useState<SubwayArrival | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+
+  const loadArrivalData = async () => {
+    if (!startName) return;
+    const cleanStart = startName.replace(/역$/, '').trim();
+
+    try {
+      const res = await fetch(`/api/subway/realtime?station=${encodeURIComponent(cleanStart)}&wayCode=${wayCode || ''}`);
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      
+      if (Array.isArray(data) && data.length > 0) {
+        let cleanHeadsign = headsign ? headsign.replace(/방면$/, '').replace(/역$/, '').trim() : '';
+        let matched = null;
+
+        if (cleanHeadsign) {
+          matched = data.find((item: any) => 
+            item.trainLineNm?.includes(cleanHeadsign) || 
+            item.bstatnNm?.includes(cleanHeadsign)
+          );
+        }
+
+        if (!matched && wayCode) {
+          let expectedDirs: string[] = [];
+          if (wayCode === 1) expectedDirs = ['상행', '내선', '상선'];
+          else if (wayCode === 2) expectedDirs = ['하행', '외선', '하선'];
+          
+          if (expectedDirs.length > 0) {
+            matched = data.find((item: any) => expectedDirs.some(dir => item.updnLine?.includes(dir)));
+          }
+        }
+
+        if (!matched) matched = data[0];
+
+        setArrival(matched);
+        setLastSuccessData(matched);
+        setLastFetchTime(Date.now());
+        setFailCount(0);
+      } else {
+        throw new Error('No data');
+      }
+    } catch (err) {
+      const newFailCount = failCount + 1;
+      setFailCount(newFailCount);
+      
+      if (newFailCount <= 3 && lastSuccessData) {
+        // Time Extrapolation
+        const elapsedMinutes = Math.floor((Date.now() - lastFetchTime) / 60000);
+        let newMinutes = lastSuccessData.minutesLeft;
+        let newStatusText = lastSuccessData.statusText;
+        let isApproaching = lastSuccessData.isApproaching;
+        
+        if (elapsedMinutes > 0 && newMinutes < 99) {
+          newMinutes = Math.max(1, newMinutes - elapsedMinutes);
+          newStatusText = newStatusText.replace(/\d+분/, `${newMinutes}분`);
+          isApproaching = newMinutes <= 1;
+        }
+        
+        setArrival({
+          ...lastSuccessData,
+          minutesLeft: newMinutes,
+          statusText: newStatusText,
+          isApproaching
+        });
+      } else {
+        setArrival(null);
+      }
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadArrivalData();
+    const interval = setInterval(loadArrivalData, 15000);
+    return () => clearInterval(interval);
+  }, [startName, endName]);
+
+  useEffect(() => {
+    if (cooldown === 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const handleRefresh = async () => {
+    if (cooldown > 0 || isRefreshing) return;
+    setIsRefreshing(true);
+    setCooldown(5);
+    await loadArrivalData();
+  };
+
+  if (loading && !arrival) {
+    return (
+      <div className="flex items-center gap-1 text-[9px] font-black text-zinc-400 bg-zinc-50 border border-zinc-150 px-1.5 py-0.5 rounded-full select-none flex-shrink-0 animate-pulse">
+        조회 중
+      </div>
+    );
+  }
+
+  if (!arrival) {
+    return (
+      <div className="flex items-center gap-1 text-[9px] font-black text-zinc-400 bg-zinc-50 border border-zinc-100 px-1.5 py-0.5 rounded-full select-none flex-shrink-0">
+        정보 없음
+      </div>
+    );
+  }
+
+  const isApproaching = arrival.isApproaching;
+  const isRealtime = arrival.isRealtime !== false;
+  const badgeText = arrival.statusText;
+
+  return (
+    <div 
+      className={`flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-full select-none border flex-shrink-0 transition-all duration-300 ${
+        isRealtime ? 'text-emerald-600 bg-emerald-50 border-emerald-100 shadow-sm' : 'text-amber-600 bg-amber-50 border-amber-100 shadow-sm'
+      } ${isApproaching ? 'animate-pulse' : ''}`}
+      title={`${arrival.trainNo ? `열차번호 ${arrival.trainNo} · ` : ''}위치: ${arrival.arvlMsg2 || '정보 없음'}`}
+    >
+      <span className="relative flex h-1 w-1">
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isRealtime ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+        <span className={`relative inline-flex rounded-full h-1 w-1 ${isRealtime ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+      </span>
+      
+      <span className={`px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight ${isRealtime ? 'bg-emerald-100/50 text-emerald-700' : 'bg-amber-100/50 text-amber-700'}`}>
+        {isRealtime ? '실시간' : '시간표'}
+      </span>
+
+      <span>{badgeText}</span>
+      <button
+        type="button"
+        disabled={cooldown > 0}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRefresh();
+        }}
+        className={`ml-1 p-0.5 rounded-full hover:bg-black/5 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${
+          cooldown > 0 ? 'text-zinc-300 cursor-not-allowed' : (isRealtime ? 'text-emerald-600/70 hover:text-emerald-800' : 'text-amber-600/70 hover:text-amber-800')
+        }`}
+        title={cooldown > 0 ? `${cooldown}초 후 새로고침 가능` : '새로고침'}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-2.5 h-2.5 ${isRefreshing ? 'animate-spin' : ''}`}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function BusStepBadge({ 
+  startName, 
+  busNo 
+}: { 
+  startName: string; 
+  busNo: string; 
+}) {
+  const [arrival, setArrival] = useState<BusArrival | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  const loadArrivalData = async () => {
+    if (!startName || !busNo) return;
+    const cleanStart = startName.replace(/역$/, '').trim();
+    const cleanBusNo = busNo.replace(/번\s*버스$/, '').trim();
+
+    try {
+      const res = await fetch(`/api/bus/realtime?station=${encodeURIComponent(cleanStart)}&busNo=${encodeURIComponent(cleanBusNo)}`);
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      setArrival(data);
+    } catch (err) {
+      console.error('Failed to fetch bus realtime:', err);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadArrivalData();
+    const interval = setInterval(loadArrivalData, 15000);
+    return () => clearInterval(interval);
+  }, [startName, busNo]);
+
+  useEffect(() => {
+    if (cooldown === 0) return;
+    const timer = setTimeout(() => {
+      setCooldown((c) => c - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const handleRefresh = async () => {
+    if (cooldown > 0 || isRefreshing) return;
+    setIsRefreshing(true);
+    setCooldown(5);
+    await loadArrivalData();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-1 text-[9px] font-black text-zinc-400 bg-zinc-50 border border-zinc-150 px-1.5 py-0.5 rounded-full select-none flex-shrink-0 animate-pulse">
+        조회 중
+      </div>
+    );
+  }
+
+  if (!arrival) {
+    return (
+      <div className="flex items-center gap-1 text-[9px] font-black text-zinc-400 bg-zinc-50 border border-zinc-100 px-1.5 py-0.5 rounded-full select-none flex-shrink-0">
+        정보 없음
+      </div>
+    );
+  }
+
+  const isApproaching = arrival.isApproaching1;
+  const isRealtime = true;
+
+  return (
+    <div 
+      className={`flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-full select-none border flex-shrink-0 transition-all duration-300 text-emerald-600 bg-emerald-50 border-emerald-100 shadow-sm ${
+        isApproaching ? 'animate-pulse' : ''
+      }`}
+      title={arrival.predictTime2 ? `다음 버스: ${arrival.statusText2}` : undefined}
+    >
+      <span className="relative flex h-1 w-1">
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-emerald-400`}></span>
+        <span className={`relative inline-flex rounded-full h-1 w-1 bg-emerald-500`}></span>
+      </span>
+
+      <span className={`px-1 py-[1px] rounded-[3px] text-[7.5px] font-extrabold uppercase tracking-tight bg-emerald-100/50 text-emerald-700`}>
+        실시간
+      </span>
+
+      <span>{arrival.statusText1}</span>
+      <button
+        type="button"
+        disabled={cooldown > 0}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRefresh();
+        }}
+        className={`ml-1 p-0.5 rounded-full hover:bg-black/5 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${
+          cooldown > 0 ? 'text-zinc-300 cursor-not-allowed' : 'text-emerald-600/70 hover:text-emerald-800'
+        }`}
+        title={cooldown > 0 ? `${cooldown}초 후 새로고침 가능` : '새로고침'}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-2.5 h-2.5 ${isRefreshing ? 'animate-spin' : ''}`}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 
 interface RouteGuidePanelProps {
   route: SelectedRoute | DirectionResult;
@@ -78,14 +356,60 @@ export default function RouteGuidePanel({
       const bounds = calculateSegmentBounds(originPlace, destPlace, route);
       setFocusBounds(bounds);
     } else {
-      const bounds = calculateStepBounds(step);
-      if (bounds) {
-        setFocusBounds(bounds);
+      // 기본적으로 탑승/시작 지점으로 줌인
+      let lat = step.startLat;
+      let lng = step.startLng;
+      if (lat === undefined || lng === undefined) {
+        if (step.pathPoints && step.pathPoints.length > 0) {
+          lat = step.pathPoints[0].lat;
+          lng = step.pathPoints[0].lng;
+        }
       }
+
+      if (lat !== undefined && lng !== undefined) {
+        setFocusBounds({
+          sw: { lat, lng },
+          ne: { lat, lng }
+        });
+      } else {
+        const bounds = calculateStepBounds(step);
+        if (bounds) {
+          setFocusBounds(bounds);
+        }
+      }
+
       setFocusedStep({
         originId: originPlace.id,
         destId: destPlace.id,
         stepIndex: idx
+      });
+    }
+  };
+
+  const handleZoomToPoint = (idx: number, step: any, type: 'start' | 'end', e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    setFocusedStep({
+      originId: originPlace.id,
+      destId: destPlace.id,
+      stepIndex: idx
+    });
+
+    let lat = type === 'start' ? step.startLat : step.endLat;
+    let lng = type === 'start' ? step.startLng : step.endLng;
+
+    if (lat === undefined || lng === undefined) {
+      if (step.pathPoints && step.pathPoints.length > 0) {
+        const pt = type === 'start' ? step.pathPoints[0] : step.pathPoints[step.pathPoints.length - 1];
+        lat = pt.lat;
+        lng = pt.lng;
+      }
+    }
+
+    if (lat !== undefined && lng !== undefined) {
+      setFocusBounds({
+        sw: { lat, lng },
+        ne: { lat, lng }
       });
     }
   };
@@ -372,24 +696,22 @@ export default function RouteGuidePanel({
                         <h4 className="text-[14px] font-bold text-zinc-800 group-hover:text-blue-600 transition-colors truncate">
                           {step.type === 'walk' ? '도보 이동' : step.name}
                         </h4>
-                        {step.type !== 'walk' && (
-                          <div className="flex items-center gap-1 text-[9px] font-black text-rose-500 bg-rose-50 border border-rose-100/50 px-1.5 py-0.5 rounded-full select-none flex-shrink-0">
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
-                            </span>
-                            {step.type === 'subway' ? (
+                        {step.type === 'subway' && step.startName ? (
+                          <SubwayStepBadge startName={step.startName} endName={step.endName} headsign={step.headsign} wayCode={step.wayCode} />
+                        ) : step.type === 'bus' && step.startName ? (
+                          <BusStepBadge startName={step.startName} busNo={step.name} />
+                        ) : (
+                          step.type !== 'walk' && (
+                            <div className="flex items-center gap-1 text-[9px] font-black text-zinc-500 bg-zinc-50 border border-zinc-100 px-1.5 py-0.5 rounded-full select-none flex-shrink-0">
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-zinc-400"></span>
+                              </span>
                               <>
-                                <span className="text-rose-500">2분</span>
-                                <span className="text-zinc-400 font-bold ml-1">전역</span>
+                                <span className="text-zinc-500">{idx % 2 === 0 ? '3' : '5'}분</span>
+                                <span className="text-zinc-400 font-bold ml-1">{idx % 2 === 0 ? '전역' : '3전'}</span>
                               </>
-                            ) : (
-                              <>
-                                <span className="text-rose-500">5분</span>
-                                <span className="text-zinc-400 font-bold ml-1">3전</span>
-                              </>
-                            )}
-                          </div>
+                            </div>
+                          )
                         )}
                       </div>
                       <span className="text-[12px] font-bold text-zinc-600 flex-shrink-0">
@@ -399,22 +721,42 @@ export default function RouteGuidePanel({
 
                     {/* 승차 / 하차 정보 */}
                     {(step.startName || step.endName) && (
-                      <div className="mt-1.5 p-3 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-1 select-none">
+                      <div className="mt-1.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none">
                         {step.startName && (
-                          <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-semibold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                            <span className="text-zinc-400 font-medium">승차</span>
-                            <span className="truncate">{step.startName}</span>
+                          <div
+                            onClick={(e) => handleZoomToPoint(idx, step, 'start', e)}
+                            className="flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer hover:bg-blue-50/70 p-2 rounded-xl transition-all duration-200 group/sub"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                              <span className="text-zinc-400 font-bold">승차</span>
+                              <span className="truncate text-zinc-700 group-hover/sub:text-blue-700 transition-colors">{step.startName}</span>
+                            </div>
+                            <div className="flex-shrink-0 opacity-0 group-hover/sub:opacity-100 transition-opacity duration-200 text-blue-500 flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
+                              </svg>
+                            </div>
                           </div>
                         )}
                         {step.startName && step.endName && (
-                          <div className="w-px h-3 bg-zinc-200 ml-[11px]" />
+                          <div className="w-px h-2 bg-zinc-200 ml-[13px]" />
                         )}
                         {step.endName && (
-                          <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-semibold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                            <span className="text-zinc-400 font-medium">하차</span>
-                            <span className="truncate">{step.endName}</span>
+                          <div
+                            onClick={(e) => handleZoomToPoint(idx, step, 'end', e)}
+                            className="flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer hover:bg-rose-50/70 p-2 rounded-xl transition-all duration-200 group/sub"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
+                              <span className="text-zinc-400 font-bold">하차</span>
+                              <span className="truncate text-zinc-700 group-hover/sub:text-rose-700 transition-colors">{step.endName}</span>
+                            </div>
+                            <div className="flex-shrink-0 opacity-0 group-hover/sub:opacity-100 transition-opacity duration-200 text-rose-500 flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
+                              </svg>
+                            </div>
                           </div>
                         )}
                       </div>

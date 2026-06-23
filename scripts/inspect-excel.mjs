@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const excelPath = path.join(__dirname, '../한국철도공사_철도운행거리_전체_20240901.xlsx');
+const excelPath = path.join(__dirname, '../data/한국철도공사_철도운행거리_전체_20240901.xlsx');
 console.log('Reading Excel file from:', excelPath);
 
 try {

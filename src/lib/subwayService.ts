@@ -10,7 +10,7 @@ let stationDistanceData: any = null;
 function getStationDistanceData() {
   if (stationDistanceData) return stationDistanceData;
   try {
-    const filePath = path.join(process.cwd(), '서울교통공사_역간거리.json');
+    const filePath = path.join(process.cwd(), 'data', '서울교통공사_역간거리.json');
     if (fs.existsSync(filePath)) {
       const fileContent = fs.readFileSync(filePath, 'utf-8');
       stationDistanceData = JSON.parse(fileContent);

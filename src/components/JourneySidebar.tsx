@@ -55,8 +55,10 @@ export default function JourneySidebar() {
     reorderPlaces,
     focusedStep,
     setFocusedStep,
+    focusedSegment,
     setFocusedSegment,
-    setFocusBounds
+    setFocusBounds,
+    isSyncing
   } = useJourneyStore();
   const [isHydrating, setIsHydrating] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -388,7 +390,7 @@ export default function JourneySidebar() {
               </button>
 
               {!isEditMode && activeJourney.places.length >= 2 && (() => {
-                const isPlaying = !!focusedStep;
+                const isPlaying = !!focusedSegment || !!focusedStep;
                 return (
                   <button
                     type="button"
@@ -408,35 +410,12 @@ export default function JourneySidebar() {
                           ? firstPlace.selected_route
                           : (segmentData ? (activeJourney.transport_type === 'car' ? segmentData.car?.[0] : activeJourney.transport_type === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
 
-                        if (activeRoute && activeRoute.steps && activeRoute.steps.length > 0) {
-                          const firstStep = activeRoute.steps[0];
-                          let subType: 'start' | 'end' | undefined = undefined;
-                          if (firstStep.type !== 'walk' && firstStep.startName) {
-                            subType = 'start';
-                          } else if (firstStep.type !== 'walk' && firstStep.endName) {
-                            subType = 'end';
-                          }
-
-                          let lat = subType === 'start' ? firstStep.startLat : (subType === 'end' ? firstStep.endLat : undefined);
-                          let lng = subType === 'start' ? firstStep.startLng : (subType === 'end' ? firstStep.endLng : undefined);
-                          
-                          if (lat === undefined || lng === undefined) {
-                            if (firstStep.pathPoints && firstStep.pathPoints.length > 0) {
-                              lat = firstStep.pathPoints[0].lat;
-                              lng = firstStep.pathPoints[0].lng;
-                            }
-                          }
-                          
+                        if (activeRoute) {
                           setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
-                          setFocusedStep({ originId: firstPlace.id, destId: secondPlace.id, stepIndex: 0, subType });
+                          setFocusedStep(null);
 
-                          if (lat !== undefined && lng !== undefined) {
-                            setFocusBounds({ sw: { lat, lng }, ne: { lat, lng } });
-                          } else {
-                            // Fallback to segment bounds if step has no points
-                            const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
-                            setFocusBounds(bounds);
-                          }
+                          const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
+                          setFocusBounds(bounds);
                         }
                       }
                     }}
@@ -460,31 +439,41 @@ export default function JourneySidebar() {
               })()}
             </div>
 
-            {/* 편집 */}
-            <button
-              type="button"
-              onClick={isEditMode ? handleDoneEdit : () => setIsEditMode(true)}
-              className={`
-                flex items-center gap-1 px-4 h-full text-xs font-semibold flex-shrink-0 w-20 justify-end transition-colors
-                ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'}
-              `}
-            >
-              {isEditMode ? (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            {/* 편집 및 동기화 상태 */}
+            <div className="flex items-center justify-end flex-shrink-0 w-24 pr-4 gap-2 h-full">
+              {isSyncing && (
+                <div className="flex items-center gap-1" title="클라우드 동기화 중">
+                  <svg className="w-3.5 h-3.5 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
-                  완료
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-                  </svg>
-                  편집
-                </>
+                </div>
               )}
-            </button>
+              <button
+                type="button"
+                onClick={isEditMode ? handleDoneEdit : () => setIsEditMode(true)}
+                className={`
+                  flex items-center gap-1 text-xs font-semibold transition-colors
+                  ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'}
+                `}
+              >
+                {isEditMode ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    완료
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                    </svg>
+                    편집
+                  </>
+                )}
+              </button>
+            </div>
           </header>
 
           {/* ── 장소 목록 (스크롤 영역) ── */}

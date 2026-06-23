@@ -1,0 +1,268 @@
+import { StateCreator } from 'zustand';
+import type { JourneyStore } from '../journey-store';
+import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, SelectedRoute, TransportType } from '@/types/journey';
+import { insertJourney, updateJourney } from '@/lib/journeys';
+import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
+import { verifyAndCleanRoutes, fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/directionsService';
+
+export interface JourneyDataSlice {
+  journeys: Journey[];
+  activeJourney: Journey | null;
+  isLoading: boolean;
+  isSyncing: boolean;
+  directionsCache: Record<string, DirectionsApiResponse>;
+  directionsLoading: Record<string, boolean>;
+  setJourneys: (journeys: Journey[]) => void;
+  createJourney: (input: CreateJourneyInput) => Promise<void>;
+  updateJourneyInfo: (title: string, journeyDate: string, transportType: TransportType) => Promise<void>;
+  setActiveJourney: (journey: Journey | null) => void;
+  clearJourney: () => void;
+  addPlace: (place: Place) => Promise<void>;
+  removePlace: (placeId: string) => Promise<void>;
+  reorderPlaces: (places: Place[]) => Promise<void>;
+  fetchSegmentDirections: (origin: Place, dest: Place) => Promise<void>;
+  fetchJourneyDirections: () => Promise<void>;
+  selectSegmentRoute: (placeId: string, route: SelectedRoute | null) => Promise<void>;
+}
+
+export const createJourneyDataSlice: StateCreator<
+  JourneyStore,
+  [],
+  [],
+  JourneyDataSlice
+> = (set, get) => ({
+  journeys: [],
+  activeJourney: null,
+  isLoading: false,
+  isSyncing: false,
+  directionsCache: {},
+  directionsLoading: {},
+
+  setJourneys: (journeys) => set({ journeys }),
+
+  createJourney: async (input) => {
+    set({ isLoading: true });
+    try {
+      const journey = await insertJourney(input);
+      set((state) => ({
+        activeJourney: journey,
+        journeys: [journey, ...state.journeys],
+        isCreateFormOpen: false,
+        isLoading: false,
+      }));
+    } catch (err) {
+      set({ isLoading: false });
+      throw err instanceof Error
+        ? err
+        : new Error('여정 저장에 실패했습니다.');
+    }
+  },
+
+  updateJourneyInfo: async (title, journeyDate, transportType) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    set({ isLoading: true });
+    try {
+      const updated = await updateJourney(activeJourney.id, {
+        title: title.trim(),
+        journey_date: journeyDate,
+        transport_type: transportType,
+      });
+
+      const updatedActiveJourney = {
+        ...updated,
+        places: activeJourney.places,
+      };
+
+      set((state) => ({
+        activeJourney: updatedActiveJourney,
+        journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+        isLoading: false,
+      }));
+
+      get().fetchJourneyDirections();
+    } catch (err) {
+      set({ isLoading: false });
+      throw err instanceof Error
+        ? err
+        : new Error('여정 정보 수정에 실패했습니다.');
+    }
+  },
+
+  setActiveJourney: (journey) => {
+    set({ activeJourney: journey, focusBounds: null, focusedSegment: null, focusedStep: null });
+    if (journey) {
+      get().fetchJourneyDirections();
+    }
+  },
+
+  clearJourney: () => set({ activeJourney: null, focusBounds: null, focusedSegment: null, focusedStep: null }),
+
+  addPlace: async (place) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    const rawPlaces = [...(activeJourney.places || []), place];
+    const updatedPlaces = verifyAndCleanRoutes(rawPlaces);
+    const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
+    
+    // 낙관적 업데이트: UI 먼저 반영
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+      focusBounds: null,
+      focusedSegment: null,
+      focusedStep: null,
+    }));
+    
+    // DB 동기화
+    set({ isSyncing: true });
+    try {
+      await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+    } finally {
+      set({ isSyncing: false });
+    }
+    get().fetchJourneyDirections();
+  },
+
+  removePlace: async (placeId) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    const rawPlaces = activeJourney.places.filter((p) => p.id !== placeId);
+    const updatedPlaces = verifyAndCleanRoutes(rawPlaces);
+    const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
+    
+    // 낙관적 업데이트
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+      focusBounds: null,
+      focusedSegment: null,
+      focusedStep: null,
+    }));
+    
+    // DB 동기화
+    set({ isSyncing: true });
+    try {
+      await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+    } finally {
+      set({ isSyncing: false });
+    }
+    get().fetchJourneyDirections();
+  },
+
+  reorderPlaces: async (updatedPlaces) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    const cleanedPlaces = verifyAndCleanRoutes(updatedPlaces);
+    const updatedActiveJourney = { ...activeJourney, places: cleanedPlaces };
+    
+    // 낙관적 업데이트
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+      focusBounds: null,
+      focusedSegment: null,
+      focusedStep: null,
+    }));
+    
+    // DB 동기화
+    set({ isSyncing: true });
+    try {
+      await updateJourneyPlaces(activeJourney.id, cleanedPlaces);
+    } finally {
+      set({ isSyncing: false });
+    }
+    get().fetchJourneyDirections();
+  },
+
+  fetchSegmentDirections: async (origin, dest) => {
+    const cacheKey = `${origin.id}-${dest.id}`;
+    const { directionsCache, directionsLoading } = get();
+
+    if (directionsCache[cacheKey] || directionsLoading[cacheKey]) {
+      return;
+    }
+
+    set((state) => ({
+      directionsLoading: {
+        ...state.directionsLoading,
+        [cacheKey]: true,
+      },
+    }));
+
+    try {
+      const data = await fetchDirectionsApi(origin, dest);
+
+      set((state) => ({
+        directionsCache: {
+          ...state.directionsCache,
+          [cacheKey]: data,
+        },
+        directionsLoading: {
+          ...state.directionsLoading,
+          [cacheKey]: false,
+        },
+      }));
+    } catch (err) {
+      console.error('[journey-store] fetchSegmentDirections error:', err);
+      set((state) => ({
+        directionsLoading: {
+          ...state.directionsLoading,
+          [cacheKey]: false,
+        },
+      }));
+    }
+  },
+
+  fetchJourneyDirections: async () => {
+    const { activeJourney, fetchSegmentDirections } = get();
+    if (!activeJourney || !activeJourney.places || activeJourney.places.length < 2) return;
+
+    const places = activeJourney.places;
+    for (let i = 0; i < places.length - 1; i++) {
+      const currentPlace = places[i];
+      const nextPlace = places[i + 1];
+
+      if (currentPlace.selected_route && currentPlace.selected_route.destId === nextPlace.id) {
+        continue;
+      }
+
+      await fetchSegmentDirections(currentPlace, nextPlace);
+      if (i < places.length - 2) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+    }
+  },
+
+  selectSegmentRoute: async (placeId, route) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    const updatedPlaces = activeJourney.places.map((p) => {
+      if (p.id === placeId) {
+        return {
+          ...p,
+          selected_route: route || undefined,
+        };
+      }
+      return p;
+    });
+
+    const updatedActiveJourney = { ...activeJourney, places: updatedPlaces };
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
+    }));
+
+    set({ isSyncing: true });
+    try {
+      await updateJourneyPlaces(activeJourney.id, updatedPlaces);
+    } finally {
+      set({ isSyncing: false });
+    }
+  },
+});

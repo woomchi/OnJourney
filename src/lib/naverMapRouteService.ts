@@ -463,7 +463,7 @@ export class NaverMapRouteRenderer {
     );
 
     this.map.setOptions({ padding });
-    this.map.fitBounds(bounds, { maxZoom: 16 });
+    this.map.fitBounds(bounds, { maxZoom: 18 });
   }
 
   /**

@@ -58,7 +58,9 @@ export default function JourneySidebar() {
     focusedSegment,
     setFocusedSegment,
     setFocusBounds,
-    isSyncing
+    isSyncing,
+    alternativeSegment,
+    setAlternativeSegment
   } = useJourneyStore();
   const [isHydrating, setIsHydrating] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -436,7 +438,7 @@ export default function JourneySidebar() {
 
             {/* 하단: 여정 이동 및 재생 조절 컨트롤 */}
             {!isEditMode && (() => {
-              const isPlaying = !!focusedSegment || !!focusedStep;
+              const isPlaying = !!focusedSegment || !!focusedStep || !!alternativeSegment;
               const activeIndex = journeys.findIndex(j => j.id === activeJourney.id);
               const prevJourney = activeIndex > 0 ? journeys[activeIndex - 1] : null;
               const nextJourney = activeIndex >= 0 && activeIndex < journeys.length - 1 ? journeys[activeIndex + 1] : null;
@@ -451,6 +453,7 @@ export default function JourneySidebar() {
                       if (prevJourney) {
                         setFocusedStep(null);
                         setFocusedSegment(null);
+                        setAlternativeSegment(null);
                         setFocusBounds(null);
                         setActiveJourney(prevJourney);
                       }
@@ -471,6 +474,7 @@ export default function JourneySidebar() {
                         if (isPlaying) {
                           setFocusedStep(null);
                           setFocusedSegment(null);
+                          setAlternativeSegment(null);
                           setFocusBounds(null);
                         } else {
                           const firstPlace = activeJourney.places[0];
@@ -525,6 +529,7 @@ export default function JourneySidebar() {
                       if (nextJourney) {
                         setFocusedStep(null);
                         setFocusedSegment(null);
+                        setAlternativeSegment(null);
                         setFocusBounds(null);
                         setActiveJourney(nextJourney);
                       }
@@ -543,11 +548,11 @@ export default function JourneySidebar() {
             {/* 플레이어 하단 디자인 요소 (재생 바 같은 느낌) */}
             {!isEditMode && (() => {
               let progressPercent = 0;
-              const isPlaying = !!focusedSegment || !!focusedStep;
+              const isPlaying = !!focusedSegment || !!focusedStep || !!alternativeSegment;
               
               if (activeJourney && activeJourney.places && activeJourney.places.length > 1 && isPlaying) {
                 const totalSegments = activeJourney.places.length - 1;
-                const activeOriginId = focusedStep ? focusedStep.originId : focusedSegment?.originId;
+                const activeOriginId = focusedStep ? focusedStep.originId : (focusedSegment?.originId || alternativeSegment?.originId);
                 const placeIndex = activeJourney.places.findIndex((p: any) => p.id === activeOriginId);
                 
                 if (placeIndex !== -1 && placeIndex < totalSegments) {

@@ -371,7 +371,7 @@ export async function fetchPublicTransitOptions(
       .filter(s => s.type !== 'walk')
       .map(s => s.name.replace(' 버스', ''));
     const displayTitle = transitNames.length > 0 
-      ? transitNames.join(' + ') 
+      ? transitNames.join(' → ') 
       : '도보 이동';
 
     const isIntercity = steps.some(s => s.type === 'train' || s.type === 'expressbus');

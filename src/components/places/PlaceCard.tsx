@@ -4,20 +4,17 @@ import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
-import SegmentInfo from './SegmentInfo';
-import AlternativeSegmentInfo from './AlternativeSegmentInfo';
-
-function ChevronDownIcon({ open }: { open: boolean }) {
+import SegmentInfo from './SegmentInfo';function SettingsIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
-      strokeWidth={2.5}
+      strokeWidth={2}
       stroke="currentColor"
-      className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+      className="w-4 h-4"
     >
-      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
     </svg>
   );
 }
@@ -60,16 +57,19 @@ export default function PlaceCard({
     setFocusedSegment,
     setFocusedStep,
     focusedStep,
+    alternativeSegment,
+    setAlternativeSegment,
   } = useJourneyStore();
-  const [showAlternatives, setShowAlternatives] = useState(false);
   const cardRef = useRef<HTMLLIElement>(null);
 
-  // 다른 이동 구간을 클릭하여 포커스가 변경되면 아코디언 닫기
+  // 다른 이동 구간을 클릭하여 포커스가 변경되면 아코디언 닫기 (이제는 패널이므로 MapArea에서 제어하지만 호환성 유지)
   useEffect(() => {
     if (focusedSegment && focusedSegment.originId !== place.id) {
-      setShowAlternatives(false);
+      if (alternativeSegment?.originId === place.id) {
+        setAlternativeSegment(null);
+      }
     }
-  }, [focusedSegment, place.id]);
+  }, [focusedSegment, place.id, alternativeSegment, setAlternativeSegment]);
 
   useEffect(() => {
     if (!editMode) {
@@ -163,33 +163,41 @@ export default function PlaceCard({
               )}
             </div>
 
-            {/* 대안 교통정보 토글 (∨ 버튼) - 기본 상태에만 노출 */}
+            {/* 대안 교통정보 토글 버튼 - 기본 상태에만 노출 */}
             {!editMode && !isLast && (
               <button
                 type="button"
                 onClick={() => {
-                  const nextShow = !showAlternatives;
-                  setShowAlternatives(nextShow);
-                  if (nextShow) {
+                  const isCurrentlyOpen = alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id;
+                  
+                  if (!isCurrentlyOpen && nextPlace) {
+                    setAlternativeSegment({ originId: place.id, destId: nextPlace.id });
+                    // 상세 경로 패널이 열려 있다면 닫기
                     setFocusedSegment(null);
                     setFocusedStep(null);
-                    setFocusBounds(null);
-                    if (!segmentData && nextPlace) {
+                    // 옵셔널: 경로 구간으로 지도 포커스 이동
+                    if (activeRoute) {
+                      const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
+                      setFocusBounds(bounds);
+                    }
+                    if (!segmentData) {
                       fetchSegmentDirections(place, nextPlace);
                     }
+                  } else {
+                    setAlternativeSegment(null);
                   }
                 }}
                 className={`
                   flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
                   transition-all duration-200
-                  ${showAlternatives
+                  ${alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id
                     ? 'bg-blue-100 text-blue-600'
                     : 'bg-zinc-50 text-zinc-400 hover:bg-blue-50 hover:text-blue-500'
                   }
                 `}
                 aria-label="대안 교통정보 보기"
               >
-                <ChevronDownIcon open={showAlternatives} />
+                <SettingsIcon />
               </button>
             )}
 
@@ -217,21 +225,7 @@ export default function PlaceCard({
         </div>
       </div>
 
-      {/* 대안 이동 정보 (아코디언 토글, 장소 카드 바로 밑) */}
-      <div
-        className={`pl-10 overflow-hidden transition-all duration-300 ease-in-out ${showAlternatives && !editMode && !isLast ? 'max-h-[260px] opacity-100 mb-3' : 'max-h-0 opacity-0'
-          }`}
-      >
-        <AlternativeSegmentInfo
-          place={place}
-          nextPlace={nextPlace}
-          segmentData={segmentData}
-          loading={isSegmentLoading}
-          onSelect={() => setShowAlternatives(false)}
-          transportType={transportType}
-          activeRoute={activeRoute}
-        />
-      </div>
+      {/* 대안 이동 정보 아코디언은 상세 패널(MapArea)로 분리됨 */}
 
       {/* 기본 구간 이동 정보 (항상 노출) */}
       {!editMode && !isLast && (() => {

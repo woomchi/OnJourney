@@ -6,9 +6,11 @@ export interface MapSlice {
   focusBounds: LatLngBoundsLiteral | null;
   focusedSegment: FocusedSegment | null;
   focusedStep: FocusedStep | null;
+  alternativeSegment: FocusedSegment | null;
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
   setFocusedStep: (step: FocusedStep | null) => void;
+  setAlternativeSegment: (segment: FocusedSegment | null) => void;
 }
 
 export const createMapSlice: StateCreator<
@@ -20,7 +22,18 @@ export const createMapSlice: StateCreator<
   focusBounds: null,
   focusedSegment: null,
   focusedStep: null,
+  alternativeSegment: null,
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
-  setFocusedSegment: (segment) => set({ focusedSegment: segment }),
-  setFocusedStep: (step) => set({ focusedStep: step }),
+  setFocusedSegment: (segment) => set((state) => ({ 
+    focusedSegment: segment,
+    ...(segment ? { alternativeSegment: null } : {})
+  })),
+  setFocusedStep: (step) => set((state) => ({ 
+    focusedStep: step,
+    ...(step ? { alternativeSegment: null } : {})
+  })),
+  setAlternativeSegment: (segment) => set((state) => ({ 
+    alternativeSegment: segment,
+    ...(segment ? { focusedSegment: null, focusedStep: null } : {})
+  })),
 });

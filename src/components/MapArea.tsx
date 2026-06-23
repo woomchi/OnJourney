@@ -9,6 +9,7 @@ import {
   Polyline,
 } from 'react-naver-maps';
 import RouteGuidePanel from '@/components/RouteGuidePanel';
+import AlternativeRoutePanel from '@/components/AlternativeRoutePanel';
 import { useJourneyStore } from '@/stores/journey-store';
 import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance, expandBounds } from '@/lib/naverMapRouteService';
 
@@ -39,7 +40,9 @@ export default function MapArea() {
     focusedSegment,
     setFocusedSegment,
     focusedStep,
-    setFocusedStep
+    setFocusedStep,
+    alternativeSegment,
+    setAlternativeSegment
   } = useJourneyStore();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
@@ -87,6 +90,15 @@ export default function MapArea() {
     return { originPlace, destPlace };
   }, [focusedSegment, activeJourney]);
 
+  const alternativePlaces = useMemo(() => {
+    if (!alternativeSegment) return null;
+    const places = activeJourney?.places ?? [];
+    const originPlace = places.find(p => p.id === alternativeSegment.originId);
+    const destPlace = places.find(p => p.id === alternativeSegment.destId);
+    if (!originPlace || !destPlace) return null;
+    return { originPlace, destPlace };
+  }, [alternativeSegment, activeJourney]);
+
   // 현재 선택된 세그먼트 이후의 다음 세그먼트 정보 계산
   const nextSegmentInfo = useMemo(() => {
     if (!focusedSegment || !activeJourney) return null;
@@ -132,10 +144,10 @@ export default function MapArea() {
     const rightPadding = mapWidth < 600 ? 16 : 30;
     const bottomPadding = mapWidth < 600 ? 30 : 45;
     
-    // 경로 안내 패널이 열려 있을 때 좌측 패딩
+    // 경로 안내 패널이나 대안 경로 패널이 열려 있을 때 좌측 패딩
     // 패널 너비를 고려하되, 맵 너비가 너무 작으면 지도가 찌그러지는 것을 방지하기 위해 최대값 제한
     let leftPadding = mapWidth < 600 ? 16 : 30;
-    if (isPanelOpen) {
+    if (isPanelOpen || alternativePlaces) {
       leftPadding = Math.min(390, mapWidth * 0.45);
     }
 
@@ -145,7 +157,7 @@ export default function MapArea() {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [isPanelOpen, windowWidth]);
+  }, [isPanelOpen, alternativePlaces, windowWidth]);
 
   // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
   useEffect(() => {
@@ -232,6 +244,7 @@ export default function MapArea() {
     setFocusBounds(null);
     setFocusedSegment(null);
     setFocusedStep(null);
+    setAlternativeSegment(null);
   };
 
   if (!clientId) {
@@ -335,6 +348,8 @@ export default function MapArea() {
   }, [map]);
 
   const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+  
+  const activeSegment = focusedSegment || alternativeSegment;
 
   return (
     <div className="relative w-full h-full">
@@ -421,14 +436,14 @@ export default function MapArea() {
                 }
 
                 // 포커스 세그먼트 매칭 여부 판별
-                const isSegmentFocused = focusedSegment
-                  ? (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id)
+                const isSegmentFocused = activeSegment
+                  ? (activeSegment.originId === place.id && activeSegment.destId === nextPlace.id)
                   : true;
 
                 // 시각적으로 보이지 않는(unfocused) 경로는 투명도를 낮추는 대신 아예 렌더링하지 않음(인터랙션 방지)
                 if (hasFocusedStep) {
                   if (!isThisStepFocused) return null;
-                } else if (focusedSegment) {
+                } else if (activeSegment) {
                   if (!isSegmentFocused) return null;
                 }
 
@@ -437,7 +452,7 @@ export default function MapArea() {
                 const baseZIndex = isThisStepFocused
                   ? 15000
                   : isSegmentFocused
-                    ? (focusedSegment ? 5000 + sIdx : (100 - idx) * 10)
+                    ? (activeSegment ? 5000 + sIdx : (100 - idx) * 10)
                     : (100 - idx);
 
                 // 교통수단 색상 대신 순서(idx) 기반 색상으로 매핑
@@ -452,7 +467,7 @@ export default function MapArea() {
                 if (hasFocusedStep) {
                   strokeOpacity = 0.95;
                   strokeWeight = 7.0;
-                } else if (focusedSegment) {
+                } else if (activeSegment) {
                   strokeOpacity = 0.95;
                   strokeWeight = 6.5;
                 } else {
@@ -470,7 +485,7 @@ export default function MapArea() {
                   if (hasFocusedStep) {
                     walkOpacity = 0.95;
                     walkWeight = 5.0;
-                  } else if (focusedSegment) {
+                  } else if (activeSegment) {
                     walkOpacity = 0.95;
                     walkWeight = 4.5;
                   }
@@ -529,7 +544,7 @@ export default function MapArea() {
                 places={places}
                 directionsCache={directionsCache}
                 activeJourney={activeJourney}
-                focusedSegment={focusedSegment}
+                focusedSegment={activeSegment}
                 focusedStep={focusedStep}
                 navermaps={navermaps}
                 zoomLevel={zoomLevel}
@@ -543,18 +558,18 @@ export default function MapArea() {
                 places={places}
                 directionsCache={directionsCache}
                 activeJourney={activeJourney}
-                focusedSegment={focusedSegment}
+                focusedSegment={activeSegment}
                 navermaps={navermaps}
               />
             )}
 
             {/* Marker는 반드시 NaverMap children 안에 있어야 함 */}
             {places.map((place, idx) => {
-              const isSegmentMarker = !!(focusedSegment && (place.id === focusedSegment.originId || place.id === focusedSegment.destId));
+              const isSegmentMarker = !!(activeSegment && (place.id === activeSegment.originId || place.id === activeSegment.destId));
               // 일반 경로선(최대 5002)보다 항상 위에 노출되도록 기본 zIndex를 10000 이상으로 상향 조정
               const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
               // 세부 구간 조회 시에는 일반 숫자 장소 마커를 가려 지도를 정돈하고, 대신 탑승/출발/도착 전용 마커로 가독성을 높임
-              const isVisible = !focusedSegment;
+              const isVisible = !activeSegment;
 
               const markerWidth = isSegmentMarker ? 30 : 24;
               const markerHeight = isSegmentMarker ? 40 : 32;
@@ -685,6 +700,15 @@ export default function MapArea() {
             setFocusedStep(null);
           } : undefined}
           nextDestPlace={nextSegmentInfo?.nextDestPlace}
+        />
+      )}
+
+      {/* 대안 경로 패널 */}
+      {alternativePlaces && (
+        <AlternativeRoutePanel
+          originPlace={alternativePlaces.originPlace}
+          destPlace={alternativePlaces.destPlace}
+          onClose={() => setAlternativeSegment(null)}
         />
       )}
     </div>

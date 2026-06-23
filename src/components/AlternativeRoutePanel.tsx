@@ -5,6 +5,10 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { useDragScroll } from '@/hooks/useDragScroll';
+import { useQueryClient } from '@tanstack/react-query';
+import { directionKeys } from '@/hooks/queries/useDirections';
+import { fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/directionsService';
+import { getDefaultRoute } from '@/lib/routeUtils';
 
 interface AlternativeRoutePanelProps {
   originPlace: Place;
@@ -20,41 +24,20 @@ export default function AlternativeRoutePanel({
   const [mounted, setMounted] = useState(false);
   const {
     activeJourney,
-    directionsCache,
-    directionsLoading,
     selectSegmentRoute,
     setFocusBounds,
     setFocusedSegment,
     setFocusedStep,
-    fetchSegmentDirections,
     setHoveredAlternativeRoute,
   } = useJourneyStore();
 
-  const cacheKey = `${originPlace.id}-${destPlace.id}`;
-  const segmentData = directionsCache[cacheKey];
-  const loading = directionsLoading[cacheKey];
+  const queryClient = useQueryClient();
+  const cacheKey = directionKeys.segment(originPlace.id, destPlace.id);
+  const segmentData = queryClient.getQueryData<DirectionsApiResponse>(cacheKey);
+  const loading = queryClient.getQueryState(cacheKey)?.status === 'pending';
   const transportType = activeJourney?.transport_type || 'public';
 
-  let activeRoute: SelectedRoute | DirectionResult | undefined = originPlace.selected_route && originPlace.selected_route.destId === destPlace.id
-    ? originPlace.selected_route
-    : undefined;
-
-  if (!activeRoute && segmentData) {
-    if (transportType === 'car') {
-      activeRoute = segmentData.car?.[0];
-    } else if (transportType === 'walk') {
-      activeRoute = segmentData.walk?.[0];
-    } else {
-      const publicRoute = segmentData.public?.[0];
-      const walkRoute = segmentData.walk?.[0];
-
-      if (walkRoute && (!publicRoute || (publicRoute.name === '대중교통(예상)' && walkRoute.duration <= 40) || walkRoute.duration <= 15)) {
-        activeRoute = walkRoute;
-      } else {
-        activeRoute = publicRoute || walkRoute;
-      }
-    }
-  }
+  const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType);
 
   const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>(
     activeRoute?.type === 'public' || activeRoute?.type === 'car' || activeRoute?.type === 'walk'
@@ -97,9 +80,12 @@ export default function AlternativeRoutePanel({
 
   useEffect(() => {
     if (!segmentData && !loading) {
-      fetchSegmentDirections(originPlace, destPlace);
+      queryClient.fetchQuery({
+        queryKey: cacheKey,
+        queryFn: () => fetchDirectionsApi(originPlace, destPlace)
+      }).catch(console.error);
     }
-  }, [segmentData, loading, fetchSegmentDirections, originPlace, destPlace]);
+  }, [segmentData, loading, cacheKey, queryClient, originPlace, destPlace]);
 
   const getEmoji = (type: string, name: string) => {
     if (type === 'public') {

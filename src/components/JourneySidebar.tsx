@@ -3,7 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
-import { fetchLatestJourney, fetchJourneys, deleteJourneys } from '@/lib/journeys';
+import { deleteJourneys } from '@/lib/journeys';
+import { useJourneys } from '@/hooks/queries/useJourneys';
+import { useQueryClient } from '@tanstack/react-query';
+import { directionKeys } from '@/hooks/queries/useDirections';
+import { getDefaultRoute } from '@/lib/routeUtils';
 import CreateJourneyModal from '@/components/CreateJourneyModal';
 import EditJourneyModal from '@/components/EditJourneyModal';
 import AuthModal from '@/components/AuthModal';
@@ -64,6 +68,9 @@ export default function JourneySidebar() {
   } = useJourneyStore();
   const [isHydrating, setIsHydrating] = useState(false);
   const [mounted, setMounted] = useState(false);
+  
+  const queryClient = useQueryClient();
+  const { data: fetchedJourneys, isLoading: isJourneysLoading } = useJourneys();
 
   useEffect(() => {
     setMounted(true);
@@ -81,68 +88,19 @@ export default function JourneySidebar() {
   const [isListDragging, setIsListDragging] = useState(false);
   const draggedJourneyIndexRef = useRef<number | null>(null);
 
+  // React Query 데이터가 로드되면 Zustand 스토어(UI)와 동기화
   useEffect(() => {
     if (!user) {
       clearJourney();
       setJourneys([]);
       return;
     }
-
-    let cancelled = false;
-
-    const hydrate = async () => {
-      setIsHydrating(true);
-      try {
-        const list = await fetchJourneys();
-        if (!cancelled) {
-          const sorted = user ? sortJourneysByStoredOrder(list, user.id) : list;
-          setJourneys(sorted);
-        }
-      } catch (err) {
-        console.error('여정 목록 로드 실패 (hydrate):', err);
-      } finally {
-        if (!cancelled) {
-          setIsHydrating(false);
-        }
-      }
-    };
-
-    hydrate();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, clearJourney]);
-
-  useEffect(() => {
-    if (!user) {
-      setJourneys([]);
-      return;
+    
+    if (fetchedJourneys) {
+      const sorted = sortJourneysByStoredOrder(fetchedJourneys, user.id);
+      setJourneys(sorted);
     }
-
-    if (activeJourney) {
-      return;
-    }
-
-    let cancelled = false;
-    const loadList = async () => {
-      try {
-        const list = await fetchJourneys();
-        if (!cancelled) {
-          const sorted = user ? sortJourneysByStoredOrder(list, user.id) : list;
-          setJourneys(sorted);
-        }
-      } catch (err) {
-        console.error('여정 목록 로드 실패:', err);
-      }
-    };
-
-    loadList();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, activeJourney]);
+  }, [user, fetchedJourneys, clearJourney, setJourneys]);
 
   // Sync localJourneys with journeys when not dragging
   useEffect(() => {
@@ -239,9 +197,7 @@ export default function JourneySidebar() {
     try {
       setIsHydrating(true);
       await deleteJourneys(selectedIds);
-      const list = await fetchJourneys();
-      const sorted = user ? sortJourneysByStoredOrder(list, user.id) : list;
-      setJourneys(sorted);
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
       setSelectedIds([]);
       setIsListEditMode(false);
     } catch (err) {
@@ -296,7 +252,7 @@ export default function JourneySidebar() {
     setJourneys(localJourneys);
   };
 
-  const isLoading = authLoading || isHydrating;
+  const isLoading = authLoading || isJourneysLoading;
 
   // Defer rendering until client-side hydration is complete to prevent hydration mismatches
   if (!mounted) {
@@ -479,13 +435,11 @@ export default function JourneySidebar() {
                         } else {
                           const firstPlace = activeJourney.places[0];
                           const secondPlace = activeJourney.places[1];
-                          const { directionsCache } = useJourneyStore.getState();
 
-                          const cacheKey = `${firstPlace.id}-${secondPlace.id}`;
-                          const segmentData = directionsCache[cacheKey];
-                          const activeRoute = firstPlace.selected_route && firstPlace.selected_route.destId === secondPlace.id
-                            ? firstPlace.selected_route
-                            : (segmentData ? (activeJourney.transport_type === 'car' ? segmentData.car?.[0] : activeJourney.transport_type === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
+                          const queryKey = directionKeys.segment(firstPlace.id, secondPlace.id);
+                          const segmentData = queryClient.getQueryData<any>(queryKey);
+                          const transportType = activeJourney.transport_type || 'public';
+                          const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 
                           if (activeRoute) {
                             setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
@@ -561,12 +515,10 @@ export default function JourneySidebar() {
                   if (focusedStep) {
                     const firstPlace = activeJourney.places[placeIndex];
                     const secondPlace = activeJourney.places[placeIndex + 1];
-                    const { directionsCache } = useJourneyStore.getState();
-                    const cacheKey = `${firstPlace.id}-${secondPlace.id}`;
-                    const segmentData = directionsCache[cacheKey];
-                    const activeRoute = firstPlace.selected_route && firstPlace.selected_route.destId === secondPlace.id
-                      ? firstPlace.selected_route
-                      : (segmentData ? (activeJourney.transport_type === 'car' ? segmentData.car?.[0] : activeJourney.transport_type === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
+                    const queryKey = directionKeys.segment(firstPlace.id, secondPlace.id);
+                    const segmentData = queryClient.getQueryData<any>(queryKey);
+                    const transportType = activeJourney.transport_type || 'public';
+                    const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 
                     if (activeRoute && activeRoute.steps) {
                       const getPages = () => {

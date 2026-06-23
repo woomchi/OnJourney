@@ -107,6 +107,8 @@ export function calculateSegmentBounds(
  * @param boundsObj 원본 경계 (sw, ne 객체)
  * @param ratio 팽창 비율 (양수면 팽창, 음수면 수축. 예: 0.1은 10% 팽창)
  */
+import { getDefaultRoute } from '@/lib/routeUtils';
+
 export function expandBounds(
   boundsObj: { sw: { lat: number; lng: number }; ne: { lat: number; lng: number } },
   ratio: number
@@ -160,9 +162,7 @@ export function calculateJourneyBounds(
     const cacheKey = `${origin.id}-${dest.id}`;
     const segmentData = directionsCache[cacheKey];
 
-    const activeRoute = origin.selected_route && origin.selected_route.destId === dest.id
-      ? origin.selected_route
-      : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
+    const activeRoute = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk');
 
     if (activeRoute) {
       if (activeRoute.pathPoints && activeRoute.pathPoints.length > 0) {

@@ -15,8 +15,8 @@ interface RouteGuidePanelProps {
   originPlace: Place;
   destPlace: Place;
   onClose: () => void;
-  onNextSegment?: () => void;
-  onPrevSegment?: () => void;
+  onNextSegment?: (jumpToStart?: boolean) => void;
+  onPrevSegment?: (jumpToDest?: boolean) => void;
   nextDestPlace?: Place;
 }
 
@@ -54,6 +54,8 @@ export default function RouteGuidePanel({
     }
   }, [focusedStep, originPlace.id, destPlace.id, mounted]);
 
+
+
   const formatDistance = (meters: number) => {
     if (meters < 10) return '';
     if (meters < 1000) return `${meters}m`;
@@ -82,8 +84,14 @@ export default function RouteGuidePanel({
         if (step.endName) arr.push({ idx, step, subType: 'end' });
       }
     });
-    // 도착지 페이지 추가 (idx는 steps.length로 할당)
-    arr.push({ idx: steps.length, step: { isDestinationPage: true }, subType: 'dest' });
+
+    if (steps.length > 0) {
+      const lastStep = steps[steps.length - 1];
+      if (lastStep.type === 'walk') {
+        arr.push({ idx: steps.length - 1, step: lastStep, subType: 'dest' });
+      }
+    }
+
     return arr;
   };
 
@@ -97,9 +105,8 @@ export default function RouteGuidePanel({
     );
 
     if (isThisStepFocused) {
-      setFocusedStep(null);
-      const bounds = calculateSegmentBounds(originPlace, destPlace, route);
-      setFocusBounds(bounds);
+      // 이미 포커스된 스텝을 클릭해도, 전체 여정 보기 모드가 제거되었으므로 아무 작업도 하지 않거나 첫 스텝으로 유지합니다.
+      // (기존 setFocusedStep(null) 제거)
     } else {
       let lat: number | undefined;
       let lng: number | undefined;
@@ -157,7 +164,7 @@ export default function RouteGuidePanel({
 
     if (!isPanelFocused) {
       if (onPrevSegment) {
-        onPrevSegment();
+        onPrevSegment(true);
       }
       return;
     }
@@ -171,7 +178,7 @@ export default function RouteGuidePanel({
       const prevPage = pages[currentIndex - 1];
       handleStepClick(prevPage.idx, prevPage.step, prevPage.subType);
     } else if (currentIndex === 0) {
-      // 첫 세부 구간에서 이전 버튼을 누르면 전체 경로 보기로 전환
+      // 첫 세부 구간에서 이전 버튼을 누르면 현재 세그먼트의 전체 보기 상태로 전환
       setFocusedStep(null);
       const bounds = calculateSegmentBounds(originPlace, destPlace, route);
       setFocusBounds(bounds);
@@ -199,7 +206,7 @@ export default function RouteGuidePanel({
     }
   };
 
-  const handleZoomToPoint = (idx: number, step: any, type: 'start' | 'end', e: React.MouseEvent) => {
+  const handleZoomToPoint = (idx: number, step: any, type: 'start' | 'end' | 'dest', e: React.MouseEvent) => {
     e.stopPropagation();
 
     setFocusedStep({
@@ -209,14 +216,22 @@ export default function RouteGuidePanel({
       subType: type
     });
 
-    let lat = type === 'start' ? step.startLat : step.endLat;
-    let lng = type === 'start' ? step.startLng : step.endLng;
+    let lat: number | undefined;
+    let lng: number | undefined;
 
-    if (lat === undefined || lng === undefined) {
-      if (step.pathPoints && step.pathPoints.length > 0) {
-        const pt = type === 'start' ? step.pathPoints[0] : step.pathPoints[step.pathPoints.length - 1];
-        lat = pt.lat;
-        lng = pt.lng;
+    if (type === 'dest') {
+      lat = destPlace.lat;
+      lng = destPlace.lng;
+    } else {
+      lat = type === 'start' ? step.startLat : step.endLat;
+      lng = type === 'start' ? step.startLng : step.endLng;
+
+      if (lat === undefined || lng === undefined) {
+        if (step.pathPoints && step.pathPoints.length > 0) {
+          const pt = type === 'start' ? step.pathPoints[0] : step.pathPoints[step.pathPoints.length - 1];
+          lat = pt.lat;
+          lng = pt.lng;
+        }
       }
     }
 
@@ -238,26 +253,13 @@ export default function RouteGuidePanel({
       <div className="p-5 border-b border-zinc-100 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-bold tracking-wide uppercase select-none">
-            {route.type === 'public' ? (
-              <>
-                <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-500 to-indigo-500 shadow shadow-blue-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-white translate-x-[0.5px]">
-                    <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-                  </svg>
-                </div>
-                대중교통 경로 안내
-              </>
-            ) : (
-              <>
-                <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-emerald-500 to-teal-500 shadow shadow-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-white">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                  </svg>
-                </div>
-                상세 경로 안내
-              </>
-            )}
+            <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-emerald-500 to-teal-500 shadow shadow-emerald-500/20 flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-white">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+              </svg>
+            </div>
+            상세 경로 안내
           </div>
           <button
             type="button"
@@ -437,45 +439,7 @@ export default function RouteGuidePanel({
             {/* 세로 연결선 */}
             <div className="absolute left-[24.5px] top-4 bottom-4 w-[3px] bg-zinc-100" />
 
-            {/* 최초 출발지 마커 (리스트 시작) */}
-            {(() => {
-              const isOriginFocused = !focusedStep || (focusedStep.originId !== originPlace.id) || (focusedStep.destId !== destPlace.id);
 
-              return (
-                <div
-                  id={`step-${originPlace.id}-${destPlace.id}-origin`}
-                  onClick={() => {
-                    setFocusedStep(null);
-                    const bounds = calculateSegmentBounds(originPlace, destPlace, route);
-                    setFocusBounds(bounds);
-                  }}
-                  className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none mb-1 ${
-                    isOriginFocused
-                      ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
-                      : 'opacity-40 hover:opacity-100 border-transparent hover:bg-zinc-50'
-                  }`}
-                >
-                  {/* 타임라인 노드 아이콘 */}
-                  <div className="absolute left-1.5 top-2 w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shadow-sm z-10 transition-transform group-hover:scale-110">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-white">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                    </svg>
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex items-center pt-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[10px] font-bold text-white bg-blue-600 px-1.5 py-0.5 rounded flex-shrink-0">
-                        출발
-                      </span>
-                      <h4 className="text-[14px] font-bold text-zinc-800 transition-colors truncate">
-                        {originPlace.place_name}
-                      </h4>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
 
             {steps.map((step, idx) => {
               const stepColor = step.type === 'walk' ? (step.color === '#A1A1AA' ? '#E4E4E7' : (step.color || '#E4E4E7')) : (step.color || '#A1A1AA');
@@ -564,8 +528,8 @@ export default function RouteGuidePanel({
 
                     {/* 승차 / 하차 정보 */}
                     {(step.startName || step.endName) && (() => {
-                      const isStartFocused = isThisStepFocused && focusedStep.subType === 'start';
-                      const isEndFocused = isThisStepFocused && focusedStep.subType === 'end';
+                      const isStartFocused = isThisStepFocused && focusedStep?.subType === 'start';
+                      const isEndFocused = isThisStepFocused && focusedStep?.subType === 'end';
                       return (
                       <div className="mt-1.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none">
                         {step.startName && (
@@ -643,58 +607,39 @@ export default function RouteGuidePanel({
                         약 {step.duration}분 동안 도보로 이동합니다.
                       </p>
                     )}
+
+                    {step.type === 'walk' && idx === steps.length - 1 && (() => {
+                      const isDestFocused = isThisStepFocused && focusedStep?.subType === 'dest';
+                      return (
+                      <div className="mt-2.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none">
+                        <div
+                          onClick={(e) => handleZoomToPoint(idx, step, 'dest', e)}
+                          className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
+                            isDestFocused
+                              ? 'bg-rose-100/70 ring-1 ring-rose-300 shadow-sm scale-[1.01]'
+                              : 'hover:bg-rose-50/70'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
+                            <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isDestFocused ? 'text-rose-600' : 'text-zinc-400'}`}>도착</span>
+                            <span className={`truncate transition-colors ${isDestFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-rose-700'}`}>{destPlace.place_name}</span>
+                          </div>
+                          <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isDestFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );
             })}
 
-            {/* 최종 목적지 마커 (리스트 마지막) */}
-            {(() => {
-              const isDestFocused = !!(
-                focusedStep &&
-                focusedStep.originId === originPlace.id &&
-                focusedStep.destId === destPlace.id &&
-                focusedStep.subType === 'dest'
-              );
-              const isAnyStepFocused = !!(
-                focusedStep &&
-                focusedStep.originId === originPlace.id &&
-                focusedStep.destId === destPlace.id
-              );
 
-              return (
-                <div
-                  id={`step-${originPlace.id}-${destPlace.id}-${steps.length}`}
-                  onClick={() => handleStepClick(steps.length, { isDestinationPage: true }, 'dest')}
-                  className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none mt-2 ${
-                    isDestFocused
-                      ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
-                      : isAnyStepFocused
-                      ? 'opacity-40 hover:opacity-100 border-transparent hover:bg-zinc-50'
-                      : 'border-transparent hover:bg-zinc-50'
-                  }`}
-                >
-                  {/* 타임라인 노드 아이콘 */}
-                  <div className="absolute left-1.5 top-2 w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center shadow-sm z-10 transition-transform group-hover:scale-110">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-white">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                    </svg>
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex items-center pt-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[10px] font-bold text-white bg-blue-500 px-1.5 py-0.5 rounded flex-shrink-0">
-                        도착
-                      </span>
-                      <h4 className="text-[14px] font-bold text-zinc-800 transition-colors truncate">
-                        {destPlace.place_name}
-                      </h4>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center py-12 text-zinc-400">

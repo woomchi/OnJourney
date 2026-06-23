@@ -3,15 +3,13 @@ import type { JourneyStore } from '../journey-store';
 import type { CreateJourneyInput, Journey, Place, DirectionsApiResponse, SelectedRoute, TransportType } from '@/types/journey';
 import { insertJourney, updateJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
-import { verifyAndCleanRoutes, fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/directionsService';
+import { verifyAndCleanRoutes } from '@/lib/services/directionsService';
 
 export interface JourneyDataSlice {
   journeys: Journey[];
   activeJourney: Journey | null;
   isLoading: boolean;
   isSyncing: boolean;
-  directionsCache: Record<string, DirectionsApiResponse>;
-  directionsLoading: Record<string, boolean>;
   setJourneys: (journeys: Journey[]) => void;
   createJourney: (input: CreateJourneyInput) => Promise<void>;
   updateJourneyInfo: (title: string, journeyDate: string, transportType: TransportType) => Promise<void>;
@@ -20,8 +18,6 @@ export interface JourneyDataSlice {
   addPlace: (place: Place) => Promise<void>;
   removePlace: (placeId: string) => Promise<void>;
   reorderPlaces: (places: Place[]) => Promise<void>;
-  fetchSegmentDirections: (origin: Place, dest: Place) => Promise<void>;
-  fetchJourneyDirections: () => Promise<void>;
   selectSegmentRoute: (placeId: string, route: SelectedRoute | null) => Promise<void>;
 }
 
@@ -35,8 +31,6 @@ export const createJourneyDataSlice: StateCreator<
   activeJourney: null,
   isLoading: false,
   isSyncing: false,
-  directionsCache: {},
-  directionsLoading: {},
 
   setJourneys: (journeys) => set({ journeys }),
 
@@ -80,8 +74,6 @@ export const createJourneyDataSlice: StateCreator<
         journeys: state.journeys.map((j) => (j.id === activeJourney.id ? updatedActiveJourney : j)),
         isLoading: false,
       }));
-
-      get().fetchJourneyDirections();
     } catch (err) {
       set({ isLoading: false });
       throw err instanceof Error
@@ -99,9 +91,6 @@ export const createJourneyDataSlice: StateCreator<
       alternativeSegment: null,
       hoveredAlternativeRoute: null
     });
-    if (journey) {
-      get().fetchJourneyDirections();
-    }
   },
 
   clearJourney: () => set({ 
@@ -139,7 +128,6 @@ export const createJourneyDataSlice: StateCreator<
     } finally {
       set({ isSyncing: false });
     }
-    get().fetchJourneyDirections();
   },
 
   removePlace: async (placeId) => {
@@ -168,7 +156,6 @@ export const createJourneyDataSlice: StateCreator<
     } finally {
       set({ isSyncing: false });
     }
-    get().fetchJourneyDirections();
   },
 
   reorderPlaces: async (updatedPlaces) => {
@@ -196,67 +183,9 @@ export const createJourneyDataSlice: StateCreator<
     } finally {
       set({ isSyncing: false });
     }
-    get().fetchJourneyDirections();
   },
 
-  fetchSegmentDirections: async (origin, dest) => {
-    const cacheKey = `${origin.id}-${dest.id}`;
-    const { directionsCache, directionsLoading } = get();
 
-    if (directionsCache[cacheKey] || directionsLoading[cacheKey]) {
-      return;
-    }
-
-    set((state) => ({
-      directionsLoading: {
-        ...state.directionsLoading,
-        [cacheKey]: true,
-      },
-    }));
-
-    try {
-      const data = await fetchDirectionsApi(origin, dest);
-
-      set((state) => ({
-        directionsCache: {
-          ...state.directionsCache,
-          [cacheKey]: data,
-        },
-        directionsLoading: {
-          ...state.directionsLoading,
-          [cacheKey]: false,
-        },
-      }));
-    } catch (err) {
-      console.error('[journey-store] fetchSegmentDirections error:', err);
-      set((state) => ({
-        directionsLoading: {
-          ...state.directionsLoading,
-          [cacheKey]: false,
-        },
-      }));
-    }
-  },
-
-  fetchJourneyDirections: async () => {
-    const { activeJourney, fetchSegmentDirections } = get();
-    if (!activeJourney || !activeJourney.places || activeJourney.places.length < 2) return;
-
-    const places = activeJourney.places;
-    for (let i = 0; i < places.length - 1; i++) {
-      const currentPlace = places[i];
-      const nextPlace = places[i + 1];
-
-      if (currentPlace.selected_route && currentPlace.selected_route.destId === nextPlace.id) {
-        continue;
-      }
-
-      await fetchSegmentDirections(currentPlace, nextPlace);
-      if (i < places.length - 2) {
-        await new Promise((resolve) => setTimeout(resolve, 150));
-      }
-    }
-  },
 
   selectSegmentRoute: async (placeId, route) => {
     const { activeJourney } = get();

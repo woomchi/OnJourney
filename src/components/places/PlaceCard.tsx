@@ -2,8 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useJourneyDirectionsCache, directionKeys } from '@/hooks/queries/useDirections';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
+import { fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/directionsService';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/routeUtils';
 import SegmentInfo from './SegmentInfo';
 
 function AlternativeRouteIcon() {
@@ -44,9 +48,7 @@ export default function PlaceCard({
   transportType,
 }: PlaceCardProps) {
   const {
-    directionsCache,
-    directionsLoading,
-    fetchSegmentDirections,
+    activeJourney,
     setFocusBounds,
     focusedSegment,
     setFocusedSegment,
@@ -82,30 +84,18 @@ export default function PlaceCard({
     }
   }, [focusedSegment, focusedStep, place.id, nextPlace?.id, editMode]);
 
+  const queryClient = useQueryClient();
+  const places = activeJourney?.places ?? [];
+  const directionsCache = useJourneyDirectionsCache(places);
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
   const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
-  const isSegmentLoading = nextPlace ? directionsLoading[cacheKey] : false;
+  const isSegmentLoading = nextPlace 
+    ? queryClient.getQueryState(directionKeys.segment(place.id, nextPlace.id))?.status === 'pending'
+    : false;
 
-  let activeRoute: SelectedRoute | DirectionResult | undefined = place.selected_route && nextPlace && place.selected_route.destId === nextPlace.id
-    ? place.selected_route
+  const activeRoute = nextPlace 
+    ? getDefaultRoute(place, nextPlace, segmentData, transportType)
     : undefined;
-
-  if (!activeRoute && segmentData) {
-    if (transportType === 'car') {
-      activeRoute = segmentData.car?.[0];
-    } else if (transportType === 'walk') {
-      activeRoute = segmentData.walk?.[0];
-    } else {
-      const publicRoute = segmentData.public?.[0];
-      const walkRoute = segmentData.walk?.[0];
-
-      if (walkRoute && (!publicRoute || (publicRoute.name === '대중교통(예상)' && walkRoute.duration <= 40) || walkRoute.duration <= 15)) {
-        activeRoute = walkRoute;
-      } else {
-        activeRoute = publicRoute || walkRoute;
-      }
-    }
-  }
 
   return (
     <li
@@ -255,7 +245,10 @@ export default function PlaceCard({
                       setFocusBounds(bounds);
                     }
                     if (!segmentData) {
-                      fetchSegmentDirections(place, nextPlace);
+                      queryClient.fetchQuery({
+                        queryKey: directionKeys.segment(place.id, nextPlace.id),
+                        queryFn: () => fetchDirectionsApi(place, nextPlace)
+                      }).catch(console.error);
                     }
                   } else {
                     setAlternativeSegment(null);

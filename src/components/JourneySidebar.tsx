@@ -413,9 +413,13 @@ export default function JourneySidebar() {
               >
                 {/* 노래 제목 느낌 */}
                 <div className="flex items-center justify-center max-w-full px-1">
+                  {/* 가운데 정렬 보정을 위한 빈 공간 (우측 연필 아이콘과 동일한 너비) */}
+                  <div className="w-3 h-3 mr-0.5 shrink-0" />
+                  
                   <h2 className="text-sm font-black tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
                     {activeJourney.title}
                   </h2>
+                  
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3 text-blue-500 opacity-0 group-hover:opacity-100 transition-all ml-0.5 shrink-0">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                   </svg>
@@ -537,11 +541,66 @@ export default function JourneySidebar() {
             })()}
 
             {/* 플레이어 하단 디자인 요소 (재생 바 같은 느낌) */}
-            {!isEditMode && (
-              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-zinc-100">
-                <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 w-1/3 rounded-r-full opacity-70"></div>
-              </div>
-            )}
+            {!isEditMode && (() => {
+              let progressPercent = 0;
+              const isPlaying = !!focusedSegment || !!focusedStep;
+              
+              if (activeJourney && activeJourney.places && activeJourney.places.length > 1 && isPlaying) {
+                const totalSegments = activeJourney.places.length - 1;
+                const activeOriginId = focusedStep ? focusedStep.originId : focusedSegment?.originId;
+                const placeIndex = activeJourney.places.findIndex((p: any) => p.id === activeOriginId);
+                
+                if (placeIndex !== -1 && placeIndex < totalSegments) {
+                  let stepFraction = 0;
+                  
+                  if (focusedStep) {
+                    const firstPlace = activeJourney.places[placeIndex];
+                    const secondPlace = activeJourney.places[placeIndex + 1];
+                    const { directionsCache } = useJourneyStore.getState();
+                    const cacheKey = `${firstPlace.id}-${secondPlace.id}`;
+                    const segmentData = directionsCache[cacheKey];
+                    const activeRoute = firstPlace.selected_route && firstPlace.selected_route.destId === secondPlace.id
+                      ? firstPlace.selected_route
+                      : (segmentData ? (activeJourney.transport_type === 'car' ? segmentData.car?.[0] : activeJourney.transport_type === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
+
+                    if (activeRoute && activeRoute.steps) {
+                      const getPages = () => {
+                        const arr: { idx: number, subType?: 'start' | 'end' | 'dest' }[] = [];
+                        activeRoute.steps.forEach((step: any, idx: number) => {
+                          if (step.type === 'walk' || (!step.startName && !step.endName)) {
+                            arr.push({ idx });
+                          } else {
+                            if (step.startName) arr.push({ idx, subType: 'start' });
+                            if (step.endName) arr.push({ idx, subType: 'end' });
+                          }
+                        });
+                        arr.push({ idx: activeRoute.steps.length, subType: 'dest' });
+                        return arr;
+                      };
+                      
+                      const pages = getPages();
+                      let currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex && p.subType === focusedStep.subType);
+                      if (currentIdx === -1) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
+                      
+                      const totalStepsNum = pages.length;
+                      const currentStepNum = currentIdx >= 0 ? currentIdx + 1 : 0;
+                      stepFraction = Math.min(1, Math.max(0, currentStepNum / totalStepsNum));
+                    }
+                  }
+
+                  progressPercent = ((placeIndex + stepFraction) / totalSegments) * 100;
+                }
+              }
+
+              return (
+                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-zinc-100">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-r-full opacity-70 transition-all duration-500 ease-out" 
+                    style={{ width: `${progressPercent}%` }}
+                  ></div>
+                </div>
+              );
+            })()}
           </header>
 
           {/* ── 장소 목록 (스크롤 영역) ── */}

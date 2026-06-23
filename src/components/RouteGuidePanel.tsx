@@ -153,9 +153,12 @@ export default function RouteGuidePanel({
 
   const handlePrevStep = () => {
     const pages = getPages();
-    if (!focusedStep || focusedStep.originId !== originPlace.id || focusedStep.destId !== destPlace.id) {
-      const lastPage = pages[pages.length - 1];
-      if (lastPage) handleStepClick(lastPage.idx, lastPage.step, lastPage.subType);
+    const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
+
+    if (!isPanelFocused) {
+      if (onPrevSegment) {
+        onPrevSegment();
+      }
       return;
     }
 
@@ -576,7 +579,7 @@ export default function RouteGuidePanel({
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                              <span className={`font-bold ${isStartFocused ? 'text-blue-600' : 'text-zinc-400'}`}>승차</span>
+                              <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isStartFocused ? 'text-blue-600' : 'text-zinc-400'}`}>승차</span>
                               <span className={`truncate transition-colors ${isStartFocused ? 'text-blue-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{step.startName}</span>
                             </div>
                             <div className={`flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center ${isStartFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
@@ -600,7 +603,7 @@ export default function RouteGuidePanel({
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                              <span className={`font-bold ${isEndFocused ? 'text-rose-600' : 'text-zinc-400'}`}>하차</span>
+                              <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isEndFocused ? 'text-rose-600' : 'text-zinc-400'}`}>하차</span>
                               <span className={`truncate transition-colors ${isEndFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-rose-700'}`}>{step.endName}</span>
                             </div>
                             <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isEndFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
@@ -706,35 +709,22 @@ export default function RouteGuidePanel({
       {/* 재생바 영역 (Playback Bar) */}
       <div className="flex-shrink-0 p-5 bg-white/60 backdrop-blur-md border-t border-zinc-100 rounded-b-3xl flex flex-col items-center">
         {/* 컨트롤 버튼부 */}
-        <div className="flex items-center justify-center gap-4 mb-3">
-          {/* 이전 이동 정보 (<<) */}
-          <button
-            type="button"
-            onClick={onPrevSegment}
-            disabled={!onPrevSegment}
-            className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
-            aria-label="이전 이동 정보"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-              <path d="M11.5 12l8.5 6V6l-8.5 6zM2 12l8.5 6V6L2 12z" />
-            </svg>
-          </button>
-
-          {/* 이전 세부 구간 (<) */}
+        <div className="flex items-center justify-center gap-6 mb-3">
+          {/* 이전 단계 (<) */}
           {(() => {
             const pages = getPages();
-            let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
-            if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
             const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
+            const isDisabled = pages.length === 0 || (!isPanelFocused && !onPrevSegment);
+            
             return (
               <button
                 type="button"
                 onClick={handlePrevStep}
-                disabled={!isPanelFocused || pages.length === 0}
-                className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
-                aria-label="이전 세부 구간"
+                disabled={isDisabled}
+                className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
+                aria-label="이전 단계"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 rotate-180">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 rotate-180">
                   <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
                 </svg>
               </button>
@@ -780,39 +770,27 @@ export default function RouteGuidePanel({
             );
           })()}
 
-          {/* 다음 세부 구간 (>) */}
+          {/* 다음 단계 (>) */}
           {(() => {
             const pages = getPages();
             let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
             if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-            const isDisabled = pages.length === 0 || currentIdx >= pages.length - 1;
+            
+            const isDisabled = pages.length === 0 || (currentIdx >= pages.length - 1 && !onNextSegment);
             return (
               <button
                 type="button"
                 onClick={handleNextStep}
                 disabled={isDisabled}
-                className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
-                aria-label="다음 세부 구간"
+                className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
+                aria-label="다음 단계"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
                   <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
                 </svg>
               </button>
             );
           })()}
-
-          {/* 다음 이동 정보 (>>) */}
-          <button
-            type="button"
-            onClick={onNextSegment}
-            disabled={!onNextSegment}
-            className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
-            aria-label="다음 이동 정보"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-              <path d="M12.5 12L4 6v12l8.5-6zM22 12l-8.5-6v12L22 12z" />
-            </svg>
-          </button>
         </div>
 
         {/* 곡 제목 영역 (Origin -> Dest) */}

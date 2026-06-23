@@ -43,7 +43,8 @@ export default function MapArea() {
     setFocusedStep,
     alternativeSegment,
     setAlternativeSegment,
-    hoveredAlternativeRoute
+    hoveredAlternativeRoute,
+    isAlternativeFromFocus
   } = useJourneyStore();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
@@ -716,7 +717,36 @@ export default function MapArea() {
         <AlternativeRoutePanel
           originPlace={alternativePlaces.originPlace}
           destPlace={alternativePlaces.destPlace}
-          onClose={() => setAlternativeSegment(null)}
+          onClose={(isCancel?: boolean) => {
+            setAlternativeSegment(null);
+            
+            if (isAlternativeFromFocus) {
+              setFocusedSegment({ 
+                originId: alternativePlaces.originPlace.id, 
+                destId: alternativePlaces.destPlace.id 
+              });
+
+              if (isCancel) {
+                 const cacheKey = `${alternativePlaces.originPlace.id}-${alternativePlaces.destPlace.id}`;
+                 const segmentData = directionsCache[cacheKey];
+                 const transportType = activeJourney?.transport_type || 'public';
+                 const defaultRoute = alternativePlaces.originPlace.selected_route && alternativePlaces.originPlace.selected_route.destId === alternativePlaces.destPlace.id
+                   ? alternativePlaces.originPlace.selected_route
+                   : (segmentData ? (transportType === 'car' ? segmentData.car?.[0] : transportType === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
+                 
+                 if (defaultRoute) {
+                   const bounds = calculateSegmentBounds(alternativePlaces.originPlace, alternativePlaces.destPlace, defaultRoute);
+                   setFocusBounds(bounds);
+                 }
+              }
+            } else {
+              if (isCancel) {
+                setFocusBounds(null);
+              } else {
+                setFocusBounds(null);
+              }
+            }
+          }}
         />
       )}
     </div>

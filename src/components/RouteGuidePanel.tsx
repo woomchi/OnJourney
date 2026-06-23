@@ -478,7 +478,7 @@ export default function RouteGuidePanel({
             })()}
 
             {steps.map((step, idx) => {
-              const stepColor = step.color || '#A1A1AA';
+              const stepColor = step.type === 'walk' ? (step.color === '#A1A1AA' ? '#E4E4E7' : (step.color || '#E4E4E7')) : (step.color || '#A1A1AA');
 
               // 아이콘과 색상 매핑
               let icon = '•';

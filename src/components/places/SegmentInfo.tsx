@@ -103,7 +103,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId }: S
           else if (step.type === 'expressbus') icon = '🚌';
 
           const segmentColor = SEQUENCE_COLORS[index % SEQUENCE_COLORS.length];
-          const stepColor = step.type === 'walk' ? (step.color || '#E4E4E7') : segmentColor;
+          const stepColor = step.type === 'walk' ? (step.color === '#A1A1AA' ? '#E4E4E7' : (step.color || '#E4E4E7')) : segmentColor;
 
           const isWalk = step.type === 'walk';
 

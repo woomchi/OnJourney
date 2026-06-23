@@ -8,11 +8,13 @@ export interface MapSlice {
   focusedStep: FocusedStep | null;
   alternativeSegment: FocusedSegment | null;
   hoveredAlternativeRoute: DirectionResult | null;
+  isAlternativeFromFocus: boolean;
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
   setFocusedStep: (step: FocusedStep | null) => void;
   setAlternativeSegment: (segment: FocusedSegment | null) => void;
   setHoveredAlternativeRoute: (route: DirectionResult | null) => void;
+  setIsAlternativeFromFocus: (val: boolean) => void;
 }
 
 export const createMapSlice: StateCreator<
@@ -26,6 +28,7 @@ export const createMapSlice: StateCreator<
   focusedStep: null,
   alternativeSegment: null,
   hoveredAlternativeRoute: null,
+  isAlternativeFromFocus: false,
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
   setFocusedSegment: (segment) => set((state) => ({ 
     focusedSegment: segment,
@@ -40,4 +43,5 @@ export const createMapSlice: StateCreator<
     ...(segment ? { focusedSegment: null, focusedStep: null } : { hoveredAlternativeRoute: null })
   })),
   setHoveredAlternativeRoute: (route) => set({ hoveredAlternativeRoute: route }),
+  setIsAlternativeFromFocus: (val) => set({ isAlternativeFromFocus: val }),
 });

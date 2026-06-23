@@ -4,17 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
-import SegmentInfo from './SegmentInfo';function SettingsIcon() {
+import SegmentInfo from './SegmentInfo';
+
+function AlternativeRouteIcon() {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={2}
-      stroke="currentColor"
-      className="w-4 h-4"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-15L21 6m0 0L16.5 10.5M21 6H7.5" />
     </svg>
   );
 }
@@ -59,6 +54,8 @@ export default function PlaceCard({
     focusedStep,
     alternativeSegment,
     setAlternativeSegment,
+    isAlternativeFromFocus,
+    setIsAlternativeFromFocus,
   } = useJourneyStore();
   const cardRef = useRef<HTMLLIElement>(null);
 
@@ -163,43 +160,7 @@ export default function PlaceCard({
               )}
             </div>
 
-            {/* 대안 교통정보 토글 버튼 - 기본 상태에만 노출 */}
-            {!editMode && !isLast && (
-              <button
-                type="button"
-                onClick={() => {
-                  const isCurrentlyOpen = alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id;
-                  
-                  if (!isCurrentlyOpen && nextPlace) {
-                    setAlternativeSegment({ originId: place.id, destId: nextPlace.id });
-                    // 상세 경로 패널이 열려 있다면 닫기
-                    setFocusedSegment(null);
-                    setFocusedStep(null);
-                    // 옵셔널: 경로 구간으로 지도 포커스 이동
-                    if (activeRoute) {
-                      const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
-                      setFocusBounds(bounds);
-                    }
-                    if (!segmentData) {
-                      fetchSegmentDirections(place, nextPlace);
-                    }
-                  } else {
-                    setAlternativeSegment(null);
-                  }
-                }}
-                className={`
-                  flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
-                  transition-all duration-200
-                  ${alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'bg-zinc-50 text-zinc-400 hover:bg-blue-50 hover:text-blue-500'
-                  }
-                `}
-                aria-label="대안 교통정보 보기"
-              >
-                <SettingsIcon />
-              </button>
-            )}
+
 
             {/* 드래그 핸들 - 편집 상태에만 오른쪽에 노출 */}
             {editMode && (
@@ -230,7 +191,7 @@ export default function PlaceCard({
       {/* 기본 구간 이동 정보 (항상 노출) */}
       {!editMode && !isLast && (() => {
         return (
-          <div className="pl-10 pb-1 flex flex-col gap-1">
+          <div className="pl-10 pb-1 flex flex-col gap-1 relative">
             <div
               role="button"
               tabIndex={0}
@@ -273,6 +234,55 @@ export default function PlaceCard({
                 placeId={place.id}
                 destId={nextPlace?.id}
               />
+            </div>
+
+            {/* 대안 교통정보 토글 버튼을 이동 구간(SegmentInfo) 상단 우측에 겹치도록 배치 */}
+            <div className="absolute top-2.5 right-6 z-10">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const isCurrentlyOpen = alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id;
+                  
+                  if (!isCurrentlyOpen && nextPlace) {
+                    const wasFocused = focusedSegment?.originId === place.id && focusedSegment?.destId === nextPlace.id;
+                    setIsAlternativeFromFocus(wasFocused);
+                    setAlternativeSegment({ originId: place.id, destId: nextPlace.id });
+                    setFocusedSegment(null);
+                    setFocusedStep(null);
+                    if (activeRoute) {
+                      const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
+                      setFocusBounds(bounds);
+                    }
+                    if (!segmentData) {
+                      fetchSegmentDirections(place, nextPlace);
+                    }
+                  } else {
+                    setAlternativeSegment(null);
+                    if (isAlternativeFromFocus && nextPlace) {
+                      setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+                      if (activeRoute) {
+                        const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
+                        setFocusBounds(bounds);
+                      }
+                    } else {
+                      setFocusBounds(null);
+                    }
+                  }
+                }}
+                className={`
+                  flex items-center justify-center w-7 h-7 rounded-full
+                  transition-all duration-300 shadow-sm
+                  ${alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id
+                    ? 'bg-blue-500 text-white shadow-blue-500/30'
+                    : 'bg-white/90 backdrop-blur-sm border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
+                  }
+                `}
+                aria-label="대안 경로 탐색"
+                title="대안 경로 탐색"
+              >
+                <AlternativeRouteIcon />
+              </button>
             </div>
           </div>
         );

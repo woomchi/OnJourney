@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+    const distanceKm = haversineDistance(sy, sx, ey, ex);
+
     const { data: cacheData } = await supabase
       .from('route_cache')
       .select('route_data')
@@ -62,12 +64,18 @@ export async function GET(request: NextRequest) {
 
     if (cacheData && cacheData.route_data) {
       console.log('[directions] Cache HIT');
+      
+      // 과거에 생성된 단거리(2km 이하) 캐시 데이터에서 '가짜 대중교통(대중교통(예상))' 데이터가 노출되는 것을 방지
+      if (distanceKm <= 2.0 && Array.isArray(cacheData.route_data.public)) {
+        cacheData.route_data.public = cacheData.route_data.public.filter(
+          (route: any) => route.id !== 'public-0' && route.name !== '대중교통(예상)'
+        );
+      }
+
       return NextResponse.json(cacheData.route_data);
     }
 
     console.log('[directions] Cache MISS');
-
-    const distanceKm = haversineDistance(sy, sx, ey, ex);
     const fallbackPath = [
       { lat: sy, lng: sx },
       { lat: ey, lng: ex },
@@ -141,7 +149,7 @@ export async function GET(request: NextRequest) {
           type: 'walk' as const,
           name: '도보',
           duration: walkDuration,
-          color: '#A1A1AA',
+          color: '#E4E4E7',
           pathPoints: fallbackPath
         }
       ],

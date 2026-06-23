@@ -76,7 +76,7 @@ export function getFallbackDirections(origin: Place, dest: Place): DirectionsApi
       type: 'walk' as const,
       name: '도보',
       duration: walkDuration,
-      color: '#A1A1AA',
+      color: '#E4E4E7',
       pathPoints: fallbackPath
     }],
     pathPoints: fallbackPath

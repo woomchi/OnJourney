@@ -84,26 +84,31 @@ export async function GET(request: NextRequest) {
       publicResults = publicRes.value;
     } else {
       console.warn('[directions] fetchPublicTransitOptions failed:', publicRes.reason);
-      const carFallback = calculateCarFallback(sx, sy, ex, ey);
-      publicResults = [
-        {
-          id: 'public-0',
-          type: 'public' as const,
-          name: '대중교통(예상)',
-          duration: Math.round(carFallback.duration * 1.3),
-          fare: 1500,
-          steps: [
-            {
-              type: 'bus' as const,
-              name: '대중교통(예상)',
-              duration: Math.round(carFallback.duration * 1.3),
-              color: '#0068b7',
-              pathPoints: fallbackPath,
-            }
-          ],
-          pathPoints: fallbackPath
-        }
-      ];
+      
+      // 단거리(2km 이하)에서는 억지로 가짜 대중교통 폴백을 만들지 않고 빈 배열을 반환하여
+      // 클라이언트가 자연스럽게 '도보'를 선택하도록 유도합니다.
+      if (distanceKm > 2.0) {
+        const carFallback = calculateCarFallback(sx, sy, ex, ey);
+        publicResults = [
+          {
+            id: 'public-0',
+            type: 'public' as const,
+            name: '대중교통(예상)',
+            duration: Math.round(carFallback.duration * 1.3),
+            fare: 1500,
+            steps: [
+              {
+                type: 'bus' as const,
+                name: '대중교통(예상)',
+                duration: Math.round(carFallback.duration * 1.3),
+                color: '#0068b7',
+                pathPoints: fallbackPath,
+              }
+            ],
+            pathPoints: fallbackPath
+          }
+        ];
+      }
     }
 
     // 2. 차량 대안 목록 구성

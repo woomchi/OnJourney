@@ -33,7 +33,7 @@ export function getFallbackDirections(origin: Place, dest: Place): DirectionsApi
     { lat: dest.lat, lng: dest.lng }
   ];
 
-  const publicFallback: DirectionResult = {
+  const publicResults: DirectionResult[] = distanceKm > 2.0 ? [{
     id: 'public-0',
     type: 'public' as const,
     name: '대중교통(예상)',
@@ -47,7 +47,7 @@ export function getFallbackDirections(origin: Place, dest: Place): DirectionsApi
       pathPoints: fallbackPath
     }],
     pathPoints: fallbackPath
-  };
+  }] : [];
 
   const carFallback: DirectionResult = {
     id: 'car-trafast',
@@ -83,7 +83,7 @@ export function getFallbackDirections(origin: Place, dest: Place): DirectionsApi
   };
 
   return {
-    public: [publicFallback],
+    public: publicResults,
     car: [carFallback],
     walk: [walkFallback]
   };

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { Place, DirectionsApiResponse } from '@/types/journey';
+import type { Place, DirectionsApiResponse, DirectionResult } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 
 interface AlternativeSegmentInfoProps {
@@ -12,6 +12,7 @@ interface AlternativeSegmentInfoProps {
   loading?: boolean;
   onSelect?: () => void;
   transportType: 'public' | 'car' | 'walk';
+  activeRoute?: DirectionResult;
 }
 
 export default function AlternativeSegmentInfo({
@@ -21,8 +22,13 @@ export default function AlternativeSegmentInfo({
   loading,
   onSelect,
   transportType,
+  activeRoute,
 }: AlternativeSegmentInfoProps) {
-  const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>(transportType);
+  const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>(
+    activeRoute?.type === 'public' || activeRoute?.type === 'car' || activeRoute?.type === 'walk' 
+      ? activeRoute.type 
+      : transportType
+  );
   const { selectSegmentRoute, setFocusBounds, setFocusedSegment, setFocusedStep } = useJourneyStore();
 
   if (loading) {
@@ -92,7 +98,11 @@ export default function AlternativeSegmentInfo({
           </div>
         ) : (
           routes.map((route) => {
-            const isSelected = selectedRoute ? selectedRoute.id === route.id : false;
+            const isSelected = selectedRoute 
+              ? selectedRoute.id === route.id 
+              : activeRoute 
+                ? activeRoute.id === route.id 
+                : false;
             const emoji = getEmoji(route.type, route.name);
 
             return (

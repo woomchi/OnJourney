@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { Place } from '@/types/journey';
+import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import SegmentInfo from './SegmentInfo';
 import AlternativeSegmentInfo from './AlternativeSegmentInfo';
@@ -88,6 +88,27 @@ export default function PlaceCard({
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
   const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
   const isSegmentLoading = nextPlace ? directionsLoading[cacheKey] : false;
+
+  let activeRoute: SelectedRoute | DirectionResult | undefined = place.selected_route && nextPlace && place.selected_route.destId === nextPlace.id
+    ? place.selected_route
+    : undefined;
+
+  if (!activeRoute && segmentData) {
+    if (transportType === 'car') {
+      activeRoute = segmentData.car?.[0];
+    } else if (transportType === 'walk') {
+      activeRoute = segmentData.walk?.[0];
+    } else {
+      const publicRoute = segmentData.public?.[0];
+      const walkRoute = segmentData.walk?.[0];
+
+      if (walkRoute && (!publicRoute || (publicRoute.name === '대중교통(예상)' && walkRoute.duration <= 40) || walkRoute.duration <= 15)) {
+        activeRoute = walkRoute;
+      } else {
+        activeRoute = publicRoute || walkRoute;
+      }
+    }
+  }
 
   return (
     <li
@@ -208,15 +229,12 @@ export default function PlaceCard({
           loading={isSegmentLoading}
           onSelect={() => setShowAlternatives(false)}
           transportType={transportType}
+          activeRoute={activeRoute}
         />
       </div>
 
       {/* 기본 구간 이동 정보 (항상 노출) */}
       {!editMode && !isLast && (() => {
-        const activeRoute = place.selected_route && nextPlace && place.selected_route.destId === nextPlace.id
-          ? place.selected_route
-          : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
-
         return (
           <div className="pl-10 pb-1 flex flex-col gap-1">
             <div

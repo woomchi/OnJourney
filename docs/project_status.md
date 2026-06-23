@@ -1,6 +1,6 @@
 # On-Journey 프로젝트 진행 상황
 
-> 마지막 업데이트: 2026-06-21
+> 마지막 업데이트: 2026-06-23
 
 ## 📌 프로젝트 개요
 
@@ -90,11 +90,12 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 - [x] `src/components/JourneySidebar.tsx` — 좌측 사이드바 (여정 목록 드래그앤드롭 순서 변경, 여정 다중 선택 삭제, 여정 상세 및 장소 관리 분기)
 - [x] `src/components/CreateJourneyModal.tsx` — 여정 생성 모달 (여정명, 이동수단, 날짜 선택)
 - [x] `src/components/EditJourneyModal.tsx` — 여정 정보 수정 모달 (여정명, 이동수단, 날짜 수정)
-- [x] `src/components/PlaceList.tsx` — 여정 장소 목록 (장소 드래그앤드롭 순서 변경, 장소 다중 선택 삭제, 구간별 실시간 대중교통 타임라인 UI, 대안 이동 수단 아코디언 UI 포함)
+- [x] `src/components/PlaceList.tsx` — 여정 장소 목록 (장소 드래그앤드롭 순서 변경, 장소 다중 선택 삭제, 구간별 실시간 대중교통 타임라인 UI)
+- [x] `src/components/AlternativeRoutePanel.tsx` — 대안 이동 수단 탐색 패널 (카테고리별 대안 경로 미리보기, 단거리 도보/대중교통 자동 분기 처리, 타 구간 클릭 시 자동 닫힘 처리, 도보 타임라인 색상 통일)
 - [x] `src/components/PlaceSearchBar.tsx` — 네이버 장소 API 연동 검색창 및 실시간 검색 목록 표시
 - [x] `src/components/AddPlaceModal.tsx` — 검색된 장소를 선택해 여정에 추가하는 모달
 - [x] `src/components/MapArea.tsx` — 네이버 지도 (구간별 폴리라인, 방향 화살표, 환승 마커, 세그먼트/스텝 포커스, 동적 패딩)
-- [x] `src/components/RouteGuidePanel.tsx` — 상세 경로 안내 플로팅 패널 (대중교통 step-by-step / 차량 turn-by-turn 안내, 장거리 노선 예매 링크, 세부 구간 탐색 네비게이션)
+- [x] `src/components/RouteGuidePanel.tsx` — 상세 경로 안내 플로팅 패널 (대중교통 step-by-step / 차량 turn-by-turn 안내, 장거리 노선 예매 링크, 세부 구간(step) 및 전체 이동 구간(segment) 탐색 네비게이션 분리, 향후 실시간 추적을 위한 UI 레이아웃 최적화)
 
 ### 지도 서비스 모듈
 - [x] `src/lib/naverMapRouteService.ts` — 지도 관련 유틸리티 모듈:
@@ -127,8 +128,8 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | 지도 마커 연동 | ✅ 완료 | 장소 목록과 지도 위 마커 동기화, 순번 표시, 줌 이동 |
 | 구간별 실시간 이동 정보 | ✅ 완료 | ODsay API (대중교통) + 네이버 Directions 5 (차량) 실시간 연동 |
 | 구간별 이동 경로 시각화 | ✅ 완료 | 교통수단 색상별 폴리라인, 방향 화살표(Chevron), 환승 마커, 이중 렌더링(외곽선+본선) |
-| 이동 대안 선택 | ✅ 완료 | 대중교통/차량/도보 카테고리별 복수 대안 아코디언 UI, 경로 선택 시 DB 동기화 |
-| 상세 경로 안내 패널 | ✅ 완료 | 대중교통 step-by-step (탑승/하차 정보) + 차량 turn-by-turn 안내 |
+| 이동 대안 선택 | ✅ 완료 | 대중교통/차량/도보 카테고리별 복수 대안 아코디언 UI, 대안 경로 미리보기, 단거리 로직 개선, 타 구간 클릭 시 자동 닫힘, 경로 선택 시 DB 동기화 |
+| 상세 경로 안내 패널 | ✅ 완료 | 대중교통 step-by-step (탑승/하차 정보) + 차량 turn-by-turn 안내, 세부 구간(step)/전체 구간(segment) 탐색 버튼 분리 및 레이아웃 최적화 |
 | 세그먼트/스텝 포커스 | ✅ 완료 | 구간 클릭 시 하이라이트+줌 인, 개별 step 포커스, 연속 구간 탐색 |
 | 실시간 지하철 도착 정보 | ✅ 완료 | 서울시 실시간 API + TAGO 시간표 Fallback, ETA 동적 계산, 역간거리 DB 기반 소요시간 |
 | 실시간 버스 도착 정보 | ✅ 완료 | TAGO 전국 버스 도착 API + 경기도 전용 API 이중 조회, ODsay 정류소 검색 캐싱 |

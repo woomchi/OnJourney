@@ -248,8 +248,17 @@ export default function AlternativeRoutePanel({
       >
         {/* Left: Icon and Name/Fare */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0 transition-colors ${isSelected ? 'bg-white shadow-sm' : 'bg-zinc-50 group-hover:bg-white group-hover:shadow-sm'}`}>
-            {emoji}
+          <div className="relative flex-shrink-0">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors ${isSelected ? 'bg-white shadow-sm' : 'bg-zinc-50 group-hover:bg-white group-hover:shadow-sm'}`}>
+              {emoji}
+            </div>
+            {isSelected && (
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shadow-sm border-2 border-blue-50">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-white">
+                  <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
           </div>
           <div className="flex flex-col min-w-0 justify-center flex-1 pr-2">
             <span className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-blue-700' : 'text-zinc-800 group-hover:text-blue-600'}`}>
@@ -277,10 +286,13 @@ export default function AlternativeRoutePanel({
               </span>
             )}
           </div>
-          
+        </div>
+
+        {/* Right: Tags & Duration */}
+        <div className="flex items-center gap-3 flex-shrink-0 ml-2">
           {/* Tags Grid */}
           {tags.length > 0 && (
-            <div className="grid grid-cols-2 gap-1 flex-shrink-0 pr-3">
+            <div className="grid grid-cols-2 gap-1 flex-shrink-0">
               {tags.map(tag => (
                 <span key={tag} className="px-1.5 py-[3px] text-[9px] font-extrabold rounded bg-blue-50 text-blue-600 whitespace-nowrap text-center">
                   {tag}
@@ -288,20 +300,13 @@ export default function AlternativeRoutePanel({
               ))}
             </div>
           )}
-        </div>
 
-        {/* Right: Duration & Status Check */}
-        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-          <span className={`text-[13px] font-black tracking-tight ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
-            {route.duration}분
-          </span>
-          {isSelected && (
-            <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
-              </svg>
-            </div>
-          )}
+          {/* Duration */}
+          <div className="flex flex-col items-end min-w-[32px]">
+            <span className={`text-[13px] font-black tracking-tight ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
+              {route.duration}분
+            </span>
+          </div>
         </div>
       </button>
     );

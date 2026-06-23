@@ -1125,6 +1125,8 @@ function TransferMarkers({
       isStart?: boolean;
       isDest?: boolean;
       isAlighting?: boolean;
+      isSegmentStart?: boolean;
+      isSegmentDest?: boolean;
       stepIndex: number;
     }> = [];
 
@@ -1153,10 +1155,9 @@ function TransferMarkers({
         focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
       if (!isCurrentSegment) return;
 
-      const transitSteps = activeRoute.steps.filter((s: any) => s.type === 'bus' || s.type === 'subway');
+      const transitSteps = activeRoute.steps.filter((s: any) => ['bus', 'subway', 'train', 'expressbus'].includes(s.type));
       
       const startColor = '#3B82F6'; // 출발지 기본색: 서비스 테마 블루
-      const startType: 'bus' | 'subway' | 'walk' = 'walk';
       const mergedFirstTransit = false;
 
       const getShiftedStepPoint = (step: any, isStart: boolean) => {
@@ -1177,23 +1178,20 @@ function TransferMarkers({
         }
       };
 
-      // 1. 출발지 전용 마커 추가 (첫 스텝이 도보일 경우에만 진짜 출발지 표시)
-      const isFirstStepWalk = activeRoute.steps.length > 0 && activeRoute.steps[0].type === 'walk';
-      const shouldShowStart = isFirstStepWalk;
-      if (shouldShowStart) {
-        points.push({
-          key: `start-${place.id}-${nextPlace.id}`,
-          originId: place.id,
-          destId: nextPlace.id,
-          position: { lat: place.lat, lng: place.lng },
-          busName: place.place_name,
-          type: startType,
-          color: startColor,
-          stationName: '출발지',
-          isStart: true,
-          stepIndex: 0,
-        });
-      }
+      // 1. 출발지 전용 마커 추가 (무조건 추가)
+      points.push({
+        key: `start-${place.id}-${nextPlace.id}`,
+        originId: place.id,
+        destId: nextPlace.id,
+        position: { lat: place.lat, lng: place.lng },
+        busName: place.place_name,
+        type: 'start',
+        color: startColor,
+        stationName: '출발지',
+        isStart: true,
+        isSegmentStart: true,
+        stepIndex: -1,
+      });
 
       // 모든 도보 스텝에 대해 도보 출발 마커 추가
       activeRoute.steps.forEach((step: any, sIdx: number) => {
@@ -1321,32 +1319,20 @@ function TransferMarkers({
         }
       }
 
-      // 세그먼트의 도착지 마커 추가 (마지막 스텝이 도보일 경우에만 진짜 도착지 표시)
-      const isAlightingOnLastStep = !!(
-        focusedStep &&
-        focusedStep.originId === place.id &&
-        focusedStep.destId === nextPlace.id &&
-        focusedStep.subType === 'end' &&
-        focusedStep.stepIndex === activeRoute.steps.length - 1
-      );
-
-      const isLastStepWalk = activeRoute.steps.length > 0 && activeRoute.steps[activeRoute.steps.length - 1].type === 'walk';
-      const shouldShowDest = isLastStepWalk;
-
-      if (shouldShowDest) {
-        points.push({
-          key: `destination-${place.id}-${nextPlace.id}`,
-          originId: place.id,
-          destId: nextPlace.id,
-          position: { lat: nextPlace.lat, lng: nextPlace.lng },
-          busName: nextPlace.place_name,
-          type: 'destination',
-          color: '#EF4444', // 도착지는 Rose Red 계열
-          stationName: '도착지',
-          isDest: true,
-          stepIndex: activeRoute.steps.length - 1,
-        });
-      }
+      // 세그먼트의 도착지 마커 추가 (무조건 추가)
+      points.push({
+        key: `destination-${place.id}-${nextPlace.id}`,
+        originId: place.id,
+        destId: nextPlace.id,
+        position: { lat: nextPlace.lat, lng: nextPlace.lng },
+        busName: nextPlace.place_name,
+        type: 'destination',
+        color: '#EF4444', // 도착지는 Rose Red 계열
+        stationName: '도착지',
+        isDest: true,
+        isSegmentDest: true,
+        stepIndex: activeRoute.steps.length,
+      });
 
       // 하차 마커 추가 (focusedStep.subType === 'end' 인 경우에만 노출)
       if (
@@ -1386,8 +1372,6 @@ function TransferMarkers({
           if (a.isAlighting !== b.isAlighting) return a.isAlighting ? 1 : -1;
           return 0;
         });
-        (thisSegmentPoints[0] as any).isSegmentStart = true;
-        (thisSegmentPoints[thisSegmentPoints.length - 1] as any).isSegmentDest = true;
       }
     }
 
@@ -1483,7 +1467,7 @@ function TransferMarkers({
         const siteIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 10px; height: 10px; color: white;" class="start-icon-svg-${pt.key}"><path d="M12 4L4 18h16Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>`;
         const iconEmoji = pt.isSegmentDest 
           ? '🚩' 
-          : (pt.isSegmentStart && pt.type === 'walk' ? siteIconSvg : (pt.type === 'walk' ? '🚶' : (pt.type === 'subway' ? '🚇' : '🚌')));
+          : (pt.isSegmentStart ? siteIconSvg : (pt.type === 'walk' ? '🚶' : (pt.type === 'subway' ? '🚇' : (pt.type === 'train' ? '🚄' : '🚌'))));
         
         // 출발 마커가 항상 탑승 마커(최대 15000) 위에 나타나도록 zIndex를 23000으로 조정
         const zIndex = pt.isSegmentStart ? 23000 : ((pt.isSegmentDest || pt.isAlighting) ? 22000 : (pt.type === 'walk' ? 12000 : (pt.isFirst ? 14000 : 15000)));

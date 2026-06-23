@@ -162,7 +162,7 @@ export function calculateJourneyBounds(
     const cacheKey = `${origin.id}-${dest.id}`;
     const segmentData = directionsCache[cacheKey];
 
-    const activeRoute = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk');
+    const activeRoute = getDefaultRoute(origin as any, dest as any, segmentData, transportType as 'public' | 'car' | 'walk');
 
     if (activeRoute) {
       if (activeRoute.pathPoints && activeRoute.pathPoints.length > 0) {

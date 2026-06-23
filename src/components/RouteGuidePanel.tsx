@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
@@ -30,7 +30,14 @@ export default function RouteGuidePanel({
   nextDestPlace,
 }: RouteGuidePanelProps) {
   const [mounted, setMounted] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [originPlace.id, destPlace.id]);
 
   useEffect(() => {
     // Small delay to trigger the slide-in transition
@@ -77,7 +84,10 @@ export default function RouteGuidePanel({
   const getPages = () => {
     const arr: { idx: number, step: any, subType?: 'start' | 'end' | 'dest' }[] = [];
     steps.forEach((step, idx) => {
-      if (step.type === 'walk' || (!step.startName && !step.endName)) {
+      if (step.type === 'car' || (step.type as string) === 'taxi') {
+        arr.push({ idx, step, subType: 'start' });
+        arr.push({ idx, step, subType: 'dest' });
+      } else if (step.type === 'walk' || (!step.startName && !step.endName)) {
         arr.push({ idx, step });
       } else {
         if (step.startName) arr.push({ idx, step, subType: 'start' });
@@ -87,8 +97,10 @@ export default function RouteGuidePanel({
 
     if (steps.length > 0) {
       const lastStep = steps[steps.length - 1];
-      if (lastStep.type === 'walk') {
-        arr.push({ idx: steps.length - 1, step: lastStep, subType: 'dest' });
+      if (lastStep.type === 'walk' || lastStep.type === 'car' || (lastStep.type as string) === 'taxi') {
+        if (lastStep.type === 'walk') {
+          arr.push({ idx: steps.length - 1, step: lastStep, subType: 'dest' });
+        }
       }
     }
 
@@ -364,7 +376,7 @@ export default function RouteGuidePanel({
       </div>
 
       {/* Guide List */}
-      <div className="flex-1 overflow-y-auto p-5 scrollbar-sleek">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 scrollbar-sleek">
         {hasGuide ? (
           // 차량 turn-by-turn 안내 노출
           <div className="relative pl-1 flex flex-col gap-5">
@@ -442,7 +454,16 @@ export default function RouteGuidePanel({
 
 
             {steps.map((step, idx) => {
-              const stepColor = step.type === 'walk' ? (step.color === '#A1A1AA' ? '#E4E4E7' : (step.color || '#E4E4E7')) : (step.color || '#A1A1AA');
+              let defaultColor = '#A1A1AA';
+              if (step.type === 'train') defaultColor = '#4F46E5';
+              else if (step.type === 'expressbus') defaultColor = '#0EA5E9';
+              else if (step.type === 'bus') defaultColor = '#3B82F6';
+              else if (step.type === 'subway') defaultColor = '#10B981';
+              else if (step.type === 'car' || (step.type as string) === 'taxi') defaultColor = '#4F46E5';
+
+              const stepColor = step.type === 'walk' 
+                ? (step.color === '#A1A1AA' ? '#E4E4E7' : (step.color || '#E4E4E7')) 
+                : (step.color || defaultColor);
 
               // 아이콘과 색상 매핑
               let icon = '•';

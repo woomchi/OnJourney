@@ -451,11 +451,11 @@ export default function JourneySidebar() {
                         setActiveJourney(prevJourney);
                       }
                     }}
-                    className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
+                    className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
                     title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path d="M19.332 3.167a.75.75 0 0 1 .743.743v16.18a.75.75 0 0 1-1.258.552L10.378 13.91a.75.75 0 0 1 0-1.076L18.817 6.1a.75.75 0 0 1 .515-.221ZM10.5 3.167a.75.75 0 0 1 .743.743v16.18a.75.75 0 0 1-1.258.552L1.547 13.91a.75.75 0 0 1 0-1.076L9.986 6.1a.75.75 0 0 1 .514-.221Z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                      <path d="M11.5 12l8.5 6V6l-8.5 6zM2 12l8.5 6V6L2 12z" />
                     </svg>
                   </button>
 
@@ -525,11 +525,11 @@ export default function JourneySidebar() {
                         setActiveJourney(nextJourney);
                       }
                     }}
-                    className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
+                    className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
                     title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path d="M4.668 20.833a.75.75 0 0 1-.743-.743V3.91a.75.75 0 0 1 1.258-.552l8.439 6.734a.75.75 0 0 1 0 1.076l-8.439 6.734a.75.75 0 0 1-.515.221ZM13.5 20.833a.75.75 0 0 1-.743-.743V3.91a.75.75 0 0 1 1.258-.552l8.439 6.734a.75.75 0 0 1 0 1.076l-8.439 6.734a.75.75 0 0 1-.514.221Z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                      <path d="M12.5 12L4 6v12l8.5-6zM22 12l-8.5-6v12L22 12z" />
                     </svg>
                   </button>
                 </div>

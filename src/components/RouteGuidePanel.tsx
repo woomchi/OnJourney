@@ -712,11 +712,11 @@ export default function RouteGuidePanel({
             type="button"
             onClick={onPrevSegment}
             disabled={!onPrevSegment}
-            className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
             aria-label="이전 이동 정보"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-              <path d="M19.332 3.167a.75.75 0 0 1 .743.743v16.18a.75.75 0 0 1-1.258.552L10.378 13.91a.75.75 0 0 1 0-1.076L18.817 6.1a.75.75 0 0 1 .515-.221ZM10.5 3.167a.75.75 0 0 1 .743.743v16.18a.75.75 0 0 1-1.258.552L1.547 13.91a.75.75 0 0 1 0-1.076L9.986 6.1a.75.75 0 0 1 .514-.221Z" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+              <path d="M11.5 12l8.5 6V6l-8.5 6zM2 12l8.5 6V6L2 12z" />
             </svg>
           </button>
 
@@ -806,11 +806,11 @@ export default function RouteGuidePanel({
             type="button"
             onClick={onNextSegment}
             disabled={!onNextSegment}
-            className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
             aria-label="다음 이동 정보"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-              <path d="M4.668 20.833a.75.75 0 0 1-.743-.743V3.91a.75.75 0 0 1 1.258-.552l8.439 6.734a.75.75 0 0 1 0 1.076l-8.439 6.734a.75.75 0 0 1-.515.221ZM13.5 20.833a.75.75 0 0 1-.743-.743V3.91a.75.75 0 0 1 1.258-.552l8.439 6.734a.75.75 0 0 1 0 1.076l-8.439 6.734a.75.75 0 0 1-.514.221Z" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+              <path d="M12.5 12L4 6v12l8.5-6zM22 12l-8.5-6v12L22 12z" />
             </svg>
           </button>
         </div>

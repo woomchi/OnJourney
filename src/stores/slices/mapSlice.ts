@@ -1,16 +1,18 @@
 import { StateCreator } from 'zustand';
 import type { JourneyStore } from '../journey-store';
-import type { LatLngBoundsLiteral, FocusedSegment, FocusedStep } from '@/types/journey';
+import type { LatLngBoundsLiteral, FocusedSegment, FocusedStep, DirectionResult } from '@/types/journey';
 
 export interface MapSlice {
   focusBounds: LatLngBoundsLiteral | null;
   focusedSegment: FocusedSegment | null;
   focusedStep: FocusedStep | null;
   alternativeSegment: FocusedSegment | null;
+  hoveredAlternativeRoute: DirectionResult | null;
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
   setFocusedStep: (step: FocusedStep | null) => void;
   setAlternativeSegment: (segment: FocusedSegment | null) => void;
+  setHoveredAlternativeRoute: (route: DirectionResult | null) => void;
 }
 
 export const createMapSlice: StateCreator<
@@ -23,17 +25,19 @@ export const createMapSlice: StateCreator<
   focusedSegment: null,
   focusedStep: null,
   alternativeSegment: null,
+  hoveredAlternativeRoute: null,
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
   setFocusedSegment: (segment) => set((state) => ({ 
     focusedSegment: segment,
-    ...(segment ? { alternativeSegment: null } : {})
+    ...(segment ? { alternativeSegment: null, hoveredAlternativeRoute: null } : {})
   })),
   setFocusedStep: (step) => set((state) => ({ 
     focusedStep: step,
-    ...(step ? { alternativeSegment: null } : {})
+    ...(step ? { alternativeSegment: null, hoveredAlternativeRoute: null } : {})
   })),
   setAlternativeSegment: (segment) => set((state) => ({ 
     alternativeSegment: segment,
-    ...(segment ? { focusedSegment: null, focusedStep: null } : {})
+    ...(segment ? { focusedSegment: null, focusedStep: null } : { hoveredAlternativeRoute: null })
   })),
+  setHoveredAlternativeRoute: (route) => set({ hoveredAlternativeRoute: route }),
 });

@@ -91,13 +91,27 @@ export const createJourneyDataSlice: StateCreator<
   },
 
   setActiveJourney: (journey) => {
-    set({ activeJourney: journey, focusBounds: null, focusedSegment: null, focusedStep: null });
+    set({ 
+      activeJourney: journey, 
+      focusBounds: null, 
+      focusedSegment: null, 
+      focusedStep: null,
+      alternativeSegment: null,
+      hoveredAlternativeRoute: null
+    });
     if (journey) {
       get().fetchJourneyDirections();
     }
   },
 
-  clearJourney: () => set({ activeJourney: null, focusBounds: null, focusedSegment: null, focusedStep: null }),
+  clearJourney: () => set({ 
+    activeJourney: null, 
+    focusBounds: null, 
+    focusedSegment: null, 
+    focusedStep: null,
+    alternativeSegment: null,
+    hoveredAlternativeRoute: null
+  }),
 
   addPlace: async (place) => {
     const { activeJourney } = get();
@@ -114,6 +128,8 @@ export const createJourneyDataSlice: StateCreator<
       focusBounds: null,
       focusedSegment: null,
       focusedStep: null,
+      alternativeSegment: null,
+      hoveredAlternativeRoute: null,
     }));
     
     // DB 동기화
@@ -141,6 +157,8 @@ export const createJourneyDataSlice: StateCreator<
       focusBounds: null,
       focusedSegment: null,
       focusedStep: null,
+      alternativeSegment: null,
+      hoveredAlternativeRoute: null,
     }));
     
     // DB 동기화
@@ -167,6 +185,8 @@ export const createJourneyDataSlice: StateCreator<
       focusBounds: null,
       focusedSegment: null,
       focusedStep: null,
+      alternativeSegment: null,
+      hoveredAlternativeRoute: null,
     }));
     
     // DB 동기화

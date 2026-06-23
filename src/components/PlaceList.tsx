@@ -87,7 +87,7 @@ export default function PlaceList({
   const transportType = activeJourney.transport_type || 'public';
 
   return (
-    <div className="flex-1 overflow-y-auto pt-4 pb-2">
+    <div className="flex-1 overflow-y-auto pt-4 pb-2 scrollbar-sidebar">
       <ul className="flex flex-col px-2">
         {localPlaces.map((place, idx) => (
           <PlaceCard

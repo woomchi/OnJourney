@@ -365,7 +365,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
               검색 결과가 없습니다.
             </div>
           ) : (
-            <ul className="max-h-72 overflow-y-auto divide-y divide-zinc-50">
+            <ul className="max-h-72 overflow-y-auto divide-y divide-zinc-50 scrollbar-sleek">
               {results.map((item) => {
                 const isAdded = activeJourney ? addedIds.has(item.id) : false;
                 return (
@@ -459,7 +459,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
             </p>
 
             {/* List or Fallback */}
-            <div className="flex-1 overflow-y-auto pr-1">
+            <div className="flex-1 overflow-y-auto pr-1 scrollbar-sleek">
               {journeys.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="w-12 h-12 rounded-2xl bg-zinc-50 flex items-center justify-center text-zinc-400 mb-3">

@@ -208,7 +208,7 @@ export default function AddPlaceModal() {
         </div>
 
         {/* 결과 리스트 */}
-        <div className="flex-1 overflow-y-auto pr-1">
+        <div className="flex-1 overflow-y-auto pr-1 scrollbar-sleek">
           {error ? (
             <p className="text-sm text-red-500 py-4" role="alert">
               {error}

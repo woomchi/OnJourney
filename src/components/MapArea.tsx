@@ -42,7 +42,8 @@ export default function MapArea() {
     focusedStep,
     setFocusedStep,
     alternativeSegment,
-    setAlternativeSegment
+    setAlternativeSegment,
+    hoveredAlternativeRoute
   } = useJourneyStore();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
@@ -377,9 +378,12 @@ export default function MapArea() {
               const cacheKey = `${place.id}-${nextPlace.id}`;
               const segmentData = directionsCache[cacheKey];
 
-              const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
+              const defaultRoute = place.selected_route && place.selected_route.destId === nextPlace.id
                 ? place.selected_route
                 : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
+
+              const isAlternativeSegment = alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id;
+              const activeRoute = (isAlternativeSegment && hoveredAlternativeRoute) ? hoveredAlternativeRoute : defaultRoute;
 
               if (!activeRoute || !activeRoute.steps) {
                 return null;
@@ -549,6 +553,8 @@ export default function MapArea() {
                 navermaps={navermaps}
                 zoomLevel={zoomLevel}
                 mapBounds={mapBounds}
+                hoveredAlternativeRoute={hoveredAlternativeRoute}
+                alternativeSegment={alternativeSegment}
               />
             )}
 
@@ -560,6 +566,8 @@ export default function MapArea() {
                 activeJourney={activeJourney}
                 focusedSegment={activeSegment}
                 navermaps={navermaps}
+                hoveredAlternativeRoute={hoveredAlternativeRoute}
+                alternativeSegment={alternativeSegment}
               />
             )}
 
@@ -855,6 +863,8 @@ interface DirectionalStripesProps {
   navermaps: any;
   zoomLevel: number;
   mapBounds: naver.maps.LatLngBounds | null;
+  hoveredAlternativeRoute?: any;
+  alternativeSegment?: any;
 }
 
 // 폴리라인 내부에 화살표 스트라이프 패턴을 렌더링하는 정적 마커 컴포넌트
@@ -867,6 +877,8 @@ function DirectionalStripes({
   navermaps,
   zoomLevel,
   mapBounds,
+  hoveredAlternativeRoute,
+  alternativeSegment,
 }: DirectionalStripesProps) {
   const stripePoints = useMemo(() => {
     const points: Array<{
@@ -888,9 +900,12 @@ function DirectionalStripes({
       const cacheKey = `${place.id}-${nextPlace.id}`;
       const segmentData = directionsCache[cacheKey];
 
-      const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
+      const defaultRoute = place.selected_route && place.selected_route.destId === nextPlace.id
         ? place.selected_route
         : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
+
+      const isAlternativeSegment = alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id;
+      const activeRoute = (isAlternativeSegment && hoveredAlternativeRoute) ? hoveredAlternativeRoute : defaultRoute;
 
       if (!activeRoute || !activeRoute.steps) {
         return;
@@ -1110,6 +1125,8 @@ interface TransferMarkersProps {
   activeJourney: any;
   focusedSegment: any;
   navermaps: any;
+  hoveredAlternativeRoute?: any;
+  alternativeSegment?: any;
 }
 
 function TransferMarkers({
@@ -1118,6 +1135,8 @@ function TransferMarkers({
   activeJourney,
   focusedSegment,
   navermaps,
+  hoveredAlternativeRoute,
+  alternativeSegment,
 }: TransferMarkersProps) {
   const { focusedStep, setFocusedStep, setFocusBounds, setFocusedSegment } = useJourneyStore();
 
@@ -1147,9 +1166,12 @@ function TransferMarkers({
       const cacheKey = `${place.id}-${nextPlace.id}`;
       const segmentData = directionsCache[cacheKey];
 
-      const activeRoute = place.selected_route && place.selected_route.destId === nextPlace.id
+      const defaultRoute = place.selected_route && place.selected_route.destId === nextPlace.id
         ? place.selected_route
         : (segmentData ? (transportType === 'car' ? (segmentData.car?.[0]) : transportType === 'walk' ? (segmentData.walk?.[0]) : segmentData.public?.[0]) : undefined);
+
+      const isAlternativeSegment = alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id;
+      const activeRoute = (isAlternativeSegment && hoveredAlternativeRoute) ? hoveredAlternativeRoute : defaultRoute;
 
       if (!activeRoute || !activeRoute.steps) {
         return;

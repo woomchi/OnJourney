@@ -362,7 +362,7 @@ export default function RouteGuidePanel({
       </div>
 
       {/* Guide List */}
-      <div className="flex-1 overflow-y-auto p-5 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto p-5 scrollbar-sleek">
         {hasGuide ? (
           // 차량 turn-by-turn 안내 노출
           <div className="relative pl-1 flex flex-col gap-5">

@@ -3,6 +3,13 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* Scrollbar Colors (White thumb with Gray border, Transparent track to match cards) */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #ffffff;       /* white thumb */
+  --scrollbar-thumb-hover: #fafafa; /* slightly off-white on hover */
+  --scrollbar-border: #e4e4e7;      /* zinc-200 border matching card borders */
+  --scrollbar-border-hover: #d4d4d8; /* zinc-300 border */
 }
 
 @theme inline {
@@ -30,6 +37,58 @@ body {
   scrollbar-width: none;  /* Firefox */
   &::-webkit-scrollbar {
     display: none; /* Chrome, Safari and Opera */
+  }
+}
+
+@utility scrollbar-sleek {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border: 1.5px solid var(--scrollbar-border);
+    border-radius: 9999px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover) !important;
+    border-color: var(--scrollbar-border-hover) !important;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+}
+
+@utility scrollbar-sidebar {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border: 1.5px solid var(--scrollbar-border);
+    border-radius: 9999px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover) !important;
+    border-color: var(--scrollbar-border-hover) !important;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
 }
 

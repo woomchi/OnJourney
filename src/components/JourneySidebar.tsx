@@ -759,7 +759,7 @@ export default function JourneySidebar() {
             </div>
           </div>
         ) : journeys.length > 0 ? (
-          <div className="flex-1 flex flex-col items-stretch gap-3 px-4 py-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none">
+          <div className="flex-1 flex flex-col items-stretch gap-3 px-4 py-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar">
             {localJourneys.map((journey, idx) => {
               const isDragged = draggedJourneyIndexRef.current === idx;
               return (

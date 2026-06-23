@@ -147,18 +147,16 @@ export default function PlaceCard({
               <button
                 type="button"
                 onClick={() => {
-                  setShowAlternatives((v) => {
-                    const nextShow = !v;
-                    if (nextShow) {
-                      setFocusedSegment(null);
-                      setFocusedStep(null);
-                      setFocusBounds(null);
-                      if (!segmentData && nextPlace) {
-                        fetchSegmentDirections(place, nextPlace);
-                      }
+                  const nextShow = !showAlternatives;
+                  setShowAlternatives(nextShow);
+                  if (nextShow) {
+                    setFocusedSegment(null);
+                    setFocusedStep(null);
+                    setFocusBounds(null);
+                    if (!segmentData && nextPlace) {
+                      fetchSegmentDirections(place, nextPlace);
                     }
-                    return nextShow;
-                  });
+                  }
                 }}
                 className={`
                   flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center

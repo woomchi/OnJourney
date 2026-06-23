@@ -343,107 +343,38 @@ export default function JourneySidebar() {
     return (
       <>
         <aside className="w-[35%] min-w-[380px] max-w-[480px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
-          {/* ── 헤더: 뒤로가기 | 제목 (center) & 재생 | 편집 ── */}
-          <header className={`flex items-center border-b border-zinc-100/80 flex-shrink-0 h-14 ${isEditMode ? 'bg-white' : 'bg-white/60 backdrop-blur-md'}`}>
-            {/* 뒤로가기 / 취소 */}
-            <button
-              type="button"
-              onClick={() => {
-                if (isEditMode) {
-                  setIsEditMode(false);
-                } else {
-                  clearJourney();
-                }
-              }}
-              className="flex items-center gap-1 px-4 h-full text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold flex-shrink-0 w-20"
-            >
-              {isEditMode ? (
-                <div className="w-4 h-4" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                </svg>
-              )}
-              {isEditMode ? '취소' : '뒤로'}
-            </button>
-
-            {/* 여정 제목 (가운데) & 재생 버튼 */}
-            <div className="flex-1 flex items-center justify-center gap-3 min-w-0 px-1">
+          {/* ── 뮤직 플레이어 패널 스타일 헤더 (초소형 1줄 통합 버전) ── */}
+          <header className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}>
+            
+            {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
+            <div className="absolute top-1.5 left-2 z-20">
               <button
                 type="button"
-                onClick={() => setIsEditModalOpen(true)}
-                className="flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 hover:bg-zinc-100/70 cursor-pointer border border-dashed border-transparent hover:border-zinc-200 select-none group max-w-[calc(100%-40px)]"
-                title="여정 정보 수정"
+                onClick={() => {
+                  if (isEditMode) {
+                    setIsEditMode(false);
+                  } else {
+                    clearJourney();
+                  }
+                }}
+                className="flex items-center gap-1 text-zinc-400 hover:text-zinc-700 transition-colors text-[11px] font-semibold rounded-md px-1 py-1"
               >
-                <div className="flex items-center gap-1 max-w-full justify-center">
-                  <span className="text-sm font-bold text-zinc-900 group-hover:text-blue-600 truncate leading-tight transition-colors">
-                    {activeJourney.title}
-                  </span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                {isEditMode ? (
+                  <div className="w-3.5 h-3.5" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
                   </svg>
-                </div>
-                <p className="text-[10px] text-zinc-400 group-hover:text-blue-500/70 mt-0.5 transition-colors truncate">
-                  {formatJourneyDate(activeJourney.journey_date)}&nbsp;·&nbsp;
-                  {activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}
-                </p>
+                )}
+                {isEditMode ? '취소' : '목록'}
               </button>
-
-              {!isEditMode && activeJourney.places.length >= 2 && (() => {
-                const isPlaying = !!focusedSegment || !!focusedStep;
-                return (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isPlaying) {
-                        setFocusedStep(null);
-                        setFocusedSegment(null);
-                        setFocusBounds(null);
-                      } else {
-                        const firstPlace = activeJourney.places[0];
-                        const secondPlace = activeJourney.places[1];
-                        const { directionsCache } = useJourneyStore.getState();
-                        
-                        const cacheKey = `${firstPlace.id}-${secondPlace.id}`;
-                        const segmentData = directionsCache[cacheKey];
-                        const activeRoute = firstPlace.selected_route && firstPlace.selected_route.destId === secondPlace.id
-                          ? firstPlace.selected_route
-                          : (segmentData ? (activeJourney.transport_type === 'car' ? segmentData.car?.[0] : activeJourney.transport_type === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
-
-                        if (activeRoute) {
-                          setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
-                          setFocusedStep(null);
-
-                          const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
-                          setFocusBounds(bounds);
-                        }
-                      }
-                    }}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center shadow-sm transition-all active:scale-95 flex-shrink-0 ${
-                      isPlaying ? 'bg-zinc-800 hover:bg-zinc-900 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
-                    }`}
-                    title={isPlaying ? "전체 여정 보기" : "전체 여정 재생"}
-                  >
-                    {isPlaying ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-                        <rect x="5.5" y="4.5" width="4.5" height="15" rx="1.5" />
-                        <rect x="14" y="4.5" width="4.5" height="15" rx="1.5" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5">
-                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                );
-              })()}
             </div>
 
-            {/* 편집 및 동기화 상태 */}
-            <div className="flex items-center justify-end flex-shrink-0 w-24 pr-4 gap-2 h-full">
+            {/* 오른쪽 상단 모서리: 편집 및 동기화 */}
+            <div className="absolute top-1.5 right-2 z-20 flex justify-end items-center gap-1">
               {isSyncing && (
-                <div className="flex items-center gap-1" title="클라우드 동기화 중">
-                  <svg className="w-3.5 h-3.5 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <div className="flex items-center" title="클라우드 동기화 중">
+                  <svg className="w-3 h-3 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
@@ -452,21 +383,18 @@ export default function JourneySidebar() {
               <button
                 type="button"
                 onClick={isEditMode ? handleDoneEdit : () => setIsEditMode(true)}
-                className={`
-                  flex items-center gap-1 text-xs font-semibold transition-colors
-                  ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'}
-                `}
+                className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-1 ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'}`}
               >
                 {isEditMode ? (
                   <>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
                     완료
                   </>
                 ) : (
                   <>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                     </svg>
                     편집
@@ -474,6 +402,146 @@ export default function JourneySidebar() {
                 )}
               </button>
             </div>
+
+            {/* 중앙 바: 여정 정보 (버튼 사이에 위치) */}
+            <div className="w-full flex justify-center px-16 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className="flex-1 flex flex-col items-center justify-center min-w-0 rounded-xl transition-all duration-300 hover:bg-zinc-50/80 cursor-pointer px-1 py-1 group border border-transparent hover:border-zinc-200/50"
+                title="여정 정보 수정"
+              >
+                {/* 노래 제목 느낌 */}
+                <div className="flex items-center justify-center max-w-full px-1">
+                  <h2 className="text-sm font-black tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
+                    {activeJourney.title}
+                  </h2>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3 text-blue-500 opacity-0 group-hover:opacity-100 transition-all ml-0.5 shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                  </svg>
+                </div>
+                
+                {/* 작사/작곡가 느낌 (생성 날짜 & 테마) */}
+                <p className="text-[9px] font-medium text-zinc-400/80 mt-0.5 flex items-center gap-1 group-hover:text-zinc-500 transition-colors truncate max-w-full">
+                  <span className="truncate">{formatJourneyDate(activeJourney.journey_date)}</span>
+                  <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
+                  <span className="shrink-0">{activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}</span>
+                </p>
+              </button>
+            </div>
+
+            {/* 하단: 여정 이동 및 재생 조절 컨트롤 */}
+            {!isEditMode && (() => {
+              const isPlaying = !!focusedSegment || !!focusedStep;
+              const activeIndex = journeys.findIndex(j => j.id === activeJourney.id);
+              const prevJourney = activeIndex > 0 ? journeys[activeIndex - 1] : null;
+              const nextJourney = activeIndex >= 0 && activeIndex < journeys.length - 1 ? journeys[activeIndex + 1] : null;
+
+              return (
+                <div className="flex items-center justify-center gap-6 pb-2.5 w-full">
+                  {/* 이전 여정 (<<) */}
+                  <button
+                    type="button"
+                    disabled={!prevJourney}
+                    onClick={() => {
+                      if (prevJourney) {
+                        setFocusedStep(null);
+                        setFocusedSegment(null);
+                        setFocusBounds(null);
+                        setActiveJourney(prevJourney);
+                      }
+                    }}
+                    className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
+                    title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M19.332 3.167a.75.75 0 0 1 .743.743v16.18a.75.75 0 0 1-1.258.552L10.378 13.91a.75.75 0 0 1 0-1.076L18.817 6.1a.75.75 0 0 1 .515-.221ZM10.5 3.167a.75.75 0 0 1 .743.743v16.18a.75.75 0 0 1-1.258.552L1.547 13.91a.75.75 0 0 1 0-1.076L9.986 6.1a.75.75 0 0 1 .514-.221Z" />
+                    </svg>
+                  </button>
+
+                  {/* 여정 재생/정지 */}
+                  {activeJourney.places.length >= 2 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isPlaying) {
+                          setFocusedStep(null);
+                          setFocusedSegment(null);
+                          setFocusBounds(null);
+                        } else {
+                          const firstPlace = activeJourney.places[0];
+                          const secondPlace = activeJourney.places[1];
+                          const { directionsCache } = useJourneyStore.getState();
+
+                          const cacheKey = `${firstPlace.id}-${secondPlace.id}`;
+                          const segmentData = directionsCache[cacheKey];
+                          const activeRoute = firstPlace.selected_route && firstPlace.selected_route.destId === secondPlace.id
+                            ? firstPlace.selected_route
+                            : (segmentData ? (activeJourney.transport_type === 'car' ? segmentData.car?.[0] : activeJourney.transport_type === 'walk' ? segmentData.walk?.[0] : segmentData.public?.[0]) : undefined);
+
+                          if (activeRoute) {
+                            setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
+                            setFocusedStep(null);
+
+                            const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
+                            setFocusBounds(bounds);
+                          }
+                        }
+                      }}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-transform active:scale-95 flex-shrink-0 ${isPlaying
+                          ? 'bg-zinc-800 hover:bg-zinc-900 text-white shadow-zinc-900/20'
+                          : 'bg-gradient-to-tr from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-blue-500/30'
+                        }`}
+                      title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
+                    >
+                      {isPlaying ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                          <rect x="6" y="5" width="4" height="14" rx="1.5" />
+                          <rect x="14" y="5" width="4" height="14" rx="1.5" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5">
+                          <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 flex-shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5 text-zinc-300">
+                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* 다음 여정 (>>) */}
+                  <button
+                    type="button"
+                    disabled={!nextJourney}
+                    onClick={() => {
+                      if (nextJourney) {
+                        setFocusedStep(null);
+                        setFocusedSegment(null);
+                        setFocusBounds(null);
+                        setActiveJourney(nextJourney);
+                      }
+                    }}
+                    className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
+                    title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M4.668 20.833a.75.75 0 0 1-.743-.743V3.91a.75.75 0 0 1 1.258-.552l8.439 6.734a.75.75 0 0 1 0 1.076l-8.439 6.734a.75.75 0 0 1-.515.221ZM13.5 20.833a.75.75 0 0 1-.743-.743V3.91a.75.75 0 0 1 1.258-.552l8.439 6.734a.75.75 0 0 1 0 1.076l-8.439 6.734a.75.75 0 0 1-.514.221Z" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* 플레이어 하단 디자인 요소 (재생 바 같은 느낌) */}
+            {!isEditMode && (
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-zinc-100">
+                <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 w-1/3 rounded-r-full opacity-70"></div>
+              </div>
+            )}
           </header>
 
           {/* ── 장소 목록 (스크롤 영역) ── */}
@@ -637,11 +705,10 @@ export default function JourneySidebar() {
                   onDragStart={(e) => handleJourneyDragStart(e, idx)}
                   onDragOver={(e) => handleJourneyDragOver(e, idx)}
                   onDragEnd={handleJourneyDragEnd}
-                  className={`journey-card-content relative flex items-center w-full bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all group ${
-                    isListEditMode
+                  className={`journey-card-content relative flex items-center w-full bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all group ${isListEditMode
                       ? 'cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
                       : 'hover:border-blue-500 hover:shadow-md'
-                  } ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${isListEditMode ? 'opacity-90' : ''}`}
+                    } ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${isListEditMode ? 'opacity-90' : ''}`}
                   onClick={() => {
                     if (isListEditMode) {
                       handleToggleSelect(journey.id);
@@ -669,9 +736,8 @@ export default function JourneySidebar() {
                         setActiveJourney(journey);
                       }
                     }}
-                    className={`flex-1 text-left p-5 flex flex-col gap-3 focus:outline-none ${
-                      isListEditMode ? 'pl-4' : ''
-                    }`}
+                    className={`flex-1 text-left p-5 flex flex-col gap-3 focus:outline-none ${isListEditMode ? 'pl-4' : ''
+                      }`}
                   >
                     <div>
                       <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full transition-colors group-hover:bg-blue-100">

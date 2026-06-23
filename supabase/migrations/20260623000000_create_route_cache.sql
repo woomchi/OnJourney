@@ -13,3 +13,13 @@ CREATE INDEX IF NOT EXISTS route_cache_coords_idx ON route_cache(origin_lat, ori
 
 -- TTL 적용을 위한 주기적인 정리 작업은 애플리케이션 레벨(조회 시 7일 경과 데이터 무시 및 덮어쓰기)에서 처리하거나 
 -- pg_cron이 지원되는 환경에서 cron job으로 설정 가능합니다. 여기서는 애플리케이션 단에서 7일 지난 데이터를 갱신하도록 구성합니다.
+
+-- RLS 설정 및 정책 추가
+ALTER TABLE route_cache ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can select from route_cache" ON route_cache;
+CREATE POLICY "Anyone can select from route_cache" ON route_cache FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Anyone can insert into route_cache" ON route_cache;
+CREATE POLICY "Anyone can insert into route_cache" ON route_cache FOR INSERT WITH CHECK (true);
+

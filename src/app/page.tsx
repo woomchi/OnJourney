@@ -1,5 +1,22 @@
-import MapArea from '@/components/MapArea';
+"use client";
+
+import dynamic from 'next/dynamic';
 import JourneySidebar from '@/components/JourneySidebar';
+
+const MapArea = dynamic(() => import('@/components/MapArea'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center bg-zinc-50">
+      <div className="flex flex-col items-center gap-3">
+        <svg className="w-8 h-8 animate-spin text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        <span className="text-sm font-semibold text-zinc-500 font-sans">지도를 로드하고 있습니다...</span>
+      </div>
+    </div>
+  ),
+});
 
 export default function Home() {
   return (

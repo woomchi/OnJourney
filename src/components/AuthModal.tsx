@@ -8,6 +8,13 @@ import {
   validatePassword,
 } from '@/lib/auth/security';
 import { useAuth } from '@/providers/AuthProvider';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 type AuthMode = 'login' | 'signup';
 
@@ -22,8 +29,6 @@ export default function AuthModal() {
 
   const failedAttemptsRef = useRef(0);
   const lockoutUntilRef = useRef(0);
-
-  if (!isAuthModalOpen) return null;
 
   const checkRateLimit = (): boolean => {
     const now = Date.now();
@@ -102,100 +107,90 @@ export default function AuthModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
-        onClick={handleClose}
-        aria-hidden="true"
-      />
+    <Dialog open={isAuthModalOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="p-8">
+        <DialogHeader>
+          <DialogTitle>{mode === 'login' ? '로그인' : '회원가입'}</DialogTitle>
+          <DialogDescription>
+            여정을 저장하려면 계정이 필요합니다.
+          </DialogDescription>
+        </DialogHeader>
 
-      <form
-        onSubmit={handleSubmit}
-        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-zinc-100 p-8"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="auth-modal-title"
-      >
-        <h2 id="auth-modal-title" className="text-2xl font-black text-zinc-900 mb-1">
-          {mode === 'login' ? '로그인' : '회원가입'}
-        </h2>
-        <p className="text-sm text-zinc-500 mb-8">
-          여정을 저장하려면 계정이 필요합니다.
-        </p>
+        <form onSubmit={handleSubmit} className="mt-4">
+          <label className="block mb-4">
+            <span className="text-sm font-bold text-zinc-700 mb-2 block">이메일</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              autoComplete="email"
+              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px]"
+              autoFocus
+            />
+          </label>
 
-        <label className="block mb-4">
-          <span className="text-sm font-bold text-zinc-700 mb-2 block">이메일</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-            autoComplete="email"
-            className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px]"
-            autoFocus
-          />
-        </label>
-
-        <label className="block mb-2">
-          <span className="text-sm font-bold text-zinc-700 mb-2 block">비밀번호</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={`${MIN_PASSWORD_LENGTH}자 이상, 영문+숫자 포함`}
-            required
-            minLength={MIN_PASSWORD_LENGTH}
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px]"
-          />
-        </label>
-        <p className="text-xs text-zinc-400 mb-6">
-          {MIN_PASSWORD_LENGTH}자 이상, 영문자와 숫자를 포함해주세요.
-        </p>
-
-        {info && (
-          <p className="text-sm text-blue-600 mb-4" role="status">
-            {info}
+          <label className="block mb-2">
+            <span className="text-sm font-bold text-zinc-700 mb-2 block">비밀번호</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={`${MIN_PASSWORD_LENGTH}자 이상, 영문+숫자 포함`}
+              required
+              minLength={MIN_PASSWORD_LENGTH}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px]"
+            />
+          </label>
+          <p className="text-xs text-zinc-400 mb-6">
+            {MIN_PASSWORD_LENGTH}자 이상, 영문자와 숫자를 포함해주세요.
           </p>
-        )}
 
-        {error && (
-          <p className="text-sm text-red-500 mb-4" role="alert">
-            {error}
+          {info && (
+            <p className="text-sm text-blue-600 mb-4" role="status">
+              {info}
+            </p>
+          )}
+
+          {error && (
+            <p className="text-sm text-red-500 mb-4" role="alert">
+              {error}
+            </p>
+          )}
+
+          <div className="flex gap-3 mb-4">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="flex-1 py-3.5 rounded-2xl border border-zinc-200 text-zinc-600 font-bold text-[15px] hover:bg-zinc-50 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 py-3.5 rounded-2xl bg-zinc-900 text-white font-bold text-[15px] hover:bg-zinc-800 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {isSubmitting ? '로그인 중...' : mode === 'login' ? '로그인' : '가입하기'}
+            </button>
+          </div>
+
+          <p className="text-center text-sm text-zinc-500">
+            {mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
+            {' '}
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+            >
+              {mode === 'login' ? '회원가입' : '로그인'}
+            </button>
           </p>
-        )}
-
-        <div className="flex gap-3 mb-4">
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={isSubmitting}
-            className="flex-1 py-3.5 rounded-2xl border border-zinc-200 text-zinc-600 font-bold text-[15px] hover:bg-zinc-50 transition-colors disabled:opacity-50"
-          >
-            취소
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex-1 py-3.5 rounded-2xl bg-zinc-900 text-white font-bold text-[15px] hover:bg-zinc-800 transition-colors disabled:opacity-50"
-          >
-            {isSubmitting ? '로그인 중...' : mode === 'login' ? '로그인' : '가입하기'}
-          </button>
-        </div>
-
-        <p className="text-center text-sm text-zinc-500">
-          {mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
-          {' '}
-          <button
-            type="button"
-            onClick={toggleMode}
-            className="font-bold text-blue-600 hover:text-blue-700"
-          >
-            {mode === 'login' ? '회원가입' : '로그인'}
-          </button>
-        </p>
-      </form>
-    </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

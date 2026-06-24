@@ -3,6 +3,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 interface PlaceResult {
   id: string;
@@ -125,44 +132,22 @@ export default function AddPlaceModal() {
     inputRef.current?.focus();
   };
 
-  if (!isAddPlaceOpen) return null;
+  const handleClose = () => {
+    closeAddPlace();
+  };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
-        onClick={closeAddPlace}
-        aria-hidden="true"
-      />
-
-      <div
-        className="relative w-full max-w-md h-[520px] bg-white rounded-3xl shadow-2xl border border-zinc-100 p-8 flex flex-col"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="add-place-title"
-      >
-        {/* 헤더 */}
-        <div className="flex items-center justify-between mb-2">
-          <h2 id="add-place-title" className="text-2xl font-black text-zinc-900">
-            장소 추가
-          </h2>
-          <button
-            type="button"
-            onClick={closeAddPlace}
-            className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-500 transition-colors"
-            aria-label="닫기"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <p className="text-sm text-zinc-500 mb-6">
-          여정에 추가할 장소를 검색하고 클릭하여 추가해보세요.
-        </p>
+    <Dialog open={isAddPlaceOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="max-w-md h-[520px] p-8 flex flex-col gap-4">
+        <DialogHeader className="space-y-1">
+          <DialogTitle>장소 추가</DialogTitle>
+          <DialogDescription>
+            여정에 추가할 장소를 검색하고 클릭하여 추가해보세요.
+          </DialogDescription>
+        </DialogHeader>
 
         {/* 검색창 */}
-        <div className="relative mb-4">
+        <div className="relative">
           <div className="flex items-center gap-3 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -196,7 +181,7 @@ export default function AddPlaceModal() {
               <button
                 type="button"
                 onClick={handleClear}
-                className="w-5 h-5 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors"
+                className="w-5 h-5 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors cursor-pointer"
                 aria-label="지우기"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-zinc-600">
@@ -262,7 +247,7 @@ export default function AddPlaceModal() {
             </ul>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

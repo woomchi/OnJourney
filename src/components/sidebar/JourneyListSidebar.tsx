@@ -29,6 +29,8 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
   const [localJourneys, setLocalJourneys] = useState<Journey[]>([]);
   const [isListDragging, setIsListDragging] = useState(false);
   const draggedJourneyIndexRef = useRef<number | null>(null);
+  const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
+  const [droppedJourneyId, setDroppedJourneyId] = useState<string | null>(null);
 
   // Sync localJourneys with journeys when not dragging
   useEffect(() => {
@@ -90,13 +92,25 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
       const rect = cardElement.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+      
+      // Inject floating preview styles momentarily
+      cardElement.classList.add('shadow-2xl', 'scale-[1.02]', 'border-blue-200', 'bg-white');
       e.dataTransfer.setDragImage(cardElement, x, y);
+      setTimeout(() => {
+        cardElement.classList.remove('shadow-2xl', 'scale-[1.02]', 'border-blue-200', 'bg-white');
+      }, 0);
     }
 
     setIsListDragging(true);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index.toString());
     draggedJourneyIndexRef.current = index;
+    setDraggedJourneyId(localJourneys[index]?.id || null);
+
+    // Haptic feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(10);
+    }
   };
 
   const handleJourneyDragOver = (e: React.DragEvent, index: number) => {
@@ -110,6 +124,11 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
     updated.splice(index, 0, draggedItem);
     draggedJourneyIndexRef.current = index;
     setLocalJourneys(updated);
+
+    // Haptic feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(5);
+    }
   };
 
   const handleJourneyDragEnd = () => {
@@ -120,6 +139,18 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
       localStorage.setItem(`journey_order_${user.id}`, JSON.stringify(orderIds));
     }
     setJourneys(localJourneys);
+
+    if (draggedJourneyId) {
+      setDroppedJourneyId(draggedJourneyId);
+      // Haptic feedback
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+      setTimeout(() => {
+        setDroppedJourneyId((curr) => curr === draggedJourneyId ? null : curr);
+      }, 800);
+    }
+    setDraggedJourneyId(null);
   };
 
   const handleCreateClick = () => {
@@ -218,7 +249,8 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
       ) : journeys.length > 0 ? (
         <div className="flex-1 flex flex-col items-stretch gap-3 px-4 py-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar">
           {localJourneys.map((journey, idx) => {
-            const isDragged = draggedJourneyIndexRef.current === idx;
+            const isDragged = draggedJourneyId === journey.id;
+            const isDropped = droppedJourneyId === journey.id;
             return (
               <div
                 key={journey.id}
@@ -226,10 +258,13 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
                 onDragStart={(e) => handleJourneyDragStart(e, idx)}
                 onDragOver={(e) => handleJourneyDragOver(e, idx)}
                 onDragEnd={handleJourneyDragEnd}
-                className={`journey-card-content relative flex items-center w-full bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all group ${isListEditMode
-                    ? 'cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
-                    : 'hover:border-blue-500 hover:shadow-md'
-                  } ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${isListEditMode ? 'opacity-90' : ''}`}
+                className={`journey-card-content relative flex items-center w-full bg-white border rounded-2xl shadow-sm transition-all group ${
+                  isDropped
+                    ? 'animate-drop-ripple border-blue-400 z-20 shadow-[0_4px_20px_rgba(59,130,246,0.15)]'
+                    : isListEditMode
+                      ? 'border-zinc-100 cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+                      : 'border-zinc-100 hover:border-blue-500 hover:shadow-md'
+                } ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${isListEditMode ? 'opacity-90' : ''}`}
                 onClick={() => {
                   if (isListEditMode) {
                     handleToggleSelect(journey.id);

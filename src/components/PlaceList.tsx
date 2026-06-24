@@ -22,6 +22,8 @@ export default function PlaceList({
 }: PlaceListProps) {
   const { activeJourney } = useJourneyStore();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [droppedId, setDroppedId] = useState<string | null>(null);
 
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
@@ -59,12 +61,24 @@ export default function PlaceList({
       const rect = cardElement.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+      
+      // Inject floating preview styles momentarily
+      cardElement.classList.add('shadow-2xl', 'scale-[1.02]', 'border-blue-200', 'bg-white');
       e.dataTransfer.setDragImage(cardElement, x, y);
+      setTimeout(() => {
+        cardElement.classList.remove('shadow-2xl', 'scale-[1.02]', 'border-blue-200', 'bg-white');
+      }, 0);
     }
 
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index.toString());
     setDraggedIndex(index);
+    setDraggedId(localPlaces[index]?.id || null);
+
+    // Haptic feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(10);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
@@ -78,10 +92,26 @@ export default function PlaceList({
     updated.splice(index, 0, draggedItem);
     setDraggedIndex(index);
     setLocalPlaces(updated);
+
+    // Haptic feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(5);
+    }
   };
 
   const handleDragEnd = () => {
+    if (draggedId) {
+      setDroppedId(draggedId);
+      // Haptic feedback
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+      setTimeout(() => {
+        setDroppedId((curr) => curr === draggedId ? null : curr);
+      }, 800);
+    }
     setDraggedIndex(null);
+    setDraggedId(null);
   };
 
   const transportType = activeJourney.transport_type || 'public';
@@ -100,6 +130,7 @@ export default function PlaceList({
             onDragOver={(e) => handleDragOver(e, idx)}
             onDragEnd={handleDragEnd}
             isDragged={draggedIndex === idx}
+            isDropped={droppedId === place.id}
             isSelected={selectedIds.includes(place.id)}
             onToggleSelect={() => onToggleSelect(place.id)}
             nextPlace={idx < localPlaces.length - 1 ? localPlaces[idx + 1] : null}

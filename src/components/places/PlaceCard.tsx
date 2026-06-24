@@ -62,6 +62,7 @@ interface PlaceCardProps {
   onDragOver: (e: React.DragEvent) => void;
   onDragEnd: () => void;
   isDragged: boolean;
+  isDropped?: boolean;
   isSelected: boolean;
   onToggleSelect: () => void;
   nextPlace: Place | null;
@@ -77,6 +78,7 @@ export default function PlaceCard({
   onDragOver,
   onDragEnd,
   isDragged,
+  isDropped = false,
   isSelected,
   onToggleSelect,
   nextPlace,
@@ -172,10 +174,13 @@ export default function PlaceCard({
         {/* 장소 카드 */}
         <div
           onClick={editMode ? onToggleSelect : undefined}
-          className={`place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border border-zinc-100 rounded-2xl shadow-sm transition-all duration-200 ${editMode
-            ? 'cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
-            : 'group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
-            }`}
+          className={`place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border rounded-2xl shadow-sm transition-all duration-200 ${
+            isDropped
+              ? 'animate-drop-ripple border-blue-400 z-20 shadow-[0_4px_20px_rgba(59,130,246,0.15)]'
+              : editMode
+                ? 'border-zinc-100 cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+                : 'border-zinc-100 group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+          }`}
         >
           <div className="flex items-center px-4 py-3 gap-2">
             {/* 체크박스 - 편집 상태에만 왼쪽에 노출 */}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Polyline } from 'react-naver-maps';
 
-export default function AnimatedPolyline({ path, delay = 0, duration = 800, skipAnimation = false, ...props }: any) {
+export default function AnimatedPolyline({ path, delay = 0, duration = 800, skipAnimation = false, onComplete, ...props }: any) {
   const [currentPath, setCurrentPath] = useState<any[]>([]);
   const requestRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number | null>(null);
@@ -34,6 +34,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       } else {
         setCurrentPath([...path]);
       }
+      if (onComplete) onComplete();
       return;
     }
 
@@ -66,6 +67,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
     // If total distance is 0, just show it
     if (totalDist === 0) {
       setCurrentPath([...path]);
+      if (onComplete) onComplete();
       return;
     }
 
@@ -88,6 +90,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
         } else {
           setCurrentPath([...path]);
         }
+        if (onComplete) onComplete();
         return;
       }
 
@@ -139,7 +142,8 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       clearTimeout(timeoutId);
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [pathKey, delay, duration]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathKey]);
 
   if (!currentPath || currentPath.length === 0) return null;
 

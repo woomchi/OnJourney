@@ -380,17 +380,6 @@ export default function MapArea() {
   const animatedSegmentsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (places && places.length > 1) {
-      places.forEach((place, idx) => {
-        if (idx === places.length - 1) return;
-        const nextPlace = places[idx + 1];
-        const cacheKey = `${place.id}-${nextPlace.id}`;
-        animatedSegmentsRef.current.add(cacheKey);
-      });
-    }
-  }, [places]);
-
-  useEffect(() => {
     if (!map) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
@@ -472,11 +461,24 @@ export default function MapArea() {
               };
 
               return routesToRender.map(({ route, isHoveredRoute }) => {
+                const totalAnimDuration = isHoveredRoute ? 300 : 800;
+                
+                // 각 스텝별로 거리에 비례하여 애니메이션 시간을 분배 (거리가 없으면 균등 분배)
+                const totalDistance = route.steps.reduce((sum: number, s: any) => sum + (s.distance || 1), 0);
+                
+                let currentStepDelay = delays.pathDelays[`${place.id}-${nextPlace.id}`] ?? (idx * 800 + 400);
+                if (isHoveredRoute) currentStepDelay = 0;
+
                 return route.steps.map((step: any, sIdx: number) => {
                   const stepPath = step.pathPoints || [];
                   if (stepPath.length < 2) return null;
 
-                  const baseDelay = delays.pathDelays[`${place.id}-${nextPlace.id}`] ?? (idx * 800 + 400);
+                  const stepRatio = (step.distance || 1) / totalDistance;
+                  const stepDuration = Math.max(100, totalAnimDuration * stepRatio); // 최소 100ms 보장
+                  const stepDelay = currentStepDelay;
+                  
+                  // 다음 스텝의 시작 시간을 현재 스텝 애니메이션 종료 후로 설정
+                  currentStepDelay += stepDuration;
 
                   // AnimatedPolyline 내부에서 LatLng 처리를 수행하므로, 원본 배열을 그대로 전달하여 참조를 유지합니다.
                   const pathPoints = stepPath;
@@ -555,8 +557,8 @@ export default function MapArea() {
                       <AnimatedPolyline
                         key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}
                         path={pathPoints}
-                        delay={baseDelay + sIdx * 15}
-                        duration={400}
+                        delay={stepDelay}
+                        duration={stepDuration}
                         skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
                         strokeColor={segmentColor}
                         strokeOpacity={walkOpacity}
@@ -577,8 +579,8 @@ export default function MapArea() {
                       {/* 1. 배경 외곽선 (흰색 테두리) */}
                       <AnimatedPolyline
                         path={pathPoints}
-                        delay={baseDelay + sIdx * 15}
-                        duration={400}
+                        delay={stepDelay}
+                        duration={stepDuration}
                         skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
                         strokeColor="#FFFFFF"
                         strokeOpacity={0.95}
@@ -593,8 +595,8 @@ export default function MapArea() {
                       {/* 2. 본래 색상의 실제 경로선 */}
                       <AnimatedPolyline
                         path={pathPoints}
-                        delay={baseDelay + sIdx * 15}
-                        duration={400}
+                        delay={stepDelay}
+                        duration={stepDuration}
                         skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
                         strokeColor={strokeColor}
                         strokeOpacity={strokeOpacity}
@@ -739,7 +741,7 @@ export default function MapArea() {
 
 
       {/* 상세 경로 안내 패널: 사이드바 오른쪽에 따로 띄움 */}
-      {activeRouteOfFocusedSegment && focusedPlaces && (
+      {activeRouteOfFocusedSegment && focusedPlaces && !alternativePlaces && (
         <RouteGuidePanel
           route={activeRouteOfFocusedSegment}
           originPlace={focusedPlaces.originPlace}

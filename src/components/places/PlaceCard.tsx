@@ -10,6 +10,7 @@ import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import SegmentInfo from './SegmentInfo';
 import { getCategoryTheme } from '@/lib/categoryUtils';
+import { getSequenceTheme } from '@/constants/colors';
 
 const themeClasses = {
   cafe: {
@@ -144,16 +145,25 @@ export default function PlaceCard({
       <div className="flex items-center gap-0 group">
         {/* 번호 + 세로선 컬럼 */}
         {(() => {
-          const theme = getCategoryTheme(place.category);
-          const classes = themeClasses[theme.type] || themeClasses.etc;
+          const theme = getSequenceTheme(index, places.length);
           return (
             <div className="flex flex-col items-center w-10 flex-shrink-0 self-stretch select-none">
-              <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${classes.bg} shadow-md flex items-center justify-center text-white text-xs font-bold z-10 flex-shrink-0`}>
+              <div 
+                className="w-8 h-8 rounded-full shadow-md flex items-center justify-center text-white text-xs font-bold z-10 flex-shrink-0"
+                style={{
+                  background: `linear-gradient(135deg, ${theme.gradientStart}, ${theme.gradientEnd})`
+                }}
+              >
                 {index + 1}
               </div>
               {/* 세로 연결선 (마지막 카드 제외) */}
               {!isLast && (
-                <div className={`flex-1 w-px bg-gradient-to-b ${classes.line} to-transparent min-h-[2rem] mt-1`} />
+                <div 
+                  className="flex-1 w-px min-h-[2rem] mt-1"
+                  style={{
+                    background: `linear-gradient(180deg, ${theme.color}, transparent)`
+                  }}
+                />
               )}
             </div>
           );

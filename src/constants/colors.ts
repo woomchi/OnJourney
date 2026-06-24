@@ -10,6 +10,58 @@ export const SEQUENCE_COLORS = [
   '#DC2626', // 6번째 이상: Rose Red (어두운 계열)
 ];
 
+export interface SequenceTheme {
+  color: string;
+  gradientStart: string;
+  gradientEnd: string;
+}
+
+export function getSequenceTheme(idx: number, totalPlaces: number): SequenceTheme {
+  const colorIndex = totalPlaces > 1
+    ? Math.min(idx, totalPlaces - 2) % SEQUENCE_COLORS.length
+    : 0;
+
+  switch (colorIndex) {
+    case 0:
+      return {
+        color: '#4F46E5',
+        gradientStart: '#818CF8', // Indigo 400
+        gradientEnd: '#4338CA',   // Indigo 700
+      };
+    case 1:
+      return {
+        color: '#EC4899',
+        gradientStart: '#F472B6', // Pink 400
+        gradientEnd: '#BE185D',   // Pink 700
+      };
+    case 2:
+      return {
+        color: '#0D9488',
+        gradientStart: '#2DD4BF', // Teal 400
+        gradientEnd: '#0F766E',   // Teal 700
+      };
+    case 3:
+      return {
+        color: '#D97706',
+        gradientStart: '#FBBF24', // Amber 400
+        gradientEnd: '#B45309',   // Amber 700
+      };
+    case 4:
+      return {
+        color: '#6D28D9',
+        gradientStart: '#8B5CF6', // Purple 500
+        gradientEnd: '#5B21B6',   // Purple 800
+      };
+    case 5:
+    default:
+      return {
+        color: '#DC2626',
+        gradientStart: '#F87171', // Red 400
+        gradientEnd: '#B91C1C',   // Red 700
+      };
+  }
+}
+
 // 지하철 호선별 색상 매핑
 export const SUBWAY_COLORS: Record<string, string> = {
   '1호선': '#0052A4',

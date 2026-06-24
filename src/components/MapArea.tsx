@@ -16,8 +16,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
-import { getCategoryTheme } from '@/lib/categoryUtils';
-import { SEQUENCE_COLORS } from '@/constants/colors';
+import { SEQUENCE_COLORS, getSequenceTheme } from '@/constants/colors';
 
 
 
@@ -656,7 +655,7 @@ export default function MapArea() {
               const anchorX = isSegmentMarker ? 15 : 12;
               const anchorY = isSegmentMarker ? 38 : 30;
 
-              const theme = getCategoryTheme(place.category);
+              const theme = getSequenceTheme(idx, places.length);
 
               return (
                 <AnimatedMarker

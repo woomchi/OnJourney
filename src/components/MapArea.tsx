@@ -14,6 +14,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
+import { getCategoryTheme } from '@/lib/categoryUtils';
 
 const SEQUENCE_COLORS = [
   '#4F46E5', // 1번째 구간: Indigo Blue
@@ -440,9 +441,7 @@ export default function MapArea() {
 
                 // 교통수단 색상 대신 순서(idx) 기반 색상으로 매핑
                 const segmentColor = SEQUENCE_COLORS[idx % SEQUENCE_COLORS.length];
-                const stepColor = step.color || segmentColor;
-
-                const strokeColor = stepColor;
+                const strokeColor = segmentColor;
 
                 let strokeOpacity = 0.8;
                 let strokeWeight = 4.5;
@@ -461,7 +460,7 @@ export default function MapArea() {
                 const isWalk = step.type === 'walk';
 
                 if (isWalk) {
-                  // 도보 구간: 얇은 회색 점선으로 표시 (방향 화살표 제외하여 깔끔하게 처리)
+                  // 도보 구간: 구간 고유 색상의 점선으로 표시 (방향 화살표 제외하여 깔끔하게 처리)
                   let walkOpacity = 0.65;
                   let walkWeight = 2.5;
 
@@ -477,7 +476,7 @@ export default function MapArea() {
                     <Polyline
                       key={`polyline-${place.id}-${nextPlace.id}-${sIdx}`}
                       path={pathPoints}
-                      strokeColor="#A1A1AA"
+                      strokeColor={segmentColor}
                       strokeOpacity={walkOpacity}
                       strokeWeight={walkWeight}
                       strokeStyle="shortdash"
@@ -563,6 +562,8 @@ export default function MapArea() {
               const anchorX = isSegmentMarker ? 15 : 12;
               const anchorY = isSegmentMarker ? 38 : 30;
 
+              const theme = getCategoryTheme(place.category);
+
               return (
                 <Marker
                   key={place.id}
@@ -574,21 +575,18 @@ export default function MapArea() {
                   icon={{
                     content: `<div style="
                       cursor: pointer;
-                      filter: drop-shadow(0 3px 6px rgba(59, 130, 246, 0.35));
+                      filter: drop-shadow(0 3px 6px ${theme.color}59);
                     ">
                       <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                           <linearGradient id="pinGrad-${idx}" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#3b82f6" />
-                            <stop offset="100%" stop-color="#6366f1" />
+                            <stop offset="0%" stop-color="${theme.gradientStart}" />
+                            <stop offset="100%" stop-color="${theme.gradientEnd}" />
                           </linearGradient>
                         </defs>
-                        <!-- 날씬한 물방울 모양 ( stroke 잘림 방지를 위해 1px 패딩 적용 ) -->
+                        <!-- 날씬한 물방울 모양 -->
                         <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
                               fill="url(#pinGrad-${idx})" 
-                              stroke="white" 
-                              stroke-width="1.2" 
-                              stroke-linejoin="round"
                         />
                         <!-- 텍스트 숫자 배치 (y값 미세조정으로 정중앙 배치) -->
                         <text x="12" y="16" fill="white" font-size="${isSegmentMarker ? 11.5 : 10.5}" font-weight="800" font-family="Pretendard, -apple-system, sans-serif" text-anchor="middle">${idx + 1}</text>

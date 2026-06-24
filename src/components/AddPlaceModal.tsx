@@ -3,6 +3,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
+import { getCategoryTheme } from '@/lib/categoryUtils';
+
+const themeClasses = {
+  cafe: 'text-amber-700 bg-amber-50 border border-amber-100',
+  restaurant: 'text-rose-700 bg-rose-50 border border-rose-100',
+  hotel: 'text-emerald-700 bg-emerald-50 border border-emerald-100',
+  activity: 'text-blue-700 bg-blue-50 border border-blue-100',
+  transit: 'text-zinc-700 bg-zinc-50 border border-zinc-100',
+  etc: 'text-purple-700 bg-purple-50 border border-purple-100'
+};
 import {
   Dialog,
   DialogContent,
@@ -235,11 +245,15 @@ export default function AddPlaceModal() {
                       <p className="text-xs text-zinc-500 truncate w-full">
                         {item.address}
                       </p>
-                      {item.category && (
-                        <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-1">
-                          {item.category.split('>').pop()?.trim() || item.category}
-                        </span>
-                      )}
+                      {item.category && (() => {
+                        const theme = getCategoryTheme(item.category);
+                        const badgeClass = themeClasses[theme.type] || themeClasses.etc;
+                        return (
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full mt-1 ${badgeClass}`}>
+                            {item.category.split('>').pop()?.trim() || item.category}
+                          </span>
+                        );
+                      })()}
                     </button>
                   </li>
                 );

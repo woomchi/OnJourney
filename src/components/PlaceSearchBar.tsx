@@ -6,6 +6,16 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useAuth } from '@/providers/AuthProvider';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import type { Journey, Place } from '@/types/journey';
+import { getCategoryTheme } from '@/lib/categoryUtils';
+
+const themeClasses = {
+  cafe: 'text-amber-700 bg-amber-50 border border-amber-100',
+  restaurant: 'text-rose-700 bg-rose-50 border border-rose-100',
+  hotel: 'text-emerald-700 bg-emerald-50 border border-emerald-100',
+  activity: 'text-blue-700 bg-blue-50 border border-blue-100',
+  transit: 'text-zinc-700 bg-zinc-50 border border-zinc-100',
+  etc: 'text-purple-700 bg-purple-50 border border-purple-100'
+};
 
 interface PlaceResult {
   id: string;
@@ -390,11 +400,15 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
                         <p className="text-xs text-zinc-500 truncate mt-0.5">
                           {item.address}
                         </p>
-                        {item.category && (
-                          <span className="inline-block mt-1 text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                            {item.category.split('>').pop()?.trim() || item.category}
-                          </span>
-                        )}
+                        {item.category && (() => {
+                          const theme = getCategoryTheme(item.category);
+                          const badgeClass = themeClasses[theme.type] || themeClasses.etc;
+                          return (
+                            <span className={`inline-block mt-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${badgeClass}`}>
+                              {item.category.split('>').pop()?.trim() || item.category}
+                            </span>
+                          );
+                        })()}
                       </div>
                       {isAdded ? (
                         <span className="flex-shrink-0 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">

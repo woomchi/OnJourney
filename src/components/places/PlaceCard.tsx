@@ -9,6 +9,40 @@ import { fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/dir
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import SegmentInfo from './SegmentInfo';
+import { getCategoryTheme } from '@/lib/categoryUtils';
+
+const themeClasses = {
+  cafe: {
+    bg: 'from-amber-400 to-orange-500 shadow-orange-100',
+    badge: 'text-amber-700 bg-amber-50 border border-amber-100',
+    line: 'from-amber-200 via-amber-100'
+  },
+  restaurant: {
+    bg: 'from-red-400 to-rose-500 shadow-rose-100',
+    badge: 'text-rose-700 bg-rose-50 border border-rose-100',
+    line: 'from-rose-200 via-rose-100'
+  },
+  hotel: {
+    bg: 'from-emerald-400 to-teal-500 shadow-emerald-100',
+    badge: 'text-emerald-700 bg-emerald-50 border border-emerald-100',
+    line: 'from-emerald-200 via-emerald-100'
+  },
+  activity: {
+    bg: 'from-blue-400 to-indigo-500 shadow-blue-100',
+    badge: 'text-blue-700 bg-blue-50 border border-blue-100',
+    line: 'from-blue-200 via-blue-100'
+  },
+  transit: {
+    bg: 'from-zinc-400 to-zinc-500 shadow-zinc-100',
+    badge: 'text-zinc-700 bg-zinc-50 border border-zinc-100',
+    line: 'from-zinc-200 via-zinc-100'
+  },
+  etc: {
+    bg: 'from-violet-400 to-purple-500 shadow-purple-100',
+    badge: 'text-purple-700 bg-purple-50 border border-purple-100',
+    line: 'from-purple-200 via-purple-100'
+  }
+};
 
 function AlternativeRouteIcon() {
   return (
@@ -109,15 +143,21 @@ export default function PlaceCard({
       {/* 카드 + 번호 행 */}
       <div className="flex items-center gap-0 group">
         {/* 번호 + 세로선 컬럼 */}
-        <div className="flex flex-col items-center w-10 flex-shrink-0 self-stretch select-none">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-200 flex items-center justify-center text-white text-xs font-bold z-10 flex-shrink-0">
-            {index + 1}
-          </div>
-          {/* 세로 연결선 (마지막 카드 제외) */}
-          {!isLast && (
-            <div className="flex-1 w-px bg-gradient-to-b from-blue-200 via-blue-100 to-transparent min-h-[2rem] mt-1" />
-          )}
-        </div>
+        {(() => {
+          const theme = getCategoryTheme(place.category);
+          const classes = themeClasses[theme.type] || themeClasses.etc;
+          return (
+            <div className="flex flex-col items-center w-10 flex-shrink-0 self-stretch select-none">
+              <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${classes.bg} shadow-md flex items-center justify-center text-white text-xs font-bold z-10 flex-shrink-0`}>
+                {index + 1}
+              </div>
+              {/* 세로 연결선 (마지막 카드 제외) */}
+              {!isLast && (
+                <div className={`flex-1 w-px bg-gradient-to-b ${classes.line} to-transparent min-h-[2rem] mt-1`} />
+              )}
+            </div>
+          );
+        })()}
 
         {/* 장소 카드 */}
         <div
@@ -166,13 +206,17 @@ export default function PlaceCard({
           </div>
 
           {/* 카테고리 뱃지 */}
-          {place.category && (
-            <div className="px-4 pb-2.5">
-              <span className="inline-block text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                {place.category.split('>').pop()?.trim() || place.category}
-              </span>
-            </div>
-          )}
+          {place.category && (() => {
+            const theme = getCategoryTheme(place.category);
+            const classes = themeClasses[theme.type] || themeClasses.etc;
+            return (
+              <div className="px-4 pb-2.5">
+                <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${classes.badge}`}>
+                  {place.category.split('>').pop()?.trim() || place.category}
+                </span>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

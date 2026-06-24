@@ -89,7 +89,7 @@ export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourn
               onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 주말 서울 나들이"
               disabled={isLoading}
-              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] disabled:opacity-50"
+              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] text-zinc-900 disabled:opacity-50"
               autoFocus
             />
           </label>
@@ -124,7 +124,7 @@ export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourn
               value={journeyDate}
               onChange={(e) => setJourneyDate(e.target.value)}
               disabled={isLoading}
-              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] disabled:opacity-50"
+              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] text-zinc-900 disabled:opacity-50"
             />
           </label>
 

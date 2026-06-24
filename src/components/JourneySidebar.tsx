@@ -416,7 +416,7 @@ export default function JourneySidebar() {
 
             {/* 하단: 여정 이동 및 재생 조절 컨트롤 */}
             {!isEditMode && (() => {
-              const isPlaying = !!focusedSegment || !!focusedStep || !!alternativeSegment;
+              const isPlaying = !!focusedSegment || !!focusedStep;
               const activeIndex = journeys.findIndex(j => j.id === activeJourney.id);
               const prevJourney = activeIndex > 0 ? journeys[activeIndex - 1] : null;
               const nextJourney = activeIndex >= 0 && activeIndex < journeys.length - 1 ? journeys[activeIndex + 1] : null;
@@ -523,7 +523,7 @@ export default function JourneySidebar() {
 
             {/* 플레이어 하단 디자인 요소 (재생 바 같은 느낌) */}
             {!isEditMode && (() => {
-              const isPlaying = !!focusedSegment || !!focusedStep || !!alternativeSegment;
+              const isPlaying = !!focusedSegment || !!focusedStep;
               let totalSegments = 1;
               let activePlaceIndex = -1;
               let stepFraction = 0;
@@ -532,7 +532,7 @@ export default function JourneySidebar() {
                 totalSegments = activeJourney.places.length - 1;
                 
                 if (isPlaying) {
-                  const activeOriginId = focusedStep ? focusedStep.originId : (focusedSegment?.originId || alternativeSegment?.originId);
+                  const activeOriginId = focusedStep ? focusedStep.originId : focusedSegment?.originId;
                   activePlaceIndex = activeJourney.places.findIndex((p: any) => p.id === activeOriginId);
                   
                   if (activePlaceIndex !== -1 && activePlaceIndex < totalSegments) {

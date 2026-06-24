@@ -8,6 +8,8 @@ import {
   Marker,
   Polyline,
 } from 'react-naver-maps';
+import AnimatedMarker from '@/components/AnimatedMarker';
+import AnimatedPolyline from '@/components/AnimatedPolyline';
 import RouteGuidePanel from '@/components/RouteGuidePanel';
 import AlternativeRoutePanel from '@/components/AlternativeRoutePanel';
 import { useJourneyStore } from '@/stores/journey-store';
@@ -47,6 +49,67 @@ export default function MapArea() {
     isAlternativeFromFocus
   } = useJourneyStore();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
+
+  // Track initial place IDs to handle dynamic sequential animation delays
+  const [initialPlaceIds, setInitialPlaceIds] = useState<Set<string>>(new Set());
+  const prevJourneyIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const currentJourneyId = activeJourney?.id || null;
+    if (currentJourneyId !== prevJourneyIdRef.current) {
+      if (places.length > 0) {
+        setInitialPlaceIds(new Set(places.map(p => p.id)));
+        prevJourneyIdRef.current = currentJourneyId;
+      } else if (currentJourneyId === null) {
+        setInitialPlaceIds(new Set());
+        prevJourneyIdRef.current = null;
+      }
+    } else if (currentJourneyId && initialPlaceIds.size === 0 && places.length > 0) {
+      setInitialPlaceIds(new Set(places.map(p => p.id)));
+    }
+  }, [activeJourney?.id, places, initialPlaceIds.size]);
+
+  // Compute animations delays dynamically
+  const delays = useMemo(() => {
+    const markerDelays: Record<string, number> = {};
+    const pathDelays: Record<string, number> = {}; // key is `${originId}-${destId}`
+
+    let initialCount = 0;
+    let dynamicCount = 0;
+
+    for (let i = 0; i < places.length; i++) {
+      const place = places[i];
+      const isInitial = initialPlaceIds.has(place.id);
+
+      if (isInitial) {
+        markerDelays[place.id] = initialCount * 800;
+        initialCount++;
+      } else {
+        markerDelays[place.id] = dynamicCount * 800 + 400;
+        dynamicCount++;
+      }
+    }
+
+    let dynamicPathCount = 0;
+    for (let i = 0; i < places.length - 1; i++) {
+      const origin = places[i];
+      const dest = places[i + 1];
+      const key = `${origin.id}-${dest.id}`;
+
+      const isOriginInitial = initialPlaceIds.has(origin.id);
+      const isDestInitial = initialPlaceIds.has(dest.id);
+
+      if (isOriginInitial && isDestInitial) {
+        const initialIdx = places.slice(0, i + 1).filter(p => initialPlaceIds.has(p.id)).length - 1;
+        pathDelays[key] = initialIdx * 800 + 400;
+      } else {
+        pathDelays[key] = dynamicPathCount * 800;
+        dynamicPathCount++;
+      }
+    }
+
+    return { markerDelays, pathDelays };
+  }, [places, initialPlaceIds]);
 
   const { fetchSequentialDirections } = useJourneyDirections();
   const directionsCache = useJourneyDirectionsCache(places);
@@ -397,6 +460,8 @@ export default function MapArea() {
                 const stepPath = step.pathPoints || [];
                 if (stepPath.length < 2) return null;
 
+                const baseDelay = delays.pathDelays[`${place.id}-${nextPlace.id}`] ?? (idx * 800 + 400);
+
                 // window.naver.maps가 존재하면 LatLng 인스턴스 배열로 매핑하여 렌더링 안정성 확보
                 const pathPoints = navermaps
                   ? stepPath.map(pt => new navermaps.LatLng(pt.lat, pt.lng))
@@ -473,9 +538,11 @@ export default function MapArea() {
                   }
 
                   return (
-                    <Polyline
+                    <AnimatedPolyline
                       key={`polyline-${place.id}-${nextPlace.id}-${sIdx}`}
                       path={pathPoints}
+                      delay={baseDelay + sIdx * 15}
+                      duration={400}
                       strokeColor={segmentColor}
                       strokeOpacity={walkOpacity}
                       strokeWeight={walkWeight}
@@ -492,8 +559,10 @@ export default function MapArea() {
                 return (
                   <Fragment key={`polyline-group-${place.id}-${nextPlace.id}-${sIdx}`}>
                     {/* 1. 배경 외곽선 (흰색 테두리) */}
-                    <Polyline
+                    <AnimatedPolyline
                       path={pathPoints}
+                      delay={baseDelay + sIdx * 15}
+                      duration={400}
                       strokeColor="#FFFFFF"
                       strokeOpacity={0.95}
                       strokeWeight={strokeWeight + 1.8}
@@ -504,8 +573,10 @@ export default function MapArea() {
                       onClick={handlePolylineClick}
                     />
                     {/* 2. 본래 색상의 실제 경로선 */}
-                    <Polyline
+                    <AnimatedPolyline
                       path={pathPoints}
+                      delay={baseDelay + sIdx * 15}
+                      duration={400}
                       strokeColor={strokeColor}
                       strokeOpacity={strokeOpacity}
                       strokeWeight={strokeWeight}
@@ -565,15 +636,16 @@ export default function MapArea() {
               const theme = getCategoryTheme(place.category);
 
               return (
-                <Marker
+                <AnimatedMarker
                   key={place.id}
+                  delay={delays.markerDelays[place.id] ?? (idx * 800)}
                   position={{ lat: place.lat, lng: place.lng }}
                   title={place.place_name}
                   onClick={() => handleMarkerClick(place, idx)}
                   zIndex={zIndex}
                   visible={isVisible}
-                  icon={{
-                    content: `<div style="
+                  iconAnchor={new window.naver.maps.Point(anchorX, anchorY)}
+                  iconContent={`<div style="
                       cursor: pointer;
                       filter: drop-shadow(0 3px 6px ${theme.color}59);
                     ">
@@ -591,9 +663,7 @@ export default function MapArea() {
                         <!-- 텍스트 숫자 배치 (y값 미세조정으로 정중앙 배치) -->
                         <text x="12" y="16" fill="white" font-size="${isSegmentMarker ? 11.5 : 10.5}" font-weight="800" font-family="Pretendard, -apple-system, sans-serif" text-anchor="middle">${idx + 1}</text>
                       </svg>
-                    </div>`,
-                    anchor: new window.naver.maps.Point(anchorX, anchorY),
-                  }}
+                    </div>`}
                 />
               );
             })}

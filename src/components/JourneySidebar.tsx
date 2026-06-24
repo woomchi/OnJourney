@@ -109,6 +109,30 @@ export default function JourneySidebar() {
     }
   }, [journeys, isListDragging]);
 
+  // DB 동기화 완료 시 React Query 캐시를 최신화하여 스토어 덮어쓰기 방지
+  const prevSyncingRef = useRef(isSyncing);
+  useEffect(() => {
+    if (prevSyncingRef.current && !isSyncing) {
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
+    }
+    prevSyncingRef.current = isSyncing;
+  }, [isSyncing, queryClient]);
+
+  // DB 동기화 중(저장 중) 브라우저 이탈 방지 경고
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isSyncing) {
+        e.preventDefault();
+        e.returnValue = '현재 여정을 저장하는 중입니다. 저장 전에 페이지를 벗어나면 변경사항이 저장되지 않을 수 있습니다.';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isSyncing]);
+
   // Reset isEditMode and selectedPlaceIds when activeJourney changes (e.g. going back to list, or switching)
   useEffect(() => {
     setIsEditMode(false);

@@ -14,14 +14,18 @@ interface AlternativeRoutePanelProps {
   originPlace: Place;
   destPlace: Place;
   onClose: (isCancel?: boolean) => void;
+  isOpen?: boolean;
+  onExited?: () => void;
 }
 
 export default function AlternativeRoutePanel({
   originPlace,
   destPlace,
   onClose,
+  isOpen = false,
+  onExited,
 }: AlternativeRoutePanelProps) {
-  const [mounted, setMounted] = useState(false);
+  const [animate, setAnimate] = useState(false);
   const {
     activeJourney,
     selectSegmentRoute,
@@ -74,9 +78,13 @@ export default function AlternativeRoutePanel({
   }, [previewRoute, setHoveredAlternativeRoute]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isOpen) {
+      const timer = setTimeout(() => setAnimate(true), 50);
+      return () => clearTimeout(timer);
+    } else {
+      setAnimate(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!segmentData && !loading) {
@@ -302,8 +310,15 @@ export default function AlternativeRoutePanel({
 
   return (
     <div
-      className={`absolute top-6 bottom-6 left-4 z-40 w-[360px] bg-white/95 backdrop-blur-md rounded-3xl border border-zinc-150/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden transition-all duration-300 ease-out transform ${mounted ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
-        }`}
+      onTransitionEnd={(e) => {
+        if (e.target === e.currentTarget && !isOpen && onExited) {
+          onExited();
+        }
+      }}
+      style={{ zIndex: animate ? 45 : 40 }}
+      className={`absolute top-6 bottom-6 left-4 w-[360px] bg-white/95 backdrop-blur-md rounded-3xl border border-zinc-150/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden transition-all duration-300 ease-out transform ${
+        animate ? 'translate-x-0 opacity-100' : '-translate-x-[calc(100%+24px)] opacity-0'
+      }`}
     >
       {/* Header */}
       <div className="p-4 border-b border-zinc-100 flex-shrink-0 flex flex-col gap-2">

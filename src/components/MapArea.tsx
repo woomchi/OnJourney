@@ -18,6 +18,8 @@ import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries
 import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { SEQUENCE_COLORS, getSequenceTheme } from '@/constants/colors';
+import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
+
 
 interface SelectedPlace {
   lat: number;
@@ -178,7 +180,47 @@ export default function MapArea() {
     return { prevOriginPlace, prevDestPlace };
   }, [focusedSegment, activeJourney]);
 
-  const isPanelOpen = !!(activeRouteOfFocusedSegment && focusedPlaces);
+  // 패널 트랜지션 애니메이션 구현을 위한 상태 캐싱 로직 추가
+  const [cachedRouteGuide, setCachedRouteGuide] = useState<{
+    route: SelectedRoute | DirectionResult;
+    originPlace: Place;
+    destPlace: Place;
+    nextDestPlace?: Place;
+    nextSegmentInfo: typeof nextSegmentInfo;
+    prevSegmentInfo: typeof prevSegmentInfo;
+  } | null>(null);
+
+  const [cachedAlternative, setCachedAlternative] = useState<{
+    originPlace: Place;
+    destPlace: Place;
+  } | null>(null);
+
+  const showRouteGuide = !!(activeRouteOfFocusedSegment && focusedPlaces && !alternativePlaces);
+  const showAlternative = !!alternativePlaces;
+
+  useEffect(() => {
+    if (showRouteGuide && activeRouteOfFocusedSegment && focusedPlaces) {
+      setCachedRouteGuide({
+        route: activeRouteOfFocusedSegment,
+        originPlace: focusedPlaces.originPlace,
+        destPlace: focusedPlaces.destPlace,
+        nextDestPlace: nextSegmentInfo?.nextDestPlace || undefined,
+        nextSegmentInfo,
+        prevSegmentInfo,
+      });
+    }
+  }, [showRouteGuide, activeRouteOfFocusedSegment, focusedPlaces, nextSegmentInfo, prevSegmentInfo]);
+
+  useEffect(() => {
+    if (showAlternative && alternativePlaces) {
+      setCachedAlternative({
+        originPlace: alternativePlaces.originPlace,
+        destPlace: alternativePlaces.destPlace,
+      });
+    }
+  }, [showAlternative, alternativePlaces]);
+
+  const isPanelOpen = showRouteGuide;
 
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
@@ -402,7 +444,7 @@ export default function MapArea() {
   const activeSegment = focusedSegment || alternativeSegment;
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full overflow-hidden">
       <NavermapsProvider ncpKeyId={clientId}>
         <MapDiv style={{ width: '100%', height: '100%' }}>
           <NaverMap
@@ -739,114 +781,126 @@ export default function MapArea() {
 
 
       {/* 상세 경로 안내 패널: 사이드바 오른쪽에 따로 띄움 */}
-      {activeRouteOfFocusedSegment && focusedPlaces && !alternativePlaces && (
-        <RouteGuidePanel
-          route={activeRouteOfFocusedSegment}
-          originPlace={focusedPlaces.originPlace}
-          destPlace={focusedPlaces.destPlace}
-          onClose={() => {
-            setFocusedSegment(null);
-            setFocusedStep(null);
-            setFocusBounds(null);
-          }}
-          onNextSegment={nextSegmentInfo ? (jumpToStart?: boolean) => {
-            const { nextOriginPlace, nextDestPlace } = nextSegmentInfo;
-            const cacheKey = `${nextOriginPlace.id}-${nextDestPlace.id}`;
-            const segmentData = directionsCache[cacheKey];
-            const transportType = activeJourney?.transport_type || 'public';
-            const nextRoute = getDefaultRoute(nextOriginPlace, nextDestPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-            setFocusedSegment({ originId: nextOriginPlace.id, destId: nextDestPlace.id });
-            
-            if (jumpToStart && nextRoute && nextRoute.steps) {
-              const firstStep = nextRoute.steps[0];
-              let subType: 'start' | 'end' | 'dest' | undefined = undefined;
-              if (firstStep.type !== 'walk' && firstStep.startName) {
-                subType = 'start';
-              }
-              
-              setFocusedStep({
-                originId: nextOriginPlace.id,
-                destId: nextDestPlace.id,
-                stepIndex: 0,
-                subType
-              });
-              setFocusBounds({
-                sw: { lat: nextOriginPlace.lat, lng: nextOriginPlace.lng },
-                ne: { lat: nextOriginPlace.lat, lng: nextOriginPlace.lng }
-              });
-            } else {
+      {cachedRouteGuide && (() => {
+        const nextInfo = cachedRouteGuide.nextSegmentInfo;
+        const prevInfo = cachedRouteGuide.prevSegmentInfo;
+        return (
+          <RouteGuidePanel
+            isOpen={showRouteGuide}
+            route={cachedRouteGuide.route}
+            originPlace={cachedRouteGuide.originPlace}
+            destPlace={cachedRouteGuide.destPlace}
+            onClose={() => {
+              setFocusedSegment(null);
               setFocusedStep(null);
-              const bounds = calculateSegmentBounds(nextOriginPlace, nextDestPlace, nextRoute);
-              setFocusBounds(bounds);
-            }
-          } : undefined}
-          onPrevSegment={prevSegmentInfo ? (jumpToDest?: boolean) => {
-            const { prevOriginPlace, prevDestPlace } = prevSegmentInfo;
-            const cacheKey = `${prevOriginPlace.id}-${prevDestPlace.id}`;
-            const segmentData = directionsCache[cacheKey];
-            const transportType = activeJourney?.transport_type || 'public';
-            const prevRoute = getDefaultRoute(prevOriginPlace, prevDestPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-            setFocusedSegment({ originId: prevOriginPlace.id, destId: prevDestPlace.id });
-            
-            if (jumpToDest && prevRoute && prevRoute.steps) {
-              const lastIdx = prevRoute.steps.length - 1;
-              const lastStep = prevRoute.steps[lastIdx];
-              let subType: 'start' | 'end' | 'dest' | undefined = undefined;
-              if (lastStep.type !== 'walk' && lastStep.endName) {
-                subType = 'end';
-              }
+              setFocusBounds(null);
+            }}
+            onNextSegment={nextInfo ? (jumpToStart?: boolean) => {
+              const { nextOriginPlace, nextDestPlace } = nextInfo;
+              const cacheKey = `${nextOriginPlace.id}-${nextDestPlace.id}`;
+              const segmentData = directionsCache[cacheKey];
+              const transportType = activeJourney?.transport_type || 'public';
+              const nextRoute = getDefaultRoute(nextOriginPlace, nextDestPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+              setFocusedSegment({ originId: nextOriginPlace.id, destId: nextDestPlace.id });
               
-              setFocusedStep({
-                originId: prevOriginPlace.id,
-                destId: prevDestPlace.id,
-                stepIndex: lastIdx,
-                subType
-              });
-              setFocusBounds({
-                sw: { lat: prevDestPlace.lat, lng: prevDestPlace.lng },
-                ne: { lat: prevDestPlace.lat, lng: prevDestPlace.lng }
-              });
-            } else {
-              setFocusedStep(null);
-              const bounds = calculateSegmentBounds(prevOriginPlace, prevDestPlace, prevRoute);
-              setFocusBounds(bounds);
-            }
-          } : undefined}
-          nextDestPlace={nextSegmentInfo?.nextDestPlace}
-        />
-      )}
+              if (jumpToStart && nextRoute && nextRoute.steps) {
+                const firstStep = nextRoute.steps[0];
+                let subType: 'start' | 'end' | 'dest' | undefined = undefined;
+                if (firstStep.type !== 'walk' && firstStep.startName) {
+                  subType = 'start';
+                }
+                
+                setFocusedStep({
+                  originId: nextOriginPlace.id,
+                  destId: nextDestPlace.id,
+                  stepIndex: 0,
+                  subType
+                });
+                setFocusBounds({
+                  sw: { lat: nextOriginPlace.lat, lng: nextOriginPlace.lng },
+                  ne: { lat: nextOriginPlace.lat, lng: nextOriginPlace.lng }
+                });
+              } else {
+                setFocusedStep(null);
+                const bounds = calculateSegmentBounds(nextOriginPlace, nextDestPlace, nextRoute);
+                setFocusBounds(bounds);
+              }
+            } : undefined}
+            onPrevSegment={prevInfo ? (jumpToDest?: boolean) => {
+              const { prevOriginPlace, prevDestPlace } = prevInfo;
+              const cacheKey = `${prevOriginPlace.id}-${prevDestPlace.id}`;
+              const segmentData = directionsCache[cacheKey];
+              const transportType = activeJourney?.transport_type || 'public';
+              const prevRoute = getDefaultRoute(prevOriginPlace, prevDestPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+              setFocusedSegment({ originId: prevOriginPlace.id, destId: prevDestPlace.id });
+              
+              if (jumpToDest && prevRoute && prevRoute.steps) {
+                const lastIdx = prevRoute.steps.length - 1;
+                const lastStep = prevRoute.steps[lastIdx];
+                let subType: 'start' | 'end' | 'dest' | undefined = undefined;
+                if (lastStep.type !== 'walk' && lastStep.endName) {
+                  subType = 'end';
+                }
+                
+                setFocusedStep({
+                  originId: prevOriginPlace.id,
+                  destId: prevDestPlace.id,
+                  stepIndex: lastIdx,
+                  subType
+                });
+                setFocusBounds({
+                  sw: { lat: prevDestPlace.lat, lng: prevDestPlace.lng },
+                  ne: { lat: prevDestPlace.lat, lng: prevDestPlace.lng }
+                });
+              } else {
+                setFocusedStep(null);
+                const bounds = calculateSegmentBounds(prevOriginPlace, prevDestPlace, prevRoute);
+                setFocusBounds(bounds);
+              }
+            } : undefined}
+            nextDestPlace={cachedRouteGuide.nextDestPlace}
+            onExited={() => {
+              if (!showRouteGuide) {
+                setCachedRouteGuide(null);
+              }
+            }}
+          />
+        );
+      })()}
 
       {/* 대안 경로 패널 */}
-      {alternativePlaces && (
+      {cachedAlternative && (
         <AlternativeRoutePanel
-          originPlace={alternativePlaces.originPlace}
-          destPlace={alternativePlaces.destPlace}
+          isOpen={showAlternative}
+          originPlace={cachedAlternative.originPlace}
+          destPlace={cachedAlternative.destPlace}
           onClose={(isCancel?: boolean) => {
             setAlternativeSegment(null);
             
             if (isAlternativeFromFocus) {
               setFocusedSegment({ 
-                originId: alternativePlaces.originPlace.id, 
-                destId: alternativePlaces.destPlace.id 
+                originId: cachedAlternative.originPlace.id, 
+                destId: cachedAlternative.destPlace.id 
               });
 
               if (isCancel) {
-                 const cacheKey = `${alternativePlaces.originPlace.id}-${alternativePlaces.destPlace.id}`;
+                 const cacheKey = `${cachedAlternative.originPlace.id}-${cachedAlternative.destPlace.id}`;
                  const segmentData = directionsCache[cacheKey];
                  const transportType = activeJourney?.transport_type || 'public';
-                 const defaultRoute = getDefaultRoute(alternativePlaces.originPlace, alternativePlaces.destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+                 const defaultRoute = getDefaultRoute(cachedAlternative.originPlace, cachedAlternative.destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
                  
                  if (defaultRoute) {
-                   const bounds = calculateSegmentBounds(alternativePlaces.originPlace, alternativePlaces.destPlace, defaultRoute);
+                   const bounds = calculateSegmentBounds(cachedAlternative.originPlace, cachedAlternative.destPlace, defaultRoute);
                    setFocusBounds(bounds);
                  }
               }
             } else {
-              if (isCancel) {
-                setFocusBounds(null);
-              } else {
-                setFocusBounds(null);
-              }
+              setFocusBounds(null);
+            }
+          }}
+          onExited={() => {
+            if (!showAlternative) {
+              setCachedAlternative(null);
             }
           }}
         />

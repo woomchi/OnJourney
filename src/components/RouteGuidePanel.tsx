@@ -4,11 +4,9 @@ import { useEffect, useState, useRef } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
-
-
-
-
-
+import PlaybackBar from '@/components/route/PlaybackBar';
+import TransitGuideList from '@/components/route/TransitGuideList';
+import CarGuideList from '@/components/route/CarGuideList';
 
 interface RouteGuidePanelProps {
   route: SelectedRoute | DirectionResult;
@@ -61,25 +59,8 @@ export default function RouteGuidePanel({
     }
   }, [focusedStep, originPlace.id, destPlace.id, mounted]);
 
-
-
-  const formatDistance = (meters: number) => {
-    if (meters < 10) return '';
-    if (meters < 1000) return `${meters}m`;
-    return `${(meters / 1000).toFixed(1)}km`;
-  };
-
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return '';
-    const seconds = Math.round(ms / 1000);
-    if (seconds < 60) return `${seconds}초`;
-    const minutes = Math.round(seconds / 60);
-    return `${minutes}분`;
-  };
-
-  const guide = route.guide || [];
   const steps = route.steps || [];
-  const hasGuide = guide.length > 0;
+  const hasGuide = (route.guide || []).length > 0;
 
   const getPages = () => {
     const arr: { idx: number, step: any, subType?: 'start' | 'end' | 'dest' }[] = [];
@@ -116,10 +97,7 @@ export default function RouteGuidePanel({
       focusedStep.subType === subType
     );
 
-    if (isThisStepFocused) {
-      // 이미 포커스된 스텝을 클릭해도, 전체 여정 보기 모드가 제거되었으므로 아무 작업도 하지 않거나 첫 스텝으로 유지합니다.
-      // (기존 setFocusedStep(null) 제거)
-    } else {
+    if (!isThisStepFocused) {
       let lat: number | undefined;
       let lng: number | undefined;
 
@@ -190,7 +168,6 @@ export default function RouteGuidePanel({
       const prevPage = pages[currentIndex - 1];
       handleStepClick(prevPage.idx, prevPage.step, prevPage.subType);
     } else if (currentIndex === 0) {
-      // 첫 세부 구간에서 이전 버튼을 누르면 현재 세그먼트의 전체 보기 상태로 전환
       setFocusedStep(null);
       const bounds = calculateSegmentBounds(originPlace, destPlace, route);
       setFocusBounds(bounds);
@@ -375,290 +352,15 @@ export default function RouteGuidePanel({
       {/* Guide List */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 scrollbar-sleek">
         {hasGuide ? (
-          // 차량 turn-by-turn 안내 노출
-          <div className="relative pl-1 flex flex-col gap-5">
-            {/* 세로 연결선 */}
-            <div className="absolute left-[9px] top-2.5 bottom-2.5 w-0.5 bg-zinc-100" />
-
-            {guide.map((step, idx) => {
-              const distStr = formatDistance(step.distance);
-              const durStr = formatDuration(step.duration);
-
-              // 아이콘과 색상 매핑
-              let icon = '•';
-              let iconColor = 'text-zinc-400 bg-white border-zinc-200';
-              let iconSize = 'w-5 h-5 text-[10px]';
-
-              const text = step.instructions;
-              if (text.includes('출발')) {
-                icon = '🏁';
-                iconColor = 'text-blue-600 bg-blue-50 border-blue-200 shadow-sm';
-                iconSize = 'w-6 h-6 text-[11px]';
-              } else if (text.includes('도착')) {
-                icon = '📍';
-                iconColor = 'text-rose-600 bg-rose-50 border-rose-200 shadow-sm';
-                iconSize = 'w-6 h-6 text-[11px]';
-              } else if (text.includes('우회전') || text.includes('우측')) {
-                icon = '→';
-                iconColor = 'text-amber-600 bg-amber-50 border-amber-200';
-              } else if (text.includes('좌회전') || text.includes('좌측')) {
-                icon = '←';
-                iconColor = 'text-amber-600 bg-amber-50 border-amber-200';
-              } else if (text.includes('유턴')) {
-                icon = '↶';
-                iconColor = 'text-indigo-600 bg-indigo-50 border-indigo-200';
-              } else if (text.includes('직진')) {
-                icon = '↑';
-                iconColor = 'text-zinc-600 bg-zinc-50 border-zinc-200';
-              } else if (text.includes('지하차도') || text.includes('터널') || text.includes('고속도로')) {
-                icon = '🛣️';
-                iconColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-              }
-
-              return (
-                <div key={idx} className="relative flex gap-4 pl-8 items-start group">
-                  {/* 타임라인 노드 아이콘 */}
-                  <div
-                    className={`absolute left-0 top-0.5 rounded-full border flex items-center justify-center font-bold z-10 transition-all duration-200 group-hover:scale-110 ${iconColor} ${iconSize}`}
-                    style={{ left: iconSize === 'w-6 h-6' ? '-2px' : '0px' }}
-                  >
-                    {icon}
-                  </div>
-
-                  {/* 경로 설명 및 거리/시간 */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-zinc-600 leading-snug group-hover:text-zinc-800 transition-colors">
-                      {step.instructions}
-                    </p>
-                    {(distStr || durStr) && (
-                      <div className="flex items-center gap-1 mt-1 text-[10px] text-zinc-400 font-semibold select-none">
-                        {distStr && <span>{distStr}</span>}
-                        {distStr && durStr && <span className="text-zinc-300">·</span>}
-                        {durStr && <span>{durStr}</span>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <CarGuideList route={route} />
         ) : steps.length > 0 ? (
-          // 대중교통 또는 도보 step-by-step 노선 리스트 노출
-          <div className="relative pl-1 flex flex-col gap-6">
-            {/* 세로 연결선 */}
-            <div className="absolute left-[24.5px] top-4 bottom-4 w-[3px] bg-zinc-100" />
-
-
-
-            {steps.map((step, idx) => {
-              let defaultColor = '#A1A1AA';
-              if (step.type === 'train') defaultColor = '#4F46E5';
-              else if (step.type === 'expressbus') defaultColor = '#0EA5E9';
-              else if (step.type === 'bus') defaultColor = '#3B82F6';
-              else if (step.type === 'subway') defaultColor = '#10B981';
-              else if (step.type === 'car' || (step.type as string) === 'taxi') defaultColor = '#4F46E5';
-
-              const stepColor = step.type === 'walk' 
-                ? (step.color === '#A1A1AA' ? '#E4E4E7' : (step.color || '#E4E4E7')) 
-                : (step.color || defaultColor);
-
-              // 아이콘과 색상 매핑
-              let icon = '•';
-              let iconColor = 'text-zinc-500 bg-white border-zinc-200';
-
-              if (step.type === 'walk') {
-                icon = '🚶';
-                iconColor = 'text-zinc-500 bg-zinc-50 border-zinc-200';
-              } else if (step.type === 'subway') {
-                icon = '🚇';
-                iconColor = 'text-white border-transparent';
-              } else if (step.type === 'bus') {
-                icon = '🚌';
-                iconColor = 'text-white border-transparent';
-              } else if (step.type === 'car') {
-                icon = '🚗';
-                iconColor = 'text-white border-transparent';
-              } else if (step.type === 'train') {
-                icon = '🚄';
-                iconColor = 'text-white border-transparent';
-              } else if (step.type === 'expressbus') {
-                icon = '🚌';
-                iconColor = 'text-white border-transparent';
-              }
-
-              const isThisStepFocused = !!(
-                focusedStep &&
-                focusedStep.originId === originPlace.id &&
-                focusedStep.destId === destPlace.id &&
-                focusedStep.stepIndex === idx
-              );
-              const isAnyStepFocused = !!(
-                focusedStep &&
-                focusedStep.originId === originPlace.id &&
-                focusedStep.destId === destPlace.id
-              );
-
-              return (
-                <div
-                  key={idx}
-                  id={`step-${originPlace.id}-${destPlace.id}-${idx}`}
-                  onClick={() => {
-                     if (step.type !== 'walk' && step.startName) {
-                       handleStepClick(idx, step, 'start');
-                     } else {
-                       handleStepClick(idx, step);
-                     }
-                  }}
-                  className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none ${
-                    isThisStepFocused
-                      ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
-                      : isAnyStepFocused
-                      ? 'bg-transparent border-transparent opacity-40 hover:opacity-100 hover:bg-zinc-50/50'
-                      : 'bg-transparent border-transparent hover:bg-zinc-50/50 hover:border-zinc-100'
-                  }`}
-                >
-                  {/* 타임라인 노드 아이콘 */}
-                  <div
-                    className={`absolute left-2.5 top-2.5 w-6 h-6 rounded-full border flex items-center justify-center font-bold z-10 transition-all duration-200 group-hover:scale-110 shadow-sm ${iconColor} ${
-                      isThisStepFocused ? 'ring-2 ring-blue-500/30' : ''
-                    }`}
-                    style={{
-                      backgroundColor: step.type === 'walk' ? '#F4F4F5' : stepColor,
-                      borderColor: step.type === 'walk' ? '#E4E4E7' : 'transparent',
-                    }}
-                  >
-                    <span className="text-xs leading-none">{icon}</span>
-                  </div>
-
-                  {/* 경로 설명 및 거리/시간 */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <h4 className="text-[14px] font-bold text-zinc-800 group-hover:text-blue-600 transition-colors truncate">
-                          {step.type === 'walk' ? '도보 이동' : step.name}
-                        </h4>
-
-                      </div>
-                      <span className="text-[12px] font-bold text-zinc-600 flex-shrink-0">
-                        {step.duration}분
-                      </span>
-                    </div>
-
-                    {/* 승차 / 하차 정보 */}
-                    {(step.startName || step.endName) && (() => {
-                      const isStartFocused = isThisStepFocused && focusedStep?.subType === 'start';
-                      const isEndFocused = isThisStepFocused && focusedStep?.subType === 'end';
-                      return (
-                      <div className="mt-1.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none">
-                        {step.startName && (
-                          <div
-                            onClick={(e) => handleZoomToPoint(idx, step, 'start', e)}
-                            className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
-                              isStartFocused
-                                ? 'bg-blue-100/70 ring-1 ring-blue-300 shadow-sm scale-[1.01]'
-                                : 'hover:bg-blue-50/70'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                              <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isStartFocused ? 'text-blue-600' : 'text-zinc-400'}`}>승차</span>
-                              <span className={`truncate transition-colors ${isStartFocused ? 'text-blue-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{step.startName}</span>
-                            </div>
-                            <div className={`flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center ${isStartFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
-                              </svg>
-                            </div>
-                          </div>
-                        )}
-                        {step.startName && step.endName && (
-                          <div className="w-px h-2 bg-zinc-200 ml-[13px]" />
-                        )}
-                        {step.endName && (
-                          <div
-                            onClick={(e) => handleZoomToPoint(idx, step, 'end', e)}
-                            className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
-                              isEndFocused
-                                ? 'bg-rose-100/70 ring-1 ring-rose-300 shadow-sm scale-[1.01]'
-                                : 'hover:bg-rose-50/70'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                              <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isEndFocused ? 'text-rose-600' : 'text-zinc-400'}`}>하차</span>
-                              <span className={`truncate transition-colors ${isEndFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-rose-700'}`}>{step.endName}</span>
-                            </div>
-                            <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isEndFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
-                              </svg>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      );
-                    })()}
-
-                    {/* 예약 링크 추가 */}
-                    {(step.type === 'train' || step.type === 'expressbus') && (
-                      <div className="mt-2 flex justify-end">
-                        <a
-                          href={
-                            step.type === 'train'
-                              ? (step.name.includes('SRT') ? 'https://etk.srail.kr/' : 'https://www.letskorail.com/')
-                              : (step.name.includes('고속') ? 'https://www.kobus.co.kr/' : 'https://www.bustago.or.kr/')
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 bg-blue-50 px-2.5 py-1.5 rounded-xl border border-blue-100/50 hover:bg-blue-100/50 transition-colors"
-                        >
-                          <span>{step.name} 예매</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                          </svg>
-                        </a>
-                      </div>
-                    )}
-
-                    {step.type === 'walk' && !step.startName && !step.endName && (
-                      <p className="text-xs text-zinc-400 font-semibold mt-1">
-                        약 {step.duration}분 동안 도보로 이동합니다.
-                      </p>
-                    )}
-
-                    {step.type === 'walk' && idx === steps.length - 1 && (() => {
-                      const isDestFocused = isThisStepFocused && focusedStep?.subType === 'dest';
-                      return (
-                      <div className="mt-2.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none">
-                        <div
-                          onClick={(e) => handleZoomToPoint(idx, step, 'dest', e)}
-                          className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
-                            isDestFocused
-                              ? 'bg-rose-100/70 ring-1 ring-rose-300 shadow-sm scale-[1.01]'
-                              : 'hover:bg-rose-50/70'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                            <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isDestFocused ? 'text-rose-600' : 'text-zinc-400'}`}>도착</span>
-                            <span className={`truncate transition-colors ${isDestFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-rose-700'}`}>{destPlace.place_name}</span>
-                          </div>
-                          <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isDestFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              );
-            })}
-
-
-          </div>
+          <TransitGuideList
+            route={route}
+            originPlace={originPlace}
+            destPlace={destPlace}
+            handleStepClick={handleStepClick}
+            handleZoomToPoint={handleZoomToPoint}
+          />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center py-12 text-zinc-400">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 mb-2 text-zinc-300">
@@ -670,142 +372,17 @@ export default function RouteGuidePanel({
       </div>
 
       {/* 재생바 영역 (Playback Bar) */}
-      <div className="flex-shrink-0 p-5 bg-white border-t border-zinc-100 rounded-b-3xl flex flex-col items-center shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
-        {/* 컨트롤 버튼부 */}
-        <div className="flex items-center justify-center gap-6 mb-3">
-          {/* 이전 단계 (<) */}
-          {(() => {
-            const pages = getPages();
-            const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
-            const isDisabled = pages.length === 0 || (!isPanelFocused && !onPrevSegment);
-            
-            return (
-              <button
-                type="button"
-                onClick={handlePrevStep}
-                disabled={isDisabled}
-                className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
-                aria-label="이전 단계"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 rotate-180">
-                  <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-                </svg>
-              </button>
-            );
-          })()}
-
-          {/* 재생/일시정지 버튼 (Play/Pause) */}
-          {(() => {
-            const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
-            const pages = getPages();
-            let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
-            if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-            
-            const isAtEnd = isPanelFocused && currentIdx === pages.length - 1;
-            const showPlayIcon = !isPanelFocused || isAtEnd;
-
-            return (
-              <button
-                type="button"
-                onClick={() => {
-                  if (isPanelFocused && !isAtEnd) {
-                    setFocusedStep(null);
-                    const bounds = calculateSegmentBounds(originPlace, destPlace, route);
-                    setFocusBounds(bounds);
-                  } else {
-                    if (pages.length > 0) handleStepClick(pages[0].idx, pages[0].step, pages[0].subType);
-                  }
-                }}
-                className={`w-14 h-14 flex items-center justify-center rounded-full transition-all active:scale-95 group shadow-md flex-shrink-0 ${
-                  showPlayIcon
-                    ? 'bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-white shadow-md'
-                    : 'bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-950 shadow-sm'
-                }`}
-                aria-label={showPlayIcon ? "여정 재생" : "여정 일시정지"}
-              >
-                {!showPlayIcon ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                    <rect x="6" y="4.5" width="4.5" height="15" rx="1.5" />
-                    <rect x="13.5" y="4.5" width="4.5" height="15" rx="1.5" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 ml-1">
-                    <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-            );
-          })()}
-
-          {/* 다음 단계 (>) */}
-          {(() => {
-            const pages = getPages();
-            let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
-            if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-            
-            const isDisabled = pages.length === 0 || (currentIdx >= pages.length - 1 && !onNextSegment);
-            return (
-              <button
-                type="button"
-                onClick={handleNextStep}
-                disabled={isDisabled}
-                className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
-                aria-label="다음 단계"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
-                  <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-                </svg>
-              </button>
-            );
-          })()}
-        </div>
-
-        {/* 곡 제목 영역 (Origin -> Dest) */}
-        <div className="flex flex-col items-center justify-center w-full mb-3">
-          <div className="text-[13px] font-extrabold text-zinc-800 flex items-center gap-1.5 truncate max-w-full px-2">
-            <span className="truncate max-w-[120px]" title={originPlace.place_name}>{originPlace.place_name}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-            </svg>
-            <span className="truncate max-w-[120px]" title={destPlace.place_name}>{destPlace.place_name}</span>
-          </div>
-        </div>
-
-        {/* 타임라인 바 (Progress Bar) */}
-        {(() => {
-          const pages = getPages();
-          const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
-          let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);
-          if (currentIdx === -1 && focusedStep) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-          
-          const totalStepsNum = pages.length;
-          const currentStepNum = isPanelFocused && currentIdx >= 0 ? currentIdx + 1 : 0;
-          const progressPercent = totalStepsNum > 0 ? (currentStepNum / totalStepsNum) * 100 : 0;
-
-          const formatTime = (stepNum: number) => {
-            const min = Math.floor(stepNum / 60);
-            const sec = stepNum % 60;
-            return `${min}:${sec.toString().padStart(2, '0')}`;
-          };
-
-          return (
-            <div className="w-full flex items-center gap-2.5 px-2">
-              <span className="text-[10px] font-bold text-zinc-500 w-7 text-right select-none">
-                {formatTime(currentStepNum)}
-              </span>
-              <div className="relative flex-1 h-1.5 bg-zinc-200 rounded-full overflow-hidden shadow-inner">
-                <div 
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-zinc-300 via-zinc-600 to-zinc-950 transition-all duration-300 ease-out"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              <span className="text-[10px] font-bold text-zinc-500 w-7 select-none">
-                {formatTime(totalStepsNum)}
-              </span>
-            </div>
-          );
-        })()}
-      </div>
+      <PlaybackBar
+        route={route}
+        originPlace={originPlace}
+        destPlace={destPlace}
+        pages={getPages()}
+        handlePrevStep={handlePrevStep}
+        handleNextStep={handleNextStep}
+        handleStepClick={handleStepClick}
+        onPrevSegment={onPrevSegment}
+        onNextSegment={onNextSegment}
+      />
     </div>
   );
 }

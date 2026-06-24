@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "db:setup": "node scripts/setup-db.mjs"
+    "db:setup": "node scripts/setup-db.mjs",
+    "clean": "npx rimraf .next"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.17",

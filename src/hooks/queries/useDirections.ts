@@ -64,7 +64,7 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
 
   useEffect(() => {
     if (!places || places.length < 2) {
-      setDirectionsCache({});
+      setTimeout(() => setDirectionsCache({}), 0);
       return;
     }
 
@@ -83,7 +83,7 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
     };
 
     // Initial populate
-    updateCache();
+    setTimeout(updateCache, 0);
 
     // Subscribe to query cache changes
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {

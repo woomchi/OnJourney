@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useJourneyDirectionsCache, directionKeys } from '@/hooks/queries/useDirections';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
+import type { Place } from '@/types/journey';
 import { fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/directionsService';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';

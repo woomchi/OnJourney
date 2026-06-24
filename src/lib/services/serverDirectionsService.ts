@@ -1,4 +1,4 @@
-import type { DirectionResult, DirectionStep, DirectionsApiResponse } from '@/types/journey';
+import type { DirectionResult, DirectionStep } from '@/types/journey';
 import { SUBWAY_COLORS, BUS_COLORS, ODSAY_BUS_TYPES } from '@/constants/colors';
 import { WALK_LIMITS } from '@/constants/transit';
 
@@ -59,7 +59,7 @@ export async function fetchPublicTransitOptions(
   const url = `https://api.odsay.com/v1/api/searchPubTransPathT?apiKey=${encodeURIComponent(apiKey)}&SX=${sx}&SY=${sy}&EX=${ex}&EY=${ey}`;
   
   let data: any;
-  let attempts = 3;
+  const attempts = 3;
   let delayTime = 200;
 
   for (let i = 0; i < attempts; i++) {

@@ -262,10 +262,8 @@ export default function JourneySidebar() {
           <header className="px-8 py-7 border-b border-zinc-100/80 bg-white/50 backdrop-blur-md flex-shrink-0">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-lg shadow-blue-500/20 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white">
-                    <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                  </svg>
+                <div className="w-8 h-8 rounded-xl bg-zinc-950 border border-zinc-800 shadow-md flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <img src="/그림01.png" alt="On-Journey Logo" className="w-full h-full object-cover" />
                 </div>
                 <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600">
                   On-Journey
@@ -450,9 +448,9 @@ export default function JourneySidebar() {
                           }
                         }
                       }}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-transform active:scale-95 flex-shrink-0 ${isPlaying
-                          ? 'bg-zinc-800 hover:bg-zinc-900 text-white shadow-zinc-900/20'
-                          : 'bg-gradient-to-tr from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-blue-500/30'
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 ${isPlaying
+                          ? 'bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-950 shadow-sm'
+                          : 'bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-white shadow-md'
                         }`}
                       title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
                     >
@@ -501,60 +499,66 @@ export default function JourneySidebar() {
 
             {/* 플레이어 하단 디자인 요소 (재생 바 같은 느낌) */}
             {!isEditMode && (() => {
-              let progressPercent = 0;
               const isPlaying = !!focusedSegment || !!focusedStep || !!alternativeSegment;
+              let totalSegments = 1;
+              let activePlaceIndex = -1;
+              let stepFraction = 0;
               
-              if (activeJourney && activeJourney.places && activeJourney.places.length > 1 && isPlaying) {
-                const totalSegments = activeJourney.places.length - 1;
-                const activeOriginId = focusedStep ? focusedStep.originId : (focusedSegment?.originId || alternativeSegment?.originId);
-                const placeIndex = activeJourney.places.findIndex((p: any) => p.id === activeOriginId);
+              if (activeJourney && activeJourney.places && activeJourney.places.length > 1) {
+                totalSegments = activeJourney.places.length - 1;
                 
-                if (placeIndex !== -1 && placeIndex < totalSegments) {
-                  let stepFraction = 0;
+                if (isPlaying) {
+                  const activeOriginId = focusedStep ? focusedStep.originId : (focusedSegment?.originId || alternativeSegment?.originId);
+                  activePlaceIndex = activeJourney.places.findIndex((p: any) => p.id === activeOriginId);
                   
-                  if (focusedStep) {
-                    const firstPlace = activeJourney.places[placeIndex];
-                    const secondPlace = activeJourney.places[placeIndex + 1];
-                    const queryKey = directionKeys.segment(firstPlace.id, secondPlace.id);
-                    const segmentData = queryClient.getQueryData<any>(queryKey);
-                    const transportType = activeJourney.transport_type || 'public';
-                    const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+                  if (activePlaceIndex !== -1 && activePlaceIndex < totalSegments) {
+                    if (focusedStep) {
+                      const firstPlace = activeJourney.places[activePlaceIndex];
+                      const secondPlace = activeJourney.places[activePlaceIndex + 1];
+                      const queryKey = directionKeys.segment(firstPlace.id, secondPlace.id);
+                      const segmentData = queryClient.getQueryData<any>(queryKey);
+                      const transportType = activeJourney.transport_type || 'public';
+                      const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 
-                    if (activeRoute && activeRoute.steps) {
-                      const getPages = () => {
-                        const arr: { idx: number, subType?: 'start' | 'end' | 'dest' }[] = [];
-                        activeRoute.steps.forEach((step: any, idx: number) => {
-                          if (step.type === 'walk' || (!step.startName && !step.endName)) {
-                            arr.push({ idx });
-                          } else {
-                            if (step.startName) arr.push({ idx, subType: 'start' });
-                            if (step.endName) arr.push({ idx, subType: 'end' });
-                          }
-                        });
-                        arr.push({ idx: activeRoute.steps.length, subType: 'dest' });
-                        return arr;
-                      };
-                      
-                      const pages = getPages();
-                      let currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex && p.subType === focusedStep.subType);
-                      if (currentIdx === -1) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-                      
-                      const totalStepsNum = pages.length;
-                      const currentStepNum = currentIdx >= 0 ? currentIdx + 1 : 0;
-                      stepFraction = Math.min(1, Math.max(0, currentStepNum / totalStepsNum));
+                      if (activeRoute && activeRoute.steps) {
+                        const getPages = () => {
+                          const arr: { idx: number, subType?: 'start' | 'end' | 'dest' }[] = [];
+                          activeRoute.steps.forEach((step: any, idx: number) => {
+                            if (step.type === 'walk' || (!step.startName && !step.endName)) {
+                              arr.push({ idx });
+                            } else {
+                              if (step.startName) arr.push({ idx, subType: 'start' });
+                              if (step.endName) arr.push({ idx, subType: 'end' });
+                            }
+                          });
+                          arr.push({ idx: activeRoute.steps.length, subType: 'dest' });
+                          return arr;
+                        };
+                        
+                        const pages = getPages();
+                        let currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex && p.subType === focusedStep.subType);
+                        if (currentIdx === -1) currentIdx = pages.findIndex(p => p.idx === focusedStep.stepIndex);
+                        
+                        const totalStepsNum = pages.length;
+                        const currentStepNum = currentIdx >= 0 ? currentIdx + 1 : 0;
+                        stepFraction = Math.min(1, Math.max(0, currentStepNum / totalStepsNum));
+                      }
                     }
                   }
-
-                  progressPercent = ((placeIndex + stepFraction) / totalSegments) * 100;
                 }
               }
 
+              let progressPercent = 0;
+              if (isPlaying && activePlaceIndex !== -1) {
+                progressPercent = ((activePlaceIndex + stepFraction) / totalSegments) * 100;
+              }
+
               return (
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-zinc-100">
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-zinc-100">
                   <div 
-                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-r-full opacity-70 transition-all duration-500 ease-out" 
+                    className="h-full bg-gradient-to-r from-zinc-300 via-zinc-600 to-zinc-950 rounded-r-full shadow-[2px_0_8px_rgba(9,9,11,0.5)] transition-all duration-500 ease-out" 
                     style={{ width: `${progressPercent}%` }}
-                  ></div>
+                  />
                 </div>
               );
             })()}
@@ -629,10 +633,8 @@ export default function JourneySidebar() {
         <header className={`px-8 py-7 border-b border-zinc-100/80 flex-shrink-0 ${isListEditMode ? 'bg-white' : 'bg-white/50 backdrop-blur-md'}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-lg shadow-blue-500/20 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white">
-                  <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                </svg>
+              <div className="w-8 h-8 rounded-xl bg-zinc-950 border border-zinc-800 shadow-md flex items-center justify-center flex-shrink-0 overflow-hidden">
+                <img src="/그림01.png" alt="On-Journey Logo" className="w-full h-full object-cover" />
               </div>
               <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600">
                 On-Journey

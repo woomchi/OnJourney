@@ -265,11 +265,8 @@ export default function RouteGuidePanel({
       <div className="p-5 border-b border-zinc-100 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-bold tracking-wide uppercase select-none">
-            <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-emerald-500 to-teal-500 shadow shadow-emerald-500/20 flex items-center justify-center flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-white">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-              </svg>
+            <div className="w-5 h-5 rounded-md bg-zinc-950 border border-zinc-800 shadow flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <img src="/그림01.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             상세 경로 안내
           </div>
@@ -673,7 +670,7 @@ export default function RouteGuidePanel({
       </div>
 
       {/* 재생바 영역 (Playback Bar) */}
-      <div className="flex-shrink-0 p-5 bg-white/60 backdrop-blur-md border-t border-zinc-100 rounded-b-3xl flex flex-col items-center">
+      <div className="flex-shrink-0 p-5 bg-white border-t border-zinc-100 rounded-b-3xl flex flex-col items-center shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         {/* 컨트롤 버튼부 */}
         <div className="flex items-center justify-center gap-6 mb-3">
           {/* 이전 단계 (<) */}
@@ -719,7 +716,11 @@ export default function RouteGuidePanel({
                     if (pages.length > 0) handleStepClick(pages[0].idx, pages[0].step, pages[0].subType);
                   }
                 }}
-                className="w-14 h-14 flex items-center justify-center rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-[0_4px_16px_rgba(59,130,246,0.3)] transition-all active:scale-95 border border-blue-400 group"
+                className={`w-14 h-14 flex items-center justify-center rounded-full transition-all active:scale-95 group shadow-md flex-shrink-0 ${
+                  showPlayIcon
+                    ? 'bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-white shadow-md'
+                    : 'bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-950 shadow-sm'
+                }`}
                 aria-label={showPlayIcon ? "여정 재생" : "여정 일시정지"}
               >
                 {!showPlayIcon ? (
@@ -789,16 +790,16 @@ export default function RouteGuidePanel({
 
           return (
             <div className="w-full flex items-center gap-2.5 px-2">
-              <span className="text-[10px] font-bold text-zinc-400 w-7 text-right select-none">
+              <span className="text-[10px] font-bold text-zinc-500 w-7 text-right select-none">
                 {formatTime(currentStepNum)}
               </span>
-              <div className="relative flex-1 h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+              <div className="relative flex-1 h-1.5 bg-zinc-200 rounded-full overflow-hidden shadow-inner">
                 <div 
-                  className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-300 ease-out"
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-zinc-300 via-zinc-600 to-zinc-950 transition-all duration-300 ease-out"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
-              <span className="text-[10px] font-bold text-zinc-400 w-7 select-none">
+              <span className="text-[10px] font-bold text-zinc-500 w-7 select-none">
                 {formatTime(totalStepsNum)}
               </span>
             </div>

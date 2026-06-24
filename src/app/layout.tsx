@@ -4,6 +4,8 @@ import { AuthProvider } from "@/providers/AuthProvider";
 import QueryProvider from "@/providers/QueryProvider";
 import "./globals.css";
 
+import PWAProvider from "@/components/PWAProvider";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -17,6 +19,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "On-Journey",
   description: "당신의 모든 이동이 온전히, 여정이 되도록.",
+  icons: {
+    icon: "/그림01.png",
+  },
 };
 
 export default function RootLayout({
@@ -31,7 +36,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <QueryProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <PWAProvider>{children}</PWAProvider>
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

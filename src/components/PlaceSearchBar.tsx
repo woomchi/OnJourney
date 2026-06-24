@@ -105,7 +105,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   const { user, openAuthModal } = useAuth();
@@ -129,9 +129,9 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   // 이미 추가된 장소 ID 동기화
   useEffect(() => {
     if (activeJourney) {
-      setAddedIds(new Set(activeJourney.places.map((p) => p.id)));
+      setTimeout(() => setAddedIds(new Set(activeJourney.places.map((p) => p.id))), 0);
     } else {
-      setAddedIds(new Set());
+      setTimeout(() => setAddedIds(new Set()), 0);
     }
   }, [activeJourney]);
 
@@ -455,7 +455,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
               </button>
             </div>
             <p className="text-sm text-zinc-500 mb-6 leading-relaxed">
-              <span className="font-bold text-blue-600">"{selectedPlaceToAssign.place_name}"</span>을(를) 추가할 여정을 선택해주세요.
+              <span className="font-bold text-blue-600">&quot;{selectedPlaceToAssign.place_name}&quot;</span>을(를) 추가할 여정을 선택해주세요.
             </p>
 
             {/* List or Fallback */}

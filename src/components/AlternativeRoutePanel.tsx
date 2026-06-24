@@ -346,11 +346,6 @@ export default function AlternativeRoutePanel({
                   guide: previewRoute.guide,
                 };
                 selectSegmentRoute(originPlace.id, selectedRouteObj);
-
-                const bounds = calculateSegmentBounds(originPlace, destPlace, selectedRouteObj);
-                setFocusBounds(bounds);
-                setFocusedSegment({ originId: originPlace.id, destId: destPlace.id });
-                setFocusedStep(null);
               }
               setHoveredAlternativeRoute(null);
               onClose();

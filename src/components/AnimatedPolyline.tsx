@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Polyline } from 'react-naver-maps';
 
-export default function AnimatedPolyline({ path, delay = 0, duration = 800, ...props }: any) {
+export default function AnimatedPolyline({ path, delay = 0, duration = 800, skipAnimation = false, ...props }: any) {
   const [currentPath, setCurrentPath] = useState<any[]>([]);
   const requestRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number | null>(null);
+  const hasAnimatedRef = useRef(false);
 
   // stringified path to prevent animation restarts when only reference changes
   const pathKey = useMemo(() => {
@@ -21,6 +22,22 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, ...p
       setCurrentPath(path || []);
       return;
     }
+
+    if (skipAnimation || hasAnimatedRef.current) {
+      const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+      if (navermaps) {
+        setCurrentPath(path.map((pt: any) => {
+          const lat = typeof pt.lat === 'function' ? pt.lat() : pt.lat;
+          const lng = typeof pt.lng === 'function' ? pt.lng() : pt.lng;
+          return pt instanceof navermaps.LatLng ? pt : new navermaps.LatLng(lat, lng);
+        }));
+      } else {
+        setCurrentPath([...path]);
+      }
+      return;
+    }
+
+    hasAnimatedRef.current = true;
 
     let timeoutId: NodeJS.Timeout;
 
@@ -61,7 +78,16 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, ...p
       const progress = Math.min(elapsed / duration, 1); // 0 to 1
       
       if (progress >= 1) {
-        setCurrentPath([...path]); // Finish
+        const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+        if (navermaps) {
+          setCurrentPath(path.map((pt: any) => {
+            const lat = typeof pt.lat === 'function' ? pt.lat() : pt.lat;
+            const lng = typeof pt.lng === 'function' ? pt.lng() : pt.lng;
+            return pt instanceof navermaps.LatLng ? pt : new navermaps.LatLng(lat, lng);
+          }));
+        } else {
+          setCurrentPath([...path]);
+        }
         return;
       }
 

@@ -126,12 +126,6 @@ export default function AlternativeSegmentInfo({
                     guide: route.guide,
                   };
                   selectSegmentRoute(place.id, selectedRouteObj);
-                  if (nextPlace) {
-                    const bounds = calculateSegmentBounds(place, nextPlace, selectedRouteObj);
-                    setFocusBounds(bounds);
-                    setFocusedSegment({ originId: place.id, destId: nextPlace.id });
-                    setFocusedStep(null);
-                  }
                   onSelect?.();
                 }}
                 className={`

@@ -17,14 +17,7 @@ import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries
 import { NaverMapRouteRenderer, calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { getCategoryTheme } from '@/lib/categoryUtils';
-
-const SEQUENCE_COLORS = [
-  '#4F46E5', // 1번째 구간: Indigo Blue
-  '#0D9488', // 2번째 구간: Teal Green
-  '#D97706', // 3번째 구간: Amber Golden
-  '#EC4899', // 4번째 구간: Coral Pink
-  '#DC2626', // 5번째 이상: Rose Red
-];
+import { SEQUENCE_COLORS } from '@/constants/colors';
 
 
 
@@ -384,6 +377,19 @@ export default function MapArea() {
   }, [focusBounds, map, currentMapPadding]);
 
   // 지도 줌 레벨 및 뷰포트 바운드 변경 감지 리스너
+  const animatedSegmentsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (places && places.length > 1) {
+      places.forEach((place, idx) => {
+        if (idx === places.length - 1) return;
+        const nextPlace = places[idx + 1];
+        const cacheKey = `${place.id}-${nextPlace.id}`;
+        animatedSegmentsRef.current.add(cacheKey);
+      });
+    }
+  }, [places]);
+
   useEffect(() => {
     if (!map) return;
 
@@ -436,15 +442,24 @@ export default function MapArea() {
 
               const defaultRoute = getDefaultRoute(place, nextPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 
-              const isAlternativeSegment = alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id;
-              const activeRoute = (isAlternativeSegment && hoveredAlternativeRoute) ? hoveredAlternativeRoute : defaultRoute;
-
-              if (!activeRoute || !activeRoute.steps) {
+              if (!defaultRoute || !defaultRoute.steps) {
                 return null;
               }
 
-              const handlePolylineClick = () => {
-                const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
+              const isAlternativeSegment = !!(alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id);
+              const hasHoveredAlternative = isAlternativeSegment && !!hoveredAlternativeRoute;
+
+              // 렌더링할 경로 목록 구성 (기본 경로는 항상 마운트 유지)
+              const routesToRender = [
+                { route: defaultRoute, isHoveredRoute: false }
+              ];
+              
+              if (hasHoveredAlternative && hoveredAlternativeRoute) {
+                routesToRender.push({ route: hoveredAlternativeRoute, isHoveredRoute: true });
+              }
+
+              const handlePolylineClick = (targetRoute: any) => {
+                const bounds = calculateSegmentBounds(place, nextPlace, targetRoute);
                 if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
                   // 이미 포커스된 상태에서 다시 클릭하면, 전체 구간 보기로 돌아가도록(zoom-out to segment) bounds 재적용
                   setFocusBounds({ ...bounds });
@@ -456,138 +471,144 @@ export default function MapArea() {
                 }
               };
 
-              return activeRoute.steps.map((step, sIdx) => {
-                const stepPath = step.pathPoints || [];
-                if (stepPath.length < 2) return null;
+              return routesToRender.map(({ route, isHoveredRoute }) => {
+                return route.steps.map((step: any, sIdx: number) => {
+                  const stepPath = step.pathPoints || [];
+                  if (stepPath.length < 2) return null;
 
-                const baseDelay = delays.pathDelays[`${place.id}-${nextPlace.id}`] ?? (idx * 800 + 400);
+                  const baseDelay = delays.pathDelays[`${place.id}-${nextPlace.id}`] ?? (idx * 800 + 400);
 
-                // window.naver.maps가 존재하면 LatLng 인스턴스 배열로 매핑하여 렌더링 안정성 확보
-                const pathPoints = navermaps
-                  ? stepPath.map(pt => new navermaps.LatLng(pt.lat, pt.lng))
-                  : stepPath;
+                  // AnimatedPolyline 내부에서 LatLng 처리를 수행하므로, 원본 배열을 그대로 전달하여 참조를 유지합니다.
+                  const pathPoints = stepPath;
 
-                // 특정 스텝(세부 노선) 포커스 여부 판별
-                const hasFocusedStep = !!focusedStep;
-                let isThisStepFocused = !!(
-                  focusedStep &&
-                  focusedStep.originId === place.id &&
-                  focusedStep.destId === nextPlace.id &&
-                  focusedStep.stepIndex === sIdx
-                );
+                  // 특정 스텝(세부 노선) 포커스 여부 판별
+                  const hasFocusedStep = !!focusedStep;
+                  let isThisStepFocused = !!(
+                    focusedStep &&
+                    focusedStep.originId === place.id &&
+                    focusedStep.destId === nextPlace.id &&
+                    focusedStep.stepIndex === sIdx
+                  );
 
-                if (
-                  focusedStep &&
-                  focusedStep.originId === place.id &&
-                  focusedStep.destId === nextPlace.id &&
-                  focusedStep.subType === 'dest' &&
-                  sIdx === activeRoute.steps.length - 1
-                ) {
-                  isThisStepFocused = true;
-                }
-
-                // 포커스 세그먼트 매칭 여부 판별
-                const isSegmentFocused = activeSegment
-                  ? (activeSegment.originId === place.id && activeSegment.destId === nextPlace.id)
-                  : true;
-
-                // 포커스된 세그먼트가 아닌 경우(다른 구간)만 렌더링하지 않음
-                if (activeSegment && !isSegmentFocused) {
-                  return null;
-                }
-
-                // 순서가 빠를수록(idx가 작을수록) zIndex가 높도록 겹침 노출 순서 적용 (맨 위에 노출)
-                // 특정 스텝만 포커스 상태라면 최상위(15000)로 올림
-                const baseZIndex = isThisStepFocused
-                  ? 15000
-                  : isSegmentFocused
-                    ? (activeSegment ? 5000 + sIdx : (100 - idx) * 10)
-                    : (100 - idx);
-
-                // 교통수단 색상 대신 순서(idx) 기반 색상으로 매핑
-                const segmentColor = SEQUENCE_COLORS[idx % SEQUENCE_COLORS.length];
-                const strokeColor = segmentColor;
-
-                let strokeOpacity = 0.8;
-                let strokeWeight = 4.5;
-
-                if (hasFocusedStep) {
-                  strokeOpacity = 0.95;
-                  strokeWeight = 7.0;
-                } else if (activeSegment) {
-                  strokeOpacity = 0.95;
-                  strokeWeight = 6.5;
-                } else {
-                  strokeOpacity = 0.8;
-                  strokeWeight = 4.5;
-                }
-
-                const isWalk = step.type === 'walk';
-
-                if (isWalk) {
-                  // 도보 구간: 구간 고유 색상의 점선으로 표시 (방향 화살표 제외하여 깔끔하게 처리)
-                  let walkOpacity = 0.65;
-                  let walkWeight = 2.5;
-
-                  if (hasFocusedStep) {
-                    walkOpacity = 0.95;
-                    walkWeight = 5.0;
-                  } else if (activeSegment) {
-                    walkOpacity = 0.95;
-                    walkWeight = 4.5;
+                  if (
+                    focusedStep &&
+                    focusedStep.originId === place.id &&
+                    focusedStep.destId === nextPlace.id &&
+                    focusedStep.subType === 'dest' &&
+                    sIdx === route.steps.length - 1
+                  ) {
+                    isThisStepFocused = true;
                   }
 
-                  return (
-                    <AnimatedPolyline
-                      key={`polyline-${place.id}-${nextPlace.id}-${sIdx}`}
-                      path={pathPoints}
-                      delay={baseDelay + sIdx * 15}
-                      duration={400}
-                      strokeColor={segmentColor}
-                      strokeOpacity={walkOpacity}
-                      strokeWeight={walkWeight}
-                      strokeStyle="shortdash"
-                      strokeLineCap="round"
-                      strokeLineJoin="round"
-                      zIndex={baseZIndex}
-                      onClick={handlePolylineClick}
-                    />
-                  );
-                }
+                  // 포커스 세그먼트 매칭 여부 판별
+                  const isSegmentFocused = activeSegment
+                    ? (activeSegment.originId === place.id && activeSegment.destId === nextPlace.id)
+                    : true;
 
-                // 대중교통/차량 구간: 테두리선(백그라운드) + 본선(포그라운드) 이중 Polyline 렌더링으로 겹침 가독성 개선
-                return (
-                  <Fragment key={`polyline-group-${place.id}-${nextPlace.id}-${sIdx}`}>
-                    {/* 1. 배경 외곽선 (흰색 테두리) */}
-                    <AnimatedPolyline
-                      path={pathPoints}
-                      delay={baseDelay + sIdx * 15}
-                      duration={400}
-                      strokeColor="#FFFFFF"
-                      strokeOpacity={0.95}
-                      strokeWeight={strokeWeight + 1.8}
-                      strokeStyle="solid"
-                      strokeLineCap="round"
-                      strokeLineJoin="round"
-                      zIndex={baseZIndex}
-                      onClick={handlePolylineClick}
-                    />
-                    {/* 2. 본래 색상의 실제 경로선 */}
-                    <AnimatedPolyline
-                      path={pathPoints}
-                      delay={baseDelay + sIdx * 15}
-                      duration={400}
-                      strokeColor={strokeColor}
-                      strokeOpacity={strokeOpacity}
-                      strokeWeight={strokeWeight}
-                      strokeStyle="solid"
-                      strokeLineCap="round"
-                      strokeLineJoin="round"
-                      zIndex={baseZIndex + 1}
-                      onClick={handlePolylineClick}
-                    />
-                  </Fragment>
-                );
+                  // 포커스된 세그먼트가 아닌 경우(다른 구간) 렌더링을 완전히 제거하지 않고 visible로 숨겨 재마운트 애니메이션 방지
+                  // 대안 경로 미리보기가 활성화된 경우, 기본 경로는 숨기고 미리보기 경로만 표시
+                  const isVisible = !(activeSegment && !isSegmentFocused) && (!hasHoveredAlternative || isHoveredRoute);
+
+                  // 순서가 빠를수록(idx가 작을수록) zIndex가 높도록 겹침 노출 순서 적용 (맨 위에 노출)
+                  // 특정 스텝만 포커스 상태라면 최상위(15000)로 올림
+                  const baseZIndex = isThisStepFocused
+                    ? 15000
+                    : isSegmentFocused
+                      ? (activeSegment ? 5000 + sIdx : (100 - idx) * 10)
+                      : (100 - idx);
+
+                  // 교통수단 색상 대신 순서(idx) 기반 색상으로 매핑
+                  const segmentColor = SEQUENCE_COLORS[idx % SEQUENCE_COLORS.length];
+                  const strokeColor = segmentColor;
+
+                  let strokeOpacity = 0.8;
+                  let strokeWeight = 4.5;
+
+                  if (hasFocusedStep) {
+                    strokeOpacity = 0.95;
+                    strokeWeight = 7.0;
+                  } else if (activeSegment) {
+                    strokeOpacity = 0.95;
+                    strokeWeight = 6.5;
+                  } else {
+                    strokeOpacity = 0.8;
+                    strokeWeight = 4.5;
+                  }
+
+                  const keyPrefix = isHoveredRoute ? 'hovered-' : '';
+                  const isWalk = step.type === 'walk';
+
+                  if (isWalk) {
+                    // 도보 구간: 구간 고유 색상의 점선으로 표시 (방향 화살표 제외하여 깔끔하게 처리)
+                    let walkOpacity = 0.65;
+                    let walkWeight = 2.5;
+
+                    if (hasFocusedStep) {
+                      walkOpacity = 0.95;
+                      walkWeight = 5.0;
+                    } else if (activeSegment) {
+                      walkOpacity = 0.95;
+                      walkWeight = 4.5;
+                    }
+
+                    return (
+                      <AnimatedPolyline
+                        key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}
+                        path={pathPoints}
+                        delay={baseDelay + sIdx * 15}
+                        duration={400}
+                        skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
+                        strokeColor={segmentColor}
+                        strokeOpacity={walkOpacity}
+                        strokeWeight={walkWeight}
+                        strokeStyle="shortdash"
+                        strokeLineCap="round"
+                        strokeLineJoin="round"
+                        zIndex={baseZIndex}
+                        onClick={() => handlePolylineClick(route)}
+                        visible={isVisible}
+                      />
+                    );
+                  }
+
+                  // 대중교통/차량 구간: 테두리선(백그라운드) + 본선(포그라운드) 이중 Polyline 렌더링으로 겹침 가독성 개선
+                  return (
+                    <Fragment key={`polyline-group-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}>
+                      {/* 1. 배경 외곽선 (흰색 테두리) */}
+                      <AnimatedPolyline
+                        path={pathPoints}
+                        delay={baseDelay + sIdx * 15}
+                        duration={400}
+                        skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
+                        strokeColor="#FFFFFF"
+                        strokeOpacity={0.95}
+                        strokeWeight={strokeWeight + 1.8}
+                        strokeStyle="solid"
+                        strokeLineCap="round"
+                        strokeLineJoin="round"
+                        zIndex={baseZIndex}
+                        onClick={() => handlePolylineClick(route)}
+                        visible={isVisible}
+                      />
+                      {/* 2. 본래 색상의 실제 경로선 */}
+                      <AnimatedPolyline
+                        path={pathPoints}
+                        delay={baseDelay + sIdx * 15}
+                        duration={400}
+                        skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
+                        strokeColor={strokeColor}
+                        strokeOpacity={strokeOpacity}
+                        strokeWeight={strokeWeight}
+                        strokeStyle="solid"
+                        strokeLineCap="round"
+                        strokeLineJoin="round"
+                        zIndex={baseZIndex + 1}
+                        onClick={() => handlePolylineClick(route)}
+                        visible={isVisible}
+                      />
+                    </Fragment>
+                  );
+                });
               });
             })}
 

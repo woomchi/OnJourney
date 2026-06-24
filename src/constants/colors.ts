@@ -2,11 +2,12 @@
 
 // 여정 구간별 기본 색상 (Sequence Colors)
 export const SEQUENCE_COLORS = [
-  '#4F46E5', // 1번째 구간: Indigo Blue
-  '#0D9488', // 2번째 구간: Teal Green
-  '#D97706', // 3번째 구간: Amber Golden
-  '#EC4899', // 4번째 구간: Coral Pink
-  '#DC2626', // 5번째 이상: Rose Red
+  '#4F46E5', // 1번째 구간: Indigo Blue (어두운 계열)
+  '#EC4899', // 2번째 구간: Coral Pink (밝은 계열)
+  '#0D9488', // 3번째 구간: Teal Green (어두운 계열)
+  '#D97706', // 4번째 구간: Amber Golden (밝은 계열)
+  '#6D28D9', // 5번째 구간: Deep Purple (어두운 계열)
+  '#DC2626', // 6번째 이상: Rose Red (어두운 계열)
 ];
 
 // 지하철 호선별 색상 매핑

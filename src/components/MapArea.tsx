@@ -1247,7 +1247,7 @@ function TransferMarkers({
 
       const transitSteps = activeRoute.steps.filter((s: any) => ['bus', 'subway', 'train', 'expressbus'].includes(s.type));
       
-      const startColor = '#3B82F6'; // 출발지 기본색: 서비스 테마 블루
+      const startColor = getSequenceTheme(idx, places.length).color;
       const mergedFirstTransit = false;
 
       const getShiftedStepPoint = (step: any, isStart: boolean) => {
@@ -1417,7 +1417,7 @@ function TransferMarkers({
         position: { lat: nextPlace.lat, lng: nextPlace.lng },
         busName: nextPlace.place_name,
         type: 'destination',
-        color: '#EF4444', // 도착지는 Rose Red 계열
+        color: getSequenceTheme(idx + 1, places.length).color,
         stationName: '도착지',
         isDest: true,
         isSegmentDest: true,

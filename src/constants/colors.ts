@@ -17,9 +17,16 @@ export interface SequenceTheme {
 }
 
 export function getSequenceTheme(idx: number, totalPlaces: number): SequenceTheme {
-  const colorIndex = totalPlaces > 1
-    ? Math.min(idx, totalPlaces - 2) % SEQUENCE_COLORS.length
-    : 0;
+  // 맨 마지막 장소는 항상 파란색 (Blue)으로 고정
+  if (totalPlaces > 1 && idx === totalPlaces - 1) {
+    return {
+      color: '#3B82F6', // Blue
+      gradientStart: '#60A5FA', // Blue 400
+      gradientEnd: '#2563EB',   // Blue 700
+    };
+  }
+
+  const colorIndex = idx % SEQUENCE_COLORS.length;
 
   switch (colorIndex) {
     case 0:

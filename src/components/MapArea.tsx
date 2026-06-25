@@ -18,7 +18,9 @@ import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries
 import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { SEQUENCE_COLORS, getSequenceTheme } from '@/constants/colors';
-import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
+import { getCategoryTheme } from '@/lib/categoryUtils';
+import type { Place, SelectedRoute, DirectionResult, PlaceResult } from '@/types/journey';
+
 
 
 interface SelectedPlace {
@@ -39,7 +41,11 @@ export default function MapArea() {
     alternativeSegment,
     setAlternativeSegment,
     hoveredAlternativeRoute,
-    isAlternativeFromFocus
+    isAlternativeFromFocus,
+    recommendedPlaces,
+    setMapCenterAddress,
+    addPlace,
+    removePlace,
   } = useJourneyStore();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
@@ -103,6 +109,58 @@ export default function MapArea() {
 
     return { markerDelays, pathDelays };
   }, [places, initialPlaceIds]);
+
+  const [activeRecommendedPlace, setActiveRecommendedPlace] = useState<PlaceResult | null>(null);
+
+  // recommendedPlaces가 비워지면 activeRecommendedPlace도 비워지도록 함
+  useEffect(() => {
+    if (!recommendedPlaces || recommendedPlaces.length === 0) {
+      setActiveRecommendedPlace(null);
+    }
+  }, [recommendedPlaces]);
+
+  const categoryEmojis = useMemo<Record<string, string>>(() => ({
+    cafe: '☕',
+    restaurant: '🍽️',
+    hotel: '🏨',
+    activity: '🎡',
+    transit: '🚉',
+    etc: '📍'
+  }), []);
+
+  const handleRecommendedMarkerClick = (recPlace: PlaceResult) => {
+    setActiveRecommendedPlace(recPlace);
+    if (map) {
+      map.panTo(new window.naver.maps.LatLng(recPlace.lat, recPlace.lng));
+    }
+  };
+
+  const handleAddRecommendedPlace = async (item: PlaceResult) => {
+    if (!activeJourney) return;
+    const place: Place = {
+      id: item.id,
+      place_name: item.place_name,
+      address: item.address,
+      category: item.category,
+      lat: item.lat,
+      lng: item.lng,
+    };
+    try {
+      await addPlace(place);
+      setActiveRecommendedPlace(null);
+    } catch (err) {
+      console.error('추천 장소 추가 실패:', err);
+    }
+  };
+
+  const handleRemoveRecommendedPlace = async (placeId: string) => {
+    try {
+      await removePlace(placeId);
+      setActiveRecommendedPlace(null);
+    } catch (err) {
+      console.error('추천 장소 제거 실패:', err);
+    }
+  };
 
   const { fetchSequentialDirections } = useJourneyDirections();
   const directionsCache = useJourneyDirectionsCache(places);
@@ -419,6 +477,10 @@ export default function MapArea() {
   // 지도 줌 레벨 및 뷰포트 바운드 변경 감지 리스너
   const animatedSegmentsRef = useRef<Set<string>>(new Set());
 
+  // 마지막으로 reverseGeocode를 호출했던 좌표를 기억
+  const lastGeocodedCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!map) return;
 
@@ -432,10 +494,56 @@ export default function MapArea() {
     const idleListener = navermaps.Event.addListener(map, 'idle', () => {
       setZoomLevel(map.getZoom());
       setMapBounds(map.getBounds() as naver.maps.LatLngBounds);
+
+      // reverseGeocode 호출 최적화:
+      // 1) isSearchMode 상태일 때만 API 호출 (불필요한 호출 최소화)
+      // 2) debounce 600ms — 연속 조작 시 마지막 idle만 처리
+      // 3) 거리 임계값 — 마지막 geocode 위치에서 ~300m 이내면 재호출 생략
+      const isSearchModeActive = useJourneyStore.getState().isSearchMode;
+      if (!isSearchModeActive) return;
+
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = setTimeout(() => {
+        const center = map.getCenter();
+        const lat = center.y;
+        const lng = center.x;
+
+        // 마지막 geocode 위치와의 거리 계산 (단순 위경도 차이 → 약 300m 이내면 skip)
+        const last = lastGeocodedCoordsRef.current;
+        if (last) {
+          const dLat = Math.abs(lat - last.lat);
+          const dLng = Math.abs(lng - last.lng);
+          // 위경도 0.003° ≈ 약 300m
+          if (dLat < 0.003 && dLng < 0.003) return;
+        }
+
+        if (navermaps.Service && navermaps.Service.reverseGeocode) {
+          navermaps.Service.reverseGeocode(
+            {
+              coords: center,
+              orders: [
+                navermaps.Service.OrderType.ADDR,
+                navermaps.Service.OrderType.ROAD_ADDR
+              ].join(',')
+            },
+            (status: any, response: any) => {
+              if (status === navermaps.Service.Status.OK) {
+                const results = response.v2.results;
+                const regionName = results[0]?.region?.area3?.name || '';
+                if (regionName) {
+                  setMapCenterAddress(regionName);
+                  lastGeocodedCoordsRef.current = { lat, lng };
+                }
+              }
+            }
+          );
+        }
+      }, 600);
     });
 
     return () => {
       navermaps.Event.removeListener(idleListener);
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
     };
   }, [map]);
 
@@ -445,7 +553,7 @@ export default function MapArea() {
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      <NavermapsProvider ncpKeyId={clientId}>
+      <NavermapsProvider ncpKeyId={clientId} submodules={['geocoder']}>
         <MapDiv style={{ width: '100%', height: '100%' }}>
           <NaverMap
             defaultCenter={mapCenter}
@@ -730,9 +838,98 @@ export default function MapArea() {
                 />
               );
             })}
+
+            {/* 추천 장소 마커 렌더링 */}
+            {recommendedPlaces && recommendedPlaces.map((recPlace) => {
+              const theme = getCategoryTheme(recPlace.category);
+              const emoji = categoryEmojis[theme.type] || categoryEmojis.etc;
+              const zIndex = 9000;
+              return (
+                <AnimatedMarker
+                  key={`rec-${recPlace.id}`}
+                  delay={0}
+                  position={{ lat: recPlace.lat, lng: recPlace.lng }}
+                  title={recPlace.place_name}
+                  onClick={() => handleRecommendedMarkerClick(recPlace)}
+                  zIndex={zIndex}
+                  iconAnchor={new window.naver.maps.Point(14, 34)}
+                  iconContent={`<div style="
+                      cursor: pointer;
+                      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.18));
+                      transition: transform 0.15s ease-out;
+                    "
+                    class="hover:scale-110 active:scale-95"
+                    >
+                      <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
+                              fill="${theme.color}" 
+                              stroke="white"
+                              stroke-width="1.5"
+                        />
+                        <text x="12" y="17" fill="white" font-size="11" font-family="Pretendard, sans-serif" text-anchor="middle">${emoji}</text>
+                      </svg>
+                    </div>`}
+                />
+              );
+            })}
           </NaverMap>
         </MapDiv>
       </NavermapsProvider>
+
+      {/* ── 추천 장소 상세 오버레이 카드 (Quick Add 지원) ── */}
+      {activeRecommendedPlace && (
+      <div className="absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4">
+          <div className="flex justify-between items-start gap-3">
+            <div className="min-w-0">
+              <span className="inline-block text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mb-1">
+                {activeRecommendedPlace.category.split('>').pop()?.trim() || activeRecommendedPlace.category}
+              </span>
+              <h4 className="text-[15px] font-black text-zinc-900 truncate leading-tight">
+                {activeRecommendedPlace.place_name}
+              </h4>
+              <p className="text-xs text-zinc-400 mt-1 leading-normal truncate">
+                {activeRecommendedPlace.address}
+              </p>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setActiveRecommendedPlace(null)}
+              className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-all flex-shrink-0 cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          {(() => {
+            const isAlreadyAdded = places.some(p => p.id === activeRecommendedPlace.id);
+            return isAlreadyAdded ? (
+              <button
+                type="button"
+                onClick={() => handleRemoveRecommendedPlace(activeRecommendedPlace.id)}
+                className="w-full py-3 bg-red-50 hover:bg-red-500 active:scale-95 text-red-600 hover:text-white text-xs font-bold rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-red-100 hover:border-red-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+                <span>여정에서 제거하기</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleAddRecommendedPlace(activeRecommendedPlace)}
+                className="relative group w-full py-3 bg-zinc-950 hover:bg-zinc-900 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 relative z-10">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                <span className="relative z-10">여정에 추가하기</span>
+              </button>
+            );
+          })()}
+        </div>
+      )}
 
       {/* 전체 보기 플로팅 버튼 (우측 하단) */}
       {places.length > 0 && (

@@ -3,11 +3,11 @@ import type { JourneyStore } from '../journey-store';
 
 export interface UISlice {
   isCreateFormOpen: boolean;
-  isAddPlaceOpen: boolean;
+  isSearchMode: boolean;
   openCreateForm: () => void;
   closeCreateForm: () => void;
-  openAddPlace: () => void;
-  closeAddPlace: () => void;
+  openSearchMode: () => void;
+  closeSearchMode: () => void;
 }
 
 export const createUISlice: StateCreator<
@@ -17,9 +17,9 @@ export const createUISlice: StateCreator<
   UISlice
 > = (set) => ({
   isCreateFormOpen: false,
-  isAddPlaceOpen: false,
+  isSearchMode: false,
   openCreateForm: () => set({ isCreateFormOpen: true }),
   closeCreateForm: () => set({ isCreateFormOpen: false }),
-  openAddPlace: () => set({ isAddPlaceOpen: true }),
-  closeAddPlace: () => set({ isAddPlaceOpen: false }),
+  openSearchMode: () => set({ isSearchMode: true }),
+  closeSearchMode: () => set({ isSearchMode: false, recommendedPlaces: [] }),
 });

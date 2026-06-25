@@ -126,7 +126,7 @@ export default function AuthModal() {
               placeholder="you@example.com"
               required
               autoComplete="email"
-              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px]"
+              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] text-zinc-900"
               autoFocus
             />
           </label>
@@ -141,7 +141,7 @@ export default function AuthModal() {
               required
               minLength={MIN_PASSWORD_LENGTH}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px]"
+              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] text-zinc-900"
             />
           </label>
           <p className="text-xs text-zinc-400 mb-6">

@@ -130,3 +130,13 @@ export interface BusArrival {
   isApproaching1: boolean;
   isApproaching2?: boolean;
 }
+
+export interface PlaceResult {
+  id: string;
+  place_name: string;
+  address: string;
+  category: string;
+  lat: number;
+  lng: number;
+}
+

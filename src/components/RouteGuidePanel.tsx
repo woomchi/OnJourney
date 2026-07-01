@@ -255,8 +255,8 @@ export default function RouteGuidePanel({
       <div className="p-5 border-b border-zinc-100 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-bold tracking-wide uppercase select-none">
-            <div className="w-5 h-5 rounded-md bg-zinc-950 border border-zinc-800 shadow flex items-center justify-center flex-shrink-0 overflow-hidden">
-              <img src="/그림01.png" alt="Logo" className="w-full h-full object-cover" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <img src="/서비스 로고2.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             상세 경로 안내
           </div>

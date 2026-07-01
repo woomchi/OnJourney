@@ -76,8 +76,8 @@ export default function JourneySidebar() {
           <header className="px-8 py-7 border-b border-zinc-100/80 bg-white/50 backdrop-blur-md flex-shrink-0">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-zinc-950 border border-zinc-800 shadow-md flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  <img src="/그림01.png" alt="On-Journey Logo" className="w-full h-full object-cover" />
+                <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                  <img src="/서비스 로고2.png" alt="On-Journey Logo" className="w-full h-full object-contain" />
                 </div>
                 <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600">
                   On-Journey

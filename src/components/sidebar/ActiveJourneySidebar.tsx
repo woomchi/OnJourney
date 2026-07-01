@@ -477,9 +477,9 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
             }
 
             return (
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-zinc-100">
+              <div className="absolute bottom-0 left-0 w-full h-[3px] bg-zinc-100">
                 <div 
-                  className="h-full bg-gradient-to-r from-zinc-300 via-zinc-600 to-zinc-950 rounded-r-full shadow-[2px_0_8px_rgba(9,9,11,0.5)] transition-all duration-500 ease-out" 
+                  className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 rounded-r-full shadow-[0_1px_6px_rgba(99,102,241,0.3)] transition-all duration-500 ease-out" 
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>

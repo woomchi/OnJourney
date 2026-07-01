@@ -131,9 +131,9 @@ export default function PlaybackBar({
         <span className="text-[10px] font-bold text-zinc-500 w-7 text-right select-none">
           {formatTime(currentStepNum)}
         </span>
-        <div className="relative flex-1 h-1.5 bg-zinc-200 rounded-full overflow-hidden shadow-inner">
+        <div className="relative flex-1 h-[3px] bg-zinc-100 rounded-full">
           <div 
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-zinc-300 via-zinc-600 to-zinc-950 transition-all duration-300 ease-out"
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 rounded-r-full shadow-[0_1px_6px_rgba(99,102,241,0.3)] transition-all duration-300 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>

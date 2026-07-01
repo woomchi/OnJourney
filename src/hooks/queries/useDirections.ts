@@ -79,7 +79,19 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
           newCache[cacheKey] = data;
         }
       });
-      setDirectionsCache(newCache);
+      
+      setDirectionsCache(prevCache => {
+        const prevKeys = Object.keys(prevCache);
+        const newKeys = Object.keys(newCache);
+        if (prevKeys.length !== newKeys.length) return newCache;
+        
+        for (const key of newKeys) {
+          if (prevCache[key] !== newCache[key]) {
+            return newCache;
+          }
+        }
+        return prevCache;
+      });
     };
 
     // Initial populate

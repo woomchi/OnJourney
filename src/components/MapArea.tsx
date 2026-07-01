@@ -588,8 +588,26 @@ export default function MapArea() {
 
     // 드래그나 줌 조작이 완전히 멈춘 유휴(idle) 상태일 때만 바운드와 줌 레벨을 갱신하여 렌더링 부하 최소화
     const idleListener = navermaps.Event.addListener(map, 'idle', () => {
-      setZoomLevel(map.getZoom());
-      setMapBounds(map.getBounds() as naver.maps.LatLngBounds);
+      const newZoom = map.getZoom();
+      setZoomLevel(prev => prev === newZoom ? prev : newZoom);
+
+      const newBounds = map.getBounds() as naver.maps.LatLngBounds;
+      setMapBounds(prev => {
+        if (!prev || !newBounds) return newBounds;
+        const prevSW = prev.getSW();
+        const prevNE = prev.getNE();
+        const newSW = newBounds.getSW();
+        const newNE = newBounds.getNE();
+        if (
+          prevSW.lat() === newSW.lat() &&
+          prevSW.lng() === newSW.lng() &&
+          prevNE.lat() === newNE.lat() &&
+          prevNE.lng() === newNE.lng()
+        ) {
+          return prev;
+        }
+        return newBounds;
+      });
 
       // reverseGeocode 호출 최적화:
       // 1) isSearchMode 상태일 때만 API 호출 (불필요한 호출 최소화)

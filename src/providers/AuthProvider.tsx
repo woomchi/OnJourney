@@ -78,7 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setUser(session?.user ?? null);
+      setUser((prevUser) => {
+        const nextUser = session?.user ?? null;
+        if (
+          prevUser?.id === nextUser?.id &&
+          prevUser?.updated_at === nextUser?.updated_at
+        ) {
+          return prevUser;
+        }
+        return nextUser;
+      });
       setLoading(false);
     });
 

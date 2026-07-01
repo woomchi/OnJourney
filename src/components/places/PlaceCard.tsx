@@ -189,7 +189,7 @@ export default function PlaceCard({
                 )}
 
                 {/* 레코드판 본체 (앨범 커버 뒤에 숨어있다가 호버 시 우측으로 나옴, 클릭/포커스 시 앞으로 나옴, 재생 시 회전) */}
-                {!isLast && (
+                {!isLast && !editMode && (
                   <div 
                     className={`absolute flex items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden 
                       ${isFocused 
@@ -230,10 +230,10 @@ export default function PlaceCard({
                   </div>
                 )}
                 
-                {/* 앨범 커버 슬리브 (마지막 장소는 가만히 있고, 일반 장소는 포커스 시 레코드가 튀어나옴) */}
+                {/* 앨범 커버 슬리브 (마지막 장소나 편집 모드 시 가만히 있고, 일반 장소는 포커스 시 레코드가 튀어나옴) */}
                 <div 
                   className={`absolute z-30 w-[38px] h-[38px] rounded-[3px] flex flex-col items-center justify-center overflow-hidden border border-white/20 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-                    isLast 
+                    isLast || editMode
                       ? 'opacity-100 shadow-[0_2px_8px_rgba(0,0,0,0.15)] pointer-events-none'
                       : isFocused 
                         ? 'opacity-85 scale-[0.95] -translate-x-[4px] translate-y-0 rotate-0 shadow-sm pointer-events-none' 

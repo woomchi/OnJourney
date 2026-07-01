@@ -47,12 +47,15 @@ export default function MapArea() {
     setMapCenterAddress,
     addPlace,
     removePlace,
+    isEditMode,
   } = useJourneyStore();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
   // Track initial place IDs to handle dynamic sequential animation delays
   const [initialPlaceIds, setInitialPlaceIds] = useState<Set<string>>(new Set());
   const prevJourneyIdRef = useRef<string | null>(null);
+  const prevIsEditModeRef = useRef<boolean>(false);
+  const [animationVersion, setAnimationVersion] = useState<number>(0);
 
   const currentJourneyId = activeJourney?.id || null;
   if (currentJourneyId !== prevJourneyIdRef.current) {
@@ -65,6 +68,17 @@ export default function MapArea() {
   } else if (currentJourneyId && initialPlaceIds.size === 0 && places.length > 0) {
     setInitialPlaceIds(new Set(places.map(p => p.id)));
   }
+
+  // Handle transition when exiting edit mode
+  useEffect(() => {
+    if (prevIsEditModeRef.current && !isEditMode) {
+      if (places.length > 0) {
+        setInitialPlaceIds(new Set(places.map(p => p.id)));
+      }
+      setAnimationVersion(v => v + 1);
+    }
+    prevIsEditModeRef.current = isEditMode;
+  }, [isEditMode, places]);
 
   // Compute animations delays dynamically
   const delays = useMemo(() => {
@@ -817,7 +831,7 @@ export default function MapArea() {
 
                     return (
                       <AnimatedPolyline
-                        key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}
+                        key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}
                         path={pathPoints}
                         delay={stepDelay}
                         duration={stepDuration}
@@ -837,7 +851,7 @@ export default function MapArea() {
 
                   // 대중교통/차량 구간: 테두리선(백그라운드) + 본선(포그라운드) 이중 Polyline 렌더링으로 겹침 가독성 개선
                   return (
-                    <Fragment key={`polyline-group-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}>
+                    <Fragment key={`polyline-group-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}>
                       {/* 1. 배경 외곽선 (흰색 테두리) */}
                       <AnimatedPolyline
                         path={pathPoints}

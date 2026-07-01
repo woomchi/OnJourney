@@ -40,6 +40,8 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
     setRecommendedPlaces,
     clearRecommendedPlaces,
     setHoveredSearchPlace,
+    isEditMode,
+    setEditMode,
   } = useJourneyStore();
 
   // ── 검색 모드 로컬 상태 ──
@@ -153,7 +155,6 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
     }
   };
 
-  const [isEditMode, setIsEditMode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
   const [localPlaces, setLocalPlaces] = useState<Place[]>([]);
@@ -162,9 +163,9 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
 
   // Reset isEditMode and selectedPlaceIds when activeJourney changes
   useEffect(() => {
-    setIsEditMode(false);
+    setEditMode(false);
     setSelectedPlaceIds([]);
-  }, [activeJourney?.id]);
+  }, [activeJourney?.id, setEditMode]);
 
   // Sync localPlaces with activeJourney.places when not in edit mode
   useEffect(() => {
@@ -188,7 +189,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
       );
       await reorderPlaces(remainingPlaces);
       setSelectedPlaceIds([]);
-      setIsEditMode(false);
+      setEditMode(false);
     } catch (err) {
       console.error('장소 삭제 실패:', err);
       alert('장소 삭제에 실패했습니다.');
@@ -204,7 +205,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
         alert('순서 변경 저장에 실패했습니다.');
       }
     }
-    setIsEditMode(false);
+    setEditMode(false);
   };
 
   return (
@@ -222,7 +223,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
                   closeSearchMode();
                   clearJourney();
                 } else if (isEditMode) {
-                  setIsEditMode(false);
+                  setEditMode(false);
                 } else {
                   clearJourney();
                 }
@@ -257,7 +258,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
                   ? closeSearchMode
                   : isEditMode
                   ? handleDoneEdit
-                  : () => setIsEditMode(true)
+                  : () => setEditMode(true)
               }
               className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-1 ${
                 isSearchMode || isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'

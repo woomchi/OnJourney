@@ -115,7 +115,7 @@
 ### 4.1 Frontend & UI
 * **프레임워크:** React (Next.js 16+ App Router 기반)
 * **스타일링:** Tailwind CSS (v4)
-* **UI 컴포넌트:** Vanilla CSS 및 Tailwind 기반 커스텀 컴포넌트 (shadcn/ui 미도입 상태)
+* **UI 컴포넌트:** `shadcn/ui` 도입 및 Tailwind 기반 커스텀 컴포넌트 활용
 * **드래그 앤 드롭:** HTML5 Native Drag & Drop API 적용 완료 (여정 및 장소 목록 순서 변경 기능)
 * **지도 렌더링:** react-naver-maps (적용 완료)
 
@@ -124,7 +124,7 @@
   * *용도:* 여정 데이터, UI 모달 상태, 경로 캐시(`directionsCache`), 포커스 세그먼트/스텝 상태 관리
   * *경로 캐싱:* 구간별 API 응답을 `Record<string, DirectionsApiResponse>` 형태로 캐싱하여 중복 호출 방지
   * *순차 호출:* ODsay API 429 동시성 제한 대비 150ms 간격 순차 호출 (`fetchJourneyDirections`)
-* **서버 상태 관리 & 데이터 패칭:** 미도입 (Zustand와 Supabase Client를 통한 직접 Fetching 적용, 향후 TanStack Query 도입 검토)
+* **서버 상태 관리 & 데이터 패칭:** `@tanstack/react-query` (React Query) 도입 완료 (서버 데이터 페칭 및 캐싱 최적화 적용)
 
 ### 4.3 Backend & Infrastructure
 * **백엔드 & 데이터베이스:** Supabase (PostgreSQL 및 내장 Auth 활용)

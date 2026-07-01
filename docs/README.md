@@ -18,7 +18,6 @@ docs/
     ├── datatable.md
     ├── REALTIME_API_INTEGRATION_PLAN.md
     ├── naver_directions_implementation.md
-    ├── overlay_impact_analysis.md
     ├── api 정책 내용.txt
     └── 프로젝트 아키텍쳐.PNG
 ```
@@ -48,8 +47,6 @@ docs/
     *   **설명**: 대중교통 실시간 도착 정보(버스, 지하철) 조회를 위한 Next.js API Route(BFF 패턴) 아키텍처 및 뱃지 UI 설계 계획서입니다.
 *   [naver_directions_implementation.md](file:///c:/Users/hitsz/Desktop/OnJourney/docs/web/naver_directions_implementation.md)
     *   **설명**: 네이버 지도 Directions 5 API를 활용한 다중 경유지(Waypoint) 설정 및 이동 시간 계산의 기술적 세부 설계서입니다.
-*   [overlay_impact_analysis.md](file:///c:/Users/hitsz/Desktop/OnJourney/docs/web/overlay_impact_analysis.md)
-    *   **설명**: 지도 위에 렌더링되는 경로 오버레이(Polyline, Chevron 화살표 등)의 렌더링 성능 영향도 분석과 렌더링 최적화 방안 리포트입니다.
 *   [api 정책 내용.txt](file:///c:/Users/hitsz/Desktop/OnJourney/docs/web/api%20정책%20내용.txt)
     *   **설명**: ODsay, 네이버 디벨로퍼스, 공공데이터 포털 등 사용 중인 외부 교통 API들의 가격 정책 및 호출 제한 정책 기록입니다.
 *   [프로젝트 아키텍쳐.PNG](file:///c:/Users/hitsz/Desktop/OnJourney/docs/web/프로젝트%20아키텍쳐.PNG)

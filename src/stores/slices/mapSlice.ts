@@ -20,6 +20,8 @@ export interface MapSlice {
   setMapCenterAddress: (address: string) => void;
   setRecommendedPlaces: (places: PlaceResult[]) => void;
   clearRecommendedPlaces: () => void;
+  hoveredSearchPlace: PlaceResult | null;
+  setHoveredSearchPlace: (place: PlaceResult | null) => void;
 }
 
 export const createMapSlice: StateCreator<
@@ -54,5 +56,7 @@ export const createMapSlice: StateCreator<
   setMapCenterAddress: (address) => set({ mapCenterAddress: address }),
   setRecommendedPlaces: (places) => set({ recommendedPlaces: places }),
   clearRecommendedPlaces: () => set({ recommendedPlaces: [] }),
+  hoveredSearchPlace: null,
+  setHoveredSearchPlace: (place) => set({ hoveredSearchPlace: place }),
 });
 

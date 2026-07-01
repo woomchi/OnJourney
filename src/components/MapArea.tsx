@@ -43,6 +43,7 @@ export default function MapArea() {
     hoveredAlternativeRoute,
     isAlternativeFromFocus,
     recommendedPlaces,
+    hoveredSearchPlace,
     setMapCenterAddress,
     addPlace,
     removePlace,
@@ -71,8 +72,6 @@ export default function MapArea() {
     const pathDelays: Record<string, number> = {}; // key is `${originId}-${destId}`
 
     let initialCount = 0;
-    let dynamicCount = 0;
-
     for (let i = 0; i < places.length; i++) {
       const place = places[i];
       const isInitial = initialPlaceIds.has(place.id);
@@ -81,12 +80,11 @@ export default function MapArea() {
         markerDelays[place.id] = initialCount * 800;
         initialCount++;
       } else {
-        markerDelays[place.id] = dynamicCount * 800 + 400;
-        dynamicCount++;
+        // 사용자가 실시간으로 추가한 장소는 누적 딜레이 없이 즉시 애니메이션 되도록 400ms 고정값 부여
+        markerDelays[place.id] = 400;
       }
     }
 
-    let dynamicPathCount = 0;
     for (let i = 0; i < places.length - 1; i++) {
       const origin = places[i];
       const dest = places[i + 1];
@@ -99,8 +97,8 @@ export default function MapArea() {
         const initialIdx = places.slice(0, i + 1).filter(p => initialPlaceIds.has(p.id)).length - 1;
         pathDelays[key] = initialIdx * 800 + 400;
       } else {
-        pathDelays[key] = dynamicPathCount * 800;
-        dynamicPathCount++;
+        // 실시간 추가된 경로 Polyline은 즉시 렌더링을 시작하도록 딜레이를 0으로 설정
+        pathDelays[key] = 0;
       }
     }
 
@@ -191,10 +189,10 @@ export default function MapArea() {
 
       if (isOriginInitial && isDestInitial) {
         totalInitialSegments++;
-        
+
         // Check if there is a manually selected route for this segment
         const hasSelectedRoute = !!(origin.selected_route && origin.selected_route.destId === dest.id);
-        
+
         const cacheKey = `${origin.id}-${dest.id}`;
         const hasCachedRoute = !!directionsCache[cacheKey];
 
@@ -335,14 +333,14 @@ export default function MapArea() {
     // 맵 컨테이너의 예상 너비 계산 (사이드바 너비 고려)
     const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
     const mapWidth = windowWidth - sidebarWidth;
-    
+
     // 상단 검색바 제거에 따른 상단 패딩 축소 (최적의 핏을 위해 여백 최소화)
-    const topPadding = 40; 
-    
+    const topPadding = 40;
+
     // 모바일 등 창이 작을 때 여백 축소
     const rightPadding = mapWidth < 600 ? 16 : 30;
     const bottomPadding = mapWidth < 600 ? 30 : 45;
-    
+
     // 경로 안내 패널이나 대안 경로 패널이 열려 있을 때 좌측 패딩
     // 패널 너비를 고려하되, 맵 너비가 너무 작으면 지도가 찌그러지는 것을 방지하기 위해 최대값 제한
     let leftPadding = mapWidth < 600 ? 16 : 30;
@@ -471,8 +469,12 @@ export default function MapArea() {
   }, [places, fetchSequentialDirections]);
 
   // places 또는 map 인스턴스 또는 로드된 세그먼트 수가 변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
+  // 검색 결과가 지워진 경우에도 원래 전체 경로로 줌을 되돌리도록 recommendedPlaces 상태를 연동합니다.
   useEffect(() => {
     if (!map || places.length === 0) return;
+    
+    // 검색 결과가 있는 상태라면 이 효과는 스킵합니다 (검색 결과용 줌이 우선 적용되도록 함)
+    if (recommendedPlaces && recommendedPlaces.length > 0) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
@@ -495,7 +497,7 @@ export default function MapArea() {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
     }
-  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, currentMapPadding]);
+  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, currentMapPadding, recommendedPlaces]);
 
   // focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
   useEffect(() => {
@@ -515,6 +517,58 @@ export default function MapArea() {
     map.fitBounds(bounds, { maxZoom: 18 });
 
   }, [focusBounds, map, currentMapPadding]);
+
+  // 검색 마커(추천 장소)가 업데이트되면 해당 영역으로 줌인
+  useEffect(() => {
+    if (!map || !recommendedPlaces || recommendedPlaces.length === 0) return;
+    if (focusBounds) return; // 사용자가 개별 세그먼트에 포커스 중일 때는 무시
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+    recommendedPlaces.forEach(place => {
+      if (place.lat < minLat) minLat = place.lat;
+      if (place.lat > maxLat) maxLat = place.lat;
+      if (place.lng < minLng) minLng = place.lng;
+      if (place.lng > maxLng) maxLng = place.lng;
+    });
+
+    const latMargin = (maxLat - minLat) * 0.1 || 0.01;
+    const lngMargin = (maxLng - minLng) * 0.1 || 0.01;
+
+    const bounds = new navermaps.LatLngBounds(
+      new navermaps.LatLng(minLat - latMargin, minLng - lngMargin),
+      new navermaps.LatLng(maxLat + latMargin, maxLng + lngMargin)
+    );
+
+    map.setOptions({ padding: currentMapPadding });
+    map.fitBounds(bounds, { maxZoom: 16 });
+  }, [recommendedPlaces, map, focusBounds, currentMapPadding]);
+
+  // 장소 검색 카드 호버 시 해당 장소로 줌 인 (호버 해제 시 초기화 안 함)
+  useEffect(() => {
+    if (!map || !hoveredSearchPlace) return;
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    const currentCenter = map.getCenter();
+    const currentZoom = map.getZoom();
+
+    // 이미 해당 위치와 줌 레벨에 근접한 경우, 중복 애니메이션 실행을 방지하여 툭툭 끊기는 현상을 예방합니다.
+    const latDiff = Math.abs(currentCenter.y - hoveredSearchPlace.lat);
+    const lngDiff = Math.abs(currentCenter.x - hoveredSearchPlace.lng);
+    
+    // 위경도 차이가 약 10m 이내(0.0001도)이고 줌 레벨이 15인 경우 morph 호출 생략
+    if (latDiff < 0.0001 && lngDiff < 0.0001 && currentZoom === 15) {
+      return;
+    }
+
+    const targetLatLng = new navermaps.LatLng(hoveredSearchPlace.lat, hoveredSearchPlace.lng);
+    map.setCenter(targetLatLng);
+    map.setZoom(15);
+  }, [hoveredSearchPlace, map]);
 
   // 지도 줌 레벨 및 뷰포트 바운드 변경 감지 리스너
   const animatedSegmentsRef = useRef<Set<string>>(new Set());
@@ -590,7 +644,7 @@ export default function MapArea() {
   }, [map]);
 
   const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-  
+
   const activeSegment = focusedSegment || alternativeSegment;
 
   return (
@@ -632,7 +686,7 @@ export default function MapArea() {
               const routesToRender = [
                 { route: defaultRoute, isHoveredRoute: false }
               ];
-              
+
               if (hasHoveredAlternative && hoveredAlternativeRoute) {
                 routesToRender.push({ route: hoveredAlternativeRoute, isHoveredRoute: true });
               }
@@ -652,10 +706,10 @@ export default function MapArea() {
 
               return routesToRender.map(({ route, isHoveredRoute }) => {
                 const totalAnimDuration = isHoveredRoute ? 300 : 800;
-                
+
                 // 각 스텝별로 거리에 비례하여 애니메이션 시간을 분배 (거리가 없으면 균등 분배)
                 const totalDistance = route.steps.reduce((sum: number, s: any) => sum + (s.distance || 1), 0);
-                
+
                 let currentStepDelay = delays.pathDelays[`${place.id}-${nextPlace.id}`] ?? (idx * 800 + 400);
                 if (isHoveredRoute) currentStepDelay = 0;
 
@@ -666,7 +720,7 @@ export default function MapArea() {
                   const stepRatio = (step.distance || 1) / totalDistance;
                   const stepDuration = Math.max(100, totalAnimDuration * stepRatio); // 최소 100ms 보장
                   const stepDelay = currentStepDelay;
-                  
+
                   // 다음 스텝의 시작 시간을 현재 스텝 애니메이션 종료 후로 설정
                   currentStepDelay += stepDuration;
 
@@ -920,7 +974,7 @@ export default function MapArea() {
 
       {/* ── 추천 장소 상세 오버레이 카드 (Quick Add 지원) ── */}
       {activeRecommendedPlace && (
-      <div className="absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4">
+        <div className="absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4">
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
               <span className="inline-block text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mb-1">
@@ -933,8 +987,8 @@ export default function MapArea() {
                 {activeRecommendedPlace.address}
               </p>
             </div>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setActiveRecommendedPlace(null)}
               className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-all flex-shrink-0 cursor-pointer"
             >
@@ -966,7 +1020,7 @@ export default function MapArea() {
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 relative z-10">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                <span className="relative z-10">여정에 추가하기</span>
+                <span className="relative z-10">장소 추가</span>
               </button>
             );
           })()}
@@ -1041,14 +1095,14 @@ export default function MapArea() {
               const transportType = activeJourney?.transport_type || 'public';
               const nextRoute = getDefaultRoute(nextOriginPlace, nextDestPlace, segmentData, transportType as 'public' | 'car' | 'walk');
               setFocusedSegment({ originId: nextOriginPlace.id, destId: nextDestPlace.id });
-              
+
               if (jumpToStart && nextRoute && nextRoute.steps) {
                 const firstStep = nextRoute.steps[0];
                 let subType: 'start' | 'end' | 'dest' | undefined = undefined;
                 if (firstStep.type !== 'walk' && firstStep.startName) {
                   subType = 'start';
                 }
-                
+
                 setFocusedStep({
                   originId: nextOriginPlace.id,
                   destId: nextDestPlace.id,
@@ -1072,7 +1126,7 @@ export default function MapArea() {
               const transportType = activeJourney?.transport_type || 'public';
               const prevRoute = getDefaultRoute(prevOriginPlace, prevDestPlace, segmentData, transportType as 'public' | 'car' | 'walk');
               setFocusedSegment({ originId: prevOriginPlace.id, destId: prevDestPlace.id });
-              
+
               if (jumpToDest && prevRoute && prevRoute.steps) {
                 const lastIdx = prevRoute.steps.length - 1;
                 const lastStep = prevRoute.steps[lastIdx];
@@ -1080,7 +1134,7 @@ export default function MapArea() {
                 if (lastStep.type !== 'walk' && lastStep.endName) {
                   subType = 'end';
                 }
-                
+
                 setFocusedStep({
                   originId: prevOriginPlace.id,
                   destId: prevDestPlace.id,
@@ -1115,23 +1169,23 @@ export default function MapArea() {
           destPlace={cachedAlternative.destPlace}
           onClose={(isCancel?: boolean) => {
             setAlternativeSegment(null);
-            
+
             if (isAlternativeFromFocus) {
-              setFocusedSegment({ 
-                originId: cachedAlternative.originPlace.id, 
-                destId: cachedAlternative.destPlace.id 
+              setFocusedSegment({
+                originId: cachedAlternative.originPlace.id,
+                destId: cachedAlternative.destPlace.id
               });
 
               if (isCancel) {
-                 const cacheKey = `${cachedAlternative.originPlace.id}-${cachedAlternative.destPlace.id}`;
-                 const segmentData = directionsCache[cacheKey];
-                 const transportType = activeJourney?.transport_type || 'public';
-                 const defaultRoute = getDefaultRoute(cachedAlternative.originPlace, cachedAlternative.destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-                 
-                 if (defaultRoute) {
-                   const bounds = calculateSegmentBounds(cachedAlternative.originPlace, cachedAlternative.destPlace, defaultRoute);
-                   setFocusBounds(bounds);
-                 }
+                const cacheKey = `${cachedAlternative.originPlace.id}-${cachedAlternative.destPlace.id}`;
+                const segmentData = directionsCache[cacheKey];
+                const transportType = activeJourney?.transport_type || 'public';
+                const defaultRoute = getDefaultRoute(cachedAlternative.originPlace, cachedAlternative.destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+
+                if (defaultRoute) {
+                  const bounds = calculateSegmentBounds(cachedAlternative.originPlace, cachedAlternative.destPlace, defaultRoute);
+                  setFocusBounds(bounds);
+                }
               }
             } else {
               setFocusBounds(null);

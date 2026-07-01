@@ -53,20 +53,17 @@ export default function MapArea() {
   const [initialPlaceIds, setInitialPlaceIds] = useState<Set<string>>(new Set());
   const prevJourneyIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const currentJourneyId = activeJourney?.id || null;
-    if (currentJourneyId !== prevJourneyIdRef.current) {
-      if (places.length > 0) {
-        setInitialPlaceIds(new Set(places.map(p => p.id)));
-        prevJourneyIdRef.current = currentJourneyId;
-      } else if (currentJourneyId === null) {
-        setInitialPlaceIds(new Set());
-        prevJourneyIdRef.current = null;
-      }
-    } else if (currentJourneyId && initialPlaceIds.size === 0 && places.length > 0) {
+  const currentJourneyId = activeJourney?.id || null;
+  if (currentJourneyId !== prevJourneyIdRef.current) {
+    prevJourneyIdRef.current = currentJourneyId;
+    if (places.length > 0) {
       setInitialPlaceIds(new Set(places.map(p => p.id)));
+    } else {
+      setInitialPlaceIds(new Set());
     }
-  }, [activeJourney?.id, places, initialPlaceIds.size]);
+  } else if (currentJourneyId && initialPlaceIds.size === 0 && places.length > 0) {
+    setInitialPlaceIds(new Set(places.map(p => p.id)));
+  }
 
   // Compute animations delays dynamically
   const delays = useMemo(() => {
@@ -109,6 +106,8 @@ export default function MapArea() {
 
     return { markerDelays, pathDelays };
   }, [places, initialPlaceIds]);
+
+
 
   const [activeRecommendedPlace, setActiveRecommendedPlace] = useState<PlaceResult | null>(null);
 
@@ -164,6 +163,49 @@ export default function MapArea() {
 
   const { fetchSequentialDirections } = useJourneyDirections();
   const directionsCache = useJourneyDirectionsCache(places);
+
+  const [forceLoad, setForceLoad] = useState(false);
+
+  useEffect(() => {
+    if (places.length < 2) return;
+    setForceLoad(false);
+    const timer = setTimeout(() => {
+      setForceLoad(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [places]);
+
+  // Check if all routes (segments) of the initial journey are loaded in directionsCache or manually selected
+  const isAllInitialRoutesLoaded = useMemo(() => {
+    if (forceLoad) return true;
+    if (places.length < 2) return true;
+
+    let totalInitialSegments = 0;
+    let loadedInitialSegments = 0;
+
+    for (let i = 0; i < places.length - 1; i++) {
+      const origin = places[i];
+      const dest = places[i + 1];
+      const isOriginInitial = initialPlaceIds.has(origin.id);
+      const isDestInitial = initialPlaceIds.has(dest.id);
+
+      if (isOriginInitial && isDestInitial) {
+        totalInitialSegments++;
+        
+        // Check if there is a manually selected route for this segment
+        const hasSelectedRoute = !!(origin.selected_route && origin.selected_route.destId === dest.id);
+        
+        const cacheKey = `${origin.id}-${dest.id}`;
+        const hasCachedRoute = !!directionsCache[cacheKey];
+
+        if (hasSelectedRoute || hasCachedRoute) {
+          loadedInitialSegments++;
+        }
+      }
+    }
+
+    return loadedInitialSegments === totalInitialSegments;
+  }, [places, initialPlaceIds, directionsCache, forceLoad]);
 
   const loadedSegmentsCount = useMemo(() => {
     if (places.length < 2) return 0;
@@ -570,7 +612,7 @@ export default function MapArea() {
             }}
           >
             {/* 구간별 이동경로 Polyline 렌더링 */}
-            {places.map((place, idx) => {
+            {isAllInitialRoutesLoaded && places.map((place, idx) => {
               if (idx === places.length - 1) return null;
               const nextPlace = places[idx + 1];
               const transportType = activeJourney?.transport_type || 'public';

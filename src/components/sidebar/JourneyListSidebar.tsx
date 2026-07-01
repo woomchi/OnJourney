@@ -338,8 +338,8 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
         </div>
       )}
 
-      {/* 하단 여정 삭제 고정 버튼 */}
-      {isListEditMode && (
+      {/* 하단 고정 버튼 영역 */}
+      {isListEditMode ? (
         <div className="p-6 border-t border-zinc-100 bg-white flex-shrink-0">
           <button
             type="button"
@@ -358,6 +358,21 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
             </span>
           </button>
         </div>
+      ) : (
+        journeys.length > 0 && (
+          <div className="p-6 border-t border-zinc-100 bg-white flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleCreateClick}
+              className="w-full py-4 bg-zinc-950 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer flex justify-center items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span className="tracking-wide">새 여정 만들기</span>
+            </button>
+          </div>
+        )
       )}
     </aside>
   );

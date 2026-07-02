@@ -963,12 +963,9 @@ export default function MapArea() {
                             <stop offset="100%" stop-color="white" stop-opacity="0"/>
                           </radialGradient>
                         </defs>
-                        <!-- 3D 핀 본체 (테두리 두께 보강 및 물방울 형태) -->
+                        <!-- 3D 핀 본체 (물방울 형태) -->
                         <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
                               fill="url(#pinGrad-${idx})" 
-                              stroke="#FFFFFF"
-                              stroke-width="1.5"
-                              stroke-linejoin="round"
                         />
                         <!-- 글래스 광택 효과 레이어 -->
                         <circle cx="12" cy="12" r="7.5" fill="url(#glassShine-${idx})" />
@@ -1005,8 +1002,6 @@ export default function MapArea() {
                       <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
                               fill="${theme.color}" 
-                              stroke="white"
-                              stroke-width="1.5"
                         />
                         <text x="12" y="17" fill="white" font-size="11" font-family="Pretendard, sans-serif" text-anchor="middle">${emoji}</text>
                       </svg>

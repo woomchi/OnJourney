@@ -189,3 +189,17 @@ body {
 @utility animate-slide-up {
   animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Naver Map Marker focus outline removal */
+.navermap-container div:focus,
+.navermap-container button:focus,
+.naver-map-container div:focus,
+.naver-map-container button:focus,
+#map div:focus,
+#map button:focus,
+div[style*="cursor: pointer"]:focus,
+div[style*="cursor: pointer"] *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+

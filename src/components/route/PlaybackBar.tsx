@@ -82,20 +82,21 @@ export default function PlaybackBar({
         <button
           type="button"
           onClick={handlePlayToggle}
-          className={`relative z-10 w-14 h-14 flex items-center justify-center rounded-full transition-all active:scale-95 group shadow-md flex-shrink-0 ${
+          className={`relative z-10 w-14 h-14 flex items-center justify-center rounded-full transition-all active:scale-95 group shadow-md flex-shrink-0 overflow-hidden ${
             showPlayIcon
-              ? 'bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-white shadow-md'
-              : 'bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-950 shadow-sm'
+              ? 'bg-zinc-950 border border-zinc-800 hover:border-transparent text-white shadow-md'
+              : 'bg-white border border-zinc-200 hover:border-transparent text-zinc-950 shadow-sm'
           }`}
           aria-label={showPlayIcon ? "여정 재생" : "여정 일시정지"}
         >
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           {!showPlayIcon ? (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 relative z-10 group-hover:text-white transition-colors duration-300">
               <rect x="6" y="4.5" width="4.5" height="15" rx="1.5" />
               <rect x="13.5" y="4.5" width="4.5" height="15" rx="1.5" />
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 ml-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 ml-1 relative z-10 group-hover:text-white transition-colors duration-300">
               <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
             </svg>
           )}

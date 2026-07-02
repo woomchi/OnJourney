@@ -193,19 +193,20 @@ export default function JourneyPlayerHeader({
                   }
                 }
               }}
-              className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 ${isPlaying
-                ? 'bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-950 shadow-sm'
-                : 'bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-white shadow-md'
+              className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 group overflow-hidden ${isPlaying
+                ? 'bg-white border border-zinc-200 hover:border-transparent text-zinc-950 shadow-sm'
+                : 'bg-zinc-950 border border-zinc-800 hover:border-transparent text-white shadow-md'
                 }`}
               title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
             >
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               {isPlaying ? (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 relative z-10 group-hover:text-white transition-colors duration-300">
                   <rect x="6" y="5" width="4" height="14" rx="1.5" />
                   <rect x="14" y="5" width="4" height="14" rx="1.5" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300">
                   <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
                 </svg>
               )}

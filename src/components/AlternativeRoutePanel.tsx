@@ -132,7 +132,7 @@ export default function AlternativeRoutePanel({
         const sortedTypes = Array.from(transitTypes).sort((a, b) => order.indexOf(a) - order.indexOf(b));
         category = sortedTypes.join(' + ');
       } else {
-        if (route.steps?.some(s => s.type === 'car' || s.type === 'taxi' as string)) category = '택시/차량';
+        if (route.steps?.some(s => s.type === 'car' || s.type === 'taxi')) category = '택시/차량';
         else if (route.steps?.some(s => s.type === 'walk')) category = '도보';
       }
 

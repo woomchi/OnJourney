@@ -138,11 +138,13 @@ export function expandBounds(
     }
   };
 }
+import { Place } from '@/types/journey';
+
 /**
  * 전체 여정의 모든 경유지와 캐시된 경로 좌표를 포함하는 바운드(SW, NE)를 계산하는 헬퍼 함수
  */
 export function calculateJourneyBounds(
-  places: Array<{ id: string; lat: number; lng: number; selected_route?: any }>,
+  places: Place[],
   directionsCache: Record<string, any>,
   transportType: string = 'public'
 ) {
@@ -162,7 +164,7 @@ export function calculateJourneyBounds(
     const cacheKey = `${origin.id}-${dest.id}`;
     const segmentData = directionsCache[cacheKey];
 
-    const activeRoute = getDefaultRoute(origin as any, dest as any, segmentData, transportType as 'public' | 'car' | 'walk');
+    const activeRoute = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk');
 
     if (activeRoute) {
       if (activeRoute.pathPoints && activeRoute.pathPoints.length > 0) {
@@ -444,7 +446,7 @@ export class NaverMapRouteRenderer {
    * top 패딩을 180px로 상향하여 검색바 영역과의 겹침을 방지합니다.
    */
   public fitMapBounds(
-    places: Array<{ id: string; lat: number; lng: number; selected_route?: any }>,
+    places: Place[],
     directionsCache: Record<string, any>,
     transportType: string = 'public',
     padding: any = { top: 40, right: 30, bottom: 45, left: 30 }

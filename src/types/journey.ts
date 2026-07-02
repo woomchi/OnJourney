@@ -45,7 +45,7 @@ export interface CreateJourneyInput {
 }
 
 export interface DirectionStep {
-  type: 'walk' | 'subway' | 'bus' | 'car' | 'train' | 'expressbus';
+  type: 'walk' | 'subway' | 'bus' | 'car' | 'train' | 'expressbus' | 'taxi';
   name: string;
   duration: number;
   color?: string;

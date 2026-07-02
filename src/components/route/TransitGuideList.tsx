@@ -32,7 +32,7 @@ export default function TransitGuideList({
         else if (step.type === 'expressbus') defaultColor = '#0EA5E9';
         else if (step.type === 'bus') defaultColor = '#3B82F6';
         else if (step.type === 'subway') defaultColor = '#10B981';
-        else if (step.type === 'car' || (step.type as string) === 'taxi') defaultColor = '#4F46E5';
+        else if (step.type === 'car' || step.type === 'taxi') defaultColor = '#4F46E5';
 
         const stepColor = step.type === 'walk' 
           ? (step.color === '#A1A1AA' ? '#E4E4E7' : (step.color || '#E4E4E7')) 

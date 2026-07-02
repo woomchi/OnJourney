@@ -72,7 +72,7 @@ export default function RouteGuidePanel({
   const getPages = () => {
     const arr: { idx: number, step: any, subType?: 'start' | 'end' | 'dest' }[] = [];
     steps.forEach((step, idx) => {
-      if (step.type === 'car' || (step.type as string) === 'taxi') {
+      if (step.type === 'car' || step.type === 'taxi') {
         arr.push({ idx, step, subType: 'start' });
         arr.push({ idx, step, subType: 'dest' });
       } else if (step.type === 'walk' || (!step.startName && !step.endName)) {
@@ -85,7 +85,7 @@ export default function RouteGuidePanel({
 
     if (steps.length > 0) {
       const lastStep = steps[steps.length - 1];
-      if (lastStep.type === 'walk' || lastStep.type === 'car' || (lastStep.type as string) === 'taxi') {
+      if (lastStep.type === 'walk' || lastStep.type === 'car' || lastStep.type === 'taxi') {
         if (lastStep.type === 'walk') {
           arr.push({ idx: steps.length - 1, step: lastStep, subType: 'dest' });
         }

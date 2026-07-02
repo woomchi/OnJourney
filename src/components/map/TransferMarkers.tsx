@@ -45,6 +45,7 @@ export default function TransferMarkers({
       isSegmentStart?: boolean;
       isSegmentDest?: boolean;
       stepIndex: number;
+      offsetX?: number;
     }> = [];
 
     if (!navermaps || places.length < 2) return points;
@@ -302,15 +303,15 @@ export default function TransferMarkers({
     Object.values(groups).forEach((group) => {
       if (group.length > 1) {
         group.sort((a, b) => {
-          const scoreA = (a as any).isSegmentStart ? 1 : ((a as any).isSegmentDest ? 3 : 2);
-          const scoreB = (b as any).isSegmentStart ? 1 : ((b as any).isSegmentDest ? 3 : 2);
+          const scoreA = a.isSegmentStart ? 1 : (a.isSegmentDest ? 3 : 2);
+          const scoreB = b.isSegmentStart ? 1 : (b.isSegmentDest ? 3 : 2);
           return scoreA - scoreB;
         });
 
         const N = group.length;
         const spacing = 80; // 좌우 마커 간의 중심 간격 (픽셀)
         group.forEach((pt, i) => {
-          (pt as any).offsetX = (i - (N - 1) / 2) * spacing;
+          pt.offsetX = (i - (N - 1) / 2) * spacing;
         });
       }
     });
@@ -409,7 +410,7 @@ export default function TransferMarkers({
           return pt.stepIndex === focusedStep.stepIndex;
         })();
 
-        const offsetX = (pt as any).offsetX || 0;
+        const offsetX = pt.offsetX || 0;
 
         return (
           <Marker

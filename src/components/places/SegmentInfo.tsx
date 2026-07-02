@@ -143,14 +143,40 @@ export default function SegmentInfo({ data, loading, index, placeId, destId }: S
                   );
                   setFocusBounds(bounds);
                 } else {
-                  const bounds = calculateStepBounds(step);
-                  if (bounds) {
-                    setFocusBounds(bounds);
+                  let subType: 'start' | 'end' | 'dest' | undefined = undefined;
+                  if (step.type === 'car' || step.type === 'taxi') {
+                    subType = 'start';
+                  } else if (step.type !== 'walk' && step.startName) {
+                    subType = 'start';
                   }
+
+                  let lat = step.startLat;
+                  let lng = step.startLng;
+
+                  if (lat === undefined || lng === undefined) {
+                    if (step.pathPoints && step.pathPoints.length > 0) {
+                      lat = step.pathPoints[0].lat;
+                      lng = step.pathPoints[0].lng;
+                    }
+                  }
+
+                  if (lat !== undefined && lng !== undefined) {
+                    setFocusBounds({
+                      sw: { lat, lng },
+                      ne: { lat, lng }
+                    });
+                  } else {
+                    const bounds = calculateStepBounds(step);
+                    if (bounds) {
+                      setFocusBounds(bounds);
+                    }
+                  }
+
                   setFocusedStep({
                     originId: placeId,
                     destId,
-                    stepIndex: idx
+                    stepIndex: idx,
+                    subType
                   });
                 }
               }}

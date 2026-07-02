@@ -82,7 +82,7 @@ export default function PlaybackBar({
         <button
           type="button"
           onClick={handlePlayToggle}
-          className={`w-14 h-14 flex items-center justify-center rounded-full transition-all active:scale-95 group shadow-md flex-shrink-0 ${
+          className={`relative z-10 w-14 h-14 flex items-center justify-center rounded-full transition-all active:scale-95 group shadow-md flex-shrink-0 ${
             showPlayIcon
               ? 'bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-white shadow-md'
               : 'bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-950 shadow-sm'
@@ -131,7 +131,46 @@ export default function PlaybackBar({
         <span className="text-[10px] font-bold text-zinc-500 w-7 text-right select-none">
           {formatTime(currentStepNum)}
         </span>
-        <div className="relative flex-1 h-[3px] bg-zinc-100 rounded-full">
+        <div className="relative flex-1 h-[3px] bg-zinc-100 rounded-full mt-3">
+          {/* 연속 물결 파동 이펙트 (채워진 영역에만 그려짐) */}
+          <div 
+            className={`absolute bottom-0 left-0 h-[14px] origin-bottom transition-all duration-500 ease-out ${
+              !showPlayIcon ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-0'
+            }`}
+            style={{ 
+              width: `${progressPercent}%`,
+              WebkitMaskImage: 'radial-gradient(ellipse 100% 100% at 100% 100%, black 98%, transparent 100%), linear-gradient(black, black), radial-gradient(ellipse 100% 100% at 0% 100%, black 98%, transparent 100%)',
+              WebkitMaskSize: '15% 100%, 70% 100%, 15% 100%',
+              WebkitMaskPosition: 'left bottom, center bottom, right bottom',
+              WebkitMaskRepeat: 'no-repeat',
+              maskImage: 'radial-gradient(ellipse 100% 100% at 100% 100%, black 98%, transparent 100%), linear-gradient(black, black), radial-gradient(ellipse 100% 100% at 0% 100%, black 98%, transparent 100%)',
+              maskSize: '15% 100%, 70% 100%, 15% 100%',
+              maskPosition: 'left bottom, center bottom, right bottom',
+              maskRepeat: 'no-repeat'
+            }}
+          >
+            {/* 파동 레이어 1 */}
+            <div 
+              className="absolute bottom-0 left-0 w-full h-[14px]"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M 0 10 Q 25 0 50 10 T 100 10 L 100 20 L 0 20 Z' fill='%236366f1' opacity='0.3'/%3E%3C/svg%3E")`,
+                backgroundSize: '60px 100%',
+                backgroundRepeat: 'repeat-x',
+                animation: 'bg-wave-1 2s linear infinite'
+              }}
+            />
+            {/* 파동 레이어 2 */}
+            <div 
+              className="absolute bottom-0 left-0 w-full h-[10px]"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M 0 10 Q 25 0 50 10 T 100 10 L 100 20 L 0 20 Z' fill='%238b5cf6' opacity='0.5'/%3E%3C/svg%3E")`,
+                backgroundSize: '40px 100%',
+                backgroundRepeat: 'repeat-x',
+                animation: 'bg-wave-2 1.5s linear infinite'
+              }}
+            />
+          </div>
+
           <div 
             className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 rounded-r-full shadow-[0_1px_6px_rgba(99,102,241,0.3)] transition-all duration-300 ease-out"
             style={{ width: `${progressPercent}%` }}

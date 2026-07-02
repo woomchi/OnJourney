@@ -61,23 +61,59 @@ export default function TimelineNode({
         className={`relative flex items-center justify-center mt-2 mb-2 w-full h-10 ${isInteractive ? 'cursor-pointer' : ''}`}
         onClick={handleClick}
       >
-        {/* 재생 중 주변 오라(Aura) - 앨범 커버 뒤에 퍼짐 */}
-        {isSegmentPlaying && (
-          <>
-            <div className="absolute z-10 w-9 h-9 rounded-md animate-ping opacity-30 pointer-events-none" style={{ backgroundColor: theme.color }} />
-            <div className="absolute z-10 w-10 h-10 rounded-md opacity-45 animate-pulse blur-[4px] pointer-events-none" style={{ backgroundColor: theme.color }} />
-          </>
-        )}
-
-        {/* 레코드판 본체 (앨범 커버 뒤에 숨어있다가 호버 시 우측으로 나옴, 클릭/포커스 시 앞으로 나옴, 재생 시 회전) */}
+        {/* 레코드판 래퍼 및 본체 (앨범 커버 뒤에 숨어있다가 호버 시 우측으로 나옴, 클릭/포커스 시 앞으로 나옴, 재생 시 회전) */}
         {isInteractive && (
           <div
-            className={`absolute flex items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden shadow-md
+            className={`absolute flex items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]
               ${isFocused
-                ? `z-40 translate-x-[8px] scale-110 shadow-[0_6px_16px_rgba(0,0,0,0.5)] ${isSegmentPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`
-                : 'z-20 translate-x-0 group-hover/timeline:translate-x-[14px] group-hover/timeline:rotate-[60deg] shadow-sm'}`}
+                ? 'z-40 translate-x-[8px] scale-110'
+                : 'z-20 translate-x-0 group-hover/timeline:translate-x-[14px] group-hover/timeline:rotate-[60deg]'}`}
             style={{ width: '34px', height: '34px' }}
           >
+            {/* 재생 중 오디오 스펙트럼 (NCS 스타일) - 부드러운 스케일 업/다운 적용 */}
+            <div 
+              className={`absolute inset-0 pointer-events-none mix-blend-screen z-0 transition-opacity ${
+                isSegmentPlaying ? 'opacity-100 duration-150' : 'opacity-0 duration-700'
+              }`}
+            >
+              {Array.from({ length: 32 }).map((_, i) => (
+                <div
+                  key={`ncs-bar-${i}`}
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ transform: `rotate(${i * (360 / 32)}deg)` }}
+                >
+                  <div style={{ transform: 'translateY(-19.5px)' }}>
+                    {/* 스르륵 떨어지는 효과(Drop Down)를 위해 래퍼에서 스케일 트랜지션을 처리 */}
+                    <div 
+                      className="origin-bottom transition-transform duration-500 ease-out"
+                      style={{ transform: isSegmentPlaying ? 'scaleY(1)' : 'scaleY(0)' }}
+                    >
+                      <div 
+                        className="w-[2.5px] rounded-full origin-bottom"
+                        style={{
+                          height: '5px',
+                          backgroundColor: theme.color,
+                          animationName: 'ncs-bar',
+                          animationTimingFunction: 'ease-in-out',
+                          animationIterationCount: 'infinite',
+                          animationDirection: 'alternate',
+                          animationDelay: `${-((i * 13) % 20) / 5}s`,
+                          animationDuration: `${0.5 + ((i * 7) % 10) / 10}s`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 실제 레코드판 */}
+            <div
+              className={`absolute inset-0 flex items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 overflow-hidden shadow-md transition-shadow duration-500
+                ${isFocused
+                  ? `shadow-[0_6px_16px_rgba(0,0,0,0.5)] ${isSegmentPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`
+                  : 'shadow-sm'}`}
+            >
             {/* 그루브 (Concentric circles) - 깊이감 보강 */}
             <div className="absolute inset-0 rounded-full border border-zinc-900/60 m-[2px]"></div>
             <div className="absolute inset-0 rounded-full border border-zinc-850/40 m-[4px]"></div>
@@ -108,6 +144,7 @@ export default function TimelineNode({
                 </span>
               )}
             </div>
+          </div>
           </div>
         )}
 

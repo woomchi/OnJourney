@@ -298,8 +298,47 @@ export default function JourneyPlayerHeader({
 
         return (
           <div className="absolute bottom-0 left-0 w-full h-[3px] bg-zinc-100">
+            {/* 연속 물결 파동 이펙트 (채워진 영역에만 그려짐) */}
+            <div 
+              className={`absolute bottom-0 left-0 h-[14px] origin-bottom transition-all duration-500 ease-out ${
+                isPlaying ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-0'
+              }`}
+              style={{ 
+                width: `${progressPercent}%`,
+                WebkitMaskImage: 'radial-gradient(ellipse 100% 100% at 100% 100%, black 98%, transparent 100%), linear-gradient(black, black), radial-gradient(ellipse 100% 100% at 0% 100%, black 98%, transparent 100%)',
+                WebkitMaskSize: '15% 100%, 70% 100%, 15% 100%',
+                WebkitMaskPosition: 'left bottom, center bottom, right bottom',
+                WebkitMaskRepeat: 'no-repeat',
+                maskImage: 'radial-gradient(ellipse 100% 100% at 100% 100%, black 98%, transparent 100%), linear-gradient(black, black), radial-gradient(ellipse 100% 100% at 0% 100%, black 98%, transparent 100%)',
+                maskSize: '15% 100%, 70% 100%, 15% 100%',
+                maskPosition: 'left bottom, center bottom, right bottom',
+                maskRepeat: 'no-repeat'
+              }}
+            >
+              {/* 파동 레이어 1 */}
+              <div 
+                className="absolute bottom-0 left-0 w-full h-[14px]"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M 0 10 Q 25 0 50 10 T 100 10 L 100 20 L 0 20 Z' fill='%236366f1' opacity='0.3'/%3E%3C/svg%3E")`,
+                  backgroundSize: '60px 100%',
+                  backgroundRepeat: 'repeat-x',
+                  animation: 'bg-wave-1 2s linear infinite'
+                }}
+              />
+              {/* 파동 레이어 2 */}
+              <div 
+                className="absolute bottom-0 left-0 w-full h-[10px]"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M 0 10 Q 25 0 50 10 T 100 10 L 100 20 L 0 20 Z' fill='%238b5cf6' opacity='0.5'/%3E%3C/svg%3E")`,
+                  backgroundSize: '40px 100%',
+                  backgroundRepeat: 'repeat-x',
+                  animation: 'bg-wave-2 1.5s linear infinite'
+                }}
+              />
+            </div>
+
             <div
-              className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 rounded-r-full shadow-[0_1px_6px_rgba(99,102,241,0.3)] transition-all duration-500 ease-out"
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 rounded-r-full shadow-[0_1px_6px_rgba(99,102,241,0.3)] transition-all duration-500 ease-out"
               style={{ width: `${progressPercent}%` }}
             />
           </div>

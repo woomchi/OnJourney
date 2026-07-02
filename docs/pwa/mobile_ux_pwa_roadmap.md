@@ -103,3 +103,32 @@ graph TD
 *   [ ] PWA Manifest 파일 설정 및 앱 아이콘 설정.
 *   [ ] Next.js 빌드 시 PWA Service Worker 활성화 및 오프라인 캐싱 구축.
 *   [ ] 백그라운드 하차 알림용 웹 푸시 알림 인프라 및 서버 연동.
+
+---
+
+## 6. GPS/Geolocation 기능 상세 실행 계획 (보류 중)
+
+본 계획은 사용자가 GPS 연동 기능을 활성화하여 현재 위치를 탐색하고 여정에 추가할 수 있도록 설계된 상세 스펙입니다.
+
+### 6.1 UI/UX 구성 요소 및 스펙
+1.  **플로팅 GPS 버튼 (`MapArea.tsx`)**:
+    *   **위치**: 지도 우측 하단의 "전체 보기" 버튼 바로 위 영역.
+    *   **디자인**: 흰색 배경(유리 효과 블러 포함)의 둥근 모서리 사각형 혹은 원형 디자인, 중앙 조준선(lucide/target 등) 아이콘 표시.
+    *   **동작**: 
+        *   클릭 시 로딩 스피너 작동 및 버튼 비활성화 (다중 클릭 방지).
+        *   `navigator.geolocation.getCurrentPosition`을 호출해 좌표 획득 후 지도를 해당 중심 위치로 부드럽게 이동 (`map.panTo`).
+2.  **슬릭 펄싱 마커 (Pulsing Marker)**:
+    *   **디자인**: 짙은 파란색 코어 도트 주변에 파란색 반투명 링이 점점 퍼지며 사라지는 무한 애니메이션 효과 적용.
+    *   **CSS 설정**: `@keyframes gpsPulse` 및 `@utility animate-gps-pulse` 추가.
+3.  **현재 위치 상세 정보 카드 (Quick Add Card)**:
+    *   **디자인**: 화면 하단 좌측 오버레이 형태로 노출 (기존 추천 장소 상세 카드 레이아웃과 일관성 유지).
+    *   **기능**:
+        *   네이버 지도 Geocoder 서브모듈의 `reverseGeocode`를 연동하여 좌표 기준 도로명/지번 주소 실시간 파싱 및 화면 표시.
+        *   `[여정에 추가]` 버튼을 통해 해당 좌표를 `id: 'gps-' + Date.now()` 형식의 `Place` 객체로 생성해 스토어(`journey-store` 내 `addPlace`)에 즉시 추가.
+        *   이미 추가된 경우 `[여정에서 제거]`로 토글 및 삭제 기능 지원.
+
+### 6.2 구현 대상 파일 및 작업 내용
+*   `src/app/globals.css`: 펄싱 파동 무한 애니메이션 키프레임 정의.
+*   `src/components/MapArea.tsx`: Geolocation 연동 로직, 버튼 UI 마운트, 실시간 reverseGeocode 및 추가 오버레이 카드 UI 구현.
+*   `src/components/sidebar/SearchOverlay.tsx`: 필요 시 검색창 최상단에 '현재 위치 기준 검색' 숏컷 추가 연동.
+

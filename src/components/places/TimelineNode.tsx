@@ -70,43 +70,6 @@ export default function TimelineNode({
                 : 'z-20 translate-x-0 group-hover/timeline:translate-x-[14px] group-hover/timeline:rotate-[60deg]'}`}
             style={{ width: '34px', height: '34px' }}
           >
-            {/* 재생 중 오디오 스펙트럼 (NCS 스타일) - 부드러운 스케일 업/다운 적용 */}
-            <div 
-              className={`absolute inset-0 pointer-events-none mix-blend-screen z-0 transition-opacity ${
-                isSegmentPlaying ? 'opacity-100 duration-150' : 'opacity-0 duration-700'
-              }`}
-            >
-              {Array.from({ length: 32 }).map((_, i) => (
-                <div
-                  key={`ncs-bar-${i}`}
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ transform: `rotate(${i * (360 / 32)}deg)` }}
-                >
-                  <div style={{ transform: 'translateY(-19.5px)' }}>
-                    {/* 스르륵 떨어지는 효과(Drop Down)를 위해 래퍼에서 스케일 트랜지션을 처리 */}
-                    <div 
-                      className="origin-bottom transition-transform duration-500 ease-out"
-                      style={{ transform: isSegmentPlaying ? 'scaleY(1)' : 'scaleY(0)' }}
-                    >
-                      <div 
-                        className="w-[2.5px] rounded-full origin-bottom"
-                        style={{
-                          height: '5px',
-                          backgroundColor: theme.color,
-                          animationName: 'ncs-bar',
-                          animationTimingFunction: 'ease-in-out',
-                          animationIterationCount: 'infinite',
-                          animationDirection: 'alternate',
-                          animationDelay: `${-((i * 13) % 20) / 5}s`,
-                          animationDuration: `${0.5 + ((i * 7) % 10) / 10}s`
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
             {/* 실제 레코드판 */}
             <div
               className={`absolute inset-0 flex items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 overflow-hidden shadow-md transition-shadow duration-500
@@ -114,37 +77,71 @@ export default function TimelineNode({
                   ? `shadow-[0_6px_16px_rgba(0,0,0,0.5)] ${isSegmentPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`
                   : 'shadow-sm'}`}
             >
-            {/* 그루브 (Concentric circles) - 깊이감 보강 */}
-            <div className="absolute inset-0 rounded-full border border-zinc-900/60 m-[2px]"></div>
-            <div className="absolute inset-0 rounded-full border border-zinc-850/40 m-[4px]"></div>
-            <div className="absolute inset-0 rounded-full border border-zinc-900/60 m-[6px]"></div>
-            <div className="absolute inset-0 rounded-full border border-zinc-850/40 m-[8px]"></div>
-            <div className="absolute inset-0 rounded-full border border-zinc-900/50 m-[10px]"></div>
+              {/* 그루브 (Concentric circles) - 깊이감 보강 */}
+              <div className="absolute inset-0 rounded-full border border-zinc-900/60 m-[2px]"></div>
+              <div className="absolute inset-0 rounded-full border border-zinc-850/40 m-[4px]"></div>
+              <div className="absolute inset-0 rounded-full border border-zinc-900/60 m-[6px]"></div>
+              <div className="absolute inset-0 rounded-full border border-zinc-850/40 m-[8px]"></div>
+              <div className="absolute inset-0 rounded-full border border-zinc-900/50 m-[10px]"></div>
 
-            {/* 비닐 특유의 무지갯빛 반사광 (Conic Gradient) */}
-            <div
-              className="absolute inset-0 rounded-full opacity-80"
-              style={{
-                background: 'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.18) 30deg, transparent 60deg, transparent 180deg, rgba(255,255,255,0.18) 210deg, transparent 240deg)'
-              }}
-            />
+              {/* 비닐 특유의 무지갯빛 반사광 (Conic Gradient) */}
+              <div
+                className="absolute inset-0 rounded-full opacity-80"
+                style={{
+                  background: 'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.18) 30deg, transparent 60deg, transparent 180deg, rgba(255,255,255,0.18) 210deg, transparent 240deg)'
+                }}
+              />
 
-            {/* 중앙 라벨 (포커스 시에는 커지고 장소 번호 표시, 아닐 때는 작은 스핀들) */}
-            <div
-              className={`relative flex items-center justify-center rounded-full z-10 shadow-sm transition-all duration-500 ${isFocused ? 'w-[16px] h-[16px]' : 'w-[10px] h-[10px]'}`}
-              style={{
-                background: `linear-gradient(135deg, ${theme.gradientStart}, ${theme.gradientEnd})`
-              }}
-            >
-              {!isFocused ? (
-                <div className="w-[3px] h-[3px] rounded-full bg-zinc-900 border-[0.5px] border-zinc-700 shadow-inner" />
-              ) : (
-                <span className="text-[10px] font-black text-white leading-none tracking-tighter drop-shadow-sm font-sans">
-                  {index + 1}
-                </span>
-              )}
+              {/* 중앙 라벨 (포커스 시에는 커지고 장소 번호 표시, 아닐 때는 작은 스핀들) */}
+              <div
+                className={`relative flex items-center justify-center rounded-full z-10 shadow-sm transition-all duration-500 ${isFocused ? 'w-[16px] h-[16px]' : 'w-[10px] h-[10px]'}`}
+                style={{
+                  background: `linear-gradient(135deg, ${theme.gradientStart}, ${theme.gradientEnd})`
+                }}
+              >
+                {!isFocused ? (
+                  <div className="w-[3px] h-[3px] rounded-full bg-zinc-900 border-[0.5px] border-zinc-700 shadow-inner" />
+                ) : (
+                  <span className="text-[10px] font-black text-white leading-none tracking-tighter drop-shadow-sm font-sans">
+                    {index + 1}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+        )}
+
+        {/* 톤암 (Tone-arm / 레코드 바늘 대) - 클릭 시 레코드판 위로 스르륵 안착 */}
+        {isInteractive && (
+          <div
+            className="absolute z-50 pointer-events-none transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+            style={{
+              width: '12px',
+              height: '36px',
+              left: '12px',
+              top: '3px',
+              transformOrigin: '5px 5px',
+              opacity: isFocused ? 1 : 0,
+              transform: isFocused
+                ? isSegmentPlaying
+                  ? 'rotate(-45deg)'
+                  : 'rotate(0deg)'
+                : 'rotate(0deg)'
+            }}
+          >
+            {/* 회전축 (Turntable Arm Pivot Base) - top left에 고정 */}
+            <div className="absolute top-0 left-0 w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-600 shadow-sm flex items-center justify-center">
+              <div className="w-0.5 h-0.5 rounded-full bg-zinc-400" />
+            </div>
+
+            {/* 금속 재질의 바늘 대 (Tone-arm shaft) */}
+            <div className="absolute top-[4px] left-[4px] w-[1.5px] h-[24px] bg-gradient-to-b from-zinc-300 to-zinc-400 rounded-full shadow-[1px_0_2px_rgba(0,0,0,0.15)]" />
+
+            {/* 바늘 머리 (Cartridge / Headshell) */}
+            <div 
+              className="absolute top-[28px] left-[1px] w-2.5 h-2 bg-zinc-800 rounded-[1px] border-[0.5px] border-zinc-600 shadow-md"
+              style={{ transform: 'rotate(-15deg)' }}
+            />
           </div>
         )}
 
@@ -203,7 +200,7 @@ export default function TimelineNode({
 
       {/* 세로 연결선 (오디오 케이블 / 네온 트랙 라인 느낌) */}
       {!isLast && (
-        <div className="flex-1 w-full flex justify-center py-1 relative z-0">
+        <div className="flex-1 w-full flex justify-center py-0.5 relative z-0">
           {/* 배경 라인 */}
           <div className="absolute inset-y-0 w-2 bg-zinc-100/80 rounded-full shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] border border-zinc-200/50" />
 
@@ -215,13 +212,21 @@ export default function TimelineNode({
             }}
           />
 
-          {/* 활성화 상태 (네온 글로우) */}
+          {/* 활성화 상태 (네온 글로우 및 흐르는 빛 효과) */}
           {(isFocused || isSegmentPlaying) && (
             <div
-              className="absolute inset-y-0 w-2 rounded-full animate-pulse"
+              className={`absolute inset-y-0 w-[3px] rounded-full ${
+                isSegmentPlaying ? 'animate-[flow-down_1.2s_linear_infinite]' : 'animate-pulse'
+              }`}
               style={{
-                background: `linear-gradient(180deg, ${theme.color} 0%, ${theme.color} 100%)`,
-                boxShadow: `0 0 12px ${theme.color}a0, 0 0 4px ${theme.color}`
+                backgroundImage: isSegmentPlaying
+                  ? `linear-gradient(180deg, ${theme.color} 0%, ${theme.color}40 25%, #ffffff 50%, ${theme.color}40 75%, ${theme.color} 100%)`
+                  : undefined,
+                backgroundColor: isSegmentPlaying ? undefined : theme.color,
+                backgroundSize: isSegmentPlaying ? '100% 200%' : undefined,
+                boxShadow: isSegmentPlaying 
+                  ? `0 0 10px ${theme.color}cc, 0 0 4px #ffffff`
+                  : `0 0 12px ${theme.color}a0, 0 0 4px ${theme.color}`
               }}
             />
           )}

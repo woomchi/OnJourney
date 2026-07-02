@@ -203,21 +203,6 @@ div[style*="cursor: pointer"] *:focus {
   box-shadow: none !important;
 }
 
-@keyframes ncs-bar {
-  0% {
-    transform: scaleY(0.2);
-    opacity: 0.4;
-  }
-  50% {
-    transform: scaleY(1.6);
-    opacity: 1;
-  }
-  100% {
-    transform: scaleY(0.5);
-    opacity: 0.7;
-  }
-}
-
 @keyframes bg-wave-1 {
   0% { background-position-x: 0px; }
   100% { background-position-x: 60px; }
@@ -226,5 +211,14 @@ div[style*="cursor: pointer"] *:focus {
 @keyframes bg-wave-2 {
   0% { background-position-x: 0px; }
   100% { background-position-x: -40px; }
+}
+
+@keyframes flow-down {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 200%;
+  }
 }
 

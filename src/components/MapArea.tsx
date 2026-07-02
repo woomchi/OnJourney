@@ -48,6 +48,7 @@ export default function MapArea() {
     addPlace,
     removePlace,
     isEditMode,
+    isSearchMode,
   } = useJourneyStore();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
@@ -785,7 +786,8 @@ export default function MapArea() {
 
                   // 포커스된 세그먼트가 아닌 경우(다른 구간) 렌더링을 완전히 제거하지 않고 visible로 숨겨 재마운트 애니메이션 방지
                   // 대안 경로 미리보기가 활성화된 경우, 기본 경로는 숨기고 미리보기 경로만 표시
-                  const isVisible = !(activeSegment && !isSegmentFocused) && (!hasHoveredAlternative || isHoveredRoute);
+                  // 장소 추가 모드(isSearchMode === true)일 때는 모든 기존 경로를 숨김
+                  const isVisible = !(activeSegment && !isSegmentFocused) && (!hasHoveredAlternative || isHoveredRoute) && !isSearchMode;
 
                   // 순서가 빠를수록(idx가 작을수록) zIndex가 높도록 겹침 노출 순서 적용 (맨 위에 노출)
                   // 특정 스텝만 포커스 상태라면 최상위(15000)로 올림
@@ -891,7 +893,7 @@ export default function MapArea() {
             })}
 
             {/* 정적 방향 스트라이프 패턴 마커 렌더링 */}
-            {navermaps && (
+            {navermaps && !isSearchMode && (
               <DirectionalStripes
                 places={places}
                 directionsCache={directionsCache}
@@ -907,7 +909,7 @@ export default function MapArea() {
             )}
 
             {/* 환승 안내 마커 렌더링 */}
-            {navermaps && (
+            {navermaps && !isSearchMode && (
               <TransferMarkers
                 places={places}
                 directionsCache={directionsCache}
@@ -925,7 +927,8 @@ export default function MapArea() {
               // 일반 경로선(최대 5002)보다 항상 위에 노출되도록 기본 zIndex를 10000 이상으로 상향 조정
               const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
               // 세부 구간 조회 시에는 일반 숫자 장소 마커를 가려 지도를 정돈하고, 대신 탑승/출발/도착 전용 마커로 가독성을 높임
-              const isVisible = !activeSegment;
+              // 장소 추가 모드(isSearchMode === true)일 때는 모든 기존 숫자 마커를 숨김
+              const isVisible = !activeSegment && !isSearchMode;
 
               const markerWidth = isSegmentMarker ? 30 : 24;
               const markerHeight = isSegmentMarker ? 40 : 32;
@@ -946,7 +949,8 @@ export default function MapArea() {
                   iconAnchor={new window.naver.maps.Point(anchorX, anchorY)}
                   iconContent={`<div style="
                       cursor: pointer;
-                      filter: drop-shadow(0 3px 6px ${theme.color}59);
+                      filter: drop-shadow(0 3px 8px ${theme.color}70) drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+                      transition: transform 0.2s ease;
                     ">
                       <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>
@@ -954,13 +958,23 @@ export default function MapArea() {
                             <stop offset="0%" stop-color="${theme.gradientStart}" />
                             <stop offset="100%" stop-color="${theme.gradientEnd}" />
                           </linearGradient>
+                          <radialGradient id="glassShine-${idx}" cx="35%" cy="35%" r="50%">
+                            <stop offset="0%" stop-color="white" stop-opacity="0.6"/>
+                            <stop offset="100%" stop-color="white" stop-opacity="0"/>
+                          </radialGradient>
                         </defs>
-                        <!-- 날씬한 물방울 모양 -->
+                        <!-- 3D 핀 본체 (테두리 두께 보강 및 물방울 형태) -->
                         <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
                               fill="url(#pinGrad-${idx})" 
+                              stroke="#FFFFFF"
+                              stroke-width="1.5"
+                              stroke-linejoin="round"
                         />
+                        <!-- 글래스 광택 효과 레이어 -->
+                        <circle cx="12" cy="12" r="7.5" fill="url(#glassShine-${idx})" />
+                        
                         <!-- 텍스트 숫자 배치 (y값 미세조정으로 정중앙 배치) -->
-                        <text x="12" y="16" fill="white" font-size="${isSegmentMarker ? 11.5 : 10.5}" font-weight="800" font-family="Pretendard, -apple-system, sans-serif" text-anchor="middle">${idx + 1}</text>
+                        <text x="12" y="16.5" fill="white" font-size="${isSegmentMarker ? 11.5 : 10.5}" font-weight="900" font-family="Pretendard, -apple-system, sans-serif" text-anchor="middle" style="text-shadow: 0 1px 2px rgba(0,0,0,0.35);">${idx + 1}</text>
                       </svg>
                     </div>`}
                 />
@@ -1060,7 +1074,7 @@ export default function MapArea() {
       )}
 
       {/* 전체 보기 플로팅 버튼 (우측 하단) */}
-      {places.length > 0 && (
+      {places.length > 0 && !isSearchMode && (
         <div className="absolute bottom-8 right-6 z-[100] flex flex-col gap-2">
           <button
             type="button"
@@ -1111,7 +1125,7 @@ export default function MapArea() {
         const prevInfo = cachedRouteGuide.prevSegmentInfo;
         return (
           <RouteGuidePanel
-            isOpen={showRouteGuide}
+            isOpen={showRouteGuide && !isSearchMode}
             route={cachedRouteGuide.route}
             originPlace={cachedRouteGuide.originPlace}
             destPlace={cachedRouteGuide.destPlace}
@@ -1196,7 +1210,7 @@ export default function MapArea() {
       {/* 대안 경로 패널 */}
       {cachedAlternative && (
         <AlternativeRoutePanel
-          isOpen={showAlternative}
+          isOpen={showAlternative && !isSearchMode}
           originPlace={cachedAlternative.originPlace}
           destPlace={cachedAlternative.destPlace}
           onClose={(isCancel?: boolean) => {

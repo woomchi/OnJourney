@@ -215,72 +215,71 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
         <header className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}>
           
           {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
-          <div className="absolute top-1.5 left-2 z-20">
-            <button
-              type="button"
-              onClick={() => {
-                if (isSearchMode) {
-                  closeSearchMode();
-                  clearJourney();
-                } else if (isEditMode) {
-                  setEditMode(false);
-                } else {
-                  clearJourney();
-                }
-              }}
-              className="flex items-center gap-1 text-zinc-400 hover:text-zinc-700 transition-colors text-[11px] font-semibold rounded-md px-1 py-1"
-            >
-              {isEditMode && !isSearchMode ? (
-                <div className="w-3.5 h-3.5" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                </svg>
-              )}
-              {isSearchMode ? '목록' : isEditMode ? '취소' : '목록'}
-            </button>
-          </div>
+          {!isSearchMode && (
+            <div className="absolute top-1.5 left-2 z-20">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEditMode) {
+                    setEditMode(false);
+                  } else {
+                    clearJourney();
+                  }
+                }}
+                className="flex items-center gap-1 text-zinc-400 hover:text-zinc-700 transition-colors text-[11px] font-semibold rounded-md px-1 py-1"
+              >
+                {isEditMode ? (
+                  <div className="w-3.5 h-3.5" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                  </svg>
+                )}
+                {isEditMode ? '취소' : '목록'}
+              </button>
+            </div>
+          )}
 
           {/* 오른쪽 상단 모서리: 편집 및 동기화 */}
-          <div className="absolute top-1.5 right-2 z-20 flex justify-end items-center gap-1">
-            {isSyncing && (
-              <div className="flex items-center" title="클라우드 동기화 중">
-                <svg className="w-3 h-3 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                </svg>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={
-                isSearchMode
-                  ? closeSearchMode
-                  : isEditMode
-                  ? handleDoneEdit
-                  : () => setEditMode(true)
-              }
-              className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-1 ${
-                isSearchMode || isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'
-              }`}
-            >
-              {isSearchMode || isEditMode ? (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          {!isSearchMode && (
+            <div className="absolute top-1.5 right-2 z-20 flex justify-end items-center gap-1">
+              {isSyncing && (
+                <div className="flex items-center" title="클라우드 동기화 중">
+                  <svg className="w-3 h-3 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
-                  완료
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-                  </svg>
-                  편집
-                </>
+                </div>
               )}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={
+                  isEditMode
+                    ? handleDoneEdit
+                    : () => setEditMode(true)
+                }
+                className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-1 ${
+                  isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'
+                }`}
+              >
+                {isEditMode ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    완료
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                    </svg>
+                    편집
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* 중앙 바: 여정 정보 (버튼 사이에 위치) */}
           <div className="w-full flex justify-center px-16 pt-1">
@@ -525,7 +524,13 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
               ) : (
                 <button
                   type="button"
-                  onClick={openSearchMode}
+                  onClick={() => {
+                    setFocusedStep(null);
+                    setFocusedSegment(null);
+                    setAlternativeSegment(null);
+                    setFocusBounds(null);
+                    openSearchMode();
+                  }}
                   className="relative group w-full py-4 bg-zinc-900 rounded-2xl text-white font-bold text-[15px] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex justify-center items-center gap-2 overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -541,7 +546,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
           {/* 검색 모드 오버레이 (아래에서 위로 슬라이드 업 & 위에서 아래로 슬라이드 다운) */}
           <div 
             inert={!isSearchMode ? true : undefined}
-            className={`absolute inset-0 bg-white z-20 flex flex-col min-h-0 transition-all duration-350 ease-in-out ${
+            className={`absolute inset-0 bg-white z-50 flex flex-col min-h-0 transition-all duration-350 ease-in-out ${
               isSearchMode ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
             }`}
           >
@@ -663,6 +668,21 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
                     })}
                   </ul>
                 )}
+              </div>
+              
+              {/* 하단 고정: 선택 완료 버튼 */}
+              <div className="p-6 border-t border-zinc-100 flex-shrink-0 bg-white/80 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={closeSearchMode}
+                  className="relative group w-full py-4 bg-zinc-900 rounded-2xl text-white font-bold text-[15px] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex justify-center items-center gap-2 overflow-hidden cursor-pointer"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 relative z-10 transition-transform group-hover:scale-110 duration-300">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  <span className="relative z-10 tracking-wide">선택 완료</span>
+                </button>
               </div>
             </div>
         </div>

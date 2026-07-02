@@ -155,17 +155,18 @@ export default function PlaceCard({
     >
       {/* 카드 + 번호 행 */}
       <div className="flex items-center gap-0 group">
-        {/* 번호 + 세로선 컬럼 (여정 재생 레코드판 컨셉 적용) */}
+        {/* 번호 + 세로선 컬럼 (여정 재생 레코드판 컨셉 적용 및 비주얼 고도화) */}
         {(() => {
           const theme = getSequenceTheme(index, places.length);
+          const isInteractive = !isLast && !editMode;
             
           return (
             <div className="flex flex-col items-center w-16 flex-shrink-0 self-stretch select-none pt-1 group/timeline">
               {/* 타임라인 노드 컨테이너 (앨범 슬리브 + 레코드판) */}
               <div 
-                className={`relative flex items-center justify-center mt-2 mb-2 w-full h-10 ${!isLast && !editMode ? 'cursor-pointer' : ''}`}
+                className={`relative flex items-center justify-center mt-2 mb-2 w-full h-10 ${isInteractive ? 'cursor-pointer' : ''}`}
                 onClick={() => {
-                  if (!editMode && nextPlace) {
+                  if (isInteractive && nextPlace) {
                     if (isFocused) {
                       setFocusedStep(null);
                       setFocusedSegment(null);
@@ -184,31 +185,31 @@ export default function PlaceCard({
                 {isSegmentPlaying && (
                   <>
                     <div className="absolute z-10 w-9 h-9 rounded-md animate-ping opacity-30 pointer-events-none" style={{ backgroundColor: theme.color }} />
-                    <div className="absolute z-10 w-10 h-10 rounded-md opacity-40 animate-pulse blur-[4px] pointer-events-none" style={{ backgroundColor: theme.color }} />
+                    <div className="absolute z-10 w-10 h-10 rounded-md opacity-45 animate-pulse blur-[4px] pointer-events-none" style={{ backgroundColor: theme.color }} />
                   </>
                 )}
 
                 {/* 레코드판 본체 (앨범 커버 뒤에 숨어있다가 호버 시 우측으로 나옴, 클릭/포커스 시 앞으로 나옴, 재생 시 회전) */}
-                {!isLast && !editMode && (
+                {isInteractive && (
                   <div 
-                    className={`absolute flex items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden 
+                    className={`absolute flex items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden shadow-md
                       ${isFocused 
-                        ? `z-40 translate-x-[8px] scale-110 shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${isSegmentPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`
-                        : 'z-20 translate-x-0 group-hover:translate-x-[14px] group-hover:rotate-[60deg] shadow-sm'}`}
+                        ? `z-40 translate-x-[8px] scale-110 shadow-[0_6px_16px_rgba(0,0,0,0.5)] ${isSegmentPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`
+                        : 'z-20 translate-x-0 group-hover/timeline:translate-x-[14px] group-hover/timeline:rotate-[60deg] shadow-sm'}`}
                     style={{ width: '34px', height: '34px' }}
                   >
-                    {/* 그루브 (Concentric circles) */}
-                    <div className="absolute inset-0 rounded-full border border-zinc-800/60 m-[2px]"></div>
-                    <div className="absolute inset-0 rounded-full border border-zinc-800/40 m-[4px]"></div>
-                    <div className="absolute inset-0 rounded-full border border-zinc-800/60 m-[6px]"></div>
-                    <div className="absolute inset-0 rounded-full border border-zinc-800/40 m-[8px]"></div>
-                    <div className="absolute inset-0 rounded-full border border-zinc-800/50 m-[10px]"></div>
+                    {/* 그루브 (Concentric circles) - 깊이감 보강 */}
+                    <div className="absolute inset-0 rounded-full border border-zinc-900/60 m-[2px]"></div>
+                    <div className="absolute inset-0 rounded-full border border-zinc-850/40 m-[4px]"></div>
+                    <div className="absolute inset-0 rounded-full border border-zinc-900/60 m-[6px]"></div>
+                    <div className="absolute inset-0 rounded-full border border-zinc-850/40 m-[8px]"></div>
+                    <div className="absolute inset-0 rounded-full border border-zinc-900/50 m-[10px]"></div>
                     
-                    {/* 비닐 특유의 광택 (Conic Gradient) */}
+                    {/* 비닐 특유의 무지갯빛 반사광 (Conic Gradient) */}
                     <div 
-                      className="absolute inset-0 rounded-full"
+                      className="absolute inset-0 rounded-full opacity-80"
                       style={{
-                        background: 'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.2) 30deg, transparent 60deg, transparent 180deg, rgba(255,255,255,0.2) 210deg, transparent 240deg)'
+                        background: 'conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.18) 30deg, transparent 60deg, transparent 180deg, rgba(255,255,255,0.18) 210deg, transparent 240deg)'
                       }}
                     />
 
@@ -222,7 +223,7 @@ export default function PlaceCard({
                       {!isFocused ? (
                         <div className="w-[3px] h-[3px] rounded-full bg-zinc-900 border-[0.5px] border-zinc-700 shadow-inner" />
                       ) : (
-                        <span className="text-[10px] font-black text-white leading-none tracking-tighter drop-shadow-sm">
+                        <span className="text-[10px] font-black text-white leading-none tracking-tighter drop-shadow-sm font-sans">
                           {index + 1}
                         </span>
                       )}
@@ -232,16 +233,16 @@ export default function PlaceCard({
                 
                 {/* 앨범 커버 슬리브 (마지막 장소나 편집 모드 시 가만히 있고, 일반 장소는 포커스 시 레코드가 튀어나옴) */}
                 <div 
-                  className={`absolute z-30 w-[38px] h-[38px] rounded-[3px] flex flex-col items-center justify-center overflow-hidden border border-white/20 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                  className={`absolute z-30 w-[38px] h-[38px] rounded-[4px] flex flex-col items-center justify-center overflow-hidden border border-white/20 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
                     isLast || editMode
-                      ? 'opacity-100 shadow-[0_2px_8px_rgba(0,0,0,0.15)] pointer-events-none'
+                      ? 'opacity-100 shadow-[0_3px_10px_rgba(0,0,0,0.2)] pointer-events-none'
                       : isFocused 
-                        ? 'opacity-85 scale-[0.95] -translate-x-[4px] translate-y-0 rotate-0 shadow-sm pointer-events-none' 
-                        : 'opacity-100 translate-x-0 translate-y-0 rotate-0 shadow-[0_4px_12px_rgba(0,0,0,0.4)] group-hover:scale-[1.02]'
+                        ? 'opacity-90 scale-[0.95] -translate-x-[4px] translate-y-0 rotate-0 shadow-sm pointer-events-none' 
+                        : 'opacity-100 translate-x-0 translate-y-0 rotate-0 shadow-[0_5px_15px_rgba(0,0,0,0.35)] group-hover/timeline:scale-[1.03]'
                   }`}
                   style={{ 
                     background: `linear-gradient(135deg, ${theme.gradientStart}, ${theme.gradientEnd})`,
-                    borderLeft: '3px solid rgba(0,0,0,0.3)' // 앨범 척추(Spine) 느낌
+                    borderLeft: '3.5px solid rgba(0,0,0,0.35)' // 앨범 척추(Spine) 느낌 입체화
                   }}
                 >
                   {/* 빈티지 링웨어(Ringwear - 레코드판 자국) */}
@@ -254,21 +255,21 @@ export default function PlaceCard({
                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-60" />
                   
                   {/* 부드러운 상단 빛 반사 */}
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.4)_0%,transparent_60%)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.45)_0%,transparent_60%)]" />
                   
                   {/* 중앙 장소 순서 타이포그래피 (모던한 느낌의 라벨 뱃지) */}
-                  <div className="relative z-10 w-[22px] h-[22px] flex items-center justify-center rounded-full bg-white/95 shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
-                    <span className="text-[12px] font-black tracking-tighter mt-[1px]" style={{ color: theme.color }}>
+                  <div className="relative z-10 w-[22px] h-[22px] flex items-center justify-center rounded-full bg-white/95 shadow-[0_2px_5px_rgba(0,0,0,0.25)]">
+                    <span className="text-[12px] font-black tracking-tighter mt-[1px] font-sans" style={{ color: theme.color }}>
                       {index + 1}
                     </span>
                   </div>
                 </div>
 
                 {/* 마우스 호버 시 뜨는 재생/일시정지 오버레이 (상태에 따라 모양 변경) */}
-                {!editMode && !isLast && (
+                {isInteractive && (
                   <div 
-                    className={`absolute flex items-center justify-center transition-all duration-300 z-40 bg-black/40 backdrop-blur-[2px] pointer-events-none 
-                      ${isFocused ? 'w-[38px] h-[38px] rounded-full opacity-0 group-hover:opacity-100 scale-100 translate-x-[8px]' : 'w-[38px] h-[38px] rounded-[3px] opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-[1.02] translate-x-0'}`}
+                    className={`absolute flex items-center justify-center transition-all duration-300 z-40 bg-black/45 backdrop-blur-[1px] pointer-events-none 
+                      ${isFocused ? 'w-[38px] h-[38px] rounded-full opacity-0 group-hover/timeline:opacity-100 scale-100 translate-x-[8px]' : 'w-[38px] h-[38px] rounded-[4px] opacity-0 scale-75 group-hover/timeline:opacity-100 group-hover/timeline:scale-[1.03] translate-x-0'}`}
                   >
                     {isSegmentPlaying ? (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px] text-white/95 shadow-sm">
@@ -304,7 +305,7 @@ export default function PlaceCard({
                       className="absolute inset-y-0 w-2 rounded-full animate-pulse"
                       style={{
                         background: `linear-gradient(180deg, ${theme.color} 0%, ${theme.color} 100%)`,
-                        boxShadow: `0 0 12px ${theme.color}80, 0 0 4px ${theme.color}`
+                        boxShadow: `0 0 12px ${theme.color}a0, 0 0 4px ${theme.color}`
                       }}
                     />
                   )}

@@ -32,6 +32,7 @@ export const createUISlice: StateCreator<
       focusedStep: null,
       alternativeSegment: null,
       hoveredAlternativeRoute: null,
+      focusBounds: null,
     } : {})
   })),
 });

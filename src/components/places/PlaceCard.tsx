@@ -46,9 +46,13 @@ const themeClasses = {
   }
 };
 
-function AlternativeRouteIcon() {
+function AlternativeRouteIcon({ className = "w-4 h-4", isActive = false }: { className?: string; isActive?: boolean }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" 
+      className={`transition-transform duration-500 ease-in-out ${isActive ? '-scale-x-100' : 'scale-x-100'} ${className}`}
+    >
       <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-15L21 6m0 0L16.5 10.5M21 6H7.5" />
     </svg>
   );
@@ -288,7 +292,7 @@ export default function PlaceCard({
             </div>
 
             {/* 대안 교통정보 토글 버튼을 이동 구간(SegmentInfo) 상단 우측에 겹치도록 배치 */}
-            <div className="absolute top-2.5 right-6 z-10">
+            <div className="absolute top-2 right-6 z-10">
               <button
                 type="button"
                 onClick={(e) => {
@@ -325,17 +329,31 @@ export default function PlaceCard({
                   }
                 }}
                 className={`
-                  flex items-center justify-center w-7 h-7 rounded-full
-                  transition-all duration-300 shadow-sm
+                  group flex items-center justify-center w-8 h-8 rounded-full
+                  transition-all duration-500 ease-out shadow-sm border backdrop-blur-md
                   ${alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id
-                    ? 'bg-blue-500 text-white shadow-blue-500/30'
-                    : 'bg-white/90 backdrop-blur-sm border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
+                    ? 'bg-indigo-50 border-indigo-200'
+                    : 'bg-white/90 border-zinc-200 hover:border-blue-300 hover:shadow-md'
                   }
                 `}
                 aria-label="대안 경로 탐색"
                 title="대안 경로 탐색"
               >
-                <AlternativeRouteIcon />
+                {/* The circular icon part that flips */}
+                <div 
+                  className={`
+                    flex items-center justify-center w-6 h-6 rounded-full transition-all duration-500
+                    ${alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
+                      : 'bg-transparent text-zinc-500 group-hover:bg-blue-50 group-hover:text-blue-600'
+                    }
+                  `}
+                >
+                  <AlternativeRouteIcon 
+                    isActive={alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id}
+                    className="w-3.5 h-3.5"
+                  />
+                </div>
               </button>
             </div>
           </div>

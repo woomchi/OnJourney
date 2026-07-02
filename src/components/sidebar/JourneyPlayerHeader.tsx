@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -37,7 +38,15 @@ export default function JourneyPlayerHeader({
     setEditMode,
   } = useJourneyStore();
 
-  const isPlaying = !!focusedSegment || !!focusedStep;
+  const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
+
+  useEffect(() => {
+    if (!focusedSegment && !focusedStep) {
+      setIsGlobalPlaying(false);
+    }
+  }, [focusedSegment, focusedStep]);
+
+  const isPlaying = isGlobalPlaying && (!!focusedSegment || !!focusedStep);
   const activeIndex = journeys.findIndex(j => j.id === activeJourney.id);
   const prevJourney = activeIndex > 0 ? journeys[activeIndex - 1] : null;
   const nextJourney = activeIndex >= 0 && activeIndex < journeys.length - 1 ? journeys[activeIndex + 1] : null;
@@ -171,25 +180,29 @@ export default function JourneyPlayerHeader({
               type="button"
               onClick={() => {
                 if (isPlaying) {
+                  setIsGlobalPlaying(false);
                   setFocusedStep(null);
                   setFocusedSegment(null);
                   setAlternativeSegment(null);
                   setFocusBounds(null);
                 } else {
-                  const firstPlace = activeJourney.places[0];
-                  const secondPlace = activeJourney.places[1];
+                  setIsGlobalPlaying(true);
+                  if (!focusedSegment && !focusedStep) {
+                    const firstPlace = activeJourney.places[0];
+                    const secondPlace = activeJourney.places[1];
 
-                  const queryKey = directionKeys.segment(firstPlace.id, secondPlace.id);
-                  const segmentData = queryClient.getQueryData<any>(queryKey);
-                  const transportType = activeJourney.transport_type || 'public';
-                  const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+                    const queryKey = directionKeys.segment(firstPlace.id, secondPlace.id);
+                    const segmentData = queryClient.getQueryData<any>(queryKey);
+                    const transportType = activeJourney.transport_type || 'public';
+                    const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 
-                  if (activeRoute) {
-                    setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
-                    setFocusedStep(null);
+                    if (activeRoute) {
+                      setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
+                      setFocusedStep(null);
 
-                    const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
-                    setFocusBounds(bounds);
+                      const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
+                      setFocusBounds(bounds);
+                    }
                   }
                 }
               }}

@@ -25,5 +25,13 @@ export const createUISlice: StateCreator<
   closeCreateForm: () => set({ isCreateFormOpen: false }),
   openSearchMode: () => set({ isSearchMode: true }),
   closeSearchMode: () => set({ isSearchMode: false, recommendedPlaces: [] }),
-  setEditMode: (isEdit) => set({ isEditMode: isEdit }),
+  setEditMode: (isEdit) => set((state) => ({ 
+    isEditMode: isEdit,
+    ...(isEdit ? {
+      focusedSegment: null,
+      focusedStep: null,
+      alternativeSegment: null,
+      hoveredAlternativeRoute: null,
+    } : {})
+  })),
 });

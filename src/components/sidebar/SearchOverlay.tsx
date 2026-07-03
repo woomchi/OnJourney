@@ -14,7 +14,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     isSearchMode,
     closeSearchMode,
     addPlace,
+    removePlace,
     mapCenterAddress,
+    mapCenterCoord,
     setRecommendedPlaces,
     clearRecommendedPlaces,
     setHoveredSearchPlace,
@@ -28,6 +30,42 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+
+  const [recentQueries, setRecentQueries] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const queries = localStorage.getItem('onjourney_recent_queries');
+        if (queries) setRecentQueries(JSON.parse(queries));
+      } catch (e) {
+        console.error('Failed to load recent queries from localStorage:', e);
+      }
+    }
+  }, []);
+
+  const saveRecentQuery = useCallback((q: string) => {
+    if (!q || q.trim().length === 0) return;
+    const trimmed = q.trim();
+    setRecentQueries(prev => {
+      const next = [trimmed, ...prev.filter(item => item !== trimmed)].slice(0, 10);
+      localStorage.setItem('onjourney_recent_queries', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const deleteRecentQuery = (q: string) => {
+    setRecentQueries(prev => {
+      const next = prev.filter(item => item !== q);
+      localStorage.setItem('onjourney_recent_queries', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const clearRecentQueries = () => {
+    setRecentQueries([]);
+    localStorage.removeItem('onjourney_recent_queries');
+  };
 
   const handleMouseEnterCard = useCallback((item: PlaceResult) => {
     if (hoverDebounceRef.current) clearTimeout(hoverDebounceRef.current);
@@ -73,7 +111,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setIsSearchLoading(true);
     setSearchError(null);
     try {
-      const res = await fetch(`/api/places?query=${encodeURIComponent(q)}`);
+      const regionParam = mapCenterAddress ? `&region=${encodeURIComponent(mapCenterAddress)}` : '';
+      const coordParam = mapCenterCoord ? `&lat=${mapCenterCoord.lat}&lng=${mapCenterCoord.lng}` : '';
+      const res = await fetch(`/api/places?query=${encodeURIComponent(q)}${regionParam}${coordParam}`);
       if (currentSearchId !== activeSearchId.current) return;
       const data = await res.json();
       if (!res.ok) {
@@ -95,7 +135,18 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces]);
+  }, [clearRecommendedPlaces, setRecommendedPlaces, mapCenterAddress, mapCenterCoord]);
+
+  // 지도가 이동할 때마다 '현 지도에서 재검색'을 자동으로 수행
+  useEffect(() => {
+    // 검색어가 있고 검색 모드일 때만 지도가 이동하면 재검색
+    if (isSearchMode && searchQuery.trim().length > 0) {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = setTimeout(() => {
+        runSearch(searchQuery);
+      }, 600); // 지도를 연속으로 패닝할 수 있으므로 약간의 디바운스 부여
+    }
+  }, [mapCenterCoord, isSearchMode, searchQuery, runSearch]);
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -105,16 +156,23 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   };
 
   const handleCategoryClick = async (category: string) => {
-    // Open Question 1에 대한 임시 조치: mapCenterAddress가 없으면 전국 검색 느낌으로 빈 문자열 활용 가능성 고려. 우선 기존 동작 유지하되 '서울' 제거를 위한 논의가 필요하므로 주석 남김.
-    const region = mapCenterAddress || '서울';
-    const q = `${region} ${category}`;
-    setSearchQuery(q);
+    setSearchQuery(category);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    await runSearch(q);
+    await runSearch(category);
+    saveRecentQuery(category);
   };
 
-  const handleAddSearchResult = async (item: PlaceResult) => {
-    if (addedIds.has(item.id)) return;
+  const handleToggleSearchResult = async (item: PlaceResult) => {
+    if (addedIds.has(item.id)) {
+      setAddedIds(prev => { const n = new Set(prev); n.delete(item.id); return n; });
+      try {
+        await removePlace(item.id);
+      } catch {
+        setAddedIds(prev => new Set([...prev, item.id]));
+      }
+      return;
+    }
+    
     const place: Place = {
       id: item.id,
       place_name: item.place_name,
@@ -140,32 +198,42 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       {/* 검색 모드 헤더 */}
       <div className="px-5 pt-4 pb-3 flex-shrink-0">
         {/* 검색바 */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-zinc-400 flex-shrink-0">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
+        <div className="flex items-center gap-2 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20 transition-all">
           <input
             ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={handleSearchInputChange}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); runSearch(searchQuery); }
+              if (e.key === 'Enter') { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); runSearch(searchQuery); saveRecentQuery(searchQuery); }
               if (e.key === 'Escape') closeSearchMode();
             }}
             placeholder={mapCenterAddress ? `${mapCenterAddress} 주변 장소 검색` : '방문할 장소를 검색해보세요'}
-            className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-sm"
+            className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-sm pl-1"
           />
           {isSearchLoading ? (
-            <svg className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
             </svg>
           ) : searchQuery.length > 0 ? (
-            <button type="button" onClick={() => { setSearchQuery(''); setSearchResults([]); clearRecommendedPlaces(); searchInputRef.current?.focus(); }} className="w-4 h-4 flex-shrink-0 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors cursor-pointer">
+            <button type="button" onClick={() => { setSearchQuery(''); setSearchResults([]); clearRecommendedPlaces(); searchInputRef.current?.focus(); }} className="w-4 h-4 flex-shrink-0 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors cursor-pointer mr-1">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-2.5 h-2.5 text-zinc-600"><path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" /></svg>
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+              runSearch(searchQuery);
+              saveRecentQuery(searchQuery);
+            }}
+            className="flex-shrink-0 text-zinc-400 hover:text-blue-600 transition-colors cursor-pointer p-1 -mr-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+          </button>
         </div>
         {/* 카테고리 칩 */}
         <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5 scrollbar-none select-none">
@@ -194,10 +262,62 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             <p className="text-sm font-medium">검색 결과가 없습니다.</p>
           </div>
         ) : searchResults.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
-            <div className="text-3xl mb-3">🗺️</div>
-            <p className="text-sm font-semibold text-zinc-600 mb-1">장소를 검색하거나</p>
-            <p className="text-xs text-zinc-400">카테고리 버튼으로 주변 장소를 찾아보세요</p>
+          <div className="space-y-6 py-4">
+            {/* 최근 검색어 */}
+            {recentQueries.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">최근 검색어</h3>
+                  <button
+                    type="button"
+                    onClick={clearRecentQueries}
+                    className="text-[10px] text-zinc-400 hover:text-red-500 font-semibold cursor-pointer transition-colors"
+                  >
+                    전체 삭제
+                  </button>
+                </div>
+                <ul className="space-y-1.5">
+                  {recentQueries.map((q, idx) => (
+                    <li
+                      key={`rq-${idx}`}
+                      className="group flex items-center gap-3 p-3 rounded-2xl border bg-white border-zinc-100 hover:border-blue-100 hover:bg-blue-50/40 transition-all cursor-pointer"
+                      onClick={() => {
+                        setSearchQuery(q);
+                        runSearch(q);
+                      }}
+                    >
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:text-blue-500 group-hover:bg-blue-100/50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-zinc-700 truncate group-hover:text-zinc-900">{q}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); deleteRecentQuery(q); }}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200 transition-colors cursor-pointer"
+                        title="기록 삭제"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 기본 가이드 */}
+            {recentQueries.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 text-zinc-400 border border-dashed border-zinc-200/70 rounded-3xl bg-zinc-50/50 mt-4 mx-1">
+                <div className="text-3xl mb-3">🗺️</div>
+                <p className="text-sm font-semibold text-zinc-600 mb-1">장소를 검색하거나 주변 장소를 찾아보세요</p>
+                <p className="text-[11px] text-zinc-400">지도를 클릭하면 원하는 위치에 직접 핀을 꽂을 수도 있습니다</p>
+              </div>
+            )}
           </div>
         ) : (
           <ul className="space-y-1.5 pt-1">
@@ -230,18 +350,22 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleAddSearchResult(item)}
-                      disabled={isAdded}
-                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all font-bold text-xs cursor-pointer ${isAdded
-                        ? 'bg-green-50 text-green-600 cursor-default'
+                      onClick={() => handleToggleSearchResult(item)}
+                      className={`group/btn flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all font-bold text-xs cursor-pointer ${isAdded
+                        ? 'bg-green-50 text-green-600 hover:bg-red-50 hover:text-red-500'
                         : 'bg-blue-100 hover:bg-blue-500 hover:text-white text-blue-600 active:scale-90'
                         }`}
-                      title={isAdded ? '이미 추가됨' : '여정에 추가'}
+                      title={isAdded ? '여정에서 제거' : '여정에 추가'}
                     >
                       {isAdded ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                        </svg>
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 block group-hover/btn:hidden">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 hidden group-hover/btn:block">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </>
                       ) : (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

@@ -10,6 +10,7 @@ export interface MapSlice {
   hoveredAlternativeRoute: DirectionResult | null;
   isAlternativeFromFocus: boolean;
   mapCenterAddress: string;
+  mapCenterCoord: { lat: number; lng: number } | null;
   recommendedPlaces: PlaceResult[];
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
@@ -18,6 +19,7 @@ export interface MapSlice {
   setHoveredAlternativeRoute: (route: DirectionResult | null) => void;
   setIsAlternativeFromFocus: (val: boolean) => void;
   setMapCenterAddress: (address: string) => void;
+  setMapCenterCoord: (coord: { lat: number; lng: number } | null) => void;
   setRecommendedPlaces: (places: PlaceResult[]) => void;
   clearRecommendedPlaces: () => void;
   hoveredSearchPlace: PlaceResult | null;
@@ -37,6 +39,7 @@ export const createMapSlice: StateCreator<
   hoveredAlternativeRoute: null,
   isAlternativeFromFocus: false,
   mapCenterAddress: '',
+  mapCenterCoord: null,
   recommendedPlaces: [],
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
   setFocusedSegment: (segment) => set((state) => ({ 
@@ -54,6 +57,7 @@ export const createMapSlice: StateCreator<
   setHoveredAlternativeRoute: (route) => set({ hoveredAlternativeRoute: route }),
   setIsAlternativeFromFocus: (val) => set({ isAlternativeFromFocus: val }),
   setMapCenterAddress: (address) => set({ mapCenterAddress: address }),
+  setMapCenterCoord: (coord) => set({ mapCenterCoord: coord }),
   setRecommendedPlaces: (places) => set({ recommendedPlaces: places }),
   clearRecommendedPlaces: () => set({ recommendedPlaces: [] }),
   hoveredSearchPlace: null,

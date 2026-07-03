@@ -45,6 +45,7 @@ export default function MapArea() {
     recommendedPlaces,
     hoveredSearchPlace,
     setMapCenterAddress,
+    setMapCenterCoord,
     addPlace,
     removePlace,
     isEditMode,
@@ -123,6 +124,14 @@ export default function MapArea() {
 
 
   const [activeRecommendedPlace, setActiveRecommendedPlace] = useState<PlaceResult | null>(null);
+
+  const [mapClickedPlace, setMapClickedPlace] = useState<{lat: number; lng: number; address: string; place_name: string} | null>(null);
+
+  useEffect(() => {
+    if (!isSearchMode) {
+      setMapClickedPlace(null);
+    }
+  }, [isSearchMode]);
 
   // recommendedPlaces가 비워지면 activeRecommendedPlace도 비워지도록 함
   useEffect(() => {
@@ -239,6 +248,30 @@ export default function MapArea() {
     lat: 37.5665,
     lng: 126.9780,
   });
+
+  // 여정에 등록된 장소가 없을 경우 사용자의 실시간 GPS 위치를 지도의 기본 중심지로 설정
+  useEffect(() => {
+    if (places.length === 0 && typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newCenter = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setMapCenter(newCenter);
+          setMapCenterCoord(newCenter); // 스토어에도 중심 좌표 기록
+          if (map && window.naver?.maps) {
+            map.setCenter(new window.naver.maps.LatLng(newCenter.lat, newCenter.lng));
+          }
+        },
+        (error) => {
+          console.warn('[MapArea] Geolocation failed or denied. Defaulting to Seoul City Hall.', error);
+          setMapCenterCoord({ lat: 37.5665, lng: 126.9780 }); // 기본 서울 시청으로 스토어 설정
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    }
+  }, [places.length, map]);
 
   const activeRouteOfFocusedSegment = useMemo(() => {
     if (!focusedSegment) return null;
@@ -533,33 +566,7 @@ export default function MapArea() {
 
   }, [focusBounds, map, currentMapPadding]);
 
-  // 검색 마커(추천 장소)가 업데이트되면 해당 영역으로 줌인
-  useEffect(() => {
-    if (!map || !recommendedPlaces || recommendedPlaces.length === 0) return;
-    if (focusBounds) return; // 사용자가 개별 세그먼트에 포커스 중일 때는 무시
 
-    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-    if (!navermaps) return;
-
-    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-    recommendedPlaces.forEach(place => {
-      if (place.lat < minLat) minLat = place.lat;
-      if (place.lat > maxLat) maxLat = place.lat;
-      if (place.lng < minLng) minLng = place.lng;
-      if (place.lng > maxLng) maxLng = place.lng;
-    });
-
-    const latMargin = (maxLat - minLat) * 0.1 || 0.01;
-    const lngMargin = (maxLng - minLng) * 0.1 || 0.01;
-
-    const bounds = new navermaps.LatLngBounds(
-      new navermaps.LatLng(minLat - latMargin, minLng - lngMargin),
-      new navermaps.LatLng(maxLat + latMargin, maxLng + lngMargin)
-    );
-
-    map.setOptions({ padding: currentMapPadding });
-    map.fitBounds(bounds, { maxZoom: 16 });
-  }, [recommendedPlaces, map, focusBounds, currentMapPadding]);
 
   // 장소 검색 카드 호버 시 해당 장소로 줌 인 (호버 해제 시 초기화 안 함)
   useEffect(() => {
@@ -625,12 +632,8 @@ export default function MapArea() {
       });
 
       // reverseGeocode 호출 최적화:
-      // 1) isSearchMode 상태일 때만 API 호출 (불필요한 호출 최소화)
-      // 2) debounce 600ms — 연속 조작 시 마지막 idle만 처리
-      // 3) 거리 임계값 — 마지막 geocode 위치에서 ~300m 이내면 재호출 생략
-      const isSearchModeActive = useJourneyStore.getState().isSearchMode;
-      if (!isSearchModeActive) return;
-
+      // 1) debounce 600ms — 연속 조작 시 마지막 idle만 처리
+      // 2) 거리 임계값 — 마지막 geocode 위치에서 ~300m 이내면 재호출 생략
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
       geocodeTimerRef.current = setTimeout(() => {
         const center = map.getCenter();
@@ -658,11 +661,32 @@ export default function MapArea() {
             (status: any, response: any) => {
               if (status === navermaps.Service.Status.OK) {
                 const results = response.v2.results;
-                const regionName = results[0]?.region?.area3?.name || '';
-                if (regionName) {
-                  setMapCenterAddress(regionName);
-                  lastGeocodedCoordsRef.current = { lat, lng };
+                const region = results[0]?.region;
+                const area1 = region?.area1?.name || '';
+                const area2 = region?.area2?.name || '';
+                const area3 = region?.area3?.name || '';
+                
+                const zoom = map.getZoom();
+                let regionParts: string[] = [];
+
+                if (zoom >= 14) {
+                  // 1. 상세 확대 뷰: 동(area3)까지 포함하여 국한 검색
+                  regionParts = [area1, area2, area3];
+                } else if (zoom >= 11) {
+                  // 2. 중간 뷰: 시/구(area2)까지만 포함하여 검색 범위 확장
+                  regionParts = [area1, area2];
+                } else if (zoom >= 8) {
+                  // 3. 광역 뷰: 시/도(area1)까지만 포함
+                  regionParts = [area1];
+                } else {
+                  // 4. 전국 뷰: 주소 접두사 없이 전국 검색 허용
+                  regionParts = [];
                 }
+
+                const regionName = regionParts.filter(Boolean).join(' ');
+                setMapCenterAddress(regionName);
+                setMapCenterCoord({ lat, lng }); // 스토어에도 중심 좌표 기록
+                lastGeocodedCoordsRef.current = { lat, lng };
               }
             }
           );
@@ -688,6 +712,39 @@ export default function MapArea() {
             defaultCenter={mapCenter}
             defaultZoom={15}
             ref={setMap}
+            onClick={(e: any) => {
+              if (!isSearchMode) return;
+              const lat = e.coord.y;
+              const lng = e.coord.x;
+              
+              const navermaps = typeof window !== 'undefined' ? window.naver?.maps : null;
+              if (navermaps && navermaps.Service && navermaps.Service.reverseGeocode) {
+                navermaps.Service.reverseGeocode(
+                  {
+                    coords: e.coord,
+                  },
+                  (status: any, response: any) => {
+                    if (status === navermaps.Service.Status.OK) {
+                      const v2 = response.v2;
+                      const address = v2.address ? (v2.address.roadAddress || v2.address.jibunAddress) : '지도에서 선택한 위치';
+                      setMapClickedPlace({
+                        lat,
+                        lng,
+                        address: address || '지도에서 선택한 위치',
+                        place_name: '지도에서 선택한 장소',
+                      });
+                    }
+                  }
+                );
+              } else {
+                setMapClickedPlace({
+                  lat,
+                  lng,
+                  address: '위치 정보 확인 불가',
+                  place_name: '지도에서 선택한 장소',
+                });
+              }
+            }}
             logoControlOptions={{
               position: navermaps ? navermaps.Position.BOTTOM_RIGHT : 12,
             }}
@@ -1009,6 +1066,32 @@ export default function MapArea() {
                 />
               );
             })}
+
+            {/* 직접 클릭한 장소 마커 */}
+            {mapClickedPlace && (
+              <AnimatedMarker
+                key={`clicked-${mapClickedPlace.lat}-${mapClickedPlace.lng}`}
+                delay={0}
+                position={{ lat: mapClickedPlace.lat, lng: mapClickedPlace.lng }}
+                title={mapClickedPlace.place_name}
+                zIndex={9500}
+                iconAnchor={new window.naver.maps.Point(14, 34)}
+                iconContent={`<div style="
+                    cursor: pointer;
+                    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.25));
+                    transition: transform 0.15s ease-out;
+                  "
+                  class="animate-bounce"
+                  >
+                    <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
+                            fill="#E11D48" 
+                      />
+                      <circle cx="12" cy="12" r="4" fill="white" />
+                    </svg>
+                  </div>`}
+              />
+            )}
           </NaverMap>
         </MapDiv>
       </NavermapsProvider>
@@ -1065,6 +1148,78 @@ export default function MapArea() {
               </button>
             );
           })()}
+        </div>
+      )}
+
+      {/* ── 지도에서 직접 클릭한 장소 오버레이 카드 ── */}
+      {mapClickedPlace && (
+        <div className="absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4">
+          <div className="flex justify-between items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <span className="inline-block text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full mb-1">
+                직접 선택
+              </span>
+              <input
+                type="text"
+                value={mapClickedPlace.place_name}
+                onChange={(e) => setMapClickedPlace({...mapClickedPlace, place_name: e.target.value})}
+                className="w-full text-[15px] font-black text-zinc-900 leading-tight bg-transparent border-b border-zinc-200 focus:border-blue-500 outline-none pb-1"
+                placeholder="장소 이름을 입력하세요"
+                autoFocus
+              />
+              <p className="text-xs text-zinc-400 mt-2 leading-normal truncate">
+                {mapClickedPlace.address}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMapClickedPlace(null)}
+              className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-all flex-shrink-0 cursor-pointer mt-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!activeJourney) return;
+              const newId = 'custom_' + Date.now();
+              const place: Place = {
+                id: newId,
+                place_name: mapClickedPlace.place_name || '지도에서 선택한 장소',
+                address: mapClickedPlace.address,
+                category: '사용자 추가',
+                lat: mapClickedPlace.lat,
+                lng: mapClickedPlace.lng,
+              };
+              try {
+                await addPlace(place);
+                
+                // localStorage에 최근 검색어(장소 이름) 저장
+                const queriesStr = localStorage.getItem('onjourney_recent_queries');
+                let recentQueries = [];
+                if (queriesStr) recentQueries = JSON.parse(queriesStr);
+                const trimmed = place.place_name.trim();
+                if (trimmed) {
+                  const next = [trimmed, ...recentQueries.filter((q: string) => q !== trimmed)].slice(0, 10);
+                  localStorage.setItem('onjourney_recent_queries', JSON.stringify(next));
+                }
+                
+                setMapClickedPlace(null);
+              } catch (err) {
+                console.error('장소 추가 실패:', err);
+              }
+            }}
+            className="relative group w-full py-3 bg-zinc-950 hover:bg-zinc-900 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-rose-600 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 relative z-10">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            <span className="relative z-10">장소 추가</span>
+          </button>
         </div>
       )}
 

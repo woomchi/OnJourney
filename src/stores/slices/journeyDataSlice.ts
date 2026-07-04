@@ -89,7 +89,9 @@ export const createJourneyDataSlice: StateCreator<
       focusedSegment: null, 
       focusedStep: null,
       alternativeSegment: null,
-      hoveredAlternativeRoute: null
+      hoveredAlternativeRoute: null,
+      isSearchMode: false,
+      recommendedPlaces: []
     });
   },
 
@@ -99,7 +101,9 @@ export const createJourneyDataSlice: StateCreator<
     focusedSegment: null, 
     focusedStep: null,
     alternativeSegment: null,
-    hoveredAlternativeRoute: null
+    hoveredAlternativeRoute: null,
+    isSearchMode: false,
+    recommendedPlaces: []
   }),
 
   addPlace: async (place) => {

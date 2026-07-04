@@ -43,9 +43,10 @@ export default function MapArea() {
     hoveredAlternativeRoute,
     isAlternativeFromFocus,
     recommendedPlaces,
-    hoveredSearchPlace,
+    activeSearchPlace,
     setMapCenterAddress,
     setMapCenterCoord,
+    setMapBounds: setGlobalMapBounds,
     addPlace,
     removePlace,
     isEditMode,
@@ -125,7 +126,7 @@ export default function MapArea() {
 
   const [activeRecommendedPlace, setActiveRecommendedPlace] = useState<PlaceResult | null>(null);
 
-  const [mapClickedPlace, setMapClickedPlace] = useState<{lat: number; lng: number; address: string; place_name: string} | null>(null);
+  const [mapClickedPlace, setMapClickedPlace] = useState<{ lat: number; lng: number; address: string; place_name: string } | null>(null);
 
   useEffect(() => {
     if (!isSearchMode) {
@@ -180,6 +181,28 @@ export default function MapArea() {
       setActiveRecommendedPlace(null);
     } catch (err) {
       console.error('추천 장소 제거 실패:', err);
+    }
+  };
+
+  const handleMyLocationClick = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          if (map) {
+            map.setCenter(new window.naver.maps.LatLng(lat, lng));
+            map.setZoom(16, true);
+          }
+        },
+        (error) => {
+          console.error("내 위치 가져오기 실패:", error);
+          alert("위치 권한이 차단되었거나 정보를 가져올 수 없습니다. 브라우저 설정에서 위치 권한을 허용해주세요.");
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+      );
+    } else {
+      alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
     }
   };
 
@@ -520,9 +543,9 @@ export default function MapArea() {
   // 검색 결과가 지워진 경우에도 원래 전체 경로로 줌을 되돌리도록 recommendedPlaces 상태를 연동합니다.
   useEffect(() => {
     if (!map || places.length === 0) return;
-    
-    // 검색 결과가 있는 상태라면 이 효과는 스킵합니다 (검색 결과용 줌이 우선 적용되도록 함)
-    if (recommendedPlaces && recommendedPlaces.length > 0) return;
+
+    // 검색 모드 중이라면 이 효과를 스킵합니다 (사용자의 줌/팬 조작을 방해하지 않음)
+    if (isSearchMode) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
@@ -568,9 +591,9 @@ export default function MapArea() {
 
 
 
-  // 장소 검색 카드 호버 시 해당 장소로 줌 인 (호버 해제 시 초기화 안 함)
+  // 장소 검색 카드 클릭 시 해당 장소로 줌 인
   useEffect(() => {
-    if (!map || !hoveredSearchPlace) return;
+    if (!map || !activeSearchPlace) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
@@ -578,19 +601,17 @@ export default function MapArea() {
     const currentCenter = map.getCenter();
     const currentZoom = map.getZoom();
 
-    // 이미 해당 위치와 줌 레벨에 근접한 경우, 중복 애니메이션 실행을 방지하여 툭툭 끊기는 현상을 예방합니다.
-    const latDiff = Math.abs(currentCenter.y - hoveredSearchPlace.lat);
-    const lngDiff = Math.abs(currentCenter.x - hoveredSearchPlace.lng);
-    
-    // 위경도 차이가 약 10m 이내(0.0001도)이고 줌 레벨이 15인 경우 morph 호출 생략
+    const latDiff = Math.abs(currentCenter.y - activeSearchPlace.lat);
+    const lngDiff = Math.abs(currentCenter.x - activeSearchPlace.lng);
+
     if (latDiff < 0.0001 && lngDiff < 0.0001 && currentZoom === 15) {
       return;
     }
 
-    const targetLatLng = new navermaps.LatLng(hoveredSearchPlace.lat, hoveredSearchPlace.lng);
+    const targetLatLng = new navermaps.LatLng(activeSearchPlace.lat, activeSearchPlace.lng);
     map.setCenter(targetLatLng);
     map.setZoom(15);
-  }, [hoveredSearchPlace, map]);
+  }, [activeSearchPlace, map]);
 
   // 지도 줌 레벨 및 뷰포트 바운드 변경 감지 리스너
   const animatedSegmentsRef = useRef<Set<string>>(new Set());
@@ -606,7 +627,18 @@ export default function MapArea() {
     if (!navermaps) return;
 
     setZoomLevel(map.getZoom());
-    setMapBounds(map.getBounds() as naver.maps.LatLngBounds);
+    const initialBounds = map.getBounds() as naver.maps.LatLngBounds;
+    setMapBounds(initialBounds);
+    if (initialBounds) {
+      const sw = initialBounds.getSW();
+      const ne = initialBounds.getNE();
+      setGlobalMapBounds({
+        minLat: sw.lat(),
+        maxLat: ne.lat(),
+        minLng: sw.lng(),
+        maxLng: ne.lng()
+      });
+    }
 
     // 드래그나 줌 조작이 완전히 멈춘 유휴(idle) 상태일 때만 바운드와 줌 레벨을 갱신하여 렌더링 부하 최소화
     const idleListener = navermaps.Event.addListener(map, 'idle', () => {
@@ -630,6 +662,18 @@ export default function MapArea() {
         }
         return newBounds;
       });
+
+      // 전역 스토어에 영역(Bounds) 정보 갱신
+      if (newBounds) {
+        const sw = newBounds.getSW();
+        const ne = newBounds.getNE();
+        setGlobalMapBounds({
+          minLat: sw.lat(),
+          maxLat: ne.lat(),
+          minLng: sw.lng(),
+          maxLng: ne.lng()
+        });
+      }
 
       // reverseGeocode 호출 최적화:
       // 1) debounce 600ms — 연속 조작 시 마지막 idle만 처리
@@ -665,12 +709,12 @@ export default function MapArea() {
                 const area1 = region?.area1?.name || '';
                 const area2 = region?.area2?.name || '';
                 const area3 = region?.area3?.name || '';
-                
+
                 const zoom = map.getZoom();
                 let regionParts: string[] = [];
 
                 if (zoom >= 14) {
-                  // 1. 상세 확대 뷰: 동(area3)까지 포함하여 국한 검색
+                  // 1. 상세 확대 뷰: 동(area3)까지 포함
                   regionParts = [area1, area2, area3];
                 } else if (zoom >= 11) {
                   // 2. 중간 뷰: 시/구(area2)까지만 포함하여 검색 범위 확장
@@ -716,7 +760,7 @@ export default function MapArea() {
               if (!isSearchMode) return;
               const lat = e.coord.y;
               const lng = e.coord.x;
-              
+
               const navermaps = typeof window !== 'undefined' ? window.naver?.maps : null;
               if (navermaps && navermaps.Service && navermaps.Service.reverseGeocode) {
                 navermaps.Service.reverseGeocode(
@@ -1035,37 +1079,49 @@ export default function MapArea() {
               );
             })}
 
-            {/* 추천 장소 마커 렌더링 */}
-            {recommendedPlaces && recommendedPlaces.map((recPlace) => {
-              const theme = getCategoryTheme(recPlace.category);
-              const emoji = categoryEmojis[theme.type] || categoryEmojis.etc;
-              const zIndex = 9000;
-              return (
-                <AnimatedMarker
-                  key={`rec-${recPlace.id}`}
-                  delay={0}
-                  position={{ lat: recPlace.lat, lng: recPlace.lng }}
-                  title={recPlace.place_name}
-                  onClick={() => handleRecommendedMarkerClick(recPlace)}
-                  zIndex={zIndex}
-                  iconAnchor={new window.naver.maps.Point(14, 34)}
-                  iconContent={`<div style="
-                      cursor: pointer;
-                      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.18));
-                      transition: transform 0.15s ease-out;
-                    "
-                    class="hover:scale-110 active:scale-95"
-                    >
-                      <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
-                              fill="${theme.color}" 
-                        />
-                        <text x="12" y="17" fill="white" font-size="11" font-family="Pretendard, sans-serif" text-anchor="middle">${emoji}</text>
-                      </svg>
-                    </div>`}
-                />
-              );
-            })}
+            {/* 추천 장소 마커 렌더링 (모든 장소 표시) */}
+            {isSearchMode && recommendedPlaces && recommendedPlaces
+              .filter((recPlace) => !places.some((p) => p.id === recPlace.id))
+              .map((recPlace) => {
+                const isActive = activeSearchPlace?.id === recPlace.id;
+                const theme = getCategoryTheme(recPlace.category);
+                const emoji = categoryEmojis[theme.type] || categoryEmojis.etc;
+                const zIndex = isActive ? 9999 : 9000;
+
+                // 활성화된 마커는 크기를 키우고 특별한 그림자 이펙트를 줌
+                const markerScale = isActive ? 'scale(1.25)' : 'scale(1)';
+                const dropShadow = isActive
+                  ? `drop-shadow(0 0 10px ${theme.color}) drop-shadow(0 6px 14px rgba(0,0,0,0.35))`
+                  : 'drop-shadow(0 4px 10px rgba(0,0,0,0.18))';
+
+                return (
+                  <AnimatedMarker
+                    key={`rec-${recPlace.id}`}
+                    delay={0}
+                    position={{ lat: recPlace.lat, lng: recPlace.lng }}
+                    title={recPlace.place_name}
+                    onClick={() => handleRecommendedMarkerClick(recPlace)}
+                    zIndex={zIndex}
+                    iconAnchor={new window.naver.maps.Point(14, 34)}
+                    iconContent={`<div style="
+                        cursor: pointer;
+                        filter: ${dropShadow};
+                        transform: ${markerScale};
+                        transform-origin: bottom center;
+                        transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+                      "
+                      class="hover:scale-110 active:scale-95"
+                      >
+                        <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
+                                fill="${theme.color}" 
+                          />
+                          <text x="12" y="17" fill="white" font-size="11" font-family="Pretendard, sans-serif" text-anchor="middle">${emoji}</text>
+                        </svg>
+                      </div>`}
+                  />
+                );
+              })}
 
             {/* 직접 클릭한 장소 마커 */}
             {mapClickedPlace && (
@@ -1162,7 +1218,7 @@ export default function MapArea() {
               <input
                 type="text"
                 value={mapClickedPlace.place_name}
-                onChange={(e) => setMapClickedPlace({...mapClickedPlace, place_name: e.target.value})}
+                onChange={(e) => setMapClickedPlace({ ...mapClickedPlace, place_name: e.target.value })}
                 className="w-full text-[15px] font-black text-zinc-900 leading-tight bg-transparent border-b border-zinc-200 focus:border-blue-500 outline-none pb-1"
                 placeholder="장소 이름을 입력하세요"
                 autoFocus
@@ -1196,7 +1252,7 @@ export default function MapArea() {
               };
               try {
                 await addPlace(place);
-                
+
                 // localStorage에 최근 검색어(장소 이름) 저장
                 const queriesStr = localStorage.getItem('onjourney_recent_queries');
                 let recentQueries = [];
@@ -1206,7 +1262,7 @@ export default function MapArea() {
                   const next = [trimmed, ...recentQueries.filter((q: string) => q !== trimmed)].slice(0, 10);
                   localStorage.setItem('onjourney_recent_queries', JSON.stringify(next));
                 }
-                
+
                 setMapClickedPlace(null);
               } catch (err) {
                 console.error('장소 추가 실패:', err);
@@ -1223,9 +1279,9 @@ export default function MapArea() {
         </div>
       )}
 
-      {/* 전체 보기 플로팅 버튼 (우측 하단) */}
-      {places.length > 0 && !isSearchMode && (
-        <div className="absolute bottom-8 right-6 z-[100] flex flex-col gap-2">
+      {/* 전체 보기 및 내 위치 플로팅 버튼 (우측 하단) */}
+      <div className="absolute bottom-8 right-6 z-[2000] flex flex-col gap-3">
+        {places.length > 0 && !isSearchMode && (
           <button
             type="button"
             onClick={handleResetBounds}
@@ -1265,8 +1321,28 @@ export default function MapArea() {
               />
             </svg>
           </button>
-        </div>
-      )}
+        )}
+
+        <button
+          onClick={handleMyLocationClick}
+          className="
+            group flex items-center justify-center w-12 h-12 rounded-2xl
+            bg-white border border-zinc-200/80
+            shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
+            hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)]
+            hover:border-blue-200 hover:bg-blue-50
+            active:scale-[0.94] hover:scale-[1.06]
+            transition-all duration-200 ease-out
+            cursor-pointer select-none text-[#8A8A93] hover:text-blue-500
+          "
+          title="내 위치로 이동"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-[22px] h-[22px] transition-transform group-hover:scale-110 duration-200">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+          </svg>
+        </button>
+      </div>
 
 
       {/* 상세 경로 안내 패널: 사이드바 오른쪽에 따로 띄움 */}

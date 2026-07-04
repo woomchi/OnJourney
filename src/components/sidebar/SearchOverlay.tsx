@@ -9,6 +9,82 @@ interface SearchOverlayProps {
   activeJourney: Journey;
 }
 
+function getDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
+  return R * c; // Distance in km
+}
+
+function calculateScore(item: PlaceResult, index: number, query: string, targetLat: number | null, targetLng: number | null) {
+  let score = 0;
+  const placeName = item.place_name.replace(/\s+/g, '').toLowerCase();
+  const searchQ = query.replace(/\s+/g, '').toLowerCase();
+
+  // 검색어 의도 분석 (일반 카테고리 vs 특정 고유 명사)
+  const genericKeywords = ['카페', '커피', '식당', '맛집', '편의점', '주차장', '화장실', '공원', '은행', '약국', '병원', '마트', '시장', '주유소', '지하철', '역'];
+  const isGenericQuery = genericKeywords.some(k => searchQ.includes(k));
+
+  // 1. 이름 완벽 일치 (최고 우선순위)
+  if (placeName === searchQ) {
+    score += 100000;
+  } 
+  // 2. 본점/직영점 가산점 (고유명사 검색 시 본점이 최상위로 오도록 압도적 우대)
+  else if (placeName.includes('본점') || placeName.includes('직영점')) {
+    score += 80000;
+  }
+  // 3. 검색어로 시작함 (높은 우선순위)
+  else if (placeName.startsWith(searchQ)) {
+    score += 50000;
+  }
+  // 4. 검색어를 포함함
+  else if (placeName.includes(searchQ)) {
+    score += 10000;
+  }
+
+  // 5. 여행객 기피 시설 패널티 (배달전문, 포장전문, 물류센터 등)
+  if (placeName.includes('배달') || placeName.includes('포장') || placeName.includes('테이크아웃') || placeName.includes('물류')) {
+    score -= 500000; // 절대 상위권에 노출되지 않도록 막대한 페널티
+  }
+
+  // 6. 카카오 원본 순위(인기도/정확도) 가점 (1등: 4500점 ~ 45등: 100점)
+  score += (50 - index) * 100;
+
+  // 7. 거리 감점 (지도 중심 좌표가 있을 경우)
+  if (targetLat !== null && targetLng !== null) {
+    const dist = getDistance(targetLat, targetLng, item.lat, item.lng);
+    // 일반 키워드면 거리 감점을 크게(1km당 50점), 고유 명사면 거리를 무시수준으로(1km당 1점) 적용
+    const distancePenaltyWeight = isGenericQuery ? 50 : 1;
+    score -= (dist * distancePenaltyWeight);
+  }
+
+  return score;
+}
+
+function getDistrictPrefix(address: string) {
+  if (!address) return '';
+  const parts = address.trim().split(/\s+/);
+  if (parts.length === 0) return '';
+  
+  const first = parts[0];
+  // '도' 단위인 경우 (경기, 강원, 충남, 제주 등)
+  const isProvince = first.endsWith('도') || 
+    ['경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'].includes(first);
+    
+  if (isProvince && parts.length >= 2) {
+    // 도 단위는 시/군까지 묶어야 의미 있는 생활권이 됨 (예: "경기 성남시", "강원 영월군")
+    return parts.slice(0, 2).join(' ');
+  } else {
+    // 서울, 부산, 대구 등 광역시/특별시는 그 자체로 하나의 거대 생활권이므로 구(구역)를 무시하고 묶음 (예: "서울", "부산")
+    return first;
+  }
+}
+
 export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const {
     isSearchMode,
@@ -17,9 +93,12 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     removePlace,
     mapCenterAddress,
     mapCenterCoord,
+    mapBounds,
     setRecommendedPlaces,
     clearRecommendedPlaces,
-    setHoveredSearchPlace,
+    activeSearchPlace,
+    setActiveSearchPlace,
+    setFocusBounds,
   } = useJourneyStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,21 +107,37 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hoverDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      try {
-        const queries = localStorage.getItem('onjourney_recent_queries');
-        if (queries) setRecentQueries(JSON.parse(queries));
-      } catch (e) {
-        console.error('Failed to load recent queries from localStorage:', e);
+      const saved = localStorage.getItem('onjourney_recent_queries');
+      if (saved) {
+        try {
+          setRecentQueries(JSON.parse(saved));
+        } catch (e) {}
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (activeSearchPlace && typeof window !== 'undefined') {
+      const el = document.getElementById(`search-item-${activeSearchPlace.id}`);
+      const container = document.getElementById('search-results-container');
+      if (el && container) {
+        const elRect = el.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const offsetTop = elRect.top - containerRect.top;
+        
+        container.scrollTo({
+          top: container.scrollTop + offsetTop - 4, // 4px top padding
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [activeSearchPlace]);
 
   const saveRecentQuery = useCallback((q: string) => {
     if (!q || q.trim().length === 0) return;
@@ -67,17 +162,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     localStorage.removeItem('onjourney_recent_queries');
   };
 
-  const handleMouseEnterCard = useCallback((item: PlaceResult) => {
-    if (hoverDebounceRef.current) clearTimeout(hoverDebounceRef.current);
-    hoverDebounceRef.current = setTimeout(() => {
-      setHoveredSearchPlace(item);
-    }, 500); // 500ms delay
-  }, [setHoveredSearchPlace]);
 
-  const handleMouseLeaveCard = useCallback(() => {
-    if (hoverDebounceRef.current) clearTimeout(hoverDebounceRef.current);
-    setHoveredSearchPlace(null);
-  }, [setHoveredSearchPlace]);
 
   // 검색 모드 진입/복귀 시 상태 초기화
   useEffect(() => {
@@ -111,19 +196,95 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setIsSearchLoading(true);
     setSearchError(null);
     try {
-      const regionParam = mapCenterAddress ? `&region=${encodeURIComponent(mapCenterAddress)}` : '';
+      const boundsParam = mapBounds
+        ? `&minLat=${mapBounds.minLat}&maxLat=${mapBounds.maxLat}&minLng=${mapBounds.minLng}&maxLng=${mapBounds.maxLng}`
+        : '';
       const coordParam = mapCenterCoord ? `&lat=${mapCenterCoord.lat}&lng=${mapCenterCoord.lng}` : '';
-      const res = await fetch(`/api/places?query=${encodeURIComponent(q)}${regionParam}${coordParam}`);
+
+      // 1차 검색: 현재 지도 영역 기반으로 정확도순 검색 (거리순 제외)
+      let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}`);
       if (currentSearchId !== activeSearchId.current) return;
-      const data = await res.json();
+      let data = await res.json();
+      let items: PlaceResult[] = [];
+
       if (!res.ok) {
         setSearchError(data.error || '검색 실패');
         setSearchResults([]);
         clearRecommendedPlaces();
+        return;
       } else {
-        const items: PlaceResult[] = data.items || [];
-        setSearchResults(items);
-        setRecommendedPlaces(items);
+        items = data.items || [];
+      }
+
+      // 1차 검색 결과가 15개 미만이라면(현재 지도 영역 내에 해당 장소가 부족함 = 특수한 고유명사일 확률이 높음), 범위를 넓혀 전국망 2차 검색 진행
+      let isFallbackSearch = false;
+      if (items.length < 15) {
+        isFallbackSearch = true;
+        // coordParam은 남겨서 현 중심점 기준으로 가장 가까운 곳부터 우선 탐색되도록 유도하되 rect는 해제 (전국망 확장)
+        const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}`);
+        if (currentSearchId !== activeSearchId.current) return;
+        const fallbackData = await fallbackRes.json();
+        
+        if (fallbackRes.ok && fallbackData.items && fallbackData.items.length > 0) {
+          // 기존 로컬 결과와 전국망 결과를 합친 후 중복 제거
+          const newItems = fallbackData.items as PlaceResult[];
+          const merged = [...items, ...newItems];
+          const uniqueItems = Array.from(new Map(merged.map(item => [item.id, item])).values());
+          items = uniqueItems;
+        } else if (items.length === 0) {
+          setSearchError(fallbackData.error || '검색 결과가 없습니다.');
+          setSearchResults([]);
+          clearRecommendedPlaces();
+          return;
+        }
+      }
+
+      // [하이브리드 정렬 적용] 
+      // 카카오가 반환한 정확도순(인기도순) 45개의 배열을 프론트엔드 자체 점수 알고리즘으로 재정렬
+      let targetLat = mapCenterCoord ? mapCenterCoord.lat : null;
+      let targetLng = mapCenterCoord ? mapCenterCoord.lng : null;
+
+      // 만약 2차(전국구) 검색이라면, 검색어와 가장 일치하는 1순위 장소를 새로운 중심으로 설정하여 그 주변으로 정렬되게 유도
+      if (isFallbackSearch && items.length > 0) {
+        let bestItem = items[0];
+        let highestBaseScore = -1;
+        items.forEach((item, index) => {
+          // 거리 감점 없이 순수 이름 + 카카오랭킹 점수만 계산
+          const baseScore = calculateScore(item, index, q, null, null);
+          if (baseScore > highestBaseScore) {
+            highestBaseScore = baseScore;
+            bestItem = item;
+          }
+        });
+        targetLat = bestItem.lat;
+        targetLng = bestItem.lng;
+      }
+
+      const scoredItems = items.map((item, index) => {
+        return {
+          item,
+          score: calculateScore(item, index, q, targetLat, targetLng)
+        };
+      });
+
+      scoredItems.sort((a, b) => b.score - a.score); // 점수가 높은 순으로 내림차순 정렬
+      items = scoredItems.map(si => si.item);
+
+      setSearchResults(items);
+      setRecommendedPlaces(items);
+      setSearchError(null);
+
+      // 검색 후 항상 선택 해제 상태로 시작
+      setActiveSearchPlace(null);
+
+      // 첫 번째 장소(1순위)를 중심으로 지도 줌 및 패닝 자동 조절
+      if (items.length > 0) {
+        const bestItem = items[0];
+        // 반경 500m 수준의 적절한 줌 레벨로 맞춰지도록 작은 바운딩 박스 생성
+        setFocusBounds({
+          sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
+          ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
+        });
       }
     } catch {
       if (currentSearchId !== activeSearchId.current) return;
@@ -135,18 +296,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces, mapCenterAddress, mapCenterCoord]);
+  }, [clearRecommendedPlaces, setRecommendedPlaces, mapCenterCoord, mapBounds]);
 
-  // 지도가 이동할 때마다 '현 지도에서 재검색'을 자동으로 수행
-  useEffect(() => {
-    // 검색어가 있고 검색 모드일 때만 지도가 이동하면 재검색
-    if (isSearchMode && searchQuery.trim().length > 0) {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-      searchDebounceRef.current = setTimeout(() => {
-        runSearch(searchQuery);
-      }, 600); // 지도를 연속으로 패닝할 수 있으므로 약간의 디바운스 부여
-    }
-  }, [mapCenterCoord, isSearchMode, searchQuery, runSearch]);
+
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -250,7 +402,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         </div>
       </div>
       {/* 검색 결과 리스트 */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-sidebar">
+      <div id="search-results-container" className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-sidebar relative">
         {searchError ? (
           <p className="text-sm text-red-500 py-6 text-center">{searchError}</p>
         ) : searchResults.length === 0 && searchQuery.length > 0 && !isSearchLoading ? (
@@ -334,9 +486,16 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
               };
               return (
                 <li
+                  id={`search-item-${item.id}`}
                   key={item.id}
-                  onMouseEnter={() => handleMouseEnterCard(item)}
-                  onMouseLeave={handleMouseLeaveCard}
+                  onClick={() => {
+                    if (activeSearchPlace?.id === item.id) {
+                      setActiveSearchPlace(null);
+                    } else {
+                      setActiveSearchPlace(item);
+                    }
+                  }}
+                  className={`cursor-pointer transition-all ${activeSearchPlace?.id === item.id ? 'ring-2 ring-blue-500 rounded-2xl' : ''}`}
                 >
                   <div className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${isAdded ? 'bg-zinc-50 border-zinc-100' : 'bg-white border-zinc-100 hover:border-blue-100 hover:bg-blue-50/40'}`}>
                     <div className="flex-1 min-w-0">
@@ -350,7 +509,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleToggleSearchResult(item)}
+                      onClick={(e) => { e.stopPropagation(); handleToggleSearchResult(item); }}
                       className={`group/btn flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all font-bold text-xs cursor-pointer ${isAdded
                         ? 'bg-green-50 text-green-600 hover:bg-red-50 hover:text-red-500'
                         : 'bg-blue-100 hover:bg-blue-500 hover:text-white text-blue-600 active:scale-90'

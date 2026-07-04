@@ -336,7 +336,7 @@ export default function AlternativeRoutePanel({
 
           <div className="flex items-center gap-1.5 text-zinc-800 text-[13px] font-bold tracking-wide">
             <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-              <img src="/서비스 로고2.png" alt="Logo" className="w-full h-full object-contain" />
+              <img src="/service_logo2.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             대안 이동 수단
           </div>

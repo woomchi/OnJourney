@@ -11,6 +11,8 @@ export interface MapSlice {
   isAlternativeFromFocus: boolean;
   mapCenterAddress: string;
   mapCenterCoord: { lat: number; lng: number } | null;
+  mapBounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null;
+  mapRegions: string[];
   recommendedPlaces: PlaceResult[];
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
@@ -20,10 +22,12 @@ export interface MapSlice {
   setIsAlternativeFromFocus: (val: boolean) => void;
   setMapCenterAddress: (address: string) => void;
   setMapCenterCoord: (coord: { lat: number; lng: number } | null) => void;
+  setMapBounds: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void;
+  setMapRegions: (regions: string[]) => void;
   setRecommendedPlaces: (places: PlaceResult[]) => void;
   clearRecommendedPlaces: () => void;
-  hoveredSearchPlace: PlaceResult | null;
-  setHoveredSearchPlace: (place: PlaceResult | null) => void;
+  activeSearchPlace: PlaceResult | null;
+  setActiveSearchPlace: (place: PlaceResult | null) => void;
 }
 
 export const createMapSlice: StateCreator<
@@ -40,6 +44,8 @@ export const createMapSlice: StateCreator<
   isAlternativeFromFocus: false,
   mapCenterAddress: '',
   mapCenterCoord: null,
+  mapBounds: null,
+  mapRegions: [],
   recommendedPlaces: [],
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
   setFocusedSegment: (segment) => set((state) => ({ 
@@ -58,9 +64,11 @@ export const createMapSlice: StateCreator<
   setIsAlternativeFromFocus: (val) => set({ isAlternativeFromFocus: val }),
   setMapCenterAddress: (address) => set({ mapCenterAddress: address }),
   setMapCenterCoord: (coord) => set({ mapCenterCoord: coord }),
+  setMapBounds: (bounds) => set({ mapBounds: bounds }),
+  setMapRegions: (regions) => set({ mapRegions: regions }),
   setRecommendedPlaces: (places) => set({ recommendedPlaces: places }),
   clearRecommendedPlaces: () => set({ recommendedPlaces: [] }),
-  hoveredSearchPlace: null,
-  setHoveredSearchPlace: (place) => set({ hoveredSearchPlace: place }),
+  activeSearchPlace: null,
+  setActiveSearchPlace: (place) => set({ activeSearchPlace: place }),
 });
 

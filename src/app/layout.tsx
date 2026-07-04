@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "On-Journey",
   description: "당신의 모든 이동이 온전히, 여정이 되도록.",
   icons: {
-    icon: "/서비스 로고2.png",
+    icon: "/service_logo2.png",
   },
 };
 

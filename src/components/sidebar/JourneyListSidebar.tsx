@@ -168,7 +168,7 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-              <img src="/서비스 로고2.png" alt="On-Journey Logo" className="w-full h-full object-contain" />
+              <img src="/service_logo2.png" alt="On-Journey Logo" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600">
               On-Journey

@@ -120,14 +120,57 @@ export async function GET(request: NextRequest) {
       return true;
     });
 
-    // 지도 중심 기준 거리순으로 오름차순 정렬
-    if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
-      items.sort((a, b) => {
+    // 카테고리 우선순위 산정 함수 (여행, 관광, 명소, 유적지 우선)
+    const getCategoryPriority = (category: string) => {
+      if (!category) return 99;
+      if (category.includes('관광') || category.includes('명소') || category.includes('여행')) return 1;
+      if (category.includes('문화') || category.includes('예술') || category.includes('유적') || category.includes('역사')) return 2;
+      if (category.includes('숙박') || category.includes('호텔') || category.includes('펜션')) return 3;
+      if (category.includes('음식점') || category.includes('카페') || category.includes('식당')) return 4;
+      if (category.includes('교통') || category.includes('역') || category.includes('터미널')) return 5;
+      
+      // 관련도가 낮은 카테고리는 후순위로 배치
+      if (category.includes('농업') || category.includes('부동산') || category.includes('기업') || category.includes('산업')) return 10;
+      
+      return 7; // 기본 우선순위
+    };
+
+    // 검색어 포함 여부, 카테고리 관련도, 카테고리명(그룹화), 그리고 지도 중심 기준 거리순으로 정렬
+    items.sort((a, b) => {
+      const cleanQuery = query.toLowerCase().trim();
+      const aName = a.place_name.toLowerCase();
+      const bName = b.place_name.toLowerCase();
+      
+      const aHasQuery = aName.includes(cleanQuery);
+      const bHasQuery = bName.includes(cleanQuery);
+
+      // 1. 검색어 포함 여부 우선
+      if (aHasQuery && !bHasQuery) return -1;
+      if (!aHasQuery && bHasQuery) return 1;
+
+      // 2. 검색어를 포함하는 경우, 카테고리 우선순위 적용
+      if (aHasQuery && bHasQuery) {
+        const priorityA = getCategoryPriority(a.category);
+        const priorityB = getCategoryPriority(b.category);
+        
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+
+        // 우선순위가 같다면 카테고리별로 그룹화(가나다순 정렬)
+        if (a.category < b.category) return -1;
+        if (a.category > b.category) return 1;
+      }
+
+      // 3. 거리순 정렬
+      if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
         const distA = Math.pow(a.lat - lat, 2) + Math.pow(a.lng - lng, 2);
         const distB = Math.pow(b.lat - lat, 2) + Math.pow(b.lng - lng, 2);
         return distA - distB;
-      });
-    }
+      }
+
+      return 0;
+    });
 
     return NextResponse.json({ items });
   } catch (err: any) {

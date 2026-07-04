@@ -192,7 +192,7 @@ export default function MapArea() {
           const lng = position.coords.longitude;
           if (map) {
             map.setCenter(new window.naver.maps.LatLng(lat, lng));
-            map.setZoom(16, true);
+            map.setZoom(16, false);
           }
         },
         (error) => {

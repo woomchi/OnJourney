@@ -284,17 +284,28 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       setRecommendedPlaces(items);
       setSearchError(null);
 
-      // 검색 후 항상 선택 해제 상태로 시작
-      setActiveSearchPlace(null);
-
-      // 첫 번째 장소(1순위)를 중심으로 지도 줌 및 패닝 자동 조절 (확정 검색일 경우만)
+      let exactMatchItem: PlaceResult | null = null;
       if (isConfirmed && items.length > 0) {
-        const bestItem = items[0];
-        // 반경 500m 수준의 적절한 줌 레벨로 맞춰지도록 작은 바운딩 박스 생성
-        setFocusBounds({
-          sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
-          ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
-        });
+        const searchQ = q.replace(/\s+/g, '').toLowerCase();
+        exactMatchItem = items.find(item => item.place_name.replace(/\s+/g, '').toLowerCase() === searchQ) || null;
+      }
+
+      if (isConfirmed && exactMatchItem) {
+        // 완전 일치하는 항목이 있으면 해당 마커를 즉시 클릭(하이라이트)된 상태로 만듦
+        setActiveSearchPlace(exactMatchItem);
+      } else {
+        // 검색 후 항상 기본적으로 선택 해제 상태로 시작
+        setActiveSearchPlace(null);
+
+        // 첫 번째 장소(1순위)를 중심으로 지도 줌 및 패닝 자동 조절 (확정 검색일 경우만)
+        if (isConfirmed && items.length > 0) {
+          const bestItem = items[0];
+          // 반경 500m 수준의 적절한 줌 레벨로 맞춰지도록 작은 바운딩 박스 생성
+          setFocusBounds({
+            sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
+            ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
+          });
+        }
       }
     } catch {
       if (currentSearchId !== activeSearchId.current) return;

@@ -51,6 +51,9 @@ export default function MapArea() {
     removePlace,
     isEditMode,
     isSearchMode,
+    isSearchLoading,
+    triggerSearch,
+    searchQuery,
   } = useJourneyStore();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
@@ -208,7 +211,7 @@ export default function MapArea() {
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        
+
         lastKnownLocationRef.current = { lat, lng };
 
         if (map) {
@@ -226,8 +229,8 @@ export default function MapArea() {
           alert("위치 권한이 차단되었거나 정보를 가져올 수 없습니다. 브라우저 설정에서 위치 권한을 허용해주세요.");
         }
       },
-      { 
-        enableHighAccuracy: true, 
+      {
+        enableHighAccuracy: true,
         maximumAge: 60000, // 1분 이내의 캐시된 위치는 적극 재사용하여 응답 속도 극대화
         timeout: 8000      // GPS 위성 신호 대기 시간 고려
       }
@@ -780,6 +783,48 @@ export default function MapArea() {
 
   return (
     <div className="relative w-full h-full overflow-hidden">
+      {/* ── 현 지도에서 재검색 버튼 ── */}
+      {isSearchMode && searchQuery.trim().length > 0 && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[2000] pointer-events-auto">
+          <button
+            type="button"
+            onClick={triggerSearch}
+            disabled={isSearchLoading}
+            className={`
+              flex items-center gap-2 px-5 py-3 rounded-full font-bold text-[14px]
+              shadow-[0_4px_16px_rgba(0,0,0,0.1),0_1px_3px_rgba(0,0,0,0.06)]
+              backdrop-blur-md transition-all duration-300 ease-out border
+              ${isSearchLoading
+                ? 'bg-blue-500/90 text-white border-blue-400/50 scale-95 cursor-not-allowed'
+                : 'bg-white/90 text-blue-600 border-zinc-200/80 hover:bg-white hover:scale-105 hover:shadow-[0_8px_24px_rgba(59,130,246,0.15)] active:scale-95 cursor-pointer'
+              }
+            `}
+          >
+            {isSearchLoading ? (
+              <>
+                <svg className="w-4 h-4 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                <span className="tracking-wide flex gap-0.5">
+                  검색 중
+                  <span className="animate-[bounce_1s_infinite_0ms]">.</span>
+                  <span className="animate-[bounce_1s_infinite_200ms]">.</span>
+                  <span className="animate-[bounce_1s_infinite_400ms]">.</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                <span className="tracking-wide">현재 화면에서 검색</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       <NavermapsProvider ncpKeyId={clientId} submodules={['geocoder']}>
         <MapDiv style={{ width: '100%', height: '100%' }}>
           <NaverMap
@@ -1362,8 +1407,8 @@ export default function MapArea() {
             shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
             transition-all duration-200 ease-out
             select-none
-            ${isLocating 
-              ? 'cursor-not-allowed bg-blue-50/50 border-blue-100 text-blue-500' 
+            ${isLocating
+              ? 'cursor-not-allowed bg-blue-50/50 border-blue-100 text-blue-500'
               : 'cursor-pointer hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)] hover:border-blue-200 hover:bg-blue-50 active:scale-[0.94] hover:scale-[1.06] text-[#8A8A93] hover:text-blue-500'
             }
           `}

@@ -99,11 +99,14 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     activeSearchPlace,
     setActiveSearchPlace,
     setFocusBounds,
+    isSearchLoading,
+    setIsSearchLoading,
+    searchTriggerCount,
+    searchQuery,
+    setSearchQuery,
   } = useJourneyStore();
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
-  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -138,6 +141,13 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       }
     }
   }, [activeSearchPlace]);
+
+  // 외부(MapArea)에서 지도 영역 내 재검색 요청 시 처리
+  useEffect(() => {
+    if (searchTriggerCount > 0 && searchQuery.trim().length > 0) {
+      runSearch(searchQuery, true);
+    }
+  }, [searchTriggerCount]);
 
   const saveRecentQuery = useCallback((q: string) => {
     if (!q || q.trim().length === 0) return;
@@ -185,7 +195,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
   const activeSearchId = useRef(0);
 
-  const runSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async (q: string, isConfirmed: boolean = false) => {
     const currentSearchId = ++activeSearchId.current;
     if (q.trim().length < 1) {
       setSearchResults([]);
@@ -277,8 +287,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       // 검색 후 항상 선택 해제 상태로 시작
       setActiveSearchPlace(null);
 
-      // 첫 번째 장소(1순위)를 중심으로 지도 줌 및 패닝 자동 조절
-      if (items.length > 0) {
+      // 첫 번째 장소(1순위)를 중심으로 지도 줌 및 패닝 자동 조절 (확정 검색일 경우만)
+      if (isConfirmed && items.length > 0) {
         const bestItem = items[0];
         // 반경 500m 수준의 적절한 줌 레벨로 맞춰지도록 작은 바운딩 박스 생성
         setFocusBounds({
@@ -304,13 +314,18 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     const val = e.target.value;
     setSearchQuery(val);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => runSearch(val), 350);
+    
+    if (val.trim().length === 0) {
+      runSearch(val, false);
+    } else if (val.trim().length >= 2) {
+      searchDebounceRef.current = setTimeout(() => runSearch(val, false), 350);
+    }
   };
 
   const handleCategoryClick = async (category: string) => {
     setSearchQuery(category);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    await runSearch(category);
+    await runSearch(category, true);
     saveRecentQuery(category);
   };
 
@@ -357,7 +372,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             value={searchQuery}
             onChange={handleSearchInputChange}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); runSearch(searchQuery); saveRecentQuery(searchQuery); }
+              if (e.key === 'Enter') { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); runSearch(searchQuery, true); saveRecentQuery(searchQuery); }
               if (e.key === 'Escape') closeSearchMode();
             }}
             placeholder={mapCenterAddress ? `${mapCenterAddress} 주변 장소 검색` : '방문할 장소를 검색해보세요'}
@@ -377,7 +392,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             type="button"
             onClick={() => {
               if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-              runSearch(searchQuery);
+              runSearch(searchQuery, true);
               saveRecentQuery(searchQuery);
             }}
             className="flex-shrink-0 text-zinc-400 hover:text-blue-600 transition-colors cursor-pointer p-1 -mr-1"
@@ -435,7 +450,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                       className="group flex items-center gap-3 p-3 rounded-2xl border bg-white border-zinc-100 hover:border-blue-100 hover:bg-blue-50/40 transition-all cursor-pointer"
                       onClick={() => {
                         setSearchQuery(q);
-                        runSearch(q);
+                        runSearch(q, true);
                       }}
                     >
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:text-blue-500 group-hover:bg-blue-100/50 transition-colors">

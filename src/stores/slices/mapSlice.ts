@@ -26,6 +26,12 @@ export interface MapSlice {
   setMapRegions: (regions: string[]) => void;
   setRecommendedPlaces: (places: PlaceResult[]) => void;
   clearRecommendedPlaces: () => void;
+  isSearchLoading: boolean;
+  setIsSearchLoading: (loading: boolean) => void;
+  searchTriggerCount: number;
+  triggerSearch: () => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
   activeSearchPlace: PlaceResult | null;
   setActiveSearchPlace: (place: PlaceResult | null) => void;
 }
@@ -47,6 +53,9 @@ export const createMapSlice: StateCreator<
   mapBounds: null,
   mapRegions: [],
   recommendedPlaces: [],
+  isSearchLoading: false,
+  searchTriggerCount: 0,
+  searchQuery: '',
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
   setFocusedSegment: (segment) => set((state) => ({ 
     focusedSegment: segment,
@@ -68,6 +77,9 @@ export const createMapSlice: StateCreator<
   setMapRegions: (regions) => set({ mapRegions: regions }),
   setRecommendedPlaces: (places) => set({ recommendedPlaces: places }),
   clearRecommendedPlaces: () => set({ recommendedPlaces: [] }),
+  setIsSearchLoading: (loading) => set({ isSearchLoading: loading }),
+  triggerSearch: () => set((state) => ({ searchTriggerCount: state.searchTriggerCount + 1 })),
+  setSearchQuery: (query) => set({ searchQuery: query }),
   activeSearchPlace: null,
   setActiveSearchPlace: (place) => set({ activeSearchPlace: place }),
 });

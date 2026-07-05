@@ -19,6 +19,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
 
   useEffect(() => {
     if (!path || path.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentPath(path || []);
       return;
     }

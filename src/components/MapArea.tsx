@@ -14,6 +14,7 @@ import AlternativeRoutePanel from '@/components/AlternativeRoutePanel';
 import DirectionalStripes from '@/components/map/DirectionalStripes';
 import TransferMarkers from '@/components/map/TransferMarkers';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
@@ -53,8 +54,32 @@ export default function MapArea() {
     isSearchMode,
     isSearchLoading,
     triggerSearch,
-    searchQuery,
-  } = useJourneyStore();
+    hasSearchQuery,
+  } = useJourneyStore(useShallow((state) => ({
+    activeJourney: state.activeJourney,
+    focusBounds: state.focusBounds,
+    setFocusBounds: state.setFocusBounds,
+    focusedSegment: state.focusedSegment,
+    setFocusedSegment: state.setFocusedSegment,
+    focusedStep: state.focusedStep,
+    setFocusedStep: state.setFocusedStep,
+    alternativeSegment: state.alternativeSegment,
+    setAlternativeSegment: state.setAlternativeSegment,
+    hoveredAlternativeRoute: state.hoveredAlternativeRoute,
+    isAlternativeFromFocus: state.isAlternativeFromFocus,
+    recommendedPlaces: state.recommendedPlaces,
+    activeSearchPlace: state.activeSearchPlace,
+    setMapCenterAddress: state.setMapCenterAddress,
+    setMapCenterCoord: state.setMapCenterCoord,
+    setMapBounds: state.setMapBounds,
+    addPlace: state.addPlace,
+    removePlace: state.removePlace,
+    isEditMode: state.isEditMode,
+    isSearchMode: state.isSearchMode,
+    isSearchLoading: state.isSearchLoading,
+    triggerSearch: state.triggerSearch,
+    hasSearchQuery: state.searchQuery.trim().length > 0,
+  })));
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
   // Track initial place IDs to handle dynamic sequential animation delays
@@ -784,7 +809,7 @@ export default function MapArea() {
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* ── 현 지도에서 재검색 버튼 ── */}
-      {isSearchMode && searchQuery.trim().length > 0 && (
+      {isSearchMode && hasSearchQuery && (
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[2000] pointer-events-auto">
           <button
             type="button"

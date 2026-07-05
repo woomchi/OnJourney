@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { getCategoryTheme } from '@/lib/categoryUtils';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
+import { useShallow } from 'zustand/react/shallow';
 
 interface SearchOverlayProps {
   activeJourney: Journey;
@@ -104,13 +105,38 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     searchTriggerCount,
     searchQuery,
     setSearchQuery,
-  } = useJourneyStore();
+  } = useJourneyStore(useShallow((state) => ({
+    isSearchMode: state.isSearchMode,
+    closeSearchMode: state.closeSearchMode,
+    addPlace: state.addPlace,
+    removePlace: state.removePlace,
+    mapCenterAddress: state.mapCenterAddress,
+    mapCenterCoord: state.mapCenterCoord,
+    mapBounds: state.mapBounds,
+    setRecommendedPlaces: state.setRecommendedPlaces,
+    clearRecommendedPlaces: state.clearRecommendedPlaces,
+    activeSearchPlace: state.activeSearchPlace,
+    setActiveSearchPlace: state.setActiveSearchPlace,
+    setFocusBounds: state.setFocusBounds,
+    isSearchLoading: state.isSearchLoading,
+    setIsSearchLoading: state.setIsSearchLoading,
+    searchTriggerCount: state.searchTriggerCount,
+    searchQuery: state.searchQuery,
+    setSearchQuery: state.setSearchQuery,
+  })));
 
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+
+  // 언마운트 시 메모리 누수 방지 (타이머 정리)
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
 
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
 

@@ -52,25 +52,11 @@ export default function AlternativeRoutePanel({
   const [activeSubTab, setActiveSubTab] = useState<string>('추천');
   const [displayLimit, setDisplayLimit] = useState(3);
   
-  const tabDrag = useDragScroll<HTMLDivElement>();
-  const listDrag = useDragScroll<HTMLDivElement>();
+  const { ref: tabDragRef, events: tabDragEvents, isDragging: isTabDragging, withClickPrevent: withTabClickPrevent } = useDragScroll<HTMLDivElement>();
+  const { ref: listDragRef, events: listDragEvents, isDragging: isListDragging, withClickPrevent: withListClickPrevent } = useDragScroll<HTMLDivElement>();
 
-  useEffect(() => {
-    setActiveSubTab('추천');
-    setDisplayLimit(3);
-  }, [activeTab]);
-
-  useEffect(() => {
-    setDisplayLimit(3);
-  }, [activeSubTab]);
-
-  const [previewRoute, setPreviewRoute] = useState<DirectionResult | SelectedRoute | null>(null);
-
-  useEffect(() => {
-    if (!previewRoute && activeRoute) {
-      setPreviewRoute(activeRoute);
-    }
-  }, [activeRoute, previewRoute]);
+  const [hoveredPreviewRoute, setHoveredPreviewRoute] = useState<DirectionResult | SelectedRoute | null>(null);
+  const previewRoute = hoveredPreviewRoute || activeRoute;
 
   useEffect(() => {
     setHoveredAlternativeRoute(previewRoute as any);
@@ -82,6 +68,7 @@ export default function AlternativeRoutePanel({
       const timer = setTimeout(() => setAnimate(true), 50);
       return () => clearTimeout(timer);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnimate(false);
     }
   }, [isOpen]);
@@ -229,8 +216,8 @@ export default function AlternativeRoutePanel({
       <button
         key={route.id}
         type="button"
-        onClick={listDrag.withClickPrevent(() => {
-          setPreviewRoute(route);
+        onClick={withListClickPrevent(() => {
+          setHoveredPreviewRoute(route);
         })}
         className={`
           flex items-center justify-between w-full py-2 px-3 min-h-[48px] rounded-xl border transition-all duration-200 text-left cursor-pointer group
@@ -391,7 +378,11 @@ export default function AlternativeRoutePanel({
               <button
                 key={tab}
                 type="button"
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setActiveSubTab('추천');
+                  setDisplayLimit(3);
+                }}
                 className={`
                   flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer
                   ${isActive
@@ -409,9 +400,9 @@ export default function AlternativeRoutePanel({
         {/* Sub Tabs for Public Transport */}
         {activeTab === 'public' && subTabs.length > 1 && (
           <div
-            ref={tabDrag.ref}
-            {...tabDrag.events}
-            className={`flex items-center gap-1.5 overflow-x-auto scrollbar-sleek pb-1.5 pt-0.5 ${tabDrag.isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            ref={tabDragRef}
+            {...tabDragEvents}
+            className={`flex items-center gap-1.5 overflow-x-auto scrollbar-sleek pb-1.5 pt-0.5 ${isTabDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           >
             {subTabs.map((subTab) => {
               const count = subTab === '추천' ? recommendedRouteIds.size : subTab === '전체' ? routes.length : (publicRouteGroups[subTab]?.length || 0);
@@ -419,7 +410,10 @@ export default function AlternativeRoutePanel({
                 <button
                   key={subTab}
                   type="button"
-                  onClick={tabDrag.withClickPrevent(() => setActiveSubTab(subTab))}
+                  onClick={withTabClickPrevent(() => {
+                    setActiveSubTab(subTab);
+                    setDisplayLimit(3);
+                  })}
                   className={`
                     flex-shrink-0 px-3 py-1.5 text-[11px] font-bold rounded-full transition-all duration-200 border cursor-pointer flex items-center gap-1
                     ${activeSubTab === subTab
@@ -439,9 +433,9 @@ export default function AlternativeRoutePanel({
 
       {/* List Container */}
       <div
-        ref={listDrag.ref}
-        {...listDrag.events}
-        className={`flex-1 overflow-y-auto px-5 pb-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek ${listDrag.isDragging ? 'cursor-grabbing' : ''}`}
+        ref={listDragRef}
+        {...listDragEvents}
+        className={`flex-1 overflow-y-auto px-5 pb-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek ${isListDragging ? 'cursor-grabbing' : ''}`}
       >
         {loading ? (
           <div className="animate-pulse flex flex-col gap-3 mt-2">

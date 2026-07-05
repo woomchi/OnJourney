@@ -31,14 +31,16 @@ export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourn
   const [journeyDate, setJourneyDate] = useState('');
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen && journey) {
       setTitle(journey.title);
       setTransportType(journey.transport_type);
       setJourneyDate(journey.journey_date);
       setError('');
     }
-  }, [isOpen, journey]);
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

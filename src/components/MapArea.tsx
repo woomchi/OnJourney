@@ -128,6 +128,9 @@ export default function MapArea() {
 
   const [mapClickedPlace, setMapClickedPlace] = useState<{ lat: number; lng: number; address: string; place_name: string } | null>(null);
 
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const lastKnownLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
   useEffect(() => {
     if (!isSearchMode) {
       setMapClickedPlace(null);
@@ -185,25 +188,50 @@ export default function MapArea() {
   };
 
   const handleMyLocationClick = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          if (map) {
-            map.setCenter(new window.naver.maps.LatLng(lat, lng));
-            map.setZoom(16, false);
-          }
-        },
-        (error) => {
-          console.error("내 위치 가져오기 실패:", error);
-          alert("위치 권한이 차단되었거나 정보를 가져올 수 없습니다. 브라우저 설정에서 위치 권한을 허용해주세요.");
-        },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-      );
-    } else {
+    if (!navigator.geolocation) {
       alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
+      return;
     }
+
+    // 1. 캐시된 위치가 있다면 즉시 지도의 중심으로 설정하여 0ms 반응 제공
+    if (lastKnownLocationRef.current && map) {
+      const { lat, lng } = lastKnownLocationRef.current;
+      map.setCenter(new window.naver.maps.LatLng(lat, lng));
+      map.setZoom(16, false);
+    }
+
+    // 2. 로딩 상태 활성화 (로딩 스피너 작동 및 클릭 비활성화)
+    setIsLocating(true);
+
+    // 3. 최신 위치 정보 백그라운드 조회
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        lastKnownLocationRef.current = { lat, lng };
+
+        if (map) {
+          // 최신 정보로 지도의 위치를 부드럽게 재조정
+          map.panTo(new window.naver.maps.LatLng(lat, lng));
+          map.setZoom(16, false);
+        }
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("내 위치 가져오기 실패:", error);
+        setIsLocating(false);
+        // 캐시 정보로 이미 지도를 이동한 상황이라면 에러 얼럿은 노출하지 않고 에러 로깅만 유지
+        if (!lastKnownLocationRef.current) {
+          alert("위치 권한이 차단되었거나 정보를 가져올 수 없습니다. 브라우저 설정에서 위치 권한을 허용해주세요.");
+        }
+      },
+      { 
+        enableHighAccuracy: true, 
+        maximumAge: 60000, // 1분 이내의 캐시된 위치는 적극 재사용하여 응답 속도 극대화
+        timeout: 8000      // GPS 위성 신호 대기 시간 고려
+      }
+    );
   };
 
   const { fetchSequentialDirections } = useJourneyDirections();
@@ -275,12 +303,14 @@ export default function MapArea() {
   // 여정에 등록된 장소가 없을 경우 사용자의 실시간 GPS 위치를 지도의 기본 중심지로 설정
   useEffect(() => {
     if (places.length === 0 && typeof window !== 'undefined' && navigator.geolocation) {
+      // 초기 로드 시에는 신속한 지도 로드를 위해 캐시 적극 사용 (대략적인 위치 우선)
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const newCenter = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
+          lastKnownLocationRef.current = newCenter; // 초기 로드한 위치를 캐시에 저장
           setMapCenter(newCenter);
           setMapCenterCoord(newCenter); // 스토어에도 중심 좌표 기록
           if (map && window.naver?.maps) {
@@ -291,7 +321,7 @@ export default function MapArea() {
           console.warn('[MapArea] Geolocation failed or denied. Defaulting to Seoul City Hall.', error);
           setMapCenterCoord({ lat: 37.5665, lng: 126.9780 }); // 기본 서울 시청으로 스토어 설정
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 } // 캐시 적극 허용 (5분)
       );
     }
   }, [places.length, map]);
@@ -1325,22 +1355,31 @@ export default function MapArea() {
 
         <button
           onClick={handleMyLocationClick}
-          className="
+          disabled={isLocating}
+          className={`
             group flex items-center justify-center w-12 h-12 rounded-2xl
             bg-white border border-zinc-200/80
             shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
-            hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)]
-            hover:border-blue-200 hover:bg-blue-50
-            active:scale-[0.94] hover:scale-[1.06]
             transition-all duration-200 ease-out
-            cursor-pointer select-none text-[#8A8A93] hover:text-blue-500
-          "
+            select-none
+            ${isLocating 
+              ? 'cursor-not-allowed bg-blue-50/50 border-blue-100 text-blue-500' 
+              : 'cursor-pointer hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)] hover:border-blue-200 hover:bg-blue-50 active:scale-[0.94] hover:scale-[1.06] text-[#8A8A93] hover:text-blue-500'
+            }
+          `}
           title="내 위치로 이동"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-[22px] h-[22px] transition-transform group-hover:scale-110 duration-200">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-          </svg>
+          {isLocating ? (
+            <svg className="w-[22px] h-[22px] animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-[22px] h-[22px] transition-transform group-hover:scale-110 duration-200">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+            </svg>
+          )}
         </button>
       </div>
 

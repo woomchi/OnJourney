@@ -1,6 +1,6 @@
 # On-Journey 프로젝트 진행 상황
 
-> 마지막 업데이트: 2026-07-01
+> 마지막 업데이트: 2026-07-05
 
 ## 📌 프로젝트 개요
 
@@ -62,15 +62,11 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 - [x] `서울교통공사_역간거리.json` — 서울교통공사 역간거리 원본 데이터
 
 ### Zustand 상태 관리
-- [x] `src/stores/journey-store.ts` — 확장된 상태 및 액션 관리:
-  - `activeJourney`, `journeys` — 여정 데이터
-  - `createJourney`, `updateJourneyInfo` — 여정 생성/수정
-  - `addPlace`, `removePlace`, `reorderPlaces` — 장소 관리 (낙관적 업데이트)
-  - `directionsCache`, `directionsLoading` — 구간별 경로 캐시 및 로딩 상태
-  - `fetchSegmentDirections`, `fetchJourneyDirections` — 경로 API 호출 (150ms 간격 순차 호출)
-  - `selectSegmentRoute` — 구간별 경로 대안 선택 및 DB 동기화
-  - `focusBounds`, `focusedSegment`, `focusedStep` — 지도 포커스 상태 관리
-  - `verifyAndCleanRoutes()` — 순서 변경 시 무효화된 `selected_route` 자동 정리
+- [x] `src/stores/` — 슬라이스 패턴 기반의 확장된 상태 및 액션 관리 (리팩토링 완료):
+  - `journeyDataSlice.ts`: `activeJourney`, `journeys` 여정 데이터 생성/수정/삭제 및 장소 관리 (낙관적 업데이트)
+  - `mapSlice.ts`: `focusBounds`, `focusedSegment`, `focusedStep` 지도 포커스 상태 관리 및 경로 렌더링 상태
+  - `uiSlice.ts`: 모달 및 패널 표시 여부, 경로 API 캐시 및 로딩 상태 관리
+  - 기존 `journey-store.ts`를 관심사에 따라 모듈화하여 유지보수성 및 성능 개선
 
 ### 타입 시스템
 - [x] `src/types/journey.ts` — 확장된 타입 정의:
@@ -114,7 +110,17 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 - [x] `docs/OnJourney.md` — 프로젝트 컨텍스트 문서
 - [x] `docs/datatable.md` — DB 스키마 및 데이터 구조 정의서
 
-### 최근 업데이트 (2026-06-24 ~ 2026-07-01)
+### 최근 업데이트 (2026-07-01 ~ 2026-07-05)
+**아키텍처 및 상태 관리 리팩토링**
+- [x] 상태 관리 구조 개선: `journey-store`를 슬라이스 패턴(`mapSlice`, `journeyDataSlice`, `uiSlice`)으로 분리하여 관심사 분리 및 컴포넌트 리렌더링 최적화
+- [x] 대형 단일 컴포넌트 모듈화: `JourneySidebar` 등 UI 의존성이 높은 모놀리식 코드를 `SearchOverlay`, `JourneyListSidebar` 등으로 분할하여 코드베이스 유지보수성 향상
+
+**지도 및 UI/UX 성능 향상**
+- [x] "내 위치 보기" (Geolocation) 버튼 응답성 및 속도 최적화: 위치 정보 획득 및 렌더링 병목 개선
+- [x] 지도 기반 검색(Map-Based Search) 기능 추가: 현재 뷰포트(지도 영역) 기준 장소 재검색 기능 구현
+- [x] 애니메이션 폴리라인(`AnimatedPolyline`) 렌더링 성능 최적화 및 구조 안정화
+
+### 이전 업데이트 (2026-06-24 ~ 2026-07-01)
 **UI/UX 및 디자인 개선**
 - [x] `shadcn/ui` 도입을 통한 UX/UI 디자인 요소 체계화
 - [x] 경로 렌더링 애니메이션 추가 및 순서 기반 마커/경로 색상 테마 적용 (도보 점선 색상 포함)

@@ -33,6 +33,7 @@
 ### 장소 검색 및 추가 (구현 완료)
 - 상단 검색바를 통해 네이버 장소 검색 API를 연동하여 장소 검색 및 추가
 - 여정이 선택되지 않은 상태(목록 화면)에서도 검색 가능하며, 추가할 여정을 선택할 수 있는 모달 UI 제공
+- 지도 기반 검색(Map-Based Search) 기능: 사용자가 지도를 이동하거나 줌을 변경한 후 "현 지도에서 장소 검색" 버튼을 눌러 해당 뷰포트 영역 내 장소 재검색 기능 지원
 
 ### 구간별 실시간 이동 정보 제공 (✅ 구현 완료 — API 연동)
 - **대중교통:** ODsay 대중교통 경로탐색 API (`searchPubTransPathT`) 실시간 연동 완료
@@ -120,7 +121,8 @@
 * **지도 렌더링:** react-naver-maps (적용 완료)
 
 ### 4.2 State Management & Data Fetching
-* **클라이언트 상태 관리:** Zustand (적용 완료)
+* **클라이언트 상태 관리:** Zustand (슬라이스 패턴 적용 완료)
+  * 기존 단일 스토어(`journey-store.ts`)를 도메인별 슬라이스(`journeyDataSlice`, `mapSlice`, `uiSlice`)로 분리하여 코드 모듈화 및 컴포넌트 리렌더링 최적화
   * *용도:* 여정 데이터, UI 모달 상태, 경로 캐시(`directionsCache`), 포커스 세그먼트/스텝 상태 관리
   * *경로 캐싱:* 구간별 API 응답을 `Record<string, DirectionsApiResponse>` 형태로 캐싱하여 중복 호출 방지
   * *순차 호출:* ODsay API 429 동시성 제한 대비 150ms 간격 순차 호출 (`fetchJourneyDirections`)

@@ -5,6 +5,8 @@ import QueryProvider from "@/providers/QueryProvider";
 import "./globals.css";
 
 import PWAProvider from "@/components/PWAProvider";
+import OfflineBanner from "@/components/ui/OfflineBanner";
+import PolyfillProvider from "@/components/PolyfillProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +39,12 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <QueryProvider>
           <AuthProvider>
-            <PWAProvider>{children}</PWAProvider>
+            <PWAProvider>
+              <PolyfillProvider>
+                <OfflineBanner />
+                {children}
+              </PolyfillProvider>
+            </PWAProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

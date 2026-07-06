@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useMemo, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import {
   NavermapsProvider,
   NaverMap,
@@ -20,6 +21,7 @@ import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/l
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { SEQUENCE_COLORS, getSequenceTheme } from '@/constants/colors';
 import { getCategoryTheme } from '@/lib/categoryUtils';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Place, SelectedRoute, DirectionResult, PlaceResult } from '@/types/journey';
 
 
@@ -55,6 +57,8 @@ export default function MapArea() {
     isSearchLoading,
     triggerSearch,
     hasSearchQuery,
+    isDrawerMaximized,
+    drawerSnapPoint,
   } = useJourneyStore(useShallow((state) => ({
     activeJourney: state.activeJourney,
     focusBounds: state.focusBounds,
@@ -79,6 +83,8 @@ export default function MapArea() {
     isSearchLoading: state.isSearchLoading,
     triggerSearch: state.triggerSearch,
     hasSearchQuery: state.searchQuery.trim().length > 0,
+    isDrawerMaximized: state.isDrawerMaximized,
+    drawerSnapPoint: state.drawerSnapPoint,
   })));
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
@@ -158,6 +164,32 @@ export default function MapArea() {
 
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const lastKnownLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentAddress, setCurrentAddress] = useState('');
+  const [showLocationCard, setShowLocationCard] = useState(false);
+
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (isMobile) {
+      const target = document.getElementById('mobile-map-buttons-target');
+      if (target) setPortalTarget(target);
+
+      const observer = new MutationObserver(() => {
+        const el = document.getElementById('mobile-map-buttons-target');
+        if (el) {
+          setPortalTarget(el);
+          // Once found, we can disconnect if we want, but keeping it is fine 
+          // in case the drawer re-renders.
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      return () => observer.disconnect();
+    } else {
+      setPortalTarget(null);
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (!isSearchMode) {
@@ -226,6 +258,7 @@ export default function MapArea() {
       const { lat, lng } = lastKnownLocationRef.current;
       map.setCenter(new window.naver.maps.LatLng(lat, lng));
       map.setZoom(16, false);
+      setUserLocation({ lat, lng });
     }
 
     // 2. 로딩 상태 활성화 (로딩 스피너 작동 및 클릭 비활성화)
@@ -238,11 +271,29 @@ export default function MapArea() {
         const lng = position.coords.longitude;
 
         lastKnownLocationRef.current = { lat, lng };
+        setUserLocation({ lat, lng });
 
         if (map) {
           // 최신 정보로 지도의 위치를 부드럽게 재조정
-          map.panTo(new window.naver.maps.LatLng(lat, lng));
+          const location = new window.naver.maps.LatLng(lat, lng);
+          map.panTo(location);
           map.setZoom(16, false);
+
+          // 역방향 지오코딩으로 주소 가져오기
+          if (window.naver.maps.Service) {
+            window.naver.maps.Service.reverseGeocode(
+              { coords: location },
+              (status: any, response: any) => {
+                if (status === window.naver.maps.Service.Status.OK && response.v2.address) {
+                  const addr = response.v2.address.jibunAddress || response.v2.address.roadAddress;
+                  if (addr) {
+                    setCurrentAddress(addr);
+                    setShowLocationCard(true);
+                  }
+                }
+              }
+            );
+          }
         }
         setIsLocating(false);
       },
@@ -466,9 +517,16 @@ export default function MapArea() {
     // 상단 검색바 제거에 따른 상단 패딩 축소 (최적의 핏을 위해 여백 최소화)
     const topPadding = 40;
 
-    // 모바일 등 창이 작을 때 여백 축소
+    // 모바일 환경일 경우 바텀 시트 높이를 고려하여 지도가 잘리지 않도록 하단 패딩 동적 추가
     const rightPadding = mapWidth < 600 ? 16 : 30;
-    const bottomPadding = mapWidth < 600 ? 30 : 45;
+    let bottomPadding = mapWidth < 600 ? 30 : 45;
+    if (isMobile && drawerSnapPoint !== 1) {
+      if (typeof drawerSnapPoint === 'string' && drawerSnapPoint.endsWith('px')) {
+        bottomPadding = parseInt(drawerSnapPoint, 10) + 20; // 스냅 포인트 높이 + 20px 여백
+      } else {
+        bottomPadding = 300;
+      }
+    }
 
     // 경로 안내 패널이나 대안 경로 패널이 열려 있을 때 좌측 패딩
     // 패널 너비를 고려하되, 맵 너비가 너무 작으면 지도가 찌그러지는 것을 방지하기 위해 최대값 제한
@@ -483,7 +541,7 @@ export default function MapArea() {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [isPanelOpen, alternativePlaces, windowWidth]);
+  }, [isPanelOpen, alternativePlaces, windowWidth, isMobile]);
 
   // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
   useEffect(() => {
@@ -539,6 +597,8 @@ export default function MapArea() {
     }
   };
 
+
+
   const handleResetBounds = () => {
     // 만약 이미 전체 화면 상태라면, 패딩 재적용 및 수동 핏팅 수행 (사용자 조작 복구용)
     if (!focusBounds) {
@@ -556,7 +616,7 @@ export default function MapArea() {
           new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
           new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
         );
-        map.fitBounds(bounds, { maxZoom: 16 });
+        map.fitBounds(bounds, { maxZoom: 16, margin: currentMapPadding } as any);
       } else {
         const renderer = new NaverMapRouteRenderer(map);
         renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -570,6 +630,22 @@ export default function MapArea() {
     setFocusedStep(null);
     setAlternativeSegment(null);
   };
+
+  // 바텀 시트 높이가 변경될 때(최대화 제외), 기존 줌 레벨을 유지하면서 변경된 지도 영역에 맞춰 시각적 중앙만 다시 정렬합니다.
+  useEffect(() => {
+    if (!map || isDrawerMaximized) return;
+
+    // 현재 시각적 중심 좌표를 저장
+    const currentCenter = map.getCenter();
+
+    // 패딩 업데이트
+    map.setOptions({ padding: currentMapPadding });
+
+    // 줌 레벨 변경 없이 중앙 좌표만 새로운 패딩 영역의 중심으로 부드럽게 이동
+    map.panTo(currentCenter);
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawerSnapPoint, isDrawerMaximized]);
 
   if (!clientId) {
     return (
@@ -590,12 +666,14 @@ export default function MapArea() {
     );
   }
 
+  const { isCacheRestored } = useJourneyStore();
+
   // activeJourney.places가 변경될 때 순차적으로 누락된 세그먼트 경로 정보를 fetch 함
   useEffect(() => {
-    if (places && places.length > 1) {
+    if (isCacheRestored && places && places.length > 1) {
       fetchSequentialDirections(places);
     }
-  }, [places, fetchSequentialDirections]);
+  }, [places, fetchSequentialDirections, isCacheRestored]);
 
   // places 또는 map 인스턴스 또는 로드된 세그먼트 수가 변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
   // 검색 결과가 지워진 경우에도 원래 전체 경로로 줌을 되돌리도록 recommendedPlaces 상태를 연동합니다.
@@ -621,7 +699,7 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
-      map.fitBounds(bounds, { maxZoom: 16 });
+      map.fitBounds(bounds, { maxZoom: 16, margin: currentMapPadding } as any);
     } else {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -643,7 +721,7 @@ export default function MapArea() {
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    map.fitBounds(bounds, { maxZoom: 18 });
+    map.fitBounds(bounds, { maxZoom: 18, margin: currentMapPadding } as any);
 
   }, [focusBounds, map, currentMapPadding]);
 
@@ -810,7 +888,7 @@ export default function MapArea() {
     <div className="relative w-full h-full overflow-hidden">
       {/* ── 현 지도에서 재검색 버튼 ── */}
       {isSearchMode && hasSearchQuery && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[2000] pointer-events-auto">
+        <div className={`absolute top-6 left-1/2 -translate-x-1/2 z-[2000] pointer-events-auto transition-opacity duration-300 ${isDrawerMaximized ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <button
             type="button"
             onClick={triggerSearch}
@@ -1248,6 +1326,22 @@ export default function MapArea() {
                   </div>`}
               />
             )}
+            
+            {/* 사용자 GPS 마커 */}
+            {userLocation && (
+              <AnimatedMarker
+                key="user-location-gps"
+                delay={0}
+                position={userLocation}
+                title="내 위치"
+                zIndex={9600}
+                iconAnchor={new window.naver.maps.Point(12, 12)}
+                iconContent={`<div class="relative w-6 h-6">
+                  <div class="absolute inset-0 bg-blue-500 rounded-full animate-gps-pulse"></div>
+                  <div class="absolute inset-1/4 bg-blue-600 rounded-full border-2 border-white shadow-sm"></div>
+                </div>`}
+              />
+            )}
           </NaverMap>
         </MapDiv>
       </NavermapsProvider>
@@ -1379,79 +1473,140 @@ export default function MapArea() {
         </div>
       )}
 
-      {/* 전체 보기 및 내 위치 플로팅 버튼 (우측 하단) */}
-      <div className="absolute bottom-8 right-6 z-[2000] flex flex-col gap-3">
-        {places.length > 0 && !isSearchMode && (
+      {/* ── 내 위치 오버레이 카드 ── */}
+      {showLocationCard && userLocation && (
+        <div className="absolute bottom-[160px] md:bottom-24 left-4 md:left-6 z-[120] w-[calc(100%-32px)] md:w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4">
+          <div className="flex justify-between items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <span className="inline-block text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mb-1">
+                내 위치
+              </span>
+              <h4 className="text-[15px] font-black text-zinc-900 leading-tight truncate">
+                현재 위치
+              </h4>
+              <p className="text-xs text-zinc-400 mt-2 leading-normal truncate">
+                {currentAddress || '위치 정보를 불러오고 있습니다...'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowLocationCard(false)}
+              className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-all flex-shrink-0 cursor-pointer mt-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           <button
             type="button"
-            onClick={handleResetBounds}
-            className="
-              group flex items-center justify-center w-12 h-12 rounded-2xl
-              bg-white border border-zinc-200/80
-              shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
-              hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)]
-              hover:border-blue-200 hover:bg-blue-50
-              active:scale-[0.94] hover:scale-[1.06]
-              transition-all duration-200 ease-out
-              cursor-pointer select-none
-            "
-            title="전체 경로 보기"
+            onClick={async () => {
+              const place: Place = {
+                id: `gps-${Date.now()}`,
+                place_name: currentAddress ? '현재 위치 (' + currentAddress.split(' ').slice(0, 2).join(' ') + ')' : '현재 위치',
+                address: currentAddress,
+                category: '현재 위치',
+                lat: userLocation.lat,
+                lng: userLocation.lng,
+              };
+              try {
+                await addPlace(place);
+                setShowLocationCard(false);
+              } catch (err) {
+                console.error('위치 추가 실패:', err);
+              }
+            }}
+            className="relative group w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer overflow-hidden"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 32 32"
-              fill="none"
-              className="w-8 h-8 transition-transform group-hover:scale-110 duration-200"
-            >
-              {/* 핀 */}
-              <path
-                d="M21 2C17.5 2 15 5 15 8.5C15 13.5 21 19 21 19C21 19 27 13.5 27 8.5C27 5 24.5 2 21 2Z"
-                className="fill-[#8A8A93] group-hover:fill-blue-500 transition-colors duration-200"
-              />
-              <circle cx="21" cy="8" r="2.5" fill="white" />
-
-              {/* 경로 선 */}
-              <path
-                d="M 6 29 Q 13.8 27.7, 21.0 25.8 Q 24.5 24.8, 20.5 23.8 Q 16.5 22.8, 12.5 21.8 Q 8.5 20.8, 13.0 19.8 Q 17.5 19.0, 21 19"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="stroke-[#64748B] group-hover:stroke-blue-500 transition-colors duration-200"
-                fill="none"
-              />
-            </svg>
+            <span className="relative z-10">여정에 추가</span>
           </button>
-        )}
+        </div>
+      )}
 
-        <button
-          onClick={handleMyLocationClick}
-          disabled={isLocating}
-          className={`
-            group flex items-center justify-center w-12 h-12 rounded-2xl
-            bg-white border border-zinc-200/80
-            shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
-            transition-all duration-200 ease-out
-            select-none
-            ${isLocating
-              ? 'cursor-not-allowed bg-blue-50/50 border-blue-100 text-blue-500'
-              : 'cursor-pointer hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)] hover:border-blue-200 hover:bg-blue-50 active:scale-[0.94] hover:scale-[1.06] text-[#8A8A93] hover:text-blue-500'
-            }
-          `}
-          title="내 위치로 이동"
-        >
-          {isLocating ? (
-            <svg className="w-[22px] h-[22px] animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-[22px] h-[22px] transition-transform group-hover:scale-110 duration-200">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-            </svg>
-          )}
-        </button>
-      </div>
+      {/* 전체 보기 및 내 위치 플로팅 버튼 (우측 하단) */}
+      {(() => {
+        const buttons = (
+          <>
+            {places.length > 0 && !isSearchMode && (
+              <button
+                type="button"
+                onClick={handleResetBounds}
+                className="
+                  group flex items-center justify-center w-12 h-12 rounded-2xl
+                  bg-white border border-zinc-200/80
+                  shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
+                  hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)]
+                  hover:border-blue-200 hover:bg-blue-50
+                  active:scale-[0.94] hover:scale-[1.06]
+                  transition-all duration-200 ease-out
+                  cursor-pointer select-none
+                "
+                title="전체 경로 보기"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  className="w-8 h-8 transition-transform group-hover:scale-110 duration-200"
+                >
+                  <path
+                    d="M21 2C17.5 2 15 5 15 8.5C15 13.5 21 19 21 19C21 19 27 13.5 27 8.5C27 5 24.5 2 21 2Z"
+                    className="fill-[#8A8A93] group-hover:fill-blue-500 transition-colors duration-200"
+                  />
+                  <circle cx="21" cy="8" r="2.5" fill="white" />
+                  <path
+                    d="M 6 29 Q 13.8 27.7, 21.0 25.8 Q 24.5 24.8, 20.5 23.8 Q 16.5 22.8, 12.5 21.8 Q 8.5 20.8, 13.0 19.8 Q 17.5 19.0, 21 19"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="stroke-[#64748B] group-hover:stroke-blue-500 transition-colors duration-200"
+                    fill="none"
+                  />
+                </svg>
+              </button>
+            )}
+
+            <button
+              onClick={handleMyLocationClick}
+              disabled={isLocating}
+              className={`
+                group flex items-center justify-center w-12 h-12 rounded-2xl
+                bg-white border border-zinc-200/80
+                shadow-[0_4px_16px_rgba(0,0,0,0.07),0_1px_3px_rgba(0,0,0,0.06)]
+                transition-all duration-200 ease-out
+                select-none
+                ${isLocating
+                  ? 'cursor-not-allowed bg-blue-50/50 border-blue-100 text-blue-500'
+                  : 'cursor-pointer hover:shadow-[0_8px_28px_rgba(59,130,246,0.18),0_2px_6px_rgba(59,130,246,0.1)] hover:border-blue-200 hover:bg-blue-50 active:scale-[0.94] hover:scale-[1.06] text-[#8A8A93] hover:text-blue-500'
+                }
+              `}
+              title="내 위치로 이동"
+            >
+              {isLocating ? (
+                <svg className="w-[22px] h-[22px] animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-[22px] h-[22px] transition-transform group-hover:scale-110 duration-200">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                </svg>
+              )}
+            </button>
+          </>
+        );
+
+        if (isMobile && portalTarget) {
+          return createPortal(buttons, portalTarget);
+        }
+
+        return (
+          <div className="absolute bottom-[160px] md:bottom-8 right-4 md:right-6 z-[2000] flex flex-col gap-3">
+            {buttons}
+          </div>
+        );
+      })()}
 
 
       {/* 상세 경로 안내 패널: 사이드바 오른쪽에 따로 띄움 */}

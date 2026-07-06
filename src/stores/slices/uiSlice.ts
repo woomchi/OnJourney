@@ -5,11 +5,17 @@ export interface UISlice {
   isCreateFormOpen: boolean;
   isSearchMode: boolean;
   isEditMode: boolean;
+  isCacheRestored: boolean;
+  isDrawerMaximized: boolean;
+  drawerSnapPoint: string | number | null;
   openCreateForm: () => void;
   closeCreateForm: () => void;
   openSearchMode: () => void;
   closeSearchMode: () => void;
   setEditMode: (isEdit: boolean) => void;
+  setCacheRestored: (isRestored: boolean) => void;
+  setDrawerMaximized: (isMaximized: boolean) => void;
+  setDrawerSnapPoint: (snap: string | number | null) => void;
 }
 
 export const createUISlice: StateCreator<
@@ -21,6 +27,9 @@ export const createUISlice: StateCreator<
   isCreateFormOpen: false,
   isSearchMode: false,
   isEditMode: false,
+  isCacheRestored: false,
+  isDrawerMaximized: false,
+  drawerSnapPoint: '280px',
   openCreateForm: () => set({ isCreateFormOpen: true }),
   closeCreateForm: () => set({ isCreateFormOpen: false }),
   openSearchMode: () => set({ isSearchMode: true }),
@@ -35,4 +44,7 @@ export const createUISlice: StateCreator<
       focusBounds: null,
     } : {})
   })),
+  setCacheRestored: (isRestored) => set({ isCacheRestored: isRestored }),
+  setDrawerMaximized: (isMaximized) => set({ isDrawerMaximized: isMaximized }),
+  setDrawerSnapPoint: (snap) => set({ drawerSnapPoint: snap }),
 });

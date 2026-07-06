@@ -141,9 +141,11 @@ export default function PlaceCard({
   const directionsCache = useJourneyDirectionsCache(places);
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
   const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
-  const isSegmentLoading = nextPlace 
-    ? queryClient.getQueryState(directionKeys.segment(place.id, nextPlace.id))?.status === 'pending'
-    : false;
+  const { isCacheRestored } = useJourneyStore();
+  const queryState = nextPlace ? queryClient.getQueryState(directionKeys.segment(place.id, nextPlace.id)) : null;
+  const isSegmentLoading = !isCacheRestored || (queryState 
+    ? queryState.status === 'pending' && queryState.fetchStatus !== 'paused'
+    : false);
 
   const activeRoute = nextPlace 
     ? getDefaultRoute(place, nextPlace, segmentData, transportType)
@@ -214,7 +216,7 @@ export default function PlaceCard({
             {editMode && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 transition-colors"
+                className="flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 transition-colors touch-none"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                   <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />

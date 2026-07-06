@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 
@@ -20,6 +21,14 @@ export default function TransitGuideList({
 }: TransitGuideListProps) {
   const { focusedStep } = useJourneyStore();
   const steps = route.steps || [];
+  const [expandedSteps, setExpandedSteps] = useState<number[]>([]);
+
+  const toggleAccordion = (idx: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedSteps(prev => 
+      prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+    );
+  };
 
   return (
     <div className="relative pl-1 flex flex-col gap-6">
@@ -173,6 +182,43 @@ export default function TransitGuideList({
                 </div>
                 );
               })()}
+
+              {/* 경유 정류장 아코디언 UI */}
+              {step.passStopList && step.passStopList.stationList && step.passStopList.stationList.length > 0 && (
+                <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={(e) => toggleAccordion(idx, e)}
+                    className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 font-medium transition-colors"
+                  >
+                    <span>{step.passStopList.stationList.length}개 정류장 이동</span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        expandedSteps.includes(idx) ? 'rotate-180' : ''
+                      }`}
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+
+                  {expandedSteps.includes(idx) && (
+                    <div className="mt-2 pl-3 border-l-2 border-zinc-100 flex flex-col gap-1.5 animate-in slide-in-from-top-1 fade-in duration-200">
+                      {step.passStopList.stationList.map((station: any, sIdx: number) => (
+                        <div key={sIdx} className="text-[11px] text-zinc-400 truncate">
+                          {station.stationName}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 예약 링크 추가 */}
               {(step.type === 'train' || step.type === 'expressbus') && (

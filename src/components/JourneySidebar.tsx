@@ -8,6 +8,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { sortJourneysByStoredOrder } from '@/lib/journeyUtils';
 import CreateJourneyModal from '@/components/CreateJourneyModal';
 import AuthModal from '@/components/AuthModal';
+import { Drawer } from 'vaul';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import ActiveJourneySidebar from '@/components/sidebar/ActiveJourneySidebar';
 import JourneyListSidebar from '@/components/sidebar/JourneyListSidebar';
 
@@ -18,8 +20,17 @@ export default function JourneySidebar() {
     activeJourney,
     clearJourney,
     isSyncing,
+    setDrawerMaximized,
+    setDrawerSnapPoint,
   } = useJourneyStore();
   const [mounted, setMounted] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [snap, setSnap] = useState<number | string | null>('280px');
+  
+  useEffect(() => {
+    setDrawerMaximized(snap === 1);
+    setDrawerSnapPoint(snap);
+  }, [snap, setDrawerMaximized, setDrawerSnapPoint]);
   
   const queryClient = useQueryClient();
   const { data: fetchedJourneys, isLoading: isJourneysLoading } = useJourneys();
@@ -69,12 +80,18 @@ export default function JourneySidebar() {
 
   const isLoading = authLoading || isJourneysLoading;
 
+  const content = activeJourney ? (
+    <ActiveJourneySidebar activeJourney={activeJourney} />
+  ) : (
+    <JourneyListSidebar isLoading={isLoading} />
+  );
+
   // Defer rendering until client-side hydration is complete to prevent hydration mismatches
   if (!mounted) {
     return (
       <>
-        <aside className="w-[35%] min-w-[380px] max-w-[480px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
-          <header className="px-8 py-7 border-b border-zinc-100/80 bg-white/50 backdrop-blur-md flex-shrink-0">
+        <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] h-full flex flex-col bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+          <header className="hidden md:block px-8 py-7 border-b border-zinc-100/80 bg-white/50 backdrop-blur-md flex-shrink-0">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
@@ -109,14 +126,42 @@ export default function JourneySidebar() {
     );
   }
 
+  if (isMobile) {
+    return (
+      <>
+        <Drawer.Root 
+          open={true} 
+          modal={false} 
+          snapPoints={['200px', '280px', 1]} 
+          activeSnapPoint={snap}
+          setActiveSnapPoint={setSnap}
+          dismissible={false}
+        >
+          <Drawer.Portal>
+            <Drawer.Content className="bg-white flex flex-col rounded-t-[20px] fixed bottom-0 left-0 right-0 z-20 outline-none h-[95dvh] shadow-[0_-4px_24px_rgba(0,0,0,0.1)]">
+              {/* Portal Target for Map Buttons (moves with Drawer) */}
+              <div 
+                id="mobile-map-buttons-target" 
+                className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
+                  snap === 1 ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
+                }`} 
+              />
+              <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
+              <div className="flex-1 overflow-y-auto">
+                {content}
+              </div>
+            </Drawer.Content>
+          </Drawer.Portal>
+        </Drawer.Root>
+        <CreateJourneyModal />
+        <AuthModal />
+      </>
+    );
+  }
+
   return (
     <>
-      {activeJourney ? (
-        <ActiveJourneySidebar activeJourney={activeJourney} />
-      ) : (
-        <JourneyListSidebar isLoading={isLoading} />
-      )}
-
+      {content}
       <CreateJourneyModal />
       <AuthModal />
     </>

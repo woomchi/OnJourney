@@ -20,10 +20,10 @@ const MapArea = dynamic(() => import('@/components/MapArea'), {
 
 export default function Home() {
   return (
-    <div className="flex h-screen w-full bg-white text-zinc-900 overflow-hidden font-sans">
+    <div className="flex h-[100dvh] w-full bg-white text-zinc-900 overflow-hidden font-sans relative">
       <JourneySidebar />
 
-      <main className="flex-1 h-full relative bg-zinc-50 flex items-center justify-center">
+      <main className="absolute inset-0 md:relative md:flex-1 md:h-full bg-zinc-50 flex items-center justify-center">
         <MapArea />
       </main>
     </div>

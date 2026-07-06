@@ -57,6 +57,7 @@ if (isLocalhost) {
   self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
+    // 1. Network-Only: API calls and Supabase
     if (
       url.pathname.startsWith('/api/') || 
       url.pathname.startsWith('/_next/webpack-hmr') ||
@@ -65,7 +66,9 @@ if (isLocalhost) {
       return; 
     }
 
+    // 2. Cache-First: Next.js static assets and fonts/images
     if (
+      url.pathname.startsWith('/_next/static/') ||
       event.request.destination === 'image' || 
       event.request.destination === 'font' ||
       url.pathname.endsWith('.png') ||
@@ -75,11 +78,10 @@ if (isLocalhost) {
     ) {
       event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
+          if (cachedResponse) return cachedResponse;
+          
           return fetch(event.request).then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
+            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
               const responseToCache = networkResponse.clone();
               caches.open(CACHE_NAME).then((cache) => {
                 cache.put(event.request, responseToCache);
@@ -92,21 +94,35 @@ if (isLocalhost) {
       return;
     }
 
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        }).catch(() => {
-          return cachedResponse;
-        });
+    // 3. Stale-While-Revalidate: Naver Maps and other external scripts
+    if (url.hostname.includes('openapi.map.naver.com')) {
+      event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+          const fetchPromise = fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+            }
+            return networkResponse;
+          }).catch(() => {
+            // Ignore errors for cross-origin maps
+          });
+          return cachedResponse || fetchPromise;
+        })
+      );
+      return;
+    }
 
-        return cachedResponse || fetchPromise;
+    // 4. Network-First (Fallback to Cache): HTML documents and anything else
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        }
+        return networkResponse;
+      }).catch(() => {
+        return caches.match(event.request);
       })
     );
   });

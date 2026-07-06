@@ -75,7 +75,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
 
   return (
     <>
-      <aside className="w-[35%] min-w-[380px] max-w-[480px] h-full flex flex-col bg-white border-r border-zinc-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+      <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] h-full flex flex-col bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
         <JourneyPlayerHeader
           activeJourney={activeJourney}
           isSearchMode={isSearchMode}

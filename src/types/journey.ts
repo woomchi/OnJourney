@@ -58,6 +58,13 @@ export interface DirectionStep {
   startLng?: number;
   endLat?: number;
   endLng?: number;
+  passStopList?: {
+    stationList: {
+      stationName: string;
+      lat?: number;
+      lng?: number;
+    }[];
+  };
 }
 
 export interface RouteGuideNode {

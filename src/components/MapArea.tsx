@@ -541,7 +541,7 @@ export default function MapArea() {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [isPanelOpen, alternativePlaces, windowWidth, isMobile]);
+  }, [isPanelOpen, alternativePlaces, windowWidth, isMobile, drawerSnapPoint]);
 
   // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
   useEffect(() => {
@@ -631,21 +631,7 @@ export default function MapArea() {
     setAlternativeSegment(null);
   };
 
-  // 바텀 시트 높이가 변경될 때(최대화 제외), 기존 줌 레벨을 유지하면서 변경된 지도 영역에 맞춰 시각적 중앙만 다시 정렬합니다.
-  useEffect(() => {
-    if (!map || isDrawerMaximized) return;
 
-    // 현재 시각적 중심 좌표를 저장
-    const currentCenter = map.getCenter();
-
-    // 패딩 업데이트
-    map.setOptions({ padding: currentMapPadding });
-
-    // 줌 레벨 변경 없이 중앙 좌표만 새로운 패딩 영역의 중심으로 부드럽게 이동
-    map.panTo(currentCenter);
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawerSnapPoint, isDrawerMaximized]);
 
   if (!clientId) {
     return (
@@ -682,6 +668,9 @@ export default function MapArea() {
 
     // 검색 모드 중이라면 이 효과를 스킵합니다 (사용자의 줌/팬 조작을 방해하지 않음)
     if (isSearchMode) return;
+    
+    // 바텀 시트가 최대화된 상태에서는 지도 조작을 방지합니다.
+    if (isDrawerMaximized) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
@@ -704,11 +693,14 @@ export default function MapArea() {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
     }
-  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, currentMapPadding, recommendedPlaces]);
+  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, currentMapPadding, recommendedPlaces, isDrawerMaximized]);
 
   // focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
   useEffect(() => {
     if (!map || !focusBounds) return;
+    
+    // 바텀 시트가 최대화된 상태에서는 지도 조작을 방지합니다.
+    if (isDrawerMaximized) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
@@ -723,7 +715,7 @@ export default function MapArea() {
 
     map.fitBounds(bounds, { maxZoom: 18, margin: currentMapPadding } as any);
 
-  }, [focusBounds, map, currentMapPadding]);
+  }, [focusBounds, map, currentMapPadding, isDrawerMaximized]);
 
 
 
@@ -1348,7 +1340,9 @@ export default function MapArea() {
 
       {/* ── 추천 장소 상세 오버레이 카드 (Quick Add 지원) ── */}
       {activeRecommendedPlace && (
-        <div className="absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4">
+        <div className={`absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4 transition-all ${
+          isDrawerMaximized ? 'opacity-0 pointer-events-none translate-y-4' : 'opacity-100'
+        }`}>
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
               <span className="inline-block text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mb-1">
@@ -1403,7 +1397,9 @@ export default function MapArea() {
 
       {/* ── 지도에서 직접 클릭한 장소 오버레이 카드 ── */}
       {mapClickedPlace && (
-        <div className="absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4">
+        <div className={`absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4 transition-all ${
+          isDrawerMaximized ? 'opacity-0 pointer-events-none translate-y-4' : 'opacity-100'
+        }`}>
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0 flex-1">
               <span className="inline-block text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full mb-1">
@@ -1475,7 +1471,9 @@ export default function MapArea() {
 
       {/* ── 내 위치 오버레이 카드 ── */}
       {showLocationCard && userLocation && (
-        <div className="absolute bottom-[160px] md:bottom-24 left-4 md:left-6 z-[120] w-[calc(100%-32px)] md:w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4">
+        <div className={`absolute bottom-[160px] md:bottom-24 left-4 md:left-6 z-[120] w-[calc(100%-32px)] md:w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4 transition-all ${
+          isDrawerMaximized ? 'opacity-0 pointer-events-none translate-y-4' : 'opacity-100'
+        }`}>
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0 flex-1">
               <span className="inline-block text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mb-1">
@@ -1615,7 +1613,7 @@ export default function MapArea() {
         const prevInfo = cachedRouteGuide.prevSegmentInfo;
         return (
           <RouteGuidePanel
-            isOpen={showRouteGuide && !isSearchMode}
+            isOpen={showRouteGuide && !isSearchMode && !isDrawerMaximized}
             route={cachedRouteGuide.route}
             originPlace={cachedRouteGuide.originPlace}
             destPlace={cachedRouteGuide.destPlace}
@@ -1700,7 +1698,7 @@ export default function MapArea() {
       {/* 대안 경로 패널 */}
       {cachedAlternative && (
         <AlternativeRoutePanel
-          isOpen={showAlternative && !isSearchMode}
+          isOpen={showAlternative && !isSearchMode && !isDrawerMaximized}
           originPlace={cachedAlternative.originPlace}
           destPlace={cachedAlternative.destPlace}
           onClose={(isCancel?: boolean) => {

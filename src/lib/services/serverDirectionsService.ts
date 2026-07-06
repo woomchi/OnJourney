@@ -340,6 +340,17 @@ export async function fetchPublicTransitOptions(
         }
       }
 
+      let passStopList = undefined;
+      if (sp.passStopList && sp.passStopList.stations) {
+        passStopList = {
+          stationList: sp.passStopList.stations.map((station: any) => ({
+            stationName: station.stationName,
+            lat: parseFloat(station.y) || undefined,
+            lng: parseFloat(station.x) || undefined,
+          })),
+        };
+      }
+
       return {
         type,
         name,
@@ -354,6 +365,7 @@ export async function fetchPublicTransitOptions(
         startLng: !isNaN(startLng) ? startLng : undefined,
         endLat: !isNaN(endLat) ? endLat : undefined,
         endLng: !isNaN(endLng) ? endLng : undefined,
+        passStopList,
       };
     }).filter((step: DirectionStep) => step.duration > 0);
 

@@ -127,18 +127,22 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
+    const hiddenHeight = snap === 1 ? '0px' : `calc(95dvh - ${snap || '280px'})`;
     return (
       <>
         <Drawer.Root 
           open={true} 
           modal={false} 
-          snapPoints={['200px', '280px', 1]} 
+          snapPoints={['165px', '280px', 1]} 
           activeSnapPoint={snap}
           setActiveSnapPoint={setSnap}
           dismissible={false}
         >
           <Drawer.Portal>
-            <Drawer.Content className="bg-white flex flex-col rounded-t-[20px] fixed bottom-0 left-0 right-0 z-20 outline-none h-[95dvh] shadow-[0_-4px_24px_rgba(0,0,0,0.1)]">
+            <Drawer.Content 
+              className="bg-white flex flex-col rounded-t-[20px] fixed bottom-0 left-0 right-0 z-20 outline-none h-[95dvh] shadow-[0_-4px_24px_rgba(0,0,0,0.1)]"
+              style={{ '--drawer-hidden-height': hiddenHeight } as React.CSSProperties}
+            >
               {/* Portal Target for Map Buttons (moves with Drawer) */}
               <div 
                 id="mobile-map-buttons-target" 

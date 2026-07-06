@@ -140,7 +140,7 @@ export default function JourneySidebar() {
         >
           <Drawer.Portal>
             <Drawer.Content 
-              className="bg-white flex flex-col rounded-t-[20px] fixed bottom-0 left-0 right-0 z-20 outline-none h-[95dvh] shadow-[0_-4px_24px_rgba(0,0,0,0.1)]"
+              className="bg-white flex flex-col rounded-t-[20px] border-t border-zinc-200 fixed bottom-0 left-0 right-0 z-20 outline-none h-[95dvh] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
               style={{ '--drawer-hidden-height': hiddenHeight } as React.CSSProperties}
             >
               {/* Portal Target for Map Buttons (moves with Drawer) */}

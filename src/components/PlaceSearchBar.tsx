@@ -310,7 +310,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
           cursor-text
           ${isFocused
             ? 'border-blue-300 shadow-[0_8px_32px_rgba(59,130,246,0.18)] -translate-y-0.5'
-            : 'border-white/60 shadow-[0_4px_24px_rgba(0,0,0,0.08)]'
+            : 'border-zinc-300/80 shadow-[0_6px_24px_rgba(0,0,0,0.15)]'
           }
         `}
       >

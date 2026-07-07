@@ -20,6 +20,7 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
     openCreateForm,
     setActiveJourney,
     clearJourney,
+    isDrawerMaximized,
   } = useJourneyStore();
 
   const queryClient = useQueryClient();
@@ -248,8 +249,10 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
         </div>
       ) : journeys.length > 0 ? (
         <div 
-          className="flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar snap-y snap-mandatory scroll-pt-1.5 scroll-pb-6 overscroll-none"
-          style={{ paddingBottom: 'calc(1.5rem + var(--drawer-hidden-height, 0px))' }}
+          className={`flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar scroll-pt-1.5 scroll-pb-6 overscroll-none ${
+            !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
+          }`}
+          style={{ paddingBottom: isDrawerMaximized ? '1.5rem' : 'calc(1.5rem + var(--drawer-hidden-height, 0px))' }}
         >
           {localJourneys.map((journey, idx) => {
             const isDragged = draggedJourneyId === journey.id;
@@ -261,7 +264,9 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
                 onDragStart={(e) => handleJourneyDragStart(e, idx)}
                 onDragOver={(e) => handleJourneyDragOver(e, idx)}
                 onDragEnd={handleJourneyDragEnd}
-                className={`journey-card-content snap-start relative flex items-center w-full bg-white border rounded-2xl shadow-sm transition-all group ${
+                className={`journey-card-content relative flex items-center w-full bg-white border rounded-2xl shadow-sm transition-all group ${
+                  !isDrawerMaximized ? 'snap-start snap-always' : ''
+                } ${
                   isDropped
                     ? 'animate-drop-ripple border-blue-400 z-20 shadow-[0_4px_20px_rgba(59,130,246,0.15)]'
                     : isListEditMode

@@ -7,7 +7,6 @@ import PlaceSearchBar from './PlaceSearchBar';
 
 export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();
-  const isDrawerMaximized = useJourneyStore((state) => state.isDrawerMaximized);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -27,10 +26,7 @@ export default function MapHeaderOverlay() {
   };
 
   return (
-    <div
-      className={`absolute top-4 left-4 right-4 z-[100] flex items-start gap-2 pointer-events-none transition-all duration-300 md:hidden ${isDrawerMaximized ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'
-        }`}
-    >
+    <div className="absolute top-10 left-4 right-4 z-10 flex items-start gap-2 pointer-events-none md:hidden">
       <div className="flex-1 pointer-events-auto">
         <PlaceSearchBar />
       </div>

@@ -25,12 +25,33 @@ export default function JourneySidebar() {
   } = useJourneyStore();
   const [mounted, setMounted] = useState(false);
   const isMobile = useMediaQuery('(max-width: 767px)');
-  const [snap, setSnap] = useState<number | string | null>('280px');
+  const [snap, setSnap] = useState<number | string | null>(null);
+
+  // Initialize snap point on mount based on activeJourney
+  useEffect(() => {
+    if (snap === null) {
+      setSnap(activeJourney ? '360px' : '280px');
+    }
+  }, [activeJourney, snap]);
+
+  // Adjust snap point automatically when activeJourney changes
+  useEffect(() => {
+    if (activeJourney && snap === '280px') {
+      setSnap('360px');
+    } else if (!activeJourney && snap === '360px') {
+      setSnap('280px');
+    }
+  }, [activeJourney, snap]);
   
   useEffect(() => {
-    setDrawerMaximized(String(snap) === '1' || snap === 1);
-    setDrawerSnapPoint(snap);
-  }, [snap, setDrawerMaximized, setDrawerSnapPoint]);
+    if (!isMobile) {
+      setDrawerMaximized(false);
+      setDrawerSnapPoint(null);
+    } else if (snap !== null) {
+      setDrawerMaximized(String(snap) === '1' || snap === 1);
+      setDrawerSnapPoint(snap);
+    }
+  }, [snap, isMobile, setDrawerMaximized, setDrawerSnapPoint]);
   
   const queryClient = useQueryClient();
   const { data: fetchedJourneys, isLoading: isJourneysLoading } = useJourneys();
@@ -127,25 +148,27 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    // Option B: 레이아웃 요동을 방지하기 위해 여백을 항상 280px 기준으로 고정합니다. (정적 여백)
-    const hiddenHeight = 'calc(95dvh - 280px)';
+    const defaultSnapPoint = activeJourney ? '360px' : '280px';
+    const hiddenHeight = `calc(100dvh - 24px - ${defaultSnapPoint})`;
+    
     return (
       <>
         {/* 여정 목록용 바텀 시트 스냅 설정 
             - 90px: 핸들바만 표시 (최소)
-            - 280px: 여정 카드 1개 완벽히 표시 (기본)
+            - 280px / 360px: 카드 1개 완벽히 표시 (기본)
             - 1: 전체 화면 표시 (최대) */}
         <Drawer.Root 
           open={true} 
           modal={false} 
-          snapPoints={['90px', '280px', 1]} 
+          snapPoints={['90px', defaultSnapPoint, 1]} 
+          activeSnapPoint={snap ?? defaultSnapPoint}
           fadeFromIndex={1}
           setActiveSnapPoint={setSnap}
           dismissible={false}
         >
           <Drawer.Portal>
             <Drawer.Content 
-              className="bg-white flex flex-col rounded-t-[20px] border-t border-zinc-200 fixed bottom-0 left-0 right-0 z-20 outline-none h-[95dvh] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
+              className="bg-white flex flex-col rounded-t-[20px] border-t border-zinc-200 fixed bottom-0 left-0 right-0 z-20 outline-none h-[calc(100dvh-24px)] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
             >
               {/* Portal Target for Map Buttons (moves with Drawer) */}
               <div 

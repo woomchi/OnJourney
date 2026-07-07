@@ -171,6 +171,15 @@ export default function MapArea() {
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
+  const lastNonMaximizedSnapPointRef = useRef<string | number | null>('280px');
+
+  // 최대화되지 않았을 때의 마지막 바텀시트 스냅 포인트 기록
+  useEffect(() => {
+    if (!isDrawerMaximized && drawerSnapPoint !== 1 && drawerSnapPoint !== null) {
+      lastNonMaximizedSnapPointRef.current = drawerSnapPoint;
+    }
+  }, [isDrawerMaximized, drawerSnapPoint]);
+
   useEffect(() => {
     if (isMobile) {
       const target = document.getElementById('mobile-map-buttons-target');
@@ -520,9 +529,15 @@ export default function MapArea() {
     // 모바일 환경일 경우 바텀 시트 높이를 고려하여 지도가 잘리지 않도록 하단 패딩 동적 추가
     const rightPadding = mapWidth < 600 ? 16 : 30;
     let bottomPadding = mapWidth < 600 ? 30 : 45;
-    if (isMobile && drawerSnapPoint !== 1) {
-      if (typeof drawerSnapPoint === 'string' && drawerSnapPoint.endsWith('px')) {
-        bottomPadding = parseInt(drawerSnapPoint, 10) + 20; // 스냅 포인트 높이 + 20px 여백
+    
+    // 바텀시트가 최대화되었을 때는 지도가 가려지므로 이전 높이(최소 또는 기본) 기준으로 패딩을 고정하여 지도가 튀는 현상(Shift)을 방지
+    const effectiveSnapPoint = isDrawerMaximized 
+      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '360px' : '280px')) 
+      : drawerSnapPoint;
+
+    if (isMobile && effectiveSnapPoint !== 1) {
+      if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
+        bottomPadding = parseInt(effectiveSnapPoint, 10) + 20; // 스냅 포인트 높이 + 20px 여백
       } else {
         bottomPadding = 300;
       }
@@ -666,6 +681,9 @@ export default function MapArea() {
     }
   }, [places, fetchSequentialDirections, isCacheRestored]);
 
+  const lastFittedDataStringRef = useRef<string>('');
+  const lastFocusStateRef = useRef<boolean>(false);
+
   // places 또는 map 인스턴스 또는 로드된 세그먼트 수가 변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
   // 검색 결과가 지워진 경우에도 원래 전체 경로로 줌을 되돌리도록 recommendedPlaces 상태를 연동합니다.
   useEffect(() => {
@@ -680,8 +698,26 @@ export default function MapArea() {
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
 
+    // 데이터가 변경되었는지 확인하여, 단순히 패딩이나 바텀시트 상태가 바뀐 것만으로는 fitBounds를 실행하지 않음
+    const currentDataString = JSON.stringify({
+      places: places.map(p => p.id),
+      loadedSegmentsCount,
+      transport_type: activeJourney?.transport_type,
+      recommendedPlaces: recommendedPlaces?.map(p => p.id),
+      isMobile,
+    });
+
+    const wasFocused = lastFocusStateRef.current;
+    
     // 만약 사용자가 이미 개별 세그먼트에 포커스(focusBounds가 활성 상태) 중이라면 자동 전체 fitBounds 무시
-    if (focusBounds) return;
+    if (focusBounds) {
+      lastFocusStateRef.current = true;
+      return;
+    }
+
+    if (!wasFocused && lastFittedDataStringRef.current === currentDataString) return;
+    lastFocusStateRef.current = false;
+    lastFittedFocusBoundsRef.current = '';
 
     map.setOptions({ padding: currentMapPadding });
 
@@ -698,7 +734,11 @@ export default function MapArea() {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
     }
-  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, currentMapPadding, recommendedPlaces, isDrawerMaximized]);
+
+    lastFittedDataStringRef.current = currentDataString;
+  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, currentMapPadding, recommendedPlaces, isDrawerMaximized, isSearchMode, isMobile]);
+
+  const lastFittedFocusBoundsRef = useRef<string>('');
 
   // focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
   useEffect(() => {
@@ -710,6 +750,9 @@ export default function MapArea() {
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
 
+    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}`;
+    if (lastFittedFocusBoundsRef.current === currentFocusString) return;
+
     map.setOptions({ padding: currentMapPadding });
 
     const expanded = expandBounds(focusBounds, 0.03); // 3% 확장하여 더욱 조밀하고 가득 차게 핏팅
@@ -720,7 +763,8 @@ export default function MapArea() {
 
     map.fitBounds(bounds, { maxZoom: 18, margin: currentMapPadding } as any);
 
-  }, [focusBounds, map, currentMapPadding, isDrawerMaximized]);
+    lastFittedFocusBoundsRef.current = currentFocusString;
+  }, [focusBounds, map, currentMapPadding, isDrawerMaximized, isMobile]);
 
 
 

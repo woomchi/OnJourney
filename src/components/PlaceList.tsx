@@ -20,7 +20,7 @@ export default function PlaceList({
   localPlaces,
   setLocalPlaces,
 }: PlaceListProps) {
-  const { activeJourney } = useJourneyStore();
+  const { activeJourney, isDrawerMaximized } = useJourneyStore();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [droppedId, setDroppedId] = useState<string | null>(null);
@@ -118,8 +118,10 @@ export default function PlaceList({
 
   return (
     <div 
-      className="flex-1 overflow-y-auto pt-4 pb-2 scrollbar-sidebar overscroll-none"
-      style={{ paddingBottom: 'calc(0.5rem + var(--drawer-hidden-height, 0px))' }}
+      className={`flex-1 overflow-y-auto pt-4 pb-2 scrollbar-sidebar overscroll-none ${
+        !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
+      }`}
+      style={{ paddingBottom: isDrawerMaximized ? '0.5rem' : 'calc(0.5rem + var(--drawer-hidden-height, 0px))' }}
     >
       <ul className="flex flex-col px-2">
         {localPlaces.map((place, idx) => (

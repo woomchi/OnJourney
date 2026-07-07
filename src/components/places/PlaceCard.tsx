@@ -100,6 +100,7 @@ export default function PlaceCard({
     setAlternativeSegment,
     isAlternativeFromFocus,
     setIsAlternativeFromFocus,
+    isDrawerMaximized,
   } = useJourneyStore();
   const cardRef = useRef<HTMLLIElement>(null);
 
@@ -158,7 +159,9 @@ export default function PlaceCard({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className={`relative transition-all duration-200 ${isDragged ? 'opacity-40 scale-[0.98]' : ''}`}
+      className={`relative transition-all duration-200 ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${
+        !isDrawerMaximized ? 'snap-start snap-always' : ''
+      }`}
     >
       {/* 카드 + 번호 행 */}
       <div className="flex items-center gap-0 group">

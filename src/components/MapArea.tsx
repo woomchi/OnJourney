@@ -1217,7 +1217,7 @@ export default function MapArea() {
                   onClick={() => handleMarkerClick(place, idx)}
                   zIndex={zIndex}
                   visible={isVisible}
-                  iconAnchor={new window.naver.maps.Point(anchorX, anchorY)}
+                  iconAnchor={navermaps ? new navermaps.Point(anchorX, anchorY) : undefined}
                   iconContent={`<div style="
                       cursor: pointer;
                       filter: drop-shadow(0 3px 8px ${theme.color}70) drop-shadow(0 2px 4px rgba(0,0,0,0.15));
@@ -1272,7 +1272,7 @@ export default function MapArea() {
                     title={recPlace.place_name}
                     onClick={() => handleRecommendedMarkerClick(recPlace)}
                     zIndex={zIndex}
-                    iconAnchor={new window.naver.maps.Point(14, 34)}
+                    iconAnchor={navermaps ? new navermaps.Point(14, 34) : undefined}
                     iconContent={`<div style="
                         cursor: pointer;
                         filter: ${dropShadow};
@@ -1301,7 +1301,7 @@ export default function MapArea() {
                 position={{ lat: mapClickedPlace.lat, lng: mapClickedPlace.lng }}
                 title={mapClickedPlace.place_name}
                 zIndex={9500}
-                iconAnchor={new window.naver.maps.Point(14, 34)}
+                iconAnchor={navermaps ? new navermaps.Point(14, 34) : undefined}
                 iconContent={`<div style="
                     cursor: pointer;
                     filter: drop-shadow(0 4px 10px rgba(0,0,0,0.25));
@@ -1327,7 +1327,7 @@ export default function MapArea() {
                 position={userLocation}
                 title="내 위치"
                 zIndex={9600}
-                iconAnchor={new window.naver.maps.Point(12, 12)}
+                iconAnchor={navermaps ? new navermaps.Point(12, 12) : undefined}
                 iconContent={`<div class="relative w-6 h-6">
                   <div class="absolute inset-0 bg-blue-500 rounded-full animate-gps-pulse"></div>
                   <div class="absolute inset-1/4 bg-blue-600 rounded-full border-2 border-white shadow-sm"></div>

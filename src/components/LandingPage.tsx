@@ -94,23 +94,24 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white p-6 md:p-12 overflow-y-auto">
-      <div className="w-full max-w-sm md:max-w-md lg:max-w-lg flex flex-col animate-in fade-in zoom-in-95 duration-500">
+    <div className="fixed inset-0 z-[9999] bg-white overflow-y-auto">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 md:p-8">
+        <div className="w-full max-w-sm md:max-w-md lg:max-w-lg flex flex-col animate-in fade-in zoom-in-95 duration-500">
         
-        <div className="flex flex-col items-center text-center mb-10 md:mb-14">
+        <div className="flex flex-col items-center text-center mb-6 md:mb-8">
           <img 
             src="/service_logo2.png" 
             alt="On-Journey Logo" 
-            className="w-20 h-20 md:w-28 md:h-28 lg:w-32 lg:h-32 object-contain drop-shadow-xl mb-6 md:mb-8 transform -rotate-3 transition-all duration-300" 
+            className="w-16 h-16 md:w-24 md:h-24 lg:w-28 lg:h-28 object-contain drop-shadow-xl mb-4 md:mb-5 transform -rotate-3 transition-all duration-300" 
           />
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight mb-2 md:mb-3 text-zinc-900 transition-all duration-300">On-Journey</h1>
-          <p className="text-zinc-500 text-sm md:text-base lg:text-lg font-medium transition-all duration-300">당신의 모든 이동을 온전히 여정으로</p>
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight mb-1 md:mb-2 text-zinc-900 transition-all duration-300">On-Journey</h1>
+          <p className="text-zinc-500 text-xs md:text-sm lg:text-base font-medium transition-all duration-300">당신의 모든 이동을 온전히 여정으로</p>
         </div>
         
         <div className="w-full">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 md:gap-5 lg:gap-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3 md:gap-4">
             <div>
-              <label className="text-sm md:text-base font-bold text-zinc-700 mb-2 md:mb-3 block">이메일</label>
+              <label className="text-xs md:text-sm font-bold text-zinc-700 mb-1.5 md:mb-2 block">이메일</label>
               <input
                 type="email"
                 value={email}
@@ -118,12 +119,12 @@ export default function LandingPage() {
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
-                className="w-full px-4 md:px-5 py-3.5 md:py-4 rounded-xl md:rounded-2xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] md:text-[17px] text-zinc-900 bg-zinc-50 focus:bg-white placeholder:text-zinc-400"
+                className="w-full px-3 md:px-4 py-2.5 md:py-3 rounded-lg md:rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm md:text-base text-zinc-900 bg-zinc-50 focus:bg-white placeholder:text-zinc-400"
               />
             </div>
 
             <div>
-              <label className="text-sm md:text-base font-bold text-zinc-700 mb-2 md:mb-3 block">비밀번호</label>
+              <label className="text-xs md:text-sm font-bold text-zinc-700 mb-1.5 md:mb-2 block">비밀번호</label>
               <input
                 type="password"
                 value={password}
@@ -132,23 +133,23 @@ export default function LandingPage() {
                 required
                 minLength={MIN_PASSWORD_LENGTH}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                className="w-full px-4 md:px-5 py-3.5 md:py-4 rounded-xl md:rounded-2xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] md:text-[17px] text-zinc-900 bg-zinc-50 focus:bg-white placeholder:text-zinc-400"
+                className="w-full px-3 md:px-4 py-2.5 md:py-3 rounded-lg md:rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm md:text-base text-zinc-900 bg-zinc-50 focus:bg-white placeholder:text-zinc-400"
               />
               {mode === 'signup' && (
-                <p className="text-xs md:text-sm text-zinc-400 mt-2 ml-1">
+                <p className="text-xs text-zinc-400 mt-1.5 ml-1">
                   {MIN_PASSWORD_LENGTH}자 이상, 영문자와 숫자를 포함해주세요.
                 </p>
               )}
             </div>
 
             {info && (
-              <div className="bg-blue-50 text-blue-600 text-sm md:text-base px-4 py-3 md:py-4 rounded-xl md:rounded-2xl border border-blue-100">
+              <div className="bg-blue-50 text-blue-600 text-xs md:text-sm px-3 py-2.5 md:py-3 rounded-lg md:rounded-xl border border-blue-100">
                 {info}
               </div>
             )}
 
             {error && (
-              <div className="bg-red-50 text-red-600 text-sm md:text-base px-4 py-3 md:py-4 rounded-xl md:rounded-2xl border border-red-100">
+              <div className="bg-red-50 text-red-600 text-xs md:text-sm px-3 py-2.5 md:py-3 rounded-lg md:rounded-xl border border-red-100">
                 {error}
               </div>
             )}
@@ -156,14 +157,14 @@ export default function LandingPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 md:py-5 mt-6 md:mt-8 rounded-xl md:rounded-2xl bg-blue-600 text-white font-bold text-[15px] md:text-[17px] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] cursor-pointer"
+              className="w-full py-3 md:py-3.5 mt-4 md:mt-5 rounded-lg md:rounded-xl bg-blue-600 text-white font-bold text-sm md:text-base hover:bg-blue-700 transition-all disabled:opacity-50 shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] cursor-pointer"
             >
               {isSubmitting ? '처리 중...' : mode === 'login' ? '로그인' : '가입하기'}
             </button>
           </form>
 
-          <div className="mt-10 md:mt-12 text-center">
-            <p className="text-sm md:text-base text-zinc-500">
+          <div className="mt-6 md:mt-8 text-center">
+            <p className="text-xs md:text-sm text-zinc-500">
               {mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
               <button
                 type="button"
@@ -174,6 +175,7 @@ export default function LandingPage() {
               </button>
             </p>
           </div>
+        </div>
         </div>
       </div>
     </div>

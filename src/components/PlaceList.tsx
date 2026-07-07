@@ -118,9 +118,8 @@ export default function PlaceList({
 
   return (
     <div 
-      className="flex-1 overflow-y-auto pt-4 pb-2 scrollbar-sidebar"
+      className="flex-1 overflow-y-auto pt-4 pb-2 scrollbar-sidebar overscroll-none"
       style={{ paddingBottom: 'calc(0.5rem + var(--drawer-hidden-height, 0px))' }}
-      data-vaul-no-drag
     >
       <ul className="flex flex-col px-2">
         {localPlaces.map((place, idx) => (

@@ -693,7 +693,7 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
-      map.fitBounds(bounds, { maxZoom: 16 } as any);
+      map.fitBounds(bounds, { maxZoom: 16, margin: currentMapPadding } as any);
     } else {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -718,7 +718,7 @@ export default function MapArea() {
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    map.fitBounds(bounds, { maxZoom: 18 } as any);
+    map.fitBounds(bounds, { maxZoom: 18, margin: currentMapPadding } as any);
 
   }, [focusBounds, map, currentMapPadding, isDrawerMaximized]);
 

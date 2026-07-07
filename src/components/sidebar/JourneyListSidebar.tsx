@@ -248,9 +248,8 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
         </div>
       ) : journeys.length > 0 ? (
         <div 
-          className="flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar snap-y snap-mandatory scroll-pt-1.5 scroll-pb-6"
+          className="flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar snap-y snap-mandatory scroll-pt-1.5 scroll-pb-6 overscroll-none"
           style={{ paddingBottom: 'calc(1.5rem + var(--drawer-hidden-height, 0px))' }}
-          data-vaul-no-drag
         >
           {localJourneys.map((journey, idx) => {
             const isDragged = draggedJourneyId === journey.id;

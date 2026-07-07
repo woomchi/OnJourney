@@ -127,7 +127,8 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    const hiddenHeight = snap === 1 ? '0px' : `calc(95dvh - ${snap || '280px'})`;
+    // Option B: 레이아웃 요동을 방지하기 위해 여백을 항상 280px 기준으로 고정합니다. (정적 여백)
+    const hiddenHeight = 'calc(95dvh - 280px)';
     return (
       <>
         {/* 여정 목록용 바텀 시트 스냅 설정 
@@ -138,14 +139,13 @@ export default function JourneySidebar() {
           open={true} 
           modal={false} 
           snapPoints={['90px', '280px', 1]} 
-          activeSnapPoint={snap}
+          fadeFromIndex={1}
           setActiveSnapPoint={setSnap}
           dismissible={false}
         >
           <Drawer.Portal>
             <Drawer.Content 
               className="bg-white flex flex-col rounded-t-[20px] border-t border-zinc-200 fixed bottom-0 left-0 right-0 z-20 outline-none h-[95dvh] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
-              style={{ '--drawer-hidden-height': hiddenHeight } as React.CSSProperties}
             >
               {/* Portal Target for Map Buttons (moves with Drawer) */}
               <div 
@@ -155,7 +155,10 @@ export default function JourneySidebar() {
                 }`} 
               />
               <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
-              <div className="flex-1 overflow-hidden flex flex-col">
+              <div 
+                className="flex-1 overflow-hidden flex flex-col"
+                style={{ '--drawer-hidden-height': hiddenHeight } as React.CSSProperties}
+              >
                 {content}
               </div>
             </Drawer.Content>

@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from 'next/dynamic';
+import { useState, useEffect } from 'react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import JourneySidebar from '@/components/JourneySidebar';
 import { useAuth } from '@/providers/AuthProvider';
 import LandingPage from '@/components/LandingPage';
@@ -23,8 +25,14 @@ const MapArea = dynamic(() => import('@/components/MapArea'), {
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 767px)');
 
-  if (loading) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (loading || !mounted) {
     return (
       <div className="flex h-[100dvh] w-full items-center justify-center bg-zinc-50">
         <div className="flex flex-col items-center gap-3">
@@ -38,7 +46,7 @@ export default function Home() {
     );
   }
 
-  if (!user) {
+  if (!user && isMobile) {
     return <LandingPage />;
   }
 

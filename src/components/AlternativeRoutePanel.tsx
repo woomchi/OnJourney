@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { useDragScroll } from '@/hooks/useDragScroll';
 import { useQueryClient } from '@tanstack/react-query';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/directionsService';
 import { getDefaultRoute } from '@/lib/routeUtils';
@@ -26,6 +27,7 @@ export default function AlternativeRoutePanel({
   onExited,
 }: AlternativeRoutePanelProps) {
   const [animate, setAnimate] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 767px)');
   const {
     activeJourney,
     selectSegmentRoute,
@@ -34,6 +36,33 @@ export default function AlternativeRoutePanel({
     setFocusedStep,
     setHoveredAlternativeRoute,
   } = useJourneyStore();
+
+  const [dragY, setDragY] = useState(0);
+  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    setIsDraggingPanel(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    if (diff > 0) {
+      setDragY(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragY > 100) {
+      onClose();
+    }
+    setDragY(0);
+    setIsDraggingPanel(false);
+    touchStartY.current = null;
+  };
 
   const queryClient = useQueryClient();
   const cacheKey = directionKeys.segment(originPlace.id, destPlace.id);
@@ -51,7 +80,7 @@ export default function AlternativeRoutePanel({
 
   const [activeSubTab, setActiveSubTab] = useState<string>('추천');
   const [displayLimit, setDisplayLimit] = useState(3);
-  
+
   const { ref: tabDragRef, events: tabDragEvents, isDragging: isTabDragging, withClickPrevent: withTabClickPrevent } = useDragScroll<HTMLDivElement>();
   const { ref: listDragRef, events: listDragEvents, isDragging: isListDragging, withClickPrevent: withListClickPrevent } = useDragScroll<HTMLDivElement>();
 
@@ -132,10 +161,10 @@ export default function AlternativeRoutePanel({
 
   const subTabs = useMemo(() => {
     if (activeTab !== 'public') return [];
-    
+
     const order = ['기차', '시외/고속', '지하철', '버스', '기타'];
     const activeCategories = Object.keys(publicRouteGroups);
-    
+
     const sortedCategories = activeCategories.sort((a, b) => {
       const indexA = order.indexOf(a);
       const indexB = order.indexOf(b);
@@ -194,7 +223,7 @@ export default function AlternativeRoutePanel({
 
   const displayedRoutes = useMemo(() => {
     if (activeTab !== 'public') return routes;
-    
+
     let filtered = [];
     if (activeSubTab === '추천') {
       filtered = routes.filter(r => recommendedRouteIds.has(r.id)).sort((a, b) => a.duration - b.duration);
@@ -203,7 +232,7 @@ export default function AlternativeRoutePanel({
     } else {
       filtered = [...(publicRouteGroups[activeSubTab] || [])].sort((a, b) => a.duration - b.duration);
     }
-    
+
     return filtered;
   }, [activeTab, activeSubTab, routes, publicRouteGroups, recommendedRouteIds]);
 
@@ -302,11 +331,29 @@ export default function AlternativeRoutePanel({
           onExited();
         }
       }}
-      style={{ zIndex: animate ? 45 : 40 }}
-      className={`absolute top-6 bottom-6 left-4 w-[360px] bg-white/95 backdrop-blur-md rounded-3xl border border-zinc-150/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden transition-all duration-300 ease-out transform ${
-        animate ? 'translate-x-0 opacity-100' : '-translate-x-[calc(100%+24px)] opacity-0'
-      }`}
+      style={{
+        zIndex: animate ? 45 : 40,
+        transform: dragY > 0 && animate ? `translateY(${dragY}px)` : undefined,
+        transition: isDraggingPanel ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+      className={`absolute bg-white border-t border-zinc-200 flex flex-col overflow-hidden z-[100] md:z-auto
+        bottom-0 left-0 right-0 w-full h-[40vh] rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
+        md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:h-auto md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+        ${animate
+          ? (dragY > 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
+          : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
+        }
+      `}
     >
+      {/* Mobile Handle */}
+      <div
+        className="w-full flex justify-center md:hidden flex-shrink-0 touch-none"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
+      </div>
       {/* Header */}
       <div className="p-4 border-b border-zinc-100 flex-shrink-0 flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -449,14 +496,14 @@ export default function AlternativeRoutePanel({
           </div>
         ) : (
           <>
-            {(activeSubTab === '추천' ? displayedRoutes : displayedRoutes.slice(0, displayLimit)).map((route) => renderRouteButton(route))}
-            {activeSubTab !== '추천' && displayedRoutes.length > displayLimit && (
+            {(activeSubTab === '추천' || isMobile ? displayedRoutes : displayedRoutes.slice(0, displayLimit)).map((route) => renderRouteButton(route))}
+            {!isMobile && activeSubTab !== '추천' && displayedRoutes.length > displayLimit && (
               <button
                 type="button"
                 onClick={() => setDisplayLimit(prev => prev + 5)}
                 className="w-full py-2.5 mt-1 text-[13px] font-bold text-zinc-600 bg-zinc-50 hover:bg-zinc-100 rounded-xl transition-colors border border-zinc-150 flex items-center justify-center gap-1.5 shadow-sm"
               >
-                대안 5개 더보기 (남은 대안: {displayedRoutes.length - displayLimit}개)
+                대안 더보기 (남은 대안: {displayedRoutes.length - displayLimit}개)
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                 </svg>

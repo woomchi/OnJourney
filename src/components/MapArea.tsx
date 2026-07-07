@@ -528,11 +528,16 @@ export default function MapArea() {
       }
     }
 
-    // 경로 안내 패널이나 대안 경로 패널이 열려 있을 때 좌측 패딩
-    // 패널 너비를 고려하되, 맵 너비가 너무 작으면 지도가 찌그러지는 것을 방지하기 위해 최대값 제한
+    // 경로 안내 패널이나 대안 경로 패널이 열려 있을 때 패딩 조정
     let leftPadding = mapWidth < 600 ? 16 : 30;
     if (isPanelOpen || alternativePlaces) {
-      leftPadding = Math.min(390, mapWidth * 0.45);
+      if (isMobile) {
+        // 모바일에서는 바텀 시트이므로 하단 패딩 증가 (대략 40vh 정도 고려)
+        bottomPadding = typeof window !== 'undefined' ? window.innerHeight * 0.4 : 350;
+      } else {
+        // 데스크톱에서는 좌측 패널이므로 좌측 패딩 증가
+        leftPadding = Math.min(390, mapWidth * 0.45);
+      }
     }
 
     return {
@@ -688,7 +693,7 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
-      map.fitBounds(bounds, { maxZoom: 16, margin: currentMapPadding } as any);
+      map.fitBounds(bounds, { maxZoom: 16 } as any);
     } else {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -713,7 +718,7 @@ export default function MapArea() {
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    map.fitBounds(bounds, { maxZoom: 18, margin: currentMapPadding } as any);
+    map.fitBounds(bounds, { maxZoom: 18 } as any);
 
   }, [focusBounds, map, currentMapPadding, isDrawerMaximized]);
 

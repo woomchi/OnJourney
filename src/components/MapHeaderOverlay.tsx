@@ -8,7 +8,7 @@ import PlaceSearchBar from './PlaceSearchBar';
 export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();
   const isDrawerMaximized = useJourneyStore((state) => state.isDrawerMaximized);
-  
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -27,15 +27,14 @@ export default function MapHeaderOverlay() {
   };
 
   return (
-    <div 
-      className={`absolute top-4 left-4 right-4 z-[100] flex items-start gap-2 pointer-events-none transition-all duration-300 ${
-        isDrawerMaximized ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'
-      }`}
+    <div
+      className={`absolute top-4 left-4 right-4 z-[100] flex items-start gap-2 pointer-events-none transition-all duration-300 md:hidden ${isDrawerMaximized ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'
+        }`}
     >
       <div className="flex-1 pointer-events-auto">
         <PlaceSearchBar />
       </div>
-      
+
       <div className="relative pointer-events-auto" ref={menuRef}>
         <button
           onClick={handleProfileClick}
@@ -52,7 +51,7 @@ export default function MapHeaderOverlay() {
             <div className="px-4 py-3 border-b border-zinc-100">
               <p className="text-sm font-medium text-zinc-800 truncate">{user?.email || '사용자'}</p>
             </div>
-            <button 
+            <button
               className="w-full text-left px-4 py-3 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors flex items-center gap-2"
               onClick={() => {
                 setIsMenuOpen(false);
@@ -65,7 +64,7 @@ export default function MapHeaderOverlay() {
               </svg>
               설정
             </button>
-            <button 
+            <button
               className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
               onClick={() => {
                 setIsMenuOpen(false);

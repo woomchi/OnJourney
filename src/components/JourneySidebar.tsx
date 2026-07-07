@@ -28,7 +28,7 @@ export default function JourneySidebar() {
   const [snap, setSnap] = useState<number | string | null>('280px');
   
   useEffect(() => {
-    setDrawerMaximized(snap === 1);
+    setDrawerMaximized(String(snap) === '1' || snap === 1);
     setDrawerSnapPoint(snap);
   }, [snap, setDrawerMaximized, setDrawerSnapPoint]);
   
@@ -130,10 +130,14 @@ export default function JourneySidebar() {
     const hiddenHeight = snap === 1 ? '0px' : `calc(95dvh - ${snap || '280px'})`;
     return (
       <>
+        {/* 여정 목록용 바텀 시트 스냅 설정 
+            - 90px: 핸들바만 표시 (최소)
+            - 280px: 여정 카드 1개 완벽히 표시 (기본)
+            - 1: 전체 화면 표시 (최대) */}
         <Drawer.Root 
           open={true} 
           modal={false} 
-          snapPoints={['165px', '280px', 1]} 
+          snapPoints={['90px', '280px', 1]} 
           activeSnapPoint={snap}
           setActiveSnapPoint={setSnap}
           dismissible={false}
@@ -147,11 +151,11 @@ export default function JourneySidebar() {
               <div 
                 id="mobile-map-buttons-target" 
                 className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
-                  snap === 1 ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
+                  String(snap) === '1' || snap === 1 ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
                 }`} 
               />
               <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-hidden flex flex-col">
                 {content}
               </div>
             </Drawer.Content>

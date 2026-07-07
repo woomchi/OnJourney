@@ -35,6 +35,33 @@ export default function RouteGuidePanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    if (diff > 0) {
+      setDragY(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragY > 100) {
+      onClose();
+    }
+    setDragY(0);
+    setIsDragging(false);
+    touchStartY.current = null;
+  };
+
   useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
@@ -246,11 +273,29 @@ export default function RouteGuidePanel({
           onExited();
         }
       }}
-      style={{ zIndex: animate ? 45 : 40 }}
-      className={`absolute top-6 bottom-6 left-4 w-[360px] bg-white/95 backdrop-blur-md rounded-3xl border border-zinc-150/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex flex-col transition-all duration-300 ease-out transform ${
-        animate ? 'translate-x-0 opacity-100' : '-translate-x-[calc(100%+24px)] opacity-0'
-      }`}
+      style={{ 
+        zIndex: animate ? 45 : 40,
+        transform: dragY > 0 && animate ? `translateY(${dragY}px)` : undefined,
+        transition: isDragging ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+      className={`absolute bg-white border-t border-zinc-200 flex flex-col z-[100] md:z-auto
+        bottom-0 left-0 right-0 w-full h-[40vh] rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
+        md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:h-auto md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+        ${animate 
+          ? (dragY > 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
+          : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
+        }
+      `}
     >
+      {/* Mobile Handle */}
+      <div 
+        className="w-full flex justify-center md:hidden flex-shrink-0 touch-none"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
+      </div>
       {/* Header */}
       <div className="p-5 border-b border-zinc-100 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">

@@ -36,10 +36,12 @@ export default function JourneySidebar() {
 
   // Adjust snap point automatically when activeJourney changes
   useEffect(() => {
-    if (activeJourney && snap === '280px') {
-      setSnap('360px');
-    } else if (!activeJourney && snap === '360px') {
-      setSnap('280px');
+    if (activeJourney) {
+      if (snap === '280px') setSnap('360px');
+      else if (snap === '90px') setSnap('150px');
+    } else {
+      if (snap === '360px') setSnap('280px');
+      else if (snap === '150px') setSnap('90px');
     }
   }, [activeJourney, snap]);
   
@@ -153,14 +155,14 @@ export default function JourneySidebar() {
     
     return (
       <>
-        {/* 여정 목록용 바텀 시트 스냅 설정 
-            - 90px: 핸들바만 표시 (최소)
-            - 280px / 360px: 카드 1개 완벽히 표시 (기본)
+        {/* 바텀 시트 스냅 설정 
+            - 최소 높이: 여정 목록(90px), 여정 상세(150px - 날짜/이동수단/플레이어 표시)
+            - 기본 높이: 여정 목록(280px), 여정 상세(360px)
             - 1: 전체 화면 표시 (최대) */}
         <Drawer.Root 
           open={true} 
           modal={false} 
-          snapPoints={['90px', defaultSnapPoint, 1]} 
+          snapPoints={[activeJourney ? '150px' : '90px', defaultSnapPoint, 1]} 
           activeSnapPoint={snap ?? defaultSnapPoint}
           fadeFromIndex={1}
           setActiveSnapPoint={setSnap}

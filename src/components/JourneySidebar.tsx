@@ -26,21 +26,25 @@ export default function JourneySidebar() {
   const [mounted, setMounted] = useState(false);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [snap, setSnap] = useState<number | string | null>(null);
+  const wasActiveJourneyRef = useRef(activeJourney);
 
   // Initialize snap point on mount based on activeJourney
   useEffect(() => {
-    if (snap === null) {
-      setSnap(activeJourney ? '360px' : '280px');
+    if (activeJourney !== wasActiveJourneyRef.current) {
+      setSnap(activeJourney ? '376px' : '280px');
+      wasActiveJourneyRef.current = activeJourney;
+    } else if (snap === null) {
+      setSnap(activeJourney ? '376px' : '280px');
     }
   }, [activeJourney, snap]);
 
   // Adjust snap point automatically when activeJourney changes
   useEffect(() => {
     if (activeJourney) {
-      if (snap === '280px') setSnap('360px');
+      if (snap === '280px') setSnap('376px');
       else if (snap === '90px') setSnap('150px');
     } else {
-      if (snap === '360px') setSnap('280px');
+      if (snap === '376px') setSnap('280px');
       else if (snap === '150px') setSnap('90px');
     }
   }, [activeJourney, snap]);
@@ -150,14 +154,14 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    const defaultSnapPoint = activeJourney ? '360px' : '280px';
+    const defaultSnapPoint = activeJourney ? '376px' : '280px';
     const hiddenHeight = `calc(100dvh - 24px - ${defaultSnapPoint})`;
     
     return (
       <>
         {/* 바텀 시트 스냅 설정 
             - 최소 높이: 여정 목록(90px), 여정 상세(150px - 날짜/이동수단/플레이어 표시)
-            - 기본 높이: 여정 목록(280px), 여정 상세(360px)
+            - 기본 높이: 여정 목록(280px), 여정 상세(376px)
             - 1: 전체 화면 표시 (최대) */}
         <Drawer.Root 
           open={true} 

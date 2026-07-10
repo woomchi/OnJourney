@@ -601,8 +601,8 @@ export default function MapArea() {
     const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
     const mapWidth = windowWidth - sidebarWidth;
 
-    // 상단 검색바 제거에 따른 상단 패딩 축소 (최적의 핏을 위해 여백 최소화)
-    const topPadding = 40;
+    // 모바일 환경에서는 상단에 검색바가 존재하므로, 폴리라인 등이 가려지지 않도록 충분한 여백(180px)을 확보합니다.
+    const topPadding = isMobile ? 180 : 40;
 
     // 모바일 환경일 경우 바텀 시트 높이를 고려하여 지도가 잘리지 않도록 하단 패딩 동적 추가
     const rightPadding = mapWidth < 600 ? 16 : 30;
@@ -610,12 +610,12 @@ export default function MapArea() {
     
     // 바텀시트가 최대화되었을 때는 지도가 가려지므로 이전 높이(최소 또는 기본) 기준으로 패딩을 고정하여 지도가 튀는 현상(Shift)을 방지
     const effectiveSnapPoint = isDrawerMaximized 
-      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '360px' : '280px')) 
+      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '376px' : '280px')) 
       : drawerSnapPoint;
 
     if (isMobile && effectiveSnapPoint !== 1) {
       if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
-        bottomPadding = parseInt(effectiveSnapPoint, 10) + 20; // 스냅 포인트 높이 + 20px 여백
+        bottomPadding = parseInt(effectiveSnapPoint, 10) + 40; // 스냅 포인트 높이 + 여백 추가로 가려짐 방지
       } else {
         bottomPadding = 300;
       }

@@ -118,8 +118,8 @@ export default function PlaceList({
 
   return (
     <div 
-      className={`flex-1 overflow-y-auto pt-4 pb-2 scrollbar-sidebar overscroll-none ${
-        !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
+      className={`flex-1 overflow-y-auto scrollbar-sidebar overscroll-none ${
+        !isDrawerMaximized ? 'snap-y' : ''
       }`}
       style={{ paddingBottom: isDrawerMaximized ? '0.5rem' : 'calc(0.5rem + var(--drawer-hidden-height, 0px))' }}
     >

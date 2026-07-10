@@ -159,8 +159,8 @@ export default function PlaceCard({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className={`relative transition-all duration-200 ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${
-        !isDrawerMaximized ? 'snap-start snap-always' : ''
+      className={`relative transition-all duration-200 pt-2 ${isLast ? 'pb-0' : 'pb-2'} ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${
+        !isDrawerMaximized ? 'snap-start' : ''
       }`}
     >
       {/* 카드 + 번호 행 */}
@@ -182,7 +182,7 @@ export default function PlaceCard({
         {/* 장소 카드 */}
         <div
           onClick={editMode ? onToggleSelect : undefined}
-          className={`place-card-content flex-1 min-w-0 mx-2 mb-1 bg-white border rounded-2xl shadow-sm transition-all duration-200 ${
+          className={`place-card-content flex-1 min-w-0 mx-2 bg-white border rounded-2xl shadow-sm transition-all duration-200 ${
             isDropped
               ? 'animate-drop-ripple border-blue-400 z-20 shadow-[0_4px_20px_rgba(59,130,246,0.15)]'
               : editMode
@@ -248,7 +248,7 @@ export default function PlaceCard({
       {/* 기본 구간 이동 정보 (항상 노출) */}
       {!editMode && !isLast && (() => {
         return (
-          <div className="pl-16 pb-1 flex flex-col gap-1 relative">
+          <div className="pl-16 mt-1 flex flex-col gap-1 relative">
             <div
               role="button"
               tabIndex={0}

@@ -58,6 +58,14 @@ export default function JourneySidebar() {
       setDrawerSnapPoint(snap);
     }
   }, [snap, isMobile, setDrawerMaximized, setDrawerSnapPoint]);
+
+  // Sync snap with drawerSnapPoint if it changes externally (e.g. via overscroll)
+  const { drawerSnapPoint } = useJourneyStore();
+  useEffect(() => {
+    if (drawerSnapPoint !== undefined && drawerSnapPoint !== snap && isMobile) {
+      setSnap(drawerSnapPoint);
+    }
+  }, [drawerSnapPoint, isMobile]);
   
   const queryClient = useQueryClient();
   const { data: fetchedJourneys, isLoading: isJourneysLoading } = useJourneys();
@@ -155,7 +163,7 @@ export default function JourneySidebar() {
 
   if (isMobile) {
     const defaultSnapPoint = activeJourney ? '376px' : '280px';
-    const hiddenHeight = `calc(100dvh - 24px - ${defaultSnapPoint})`;
+    const hiddenHeight = `calc(100dvh - 12px - ${defaultSnapPoint})`;
     
     return (
       <>
@@ -174,7 +182,7 @@ export default function JourneySidebar() {
         >
           <Drawer.Portal>
             <Drawer.Content 
-              className="bg-white flex flex-col rounded-t-[20px] border-t border-zinc-200 fixed bottom-0 left-0 right-0 z-20 outline-none h-[calc(100dvh-24px)] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
+              className="bg-white flex flex-col rounded-t-[20px] border-t border-zinc-200 fixed bottom-0 left-0 right-0 z-20 outline-none h-[calc(100dvh-12px)] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
             >
               {/* Portal Target for Map Buttons (moves with Drawer) */}
               <div 

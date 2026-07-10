@@ -26,7 +26,7 @@ export default function MapHeaderOverlay() {
   };
 
   return (
-    <div className="absolute top-10 left-4 right-4 z-10 flex items-start gap-2 pointer-events-none md:hidden">
+    <div className="absolute top-4 left-4 right-4 z-10 flex items-start gap-2 pointer-events-none md:hidden">
       <div className="flex-1 pointer-events-auto">
         <PlaceSearchBar />
       </div>

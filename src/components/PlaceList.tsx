@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
 import PlaceCard from './places/PlaceCard';
+import { useOverscrollDrawer } from '@/hooks/useOverscrollDrawer';
 
 interface PlaceListProps {
   editMode?: boolean;
@@ -24,10 +25,14 @@ export default function PlaceList({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [droppedId, setDroppedId] = useState<string | null>(null);
+  const overscrollHandlers = useOverscrollDrawer();
 
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center text-center py-12 px-6 flex-1">
+      <div 
+        {...overscrollHandlers}
+        className="flex flex-col items-center justify-center text-center py-12 px-6 flex-1 overflow-y-auto"
+      >
         <div className="w-20 h-20 mb-5 rounded-3xl bg-blue-50 flex items-center justify-center shadow-inner">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -119,6 +124,7 @@ export default function PlaceList({
   return (
     <div 
       data-vaul-no-drag
+      {...overscrollHandlers}
       className={`flex-1 overflow-y-auto scrollbar-sidebar overscroll-none ${
         !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
       }`}

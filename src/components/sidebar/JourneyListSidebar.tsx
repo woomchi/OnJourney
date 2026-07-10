@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { deleteJourneys } from '@/lib/journeys';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import type { Journey } from '@/types/journey';
+import { useOverscrollDrawer } from '@/hooks/useOverscrollDrawer';
 
 interface JourneyListSidebarProps {
   isLoading: boolean;
@@ -23,6 +24,7 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
     isDrawerMaximized,
   } = useJourneyStore();
 
+  const overscrollHandlers = useOverscrollDrawer();
   const queryClient = useQueryClient();
 
   const [isListEditMode, setIsListEditMode] = useState(false);
@@ -250,6 +252,7 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
       ) : journeys.length > 0 ? (
         <div 
           data-vaul-no-drag
+          {...overscrollHandlers}
           className={`flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar scroll-pt-1.5 scroll-pb-6 overscroll-none ${
             !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
           }`}
@@ -329,7 +332,10 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
           })}
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-transparent to-zinc-50/35 select-none">
+        <div 
+          {...overscrollHandlers}
+          className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-transparent to-zinc-50/35 select-none overflow-y-auto"
+        >
           <div className="w-16 h-16 rounded-3xl bg-zinc-50 border border-zinc-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex items-center justify-center mb-6 text-2xl">
             ✈️
           </div>

@@ -267,180 +267,198 @@ export default function RouteGuidePanel({
   };
 
   return (
-    <div
-      onTransitionEnd={(e) => {
-        if (e.target === e.currentTarget && !isOpen && onExited) {
-          onExited();
-        }
-      }}
-      style={{ 
-        zIndex: animate ? 45 : 40,
-        transform: dragY > 0 && animate ? `translateY(${dragY}px)` : undefined,
-        transition: isDragging ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-      }}
-      className={`absolute bg-white border-t border-zinc-200 flex flex-col z-[100] md:z-auto
-        bottom-0 left-0 right-0 w-full h-[40vh] rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
-        md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:h-auto md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
-        ${animate 
-          ? (dragY > 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
-          : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
-        }
-      `}
-    >
-      {/* Mobile Handle */}
-      <div 
-        className="w-full flex justify-center md:hidden flex-shrink-0 touch-none"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+    <>
+      <div
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget && !isOpen && onExited) {
+            onExited();
+          }
+        }}
+        style={{ 
+          zIndex: animate ? 45 : 40,
+          transform: dragY > 0 && animate ? `translateY(${dragY}px)` : undefined,
+          transition: isDragging ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+        className={`absolute bg-white border-t border-zinc-200 flex flex-col z-[100] md:z-auto
+          bottom-0 left-0 right-0 w-full h-[40vh] rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)] pb-[80px] md:pb-[88px]
+          md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:h-auto md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+          ${animate 
+            ? (dragY > 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
+            : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
+          }
+        `}
       >
-        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
-      </div>
-      {/* Header */}
-      <div className="p-5 border-b border-zinc-100 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-bold tracking-wide uppercase select-none">
-            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-              <img src="/service_logo2.png" alt="Logo" className="w-full h-full object-contain" />
+        {/* Mobile Handle */}
+        <div 
+          className="w-full flex justify-center md:hidden flex-shrink-0 touch-none"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
+        </div>
+        {/* Header */}
+        <div className="p-5 border-b border-zinc-100 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-bold tracking-wide uppercase select-none">
+              <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                <img src="/service_logo2.png" alt="Logo" className="w-full h-full object-contain" />
+              </div>
+              상세 경로 안내
             </div>
-            상세 경로 안내
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 active:scale-95 flex items-center justify-center text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+              aria-label="닫기"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 active:scale-95 flex items-center justify-center text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
-            aria-label="닫기"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+
+          {/* Origin -> Destination */}
+          <h3 className="text-sm font-extrabold text-zinc-800 flex items-center gap-1.5 truncate">
+            <span className="truncate max-w-[130px]" title={originPlace.place_name}>{originPlace.place_name}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
-          </button>
-        </div>
+            <span className="truncate max-w-[130px]" title={destPlace.place_name}>{destPlace.place_name}</span>
+          </h3>
 
-        {/* Origin -> Destination */}
-        <h3 className="text-sm font-extrabold text-zinc-800 flex items-center gap-1.5 truncate">
-          <span className="truncate max-w-[130px]" title={originPlace.place_name}>{originPlace.place_name}</span>
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-          </svg>
-          <span className="truncate max-w-[130px]" title={destPlace.place_name}>{destPlace.place_name}</span>
-        </h3>
+          {/* Summary Info */}
+          <div className="flex items-baseline gap-1.5 mt-2">
+            <span className="text-2xl font-black text-zinc-900 tracking-tight">{route.duration}분</span>
+            <span className="text-xs font-semibold text-zinc-400">
+              {route.type === 'public' ? (
+                (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? '예매처 확인' : route.fare > 0 ? (route.isFareEstimated ? `요금 약 ${route.fare.toLocaleString()}원` : `요금 ${route.fare.toLocaleString()}원`) : '요금 정보 없음'
+              ) : route.type === 'walk' || route.type === 'bicycle' ? (
+                '무료'
+              ) : (
+                <>
+                  {route.distance ? `${route.distance.toFixed(1)}km` : ''}
+                  {route.taxiFare ? ` · 택시 약 ${route.taxiFare.toLocaleString()}원` : ''}
+                  {route.fare > 0 ? ` (통행료 ${route.fare.toLocaleString()}원)` : ''}
+                </>
+              )}
+            </span>
+          </div>
 
-        {/* Summary Info */}
-        <div className="flex items-baseline gap-1.5 mt-2">
-          <span className="text-2xl font-black text-zinc-900 tracking-tight">{route.duration}분</span>
-          <span className="text-xs font-semibold text-zinc-400">
-            {route.type === 'public' ? (
-              (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? '예매처 확인' : route.fare > 0 ? (route.isFareEstimated ? `요금 약 ${route.fare.toLocaleString()}원` : `요금 ${route.fare.toLocaleString()}원`) : '요금 정보 없음'
-            ) : route.type === 'walk' || route.type === 'bicycle' ? (
-              '무료'
-            ) : (
-              <>
-                {route.distance ? `${route.distance.toFixed(1)}km` : ''}
-                {route.taxiFare ? ` · 택시 약 ${route.taxiFare.toLocaleString()}원` : ''}
-                {route.fare > 0 ? ` (통행료 ${route.fare.toLocaleString()}원)` : ''}
-              </>
-            )}
-          </span>
-        </div>
-
-        {/* 예매처 빠른 링크 버튼 (장거리 노선이며 요금이 0인 경우 표출) */}
-        {route.type === 'public' && (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 && (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {route.steps.some(s => s.type === 'train') && (
-              <>
-                {route.steps.some(s => s.type === 'train' && s.name.includes('SRT')) && (
+          {/* 예매처 빠른 링크 버튼 (장거리 노선이며 요금이 0인 경우 표출) */}
+          {route.type === 'public' && (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {route.steps.some(s => s.type === 'train') && (
+                <>
+                  {route.steps.some(s => s.type === 'train' && s.name.includes('SRT')) && (
+                    <a
+                      href="https://etk.srail.kr/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-bold text-[#582E55] bg-[#582E55]/5 border border-[#582E55]/20 hover:bg-[#582E55]/10 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                    >
+                      <span>SRT 예매</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                      </svg>
+                    </a>
+                  )}
+                  {route.steps.some(s => s.type === 'train' && !s.name.includes('SRT')) && (
+                    <a
+                      href="https://www.letskorail.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-bold text-[#003366] bg-[#003366]/5 border border-[#003366]/20 hover:bg-[#003366]/10 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                    >
+                      <span>코레일 예매</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                      </svg>
+                    </a>
+                  )}
+                </>
+              )}
+              {route.steps.some(s => s.type === 'expressbus') && (
+                <>
                   <a
-                    href="https://etk.srail.kr/"
+                    href="https://www.kobus.co.kr/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[10px] font-bold text-[#582E55] bg-[#582E55]/5 border border-[#582E55]/20 hover:bg-[#582E55]/10 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                    className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
                   >
-                    <span>SRT 예매</span>
+                    <span>고속버스 예매</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
                   </a>
-                )}
-                {route.steps.some(s => s.type === 'train' && !s.name.includes('SRT')) && (
                   <a
-                    href="https://www.letskorail.com/"
+                    href="https://www.bustago.or.kr/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[10px] font-bold text-[#003366] bg-[#003366]/5 border border-[#003366]/20 hover:bg-[#003366]/10 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                    className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-100 hover:bg-orange-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
                   >
-                    <span>코레일 예매</span>
+                    <span>시외버스 예매</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
                   </a>
-                )}
-              </>
-            )}
-            {route.steps.some(s => s.type === 'expressbus') && (
-              <>
-                <a
-                  href="https://www.kobus.co.kr/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
-                >
-                  <span>고속버스 예매</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                  </svg>
-                </a>
-                <a
-                  href="https://www.bustago.or.kr/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-100 hover:bg-orange-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
-                >
-                  <span>시외버스 예매</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                  </svg>
-                </a>
-              </>
-            )}
-          </div>
-        )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Guide List */}
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 scrollbar-sleek">
+          {hasGuide ? (
+            <CarGuideList route={route} />
+          ) : steps.length > 0 ? (
+            <TransitGuideList
+              route={route}
+              originPlace={originPlace}
+              destPlace={destPlace}
+              handleStepClick={handleStepClick}
+              handleZoomToPoint={handleZoomToPoint}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center py-12 text-zinc-400">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 mb-2 text-zinc-300">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+              </svg>
+              <p className="text-xs font-medium">세부 경로 안내 정보가 없습니다.</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Guide List */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 scrollbar-sleek">
-        {hasGuide ? (
-          <CarGuideList route={route} />
-        ) : steps.length > 0 ? (
-          <TransitGuideList
-            route={route}
-            originPlace={originPlace}
-            destPlace={destPlace}
-            handleStepClick={handleStepClick}
-            handleZoomToPoint={handleZoomToPoint}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12 text-zinc-400">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 mb-2 text-zinc-300">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-            </svg>
-            <p className="text-xs font-medium">세부 경로 안내 정보가 없습니다.</p>
-          </div>
-        )}
+      {/* 재생바 영역 (Floating Mini Playback Bar) */}
+      <div 
+        style={{ 
+          zIndex: animate ? 105 : 40,
+          transform: dragY > 0 && animate ? `translateY(${dragY}px)` : undefined,
+          transition: isDragging ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+        className={`absolute z-[105] 
+          bottom-4 left-4 right-4 
+          md:bottom-10 md:left-8 md:right-auto md:w-[328px] 
+          ${animate 
+            ? (dragY > 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
+            : 'translate-y-[150%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
+          }
+        `}
+      >
+        <PlaybackBar
+          route={route}
+          originPlace={originPlace}
+          destPlace={destPlace}
+          pages={getPages()}
+          handlePrevStep={handlePrevStep}
+          handleNextStep={handleNextStep}
+          handleStepClick={handleStepClick}
+          onPrevSegment={onPrevSegment}
+          onNextSegment={onNextSegment}
+        />
       </div>
-
-      {/* 재생바 영역 (Playback Bar) */}
-      <PlaybackBar
-        route={route}
-        originPlace={originPlace}
-        destPlace={destPlace}
-        pages={getPages()}
-        handlePrevStep={handlePrevStep}
-        handleNextStep={handleNextStep}
-        handleStepClick={handleStepClick}
-        onPrevSegment={onPrevSegment}
-        onNextSegment={onNextSegment}
-      />
-    </div>
+    </>
   );
 }

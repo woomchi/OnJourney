@@ -3,7 +3,9 @@ const isLocalhost = Boolean(
     self.location.hostname === '[::1]' ||
     self.location.hostname.match(
       /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/
-    )
+    ) ||
+    self.location.hostname.includes('trycloudflare.com') ||
+    self.location.hostname.includes('loca.lt')
 );
 
 if (isLocalhost) {

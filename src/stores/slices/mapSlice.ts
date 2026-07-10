@@ -57,15 +57,15 @@ export const createMapSlice: StateCreator<
   searchTriggerCount: 0,
   searchQuery: '',
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
-  setFocusedSegment: (segment) => set((state) => ({ 
+  setFocusedSegment: (segment) => set(() => ({ 
     focusedSegment: segment,
     ...(segment ? { alternativeSegment: null, hoveredAlternativeRoute: null } : {})
   })),
-  setFocusedStep: (step) => set((state) => ({ 
+  setFocusedStep: (step) => set(() => ({ 
     focusedStep: step,
     ...(step ? { alternativeSegment: null, hoveredAlternativeRoute: null } : {})
   })),
-  setAlternativeSegment: (segment) => set((state) => ({ 
+  setAlternativeSegment: (segment) => set(() => ({ 
     alternativeSegment: segment,
     ...(segment ? { focusedSegment: null, focusedStep: null } : { hoveredAlternativeRoute: null })
   })),

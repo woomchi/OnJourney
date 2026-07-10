@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useMemo, Fragment } from 'react';
+import { useRef, useState, useEffect, useMemo, Fragment, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   NavermapsProvider,
@@ -168,6 +168,23 @@ export default function MapArea() {
   const [currentAddress, setCurrentAddress] = useState('');
   const [showLocationCard, setShowLocationCard] = useState(false);
 
+  const [gpsMode, setGpsMode] = useState<'none' | 'location' | 'compass'>('none');
+  const gpsModeRef = useRef(gpsMode);
+  useEffect(() => { gpsModeRef.current = gpsMode; }, [gpsMode]);
+  
+  const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
+  const headingEmaRef = useRef<{ x: number, y: number } | null>(null);
+  
+  // 회전값 변경 시 DOM을 직접 업데이트하여 마커 애니메이션 리셋 방지
+  useEffect(() => {
+    const el = document.getElementById('user-compass-cone');
+    if (el) {
+      el.style.transform = `rotate(${deviceHeading || 0}deg)`;
+    }
+  }, [deviceHeading]);
+
+  const watchIdRef = useRef<number | null>(null);
+
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
@@ -256,70 +273,131 @@ export default function MapArea() {
     }
   };
 
-  const handleMyLocationClick = () => {
+  const handleDeviceOrientation = useCallback((event: any) => {
+    let heading = null;
+    if (event.webkitCompassHeading !== undefined) {
+      heading = event.webkitCompassHeading;
+    } else if (event.alpha !== null) {
+      heading = 360 - event.alpha;
+    }
+
+    if (heading !== null) {
+      const rad = heading * Math.PI / 180;
+      const x = Math.sin(rad);
+      const y = Math.cos(rad);
+      
+      if (!headingEmaRef.current) {
+        headingEmaRef.current = { x, y };
+      } else {
+        // EMA 필터링 (0.15: 부드러움 강조)
+        headingEmaRef.current.x = headingEmaRef.current.x * 0.85 + x * 0.15;
+        headingEmaRef.current.y = headingEmaRef.current.y * 0.85 + y * 0.15;
+      }
+      
+      let smoothedHeading = Math.atan2(headingEmaRef.current.x, headingEmaRef.current.y) * (180 / Math.PI);
+      smoothedHeading = (smoothedHeading + 360) % 360;
+      
+      setDeviceHeading(smoothedHeading);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
+      window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation as any, true);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, [handleDeviceOrientation]);
+
+  const handleMyLocationClick = async () => {
     if (!navigator.geolocation) {
       alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
       return;
     }
 
-    // 1. 캐시된 위치가 있다면 즉시 지도의 중심으로 설정하여 0ms 반응 제공
-    if (lastKnownLocationRef.current && map) {
-      const { lat, lng } = lastKnownLocationRef.current;
-      map.setCenter(new window.naver.maps.LatLng(lat, lng));
-      map.setZoom(16, false);
-      setUserLocation({ lat, lng });
-    }
-
-    // 2. 로딩 상태 활성화 (로딩 스피너 작동 및 클릭 비활성화)
-    setIsLocating(true);
-
-    // 3. 최신 위치 정보 백그라운드 조회
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-
-        lastKnownLocationRef.current = { lat, lng };
-        setUserLocation({ lat, lng });
-
-        if (map) {
-          // 최신 정보로 지도의 위치를 부드럽게 재조정
-          const location = new window.naver.maps.LatLng(lat, lng);
-          map.panTo(location);
-          map.setZoom(16, false);
-
-          // 역방향 지오코딩으로 주소 가져오기
-          if (window.naver.maps.Service) {
-            window.naver.maps.Service.reverseGeocode(
-              { coords: location },
-              (status: any, response: any) => {
-                if (status === window.naver.maps.Service.Status.OK && response.v2.address) {
-                  const addr = response.v2.address.jibunAddress || response.v2.address.roadAddress;
-                  if (addr) {
-                    setCurrentAddress(addr);
-                    setShowLocationCard(true);
-                  }
-                }
-              }
-            );
-          }
-        }
-        setIsLocating(false);
-      },
-      (error) => {
-        console.error("내 위치 가져오기 실패:", error);
-        setIsLocating(false);
-        // 캐시 정보로 이미 지도를 이동한 상황이라면 에러 얼럿은 노출하지 않고 에러 로깅만 유지
-        if (!lastKnownLocationRef.current) {
-          alert("위치 권한이 차단되었거나 정보를 가져올 수 없습니다. 브라우저 설정에서 위치 권한을 허용해주세요.");
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 60000, // 1분 이내의 캐시된 위치는 적극 재사용하여 응답 속도 극대화
-        timeout: 8000      // GPS 위성 신호 대기 시간 고려
+    if (gpsMode === 'none') {
+      setGpsMode('location');
+      setIsLocating(true);
+      
+      if (lastKnownLocationRef.current && map) {
+        map.panTo(new window.naver.maps.LatLng(lastKnownLocationRef.current.lat, lastKnownLocationRef.current.lng));
+        map.setZoom(16, false);
       }
-    );
+
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          lastKnownLocationRef.current = { lat, lng };
+          setUserLocation({ lat, lng });
+
+          setGpsMode((currentMode) => {
+            return currentMode;
+          });
+          
+          // side effect (map.panTo) MUST be outside of the setState callback in React 18+
+          if (gpsModeRef.current !== 'none' && map) {
+            map.panTo(new window.naver.maps.LatLng(lat, lng));
+          }
+          
+          setIsLocating(false);
+        },
+        (error) => {
+          console.error("내 위치 가져오기 실패:", error);
+          setIsLocating(false);
+          setGpsMode('none');
+          if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+          }
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
+      );
+    } else if (gpsMode === 'location') {
+      const win = window as any;
+      if (typeof win.DeviceOrientationEvent !== 'undefined' && typeof win.DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permissionState = await win.DeviceOrientationEvent.requestPermission();
+          if (permissionState === 'granted') {
+            window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+            setGpsMode('compass');
+          } else {
+            alert('기기 방향 접근 권한이 거부되었습니다.');
+          }
+        } catch (error) {
+          console.error('기기 방향 권한 요청 실패:', error);
+          if ('ondeviceorientationabsolute' in win) {
+            win.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
+          } else {
+            win.addEventListener('deviceorientation', handleDeviceOrientation, true);
+          }
+          setGpsMode('compass');
+        }
+      } else {
+        if ('ondeviceorientationabsolute' in win) {
+          win.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
+        } else {
+          win.addEventListener('deviceorientation', handleDeviceOrientation, true);
+        }
+        setGpsMode('compass');
+      }
+    } else if (gpsMode === 'compass') {
+      setGpsMode('none');
+      window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
+      window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation as any, true);
+      setDeviceHeading(null);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setUserLocation(null);
+    }
   };
 
   const { fetchSequentialDirections } = useJourneyDirections();
@@ -1376,10 +1454,21 @@ export default function MapArea() {
                 position={userLocation}
                 title="내 위치"
                 zIndex={9600}
-                iconAnchor={navermaps ? new navermaps.Point(12, 12) : undefined}
-                iconContent={`<div class="relative w-6 h-6">
-                  <div class="absolute inset-0 bg-blue-500 rounded-full animate-gps-pulse"></div>
-                  <div class="absolute inset-1/4 bg-blue-600 rounded-full border-2 border-white shadow-sm"></div>
+                iconAnchor={navermaps ? new navermaps.Point(50, 50) : undefined}
+                iconContent={`<div class="relative w-[100px] h-[100px] flex items-center justify-center">
+                  <div id="user-compass-cone" class="absolute inset-0" style="display: ${gpsMode === 'compass' ? 'block' : 'none'};">
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                      <defs>
+                        <radialGradient id="coneGrad" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.5"/>
+                          <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+                        </radialGradient>
+                      </defs>
+                      <path d="M 50 50 L 15 15 A 50 50 0 0 1 85 15 Z" fill="url(#coneGrad)" />
+                    </svg>
+                  </div>
+                  <div class="absolute w-6 h-6 bg-blue-500 rounded-full animate-gps-pulse"></div>
+                  <div class="absolute w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-sm"></div>
                 </div>`}
               />
             )}
@@ -1634,10 +1723,19 @@ export default function MapArea() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                 </svg>
-              ) : (
+              ) : gpsMode === 'none' ? (
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-[22px] h-[22px] transition-transform group-hover:scale-110 duration-200">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                </svg>
+              ) : gpsMode === 'location' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[22px] h-[22px] text-blue-500 transition-transform group-hover:scale-110 duration-200">
+                  <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[22px] h-[22px] text-blue-600 transition-transform group-hover:scale-110 duration-200">
+                  <path d="M12 2.25L10.5 5h3L12 2.25z" />
+                  <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                 </svg>
               )}
             </button>

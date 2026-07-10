@@ -19,6 +19,16 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/icon-512x512.png',
         sizes: '512x512',
         type: 'image/png',
+        purpose: 'maskable',
+      },
+    ],
+    shortcuts: [
+      {
+        name: '새 여정 시작',
+        short_name: '새 여정',
+        description: '새로운 이동 기록을 시작합니다.',
+        url: '/',
+        icons: [{ src: '/icon-192x192.png', sizes: '192x192', type: 'image/png' }],
       },
     ],
   };

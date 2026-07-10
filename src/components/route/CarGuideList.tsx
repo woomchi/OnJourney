@@ -1,14 +1,19 @@
 "use client";
 
-import type { SelectedRoute, DirectionResult } from '@/types/journey';
+import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { formatDistance, formatDuration } from '@/lib/journeyUtils';
+import { useJourneyStore } from '@/stores/journey-store';
 
 interface CarGuideListProps {
   route: SelectedRoute | DirectionResult;
+  originPlace: Place;
+  destPlace: Place;
+  handleStepClick: (idx: number, step: any) => void;
 }
 
-export default function CarGuideList({ route }: CarGuideListProps) {
+export default function CarGuideList({ route, originPlace, destPlace, handleStepClick }: CarGuideListProps) {
   const guide = route.guide || [];
+  const { focusedStep } = useJourneyStore();
 
   return (
     <div className="relative pl-1 flex flex-col gap-5">
@@ -50,11 +55,28 @@ export default function CarGuideList({ route }: CarGuideListProps) {
           iconColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
         }
 
+        const isThisStepFocused = !!(
+          focusedStep &&
+          focusedStep.originId === originPlace.id &&
+          focusedStep.destId === destPlace.id &&
+          focusedStep.stepIndex === idx
+        );
+
         return (
-          <div key={idx} className="relative flex gap-4 pl-8 items-start group">
+          <div 
+            key={idx} 
+            className={`relative flex gap-4 pl-8 pr-3 py-2 items-start group cursor-pointer transition-all duration-200 rounded-xl select-none ${
+              isThisStepFocused
+                ? 'bg-blue-50/60 border border-blue-200 shadow-sm scale-[1.01]'
+                : 'bg-transparent border border-transparent hover:bg-zinc-50'
+            }`}
+            onClick={() => handleStepClick(idx, step)}
+          >
             {/* 타임라인 노드 아이콘 */}
             <div
-              className={`absolute left-0 top-0.5 rounded-full border flex items-center justify-center font-bold z-10 transition-all duration-200 group-hover:scale-110 ${iconColor} ${iconSize}`}
+              className={`absolute left-0 top-2.5 rounded-full border flex items-center justify-center font-bold z-10 transition-all duration-200 group-hover:scale-110 ${iconColor} ${iconSize} ${
+                isThisStepFocused ? 'ring-2 ring-blue-500/30' : ''
+              }`}
               style={{ left: iconSize === 'w-6 h-6' ? '-2px' : '0px' }}
             >
               {icon}

@@ -601,8 +601,8 @@ export default function MapArea() {
     const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
     const mapWidth = windowWidth - sidebarWidth;
 
-    // 모바일 환경에서는 상단에 검색바가 존재하므로, 폴리라인 등이 가려지지 않도록 충분한 여백(100px)을 확보합니다.
-    const topPadding = isMobile ? 100 : 40;
+    // 모바일 환경에서는 상단에 검색바가 존재하므로, 폴리라인 등이 가려지지 않도록 충분한 여백(140px)을 확보합니다.
+    const topPadding = isMobile ? 140 : 40;
 
     // 모바일 환경일 경우 바텀 시트 높이를 고려하여 지도가 잘리지 않도록 하단 패딩 동적 추가
     const rightPadding = mapWidth < 600 ? 16 : 30;

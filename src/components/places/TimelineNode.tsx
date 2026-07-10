@@ -66,8 +66,8 @@ export default function TimelineNode({
           <div
             className={`absolute flex items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]
               ${isFocused
-                ? 'z-40 translate-x-[8px] scale-110'
-                : 'z-20 translate-x-0 group-hover/timeline:translate-x-[14px] group-hover/timeline:rotate-[60deg]'}`}
+                ? 'z-40 translate-x-[8px] md:translate-x-[8px] scale-110'
+                : 'z-20 translate-x-[14px] md:translate-x-0 rotate-[30deg] md:rotate-0 md:group-hover/timeline:translate-x-[14px] md:group-hover/timeline:rotate-[60deg]'}`}
             style={{ width: '34px', height: '34px' }}
           >
             {/* 실제 레코드판 */}
@@ -151,7 +151,7 @@ export default function TimelineNode({
               ? 'opacity-100 shadow-[0_3px_10px_rgba(0,0,0,0.2)] pointer-events-none'
               : isFocused
                 ? 'opacity-90 scale-[0.95] -translate-x-[4px] translate-y-0 rotate-0 shadow-sm pointer-events-none'
-                : 'opacity-100 translate-x-0 translate-y-0 rotate-0 shadow-[0_5px_15px_rgba(0,0,0,0.35)] group-hover/timeline:scale-[1.03]'
+                : 'opacity-100 translate-x-0 translate-y-0 rotate-0 shadow-[0_5px_15px_rgba(0,0,0,0.35)] md:group-hover/timeline:scale-[1.03]'
             }`}
           style={{
             background: `linear-gradient(135deg, ${theme.gradientStart}, ${theme.gradientEnd})`,
@@ -182,7 +182,7 @@ export default function TimelineNode({
         {isInteractive && (
           <div
             className={`absolute flex items-center justify-center transition-all duration-300 z-40 bg-black/45 backdrop-blur-[1px] pointer-events-none 
-              ${isFocused ? 'w-[38px] h-[38px] rounded-full opacity-0 group-hover/timeline:opacity-100 scale-100 translate-x-[8px]' : 'w-[38px] h-[38px] rounded-[4px] opacity-0 scale-75 group-hover/timeline:opacity-100 group-hover/timeline:scale-[1.03] translate-x-0'}`}
+              ${isFocused ? 'w-[38px] h-[38px] rounded-full opacity-0 md:group-hover/timeline:opacity-100 scale-100 translate-x-[8px]' : 'w-[38px] h-[38px] rounded-[4px] opacity-0 scale-75 md:group-hover/timeline:opacity-100 md:group-hover/timeline:scale-[1.03] translate-x-0'}`}
           >
             {isSegmentPlaying ? (
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px] text-white/95 shadow-sm">

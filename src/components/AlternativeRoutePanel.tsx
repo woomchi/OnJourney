@@ -41,23 +41,44 @@ export default function AlternativeRoutePanel({
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
   const touchStartY = useRef<number | null>(null);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsExpanded(false);
+    }
+  }, [isOpen]);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    touchStartY.current = e.clientY;
     setIsDraggingPanel(true);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (touchStartY.current === null) return;
-    const currentY = e.touches[0].clientY;
+    const currentY = e.clientY;
     const diff = currentY - touchStartY.current;
-    if (diff > 0) {
+    
+    if (isExpanded && diff < 0) {
+      setDragY(diff * 0.1);
+    } else {
       setDragY(diff);
     }
   };
 
-  const handleTouchEnd = () => {
-    if (dragY > 100) {
-      onClose();
+  const handlePointerUp = (e: React.PointerEvent) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (isExpanded) {
+      if (dragY > 80) {
+        setIsExpanded(false);
+      }
+    } else {
+      if (dragY > 80) {
+        onClose();
+      } else if (dragY < -50) {
+        setIsExpanded(true);
+      }
     }
     setDragY(0);
     setIsDraggingPanel(false);
@@ -333,29 +354,34 @@ export default function AlternativeRoutePanel({
       }}
       style={{
         zIndex: animate ? 45 : 40,
-        transform: dragY > 0 && animate ? `translateY(${dragY}px)` : undefined,
+        transform: dragY !== 0 && animate ? `translateY(${dragY}px)` : undefined,
         transition: isDraggingPanel ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
       className={`absolute bg-white border-t border-zinc-200 flex flex-col overflow-hidden z-[100] md:z-auto
-        bottom-0 left-0 right-0 w-full h-[40vh] rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
-        md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:h-auto md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+        bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
+        md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+        ${isExpanded ? 'h-[calc(100dvh-80px)] md:h-auto' : 'h-[40vh] md:h-auto'}
         ${animate
-          ? (dragY > 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
+          ? (dragY !== 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
           : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
         }
       `}
     >
-      {/* Mobile Handle */}
-      <div
-        className="w-full flex justify-center md:hidden flex-shrink-0 touch-none"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+      {/* Mobile Handle & Header Wrapper */}
+      <div 
+        className="flex-shrink-0 touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
       >
-        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
-      </div>
-      {/* Header */}
-      <div className="p-4 border-b border-zinc-100 flex-shrink-0 flex flex-col gap-2">
+        {/* Mobile Handle */}
+        <div className="w-full flex justify-center md:hidden">
+          <div className="mx-auto w-12 h-1.5 rounded-full bg-zinc-300 my-3" />
+        </div>
+        
+        {/* Header */}
+        <div className="px-4 pb-4 border-b border-zinc-100 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -364,16 +390,19 @@ export default function AlternativeRoutePanel({
               onClose(true);
             }}
             className="px-3 py-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+            onPointerDown={(e) => e.stopPropagation()}
           >
             취소
           </button>
 
-          <div className="flex items-center gap-1.5 text-zinc-800 text-[13px] font-bold tracking-wide">
-            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-              <img src="/service_logo2.png" alt="Logo" className="w-full h-full object-contain" />
-            </div>
-            대안 이동 수단
-          </div>
+          {/* Origin -> Destination */}
+          <h3 className="text-sm font-extrabold text-zinc-800 flex items-center justify-center gap-1.5 truncate">
+            <span className="truncate max-w-[100px]" title={originPlace.place_name}>{originPlace.place_name}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+            <span className="truncate max-w-[100px]" title={destPlace.place_name}>{destPlace.place_name}</span>
+          </h3>
 
           <button
             type="button"
@@ -400,19 +429,12 @@ export default function AlternativeRoutePanel({
               onClose();
             }}
             className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+            onPointerDown={(e) => e.stopPropagation()}
           >
             변경
           </button>
         </div>
-
-        {/* Origin -> Destination */}
-        <h3 className="text-sm font-extrabold text-zinc-800 flex items-center justify-center gap-1.5 truncate mt-1">
-          <span className="truncate max-w-[130px]" title={originPlace.place_name}>{originPlace.place_name}</span>
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-          </svg>
-          <span className="truncate max-w-[130px]" title={destPlace.place_name}>{destPlace.place_name}</span>
-        </h3>
+      </div>
       </div>
 
       {/* Tabs */}

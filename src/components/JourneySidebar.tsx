@@ -22,6 +22,7 @@ export default function JourneySidebar() {
     isSyncing,
     setDrawerMaximized,
     setDrawerSnapPoint,
+    focusedSegment,
   } = useJourneyStore();
   const [mounted, setMounted] = useState(false);
   const isMobile = useMediaQuery('(max-width: 767px)');
@@ -48,6 +49,22 @@ export default function JourneySidebar() {
       else if (snap === '150px') setSnap('90px');
     }
   }, [activeJourney, snap]);
+  
+  const prevFocusedSegmentRef = useRef(focusedSegment);
+  
+  // Adjust snap point automatically when a segment is focused (to show RouteGuidePanel without overlap)
+  useEffect(() => {
+    if (!isMobile) return;
+    const isCurrentlyFocused = !!focusedSegment;
+    const wasFocused = !!prevFocusedSegmentRef.current;
+    
+    if (isCurrentlyFocused && !wasFocused) {
+      setSnap(activeJourney ? '150px' : '90px');
+    } else if (!isCurrentlyFocused && wasFocused) {
+      setSnap(activeJourney ? '376px' : '280px');
+    }
+    prevFocusedSegmentRef.current = focusedSegment;
+  }, [focusedSegment, isMobile, activeJourney]);
   
   useEffect(() => {
     if (!isMobile) {

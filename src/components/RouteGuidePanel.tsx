@@ -39,23 +39,44 @@ export default function RouteGuidePanel({
   const [isDragging, setIsDragging] = useState(false);
   const touchStartY = useRef<number | null>(null);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsExpanded(false);
+    }
+  }, [isOpen]);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    touchStartY.current = e.clientY;
     setIsDragging(true);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (touchStartY.current === null) return;
-    const currentY = e.touches[0].clientY;
+    const currentY = e.clientY;
     const diff = currentY - touchStartY.current;
-    if (diff > 0) {
+    
+    if (isExpanded && diff < 0) {
+      setDragY(diff * 0.1); // Resistance dragging up when already expanded
+    } else {
       setDragY(diff);
     }
   };
 
-  const handleTouchEnd = () => {
-    if (dragY > 100) {
-      onClose();
+  const handlePointerUp = (e: React.PointerEvent) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (isExpanded) {
+      if (dragY > 80) {
+        setIsExpanded(false);
+      }
+    } else {
+      if (dragY > 80) {
+        onClose();
+      } else if (dragY < -50) {
+        setIsExpanded(true);
+      }
     }
     setDragY(0);
     setIsDragging(false);
@@ -123,6 +144,7 @@ export default function RouteGuidePanel({
   };
 
   const handleStepClick = (idx: number, step: any, subType?: 'start' | 'end' | 'dest') => {
+    setIsExpanded(false);
     const isThisStepFocused = !!(
       focusedStep &&
       focusedStep.originId === originPlace.id &&
@@ -183,6 +205,7 @@ export default function RouteGuidePanel({
   };
 
   const handlePrevStep = () => {
+    setIsExpanded(false);
     const pages = getPages();
     const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
 
@@ -209,6 +232,7 @@ export default function RouteGuidePanel({
   };
 
   const handleNextStep = () => {
+    setIsExpanded(false);
     const pages = getPages();
     if (!focusedStep || focusedStep.originId !== originPlace.id || focusedStep.destId !== destPlace.id) {
       const firstPage = pages[0];
@@ -231,6 +255,7 @@ export default function RouteGuidePanel({
 
   const handleZoomToPoint = (idx: number, step: any, type: 'start' | 'end' | 'dest', e: React.MouseEvent) => {
     e.stopPropagation();
+    setIsExpanded(false);
 
     setFocusedStep({
       originId: originPlace.id,
@@ -276,40 +301,47 @@ export default function RouteGuidePanel({
         }}
         style={{ 
           zIndex: animate ? 45 : 40,
-          transform: dragY > 0 && animate ? `translateY(${dragY}px)` : undefined,
+          transform: dragY !== 0 && animate ? `translateY(${dragY}px)` : undefined,
           transition: isDragging ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         className={`absolute bg-white border-t border-zinc-200 flex flex-col z-[100] md:z-auto
-          bottom-0 left-0 right-0 w-full h-[40vh] rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)] pb-[80px] md:pb-[88px]
-          md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:h-auto md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+          bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)] pb-[80px] md:pb-[88px]
+          md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+          ${isExpanded ? 'h-[calc(100dvh-80px)] md:h-auto' : 'h-[40vh] md:h-auto'}
           ${animate 
-            ? (dragY > 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
+            ? (dragY !== 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
             : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
           }
         `}
       >
+      <div 
+        className="flex-shrink-0 touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
         {/* Mobile Handle */}
-        <div 
-          className="w-full flex justify-center md:hidden flex-shrink-0 touch-none"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
+        <div className="w-full flex justify-center md:hidden">
+          <div className="mx-auto w-12 h-1.5 rounded-full bg-zinc-300 my-3" />
         </div>
+        
         {/* Header */}
-        <div className="p-5 border-b border-zinc-100 flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-bold tracking-wide uppercase select-none">
-              <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                <img src="/service_logo2.png" alt="Logo" className="w-full h-full object-contain" />
-              </div>
-              상세 경로 안내
-            </div>
+        <div className="px-5 pb-5 border-b border-zinc-100">
+          <div className="flex items-start justify-between gap-2">
+            {/* Origin -> Destination */}
+            <h3 className="text-sm font-extrabold text-zinc-800 flex items-center gap-1.5 truncate pt-1">
+              <span className="truncate max-w-[130px]" title={originPlace.place_name}>{originPlace.place_name}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+              <span className="truncate max-w-[130px]" title={destPlace.place_name}>{destPlace.place_name}</span>
+            </h3>
+            
             <button
               type="button"
               onClick={onClose}
-              className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 active:scale-95 flex items-center justify-center text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+              className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 active:scale-95 flex items-center justify-center text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer flex-shrink-0"
               aria-label="닫기"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
@@ -317,15 +349,6 @@ export default function RouteGuidePanel({
               </svg>
             </button>
           </div>
-
-          {/* Origin -> Destination */}
-          <h3 className="text-sm font-extrabold text-zinc-800 flex items-center gap-1.5 truncate">
-            <span className="truncate max-w-[130px]" title={originPlace.place_name}>{originPlace.place_name}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-            </svg>
-            <span className="truncate max-w-[130px]" title={destPlace.place_name}>{destPlace.place_name}</span>
-          </h3>
 
           {/* Summary Info */}
           <div className="flex items-baseline gap-1.5 mt-2">
@@ -356,6 +379,7 @@ export default function RouteGuidePanel({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[10px] font-bold text-[#582E55] bg-[#582E55]/5 border border-[#582E55]/20 hover:bg-[#582E55]/10 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                      onPointerDown={(e) => e.stopPropagation()} // 링크 터치 시 드래그 방지
                     >
                       <span>SRT 예매</span>
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
@@ -369,6 +393,7 @@ export default function RouteGuidePanel({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[10px] font-bold text-[#003366] bg-[#003366]/5 border border-[#003366]/20 hover:bg-[#003366]/10 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                      onPointerDown={(e) => e.stopPropagation()}
                     >
                       <span>코레일 예매</span>
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
@@ -385,6 +410,7 @@ export default function RouteGuidePanel({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                    onPointerDown={(e) => e.stopPropagation()}
                   >
                     <span>고속버스 예매</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
@@ -396,6 +422,7 @@ export default function RouteGuidePanel({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-100 hover:bg-orange-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                    onPointerDown={(e) => e.stopPropagation()}
                   >
                     <span>시외버스 예매</span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
@@ -407,11 +434,17 @@ export default function RouteGuidePanel({
             </div>
           )}
         </div>
+      </div>
 
         {/* Guide List */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 scrollbar-sleek">
           {hasGuide ? (
-            <CarGuideList route={route} />
+            <CarGuideList 
+              route={route} 
+              originPlace={originPlace}
+              destPlace={destPlace}
+              handleStepClick={handleStepClick}
+            />
           ) : steps.length > 0 ? (
             <TransitGuideList
               route={route}
@@ -446,6 +479,7 @@ export default function RouteGuidePanel({
             : 'translate-y-[150%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
           }
         `}
+        onClickCapture={() => setIsExpanded(false)}
       >
         <PlaybackBar
           route={route}

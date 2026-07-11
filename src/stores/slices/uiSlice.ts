@@ -29,7 +29,7 @@ export const createUISlice: StateCreator<
   isEditMode: false,
   isCacheRestored: false,
   isDrawerMaximized: false,
-  drawerSnapPoint: '280px',
+  drawerSnapPoint: '294px',
   openCreateForm: () => set({ isCreateFormOpen: true }),
   closeCreateForm: () => set({ isCreateFormOpen: false }),
   openSearchMode: () => set({ isSearchMode: true }),

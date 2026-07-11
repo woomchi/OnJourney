@@ -188,7 +188,7 @@ export default function MapArea() {
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-  const lastNonMaximizedSnapPointRef = useRef<string | number | null>('280px');
+  const lastNonMaximizedSnapPointRef = useRef<string | number | null>('294px');
 
   // 최대화되지 않았을 때의 마지막 바텀시트 스냅 포인트 기록
   useEffect(() => {
@@ -614,7 +614,7 @@ export default function MapArea() {
     
     // 바텀시트가 최대화되었을 때는 지도가 가려지므로 이전 높이(최소 또는 기본) 기준으로 패딩을 고정하여 지도가 튀는 현상(Shift)을 방지
     const effectiveSnapPoint = isDrawerMaximized 
-      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '360px' : '280px')) 
+      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '360px' : '294px')) 
       : drawerSnapPoint;
 
     if (isMobile && effectiveSnapPoint !== 1) {

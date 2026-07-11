@@ -69,17 +69,19 @@ export default function MapArea() {
   const prevIsEditModeRef = useRef<boolean>(false);
   const [animationVersion, setAnimationVersion] = useState<number>(0);
 
-  const currentJourneyId = activeJourney?.id || null;
-  if (currentJourneyId !== prevJourneyIdRef.current) {
-    prevJourneyIdRef.current = currentJourneyId;
-    if (places.length > 0) {
+  useEffect(() => {
+    const currentJourneyId = activeJourney?.id || null;
+    if (currentJourneyId !== prevJourneyIdRef.current) {
+      prevJourneyIdRef.current = currentJourneyId;
+      if (places.length > 0) {
+        setInitialPlaceIds(new Set(places.map(p => p.id)));
+      } else {
+        setInitialPlaceIds(new Set());
+      }
+    } else if (currentJourneyId && initialPlaceIds.size === 0 && places.length > 0) {
       setInitialPlaceIds(new Set(places.map(p => p.id)));
-    } else {
-      setInitialPlaceIds(new Set());
     }
-  } else if (currentJourneyId && initialPlaceIds.size === 0 && places.length > 0) {
-    setInitialPlaceIds(new Set(places.map(p => p.id)));
-  }
+  }, [activeJourney?.id, places, initialPlaceIds.size]);
 
   // Handle transition when exiting edit mode
   useEffect(() => {
@@ -183,7 +185,7 @@ export default function MapArea() {
       };
 
       const target = getTarget();
-      if (target) setPortalTarget(target);
+      if (target && target !== portalTarget) setPortalTarget(target);
 
       const observer = new MutationObserver(() => {
         const el = getTarget();
@@ -504,21 +506,23 @@ export default function MapArea() {
       ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '360px' : '294px')) 
       : drawerSnapPoint;
 
-    if (isMobile && effectiveSnapPoint !== 1) {
-      if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
-        bottomPadding = parseInt(effectiveSnapPoint, 10) + 20; // 스냅 포인트 높이 + 마커 여백 고려
-      } else {
-        bottomPadding = 300;
+    if (isMobile) {
+      if (!!focusedSegment || !!alternativeSegment) {
+        // 상세 안내 패널(RouteGuidePanel) 높이 350px 고려
+        bottomPadding = 370;
+      } else if (effectiveSnapPoint !== 1) {
+        if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
+          bottomPadding = parseInt(effectiveSnapPoint, 10) + 20; // 스냅 포인트 높이 + 마커 여백 고려
+        } else {
+          bottomPadding = 300;
+        }
       }
     }
 
     // 경로 안내 패널이나 대안 경로 패널이 열려 있을 때 패딩 조정
     let leftPadding = mapWidth < 600 ? 16 : 30;
     if (!!focusedSegment || !!alternativeSegment) {
-      if (isMobile) {
-        // 모바일에서는 바텀 시트이므로 하단 패딩 증가 (대략 40vh 정도 고려)
-        bottomPadding = typeof window !== 'undefined' ? windowHeight * 0.4 : 350;
-      } else {
+      if (!isMobile) {
         // 데스크톱에서는 좌측 패널이므로 좌측 패딩 증가
         leftPadding = Math.min(390, mapWidth * 0.45);
       }
@@ -613,6 +617,7 @@ export default function MapArea() {
         const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
         const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
         
+        lastFittedFocusBoundsRef.current = ''; // 강제로 업데이트를 유발하기 위해 캐시 초기화
         setFocusBounds({ ...bounds }); // trigger re-fit by spreading to create a new reference
         setFocusedStep(null);
         return;
@@ -731,7 +736,6 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
       map.fitBounds(bounds, { maxZoom: 16 });
-      map.setCenter(bounds.getCenter());
     } else {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -752,19 +756,18 @@ export default function MapArea() {
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
 
-    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}`;
+    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${JSON.stringify(currentMapPadding)}`;
     if (lastFittedFocusBoundsRef.current === currentFocusString) return;
 
     map.setOptions({ padding: currentMapPadding });
 
-    const expanded = expandBounds(focusBounds, 0.03); // 3% 확장하여 더욱 조밀하고 가득 차게 핏팅
+    const expanded = expandBounds(focusBounds, 0.01); // 1% 확장하여 여백 최소화 (전체 여정 핏팅과 동일하게 맞춤)
     const bounds = new navermaps.LatLngBounds(
       new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
     map.fitBounds(bounds, { maxZoom: 18 });
-    map.setCenter(bounds.getCenter());
 
     lastFittedFocusBoundsRef.current = currentFocusString;
   }, [focusBounds, map, currentMapPadding, isDrawerMaximized, isMobile]);

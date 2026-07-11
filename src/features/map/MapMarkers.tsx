@@ -49,7 +49,9 @@ export const MapMarkers = memo(function MapMarkers({
       {places.map((place, idx) => {
         const isSegmentMarker = !!(activeSegment && (place.id === activeSegment.originId || place.id === activeSegment.destId));
         const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
-        const isVisible = !activeSegment && !isSearchMode;
+        const isVisible = (!activeSegment || isSegmentMarker) && !isSearchMode;
+
+        if (!isVisible) return null;
 
         const markerWidth = isSegmentMarker ? 30 : 24;
         const markerHeight = isSegmentMarker ? 40 : 32;

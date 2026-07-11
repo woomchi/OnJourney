@@ -277,10 +277,31 @@ export default function TransferMarkers({
       }
     });
 
+    let filteredPoints = points;
     if (focusedSegment) {
-      const thisSegmentPoints = points.filter(p => p.originId === focusedSegment.originId && p.destId === focusedSegment.destId && !p.key.startsWith('next-first-'));
-      if (thisSegmentPoints.length > 0) {
-        thisSegmentPoints.sort((a: any, b: any) => {
+      filteredPoints = points.filter(pt => {
+        // 항상 출발/도착 마커는 노출
+        if (pt.isSegmentStart || pt.isSegmentDest) return true;
+        
+        // 특정 세부 구간이 선택되지 않았을 때는 세부 마커 숨김
+        if (!focusedStep) return false;
+        
+        if (focusedStep.originId !== pt.originId || focusedStep.destId !== pt.destId) return false;
+
+        if (focusedStep.subType === 'dest') {
+          return !!(pt.isSegmentDest || pt.stepIndex === focusedStep.stepIndex - 1);
+        }
+        if (focusedStep.subType === 'start') {
+          return pt.stepIndex === focusedStep.stepIndex && !pt.isAlighting && !pt.isSegmentDest;
+        }
+        if (focusedStep.subType === 'end') {
+          return pt.stepIndex === focusedStep.stepIndex && !!pt.isAlighting;
+        }
+        return pt.stepIndex === focusedStep.stepIndex;
+      });
+
+      if (filteredPoints.length > 0) {
+        filteredPoints.sort((a: any, b: any) => {
           if (a.stepIndex !== b.stepIndex) return a.stepIndex - b.stepIndex;
           if (a.isStart !== b.isStart) return a.isStart ? -1 : 1;
           if (a.isDest !== b.isDest) return a.isDest ? 1 : -1;
@@ -291,8 +312,8 @@ export default function TransferMarkers({
     }
 
     // 중복 마커 분리를 위한 오프셋(offsetX) 할당 로직
-    const groups: { [key: string]: typeof points } = {};
-    points.forEach((pt) => {
+    const groups: { [key: string]: typeof filteredPoints } = {};
+    filteredPoints.forEach((pt) => {
       const key = `${pt.position.lat.toFixed(5)},${pt.position.lng.toFixed(5)}`;
       if (!groups[key]) {
         groups[key] = [];
@@ -316,7 +337,7 @@ export default function TransferMarkers({
       }
     });
 
-    return points;
+    return filteredPoints;
   }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps]);
 
   const handleTransferMarkerClick = (pt: any) => {

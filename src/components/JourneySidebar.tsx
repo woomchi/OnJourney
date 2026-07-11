@@ -8,7 +8,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { sortJourneysByStoredOrder } from '@/lib/journeyUtils';
 import CreateJourneyModal from '@/components/CreateJourneyModal';
 import AuthModal from '@/components/AuthModal';
-import { Drawer } from 'vaul';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import ActiveJourneySidebar from '@/components/sidebar/ActiveJourneySidebar';
 import JourneyListSidebar from '@/components/sidebar/JourneyListSidebar';
@@ -27,25 +26,28 @@ export default function JourneySidebar() {
   const [mounted, setMounted] = useState(false);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [snap, setSnap] = useState<number | string | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartY = useRef<number | null>(null);
   const wasActiveJourneyRef = useRef(activeJourney);
 
   // Initialize snap point on mount based on activeJourney
   useEffect(() => {
     if (activeJourney !== wasActiveJourneyRef.current) {
-      setSnap(activeJourney ? '376px' : '280px');
+      setSnap(activeJourney ? '360px' : '280px');
       wasActiveJourneyRef.current = activeJourney;
     } else if (snap === null) {
-      setSnap(activeJourney ? '376px' : '280px');
+      setSnap(activeJourney ? '360px' : '280px');
     }
   }, [activeJourney, snap]);
 
   // Adjust snap point automatically when activeJourney changes
   useEffect(() => {
     if (activeJourney) {
-      if (snap === '280px') setSnap('376px');
+      if (snap === '280px') setSnap('360px');
       else if (snap === '90px') setSnap('150px');
     } else {
-      if (snap === '376px') setSnap('280px');
+      if (snap === '360px') setSnap('280px');
       else if (snap === '150px') setSnap('90px');
     }
   }, [activeJourney, snap]);
@@ -61,7 +63,7 @@ export default function JourneySidebar() {
     if (isCurrentlyFocused && !wasFocused) {
       setSnap(activeJourney ? '150px' : '90px');
     } else if (!isCurrentlyFocused && wasFocused) {
-      setSnap(activeJourney ? '376px' : '280px');
+      setSnap(activeJourney ? '360px' : '280px');
     }
     prevFocusedSegmentRef.current = focusedSegment;
   }, [focusedSegment, isMobile, activeJourney]);
@@ -181,82 +183,106 @@ export default function JourneySidebar() {
   if (isMobile) {
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
     const minSnapPx = activeJourney ? 150 : 90;
-    const defaultSnapPx = activeJourney ? 376 : 280;
+    const defaultSnapPx = activeJourney ? 360 : 280;
+    const maxSnapPx = windowHeight - 12;
     
-    let validSnapPoints: (string | number)[] = [];
-    let defaultSnapPoint: string | number = 1;
+    const getCurrentSnapPx = () => {
+      if (snap === 1 || snap === '1') return maxSnapPx;
+      if (typeof snap === 'string' && snap.endsWith('px')) {
+        return parseInt(snap, 10);
+      }
+      if (typeof snap === 'number') {
+        return snap;
+      }
+      return defaultSnapPx;
+    };
 
-    // 런타임 에러 방지: 브라우저 높이가 snap point보다 작거나 같으면 
-    // 순서 오류(ascending order) 및 중복 오류(unique)가 발생하므로 조건부로 배열에 추가합니다.
-    if (windowHeight > minSnapPx + 5) {
-      validSnapPoints.push(`${minSnapPx}px`);
-    }
-    
-    if (windowHeight > defaultSnapPx + 5) {
-      validSnapPoints.push(`${defaultSnapPx}px`);
-      defaultSnapPoint = `${defaultSnapPx}px`;
-    }
-    
-    validSnapPoints.push(1);
-    const hiddenHeight = `calc(100dvh - 12px - ${defaultSnapPoint === 1 ? '100dvh' : defaultSnapPoint})`;
-    
-    let currentActiveSnapPoint = snap ?? defaultSnapPoint;
-    // '1' 문자열 처리 (vaul은 숫자 1을 사용)
-    if (currentActiveSnapPoint === '1') currentActiveSnapPoint = 1;
-    
-    if (!validSnapPoints.includes(currentActiveSnapPoint as any)) {
-      if (activeJourney) {
-        if (currentActiveSnapPoint === '280px') currentActiveSnapPoint = windowHeight > 376 ? '376px' : 1;
-        else if (currentActiveSnapPoint === '90px') currentActiveSnapPoint = windowHeight > 150 ? '150px' : 1;
-        else currentActiveSnapPoint = defaultSnapPoint;
+    const handlePointerDown = (e: React.PointerEvent) => {
+      const target = e.target as HTMLElement;
+      // Prevent capturing if clicking on interactive elements
+      if (target.closest('button') || target.closest('a') || target.closest('input')) return;
+      
+      e.currentTarget.setPointerCapture(e.pointerId);
+      touchStartY.current = e.clientY;
+      setIsDragging(true);
+    };
+
+    const handlePointerMove = (e: React.PointerEvent) => {
+      if (touchStartY.current === null) return;
+      const diff = e.clientY - touchStartY.current;
+      
+      const currentPx = getCurrentSnapPx();
+      
+      if (currentPx === maxSnapPx && diff < 0) {
+        setDragY(diff * 0.1);
+      } else if (currentPx === minSnapPx && diff > 0) {
+        setDragY(diff * 0.1);
       } else {
-        if (currentActiveSnapPoint === '376px') currentActiveSnapPoint = windowHeight > 280 ? '280px' : 1;
-        else if (currentActiveSnapPoint === '150px') currentActiveSnapPoint = windowHeight > 90 ? '90px' : 1;
-        else currentActiveSnapPoint = defaultSnapPoint;
+        setDragY(diff);
+      }
+    };
+
+    const handlePointerUp = (e: React.PointerEvent) => {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      
+      const currentPx = getCurrentSnapPx();
+      const threshold = 50;
+
+      if (dragY < -threshold) {
+        if (currentPx === minSnapPx) setSnap(`${defaultSnapPx}px`);
+        else if (currentPx === defaultSnapPx) setSnap(1);
+      } else if (dragY > threshold) {
+        if (currentPx === maxSnapPx) setSnap(`${defaultSnapPx}px`);
+        else if (currentPx === defaultSnapPx) setSnap(`${minSnapPx}px`);
       }
       
-      // 최종 검증
-      if (!validSnapPoints.includes(currentActiveSnapPoint as any)) {
-        currentActiveSnapPoint = defaultSnapPoint;
-      }
-    }
-    
+      setDragY(0);
+      setIsDragging(false);
+      touchStartY.current = null;
+    };
+
+    let currentActiveSnapPoint = snap ?? `${defaultSnapPx}px`;
+    if (currentActiveSnapPoint === '1') currentActiveSnapPoint = 1;
+
+    const currentPx = getCurrentSnapPx();
+    const baseTranslateY = maxSnapPx - currentPx;
+    const hiddenHeight = currentPx === maxSnapPx ? '0px' : `${maxSnapPx - currentPx}px`;
+
     return (
       <>
-        {/* 바텀 시트 스냅 설정 
-            - 최소 높이: 여정 목록(90px), 여정 상세(150px - 날짜/이동수단/플레이어 표시)
-            - 기본 높이: 여정 목록(280px), 여정 상세(376px)
-            - 1: 전체 화면 표시 (최대) */}
-        <Drawer.Root 
-          open={true} 
-          modal={false} 
-          snapPoints={validSnapPoints} 
-          activeSnapPoint={currentActiveSnapPoint}
-          fadeFromIndex={1}
-          setActiveSnapPoint={setSnap}
-          dismissible={false}
+        <div 
+          className="fixed bottom-0 left-0 right-0 z-20 flex flex-col bg-white rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] outline-none border-t border-zinc-200"
+          style={{
+            height: `${maxSnapPx}px`,
+            transform: `translateY(${baseTranslateY + dragY}px)`,
+            transition: isDragging ? 'none' : 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
         >
-          <Drawer.Portal>
-            <Drawer.Content 
-              className="bg-white flex flex-col rounded-t-[20px] border-t border-zinc-200 fixed bottom-0 left-0 right-0 z-20 outline-none h-[calc(100dvh-12px)] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
-            >
-              {/* Portal Target for Map Buttons (moves with Drawer) */}
-              <div 
-                id="mobile-map-buttons-target" 
-                className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
-                  String(snap) === '1' || snap === 1 ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
-                }`} 
-              />
-              <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-3" />
-              <div 
-                className="flex-1 overflow-hidden flex flex-col"
-                style={{ '--drawer-hidden-height': hiddenHeight } as React.CSSProperties}
-              >
-                {content}
-              </div>
-            </Drawer.Content>
-          </Drawer.Portal>
-        </Drawer.Root>
+          {/* Portal Target for Map Buttons */}
+          <div 
+            id="mobile-map-buttons-target" 
+            className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
+              (snap === 1 || snap === '1') ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
+            }`} 
+          />
+          
+          <div 
+            className="flex-shrink-0 touch-none flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing w-full absolute top-0 z-[100]"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
+          </div>
+
+          <div 
+            className="flex-1 overflow-hidden flex flex-col pt-7"
+            style={{ '--drawer-hidden-height': hiddenHeight } as React.CSSProperties}
+          >
+            {content}
+          </div>
+        </div>
         <CreateJourneyModal />
         <AuthModal />
       </>

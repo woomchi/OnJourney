@@ -18,7 +18,7 @@ export function useOverscrollDrawer() {
     const isAtTop = target.scrollTop <= 0;
     const isAtBottom = target.scrollHeight - Math.ceil(target.scrollTop) <= target.clientHeight + 2;
 
-    const defaultSnap = activeJourney ? '376px' : '280px';
+    const defaultSnap = activeJourney ? '360px' : '280px';
     const minSnap = activeJourney ? '150px' : '90px';
 
     if (isAtTop && deltaY < -20) {
@@ -43,7 +43,7 @@ export function useOverscrollDrawer() {
     const isAtTop = target.scrollTop <= 0;
     const isAtBottom = target.scrollHeight - Math.ceil(target.scrollTop) <= target.clientHeight + 2;
 
-    const defaultSnap = activeJourney ? '376px' : '280px';
+    const defaultSnap = activeJourney ? '360px' : '280px';
     const minSnap = activeJourney ? '150px' : '90px';
 
     if (isAtTop && e.deltaY < -10) {

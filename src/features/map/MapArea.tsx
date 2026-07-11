@@ -10,12 +10,12 @@ import {
 } from 'react-naver-maps';
 import AnimatedMarker from '@/components/AnimatedMarker';
 import AnimatedPolyline from '@/components/AnimatedPolyline';
-import RouteGuidePanel from '@/components/RouteGuidePanel';
-import AlternativeRoutePanel from '@/components/AlternativeRoutePanel';
+import RouteGuidePanel from '@/features/route/RouteGuidePanel';
+import AlternativeRoutePanel from '@/features/route/AlternativeRoutePanel';
 import DirectionalStripes from '@/components/map/DirectionalStripes';
 import TransferMarkers from '@/components/map/TransferMarkers';
 import { useJourneyStore } from '@/stores/journey-store';
-import { useShallow } from 'zustand/react/shallow';
+import { useMapState } from '@/features/map/useMapState';
 import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
@@ -59,33 +59,7 @@ export default function MapArea() {
     hasSearchQuery,
     isDrawerMaximized,
     drawerSnapPoint,
-  } = useJourneyStore(useShallow((state) => ({
-    activeJourney: state.activeJourney,
-    focusBounds: state.focusBounds,
-    setFocusBounds: state.setFocusBounds,
-    focusedSegment: state.focusedSegment,
-    setFocusedSegment: state.setFocusedSegment,
-    focusedStep: state.focusedStep,
-    setFocusedStep: state.setFocusedStep,
-    alternativeSegment: state.alternativeSegment,
-    setAlternativeSegment: state.setAlternativeSegment,
-    hoveredAlternativeRoute: state.hoveredAlternativeRoute,
-    isAlternativeFromFocus: state.isAlternativeFromFocus,
-    recommendedPlaces: state.recommendedPlaces,
-    activeSearchPlace: state.activeSearchPlace,
-    setMapCenterAddress: state.setMapCenterAddress,
-    setMapCenterCoord: state.setMapCenterCoord,
-    setMapBounds: state.setMapBounds,
-    addPlace: state.addPlace,
-    removePlace: state.removePlace,
-    isEditMode: state.isEditMode,
-    isSearchMode: state.isSearchMode,
-    isSearchLoading: state.isSearchLoading,
-    triggerSearch: state.triggerSearch,
-    hasSearchQuery: state.searchQuery.trim().length > 0,
-    isDrawerMaximized: state.isDrawerMaximized,
-    drawerSnapPoint: state.drawerSnapPoint,
-  })));
+  } = useMapState();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
   // Track initial place IDs to handle dynamic sequential animation delays

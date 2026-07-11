@@ -7,6 +7,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import type { Journey, Place } from '@/types/journey';
 import { getCategoryTheme } from '@/lib/categoryUtils';
+import { usePlaceSearch, PlaceResult } from '@/features/places/usePlaceSearch';
 
 const themeClasses = {
   cafe: 'text-amber-700 bg-amber-50 border border-amber-100',
@@ -16,15 +17,6 @@ const themeClasses = {
   transit: 'text-zinc-700 bg-zinc-50 border border-zinc-100',
   etc: 'text-purple-700 bg-purple-50 border border-purple-100'
 };
-
-interface PlaceResult {
-  id: string;
-  place_name: string;
-  address: string;
-  category: string;
-  lat: number;
-  lng: number;
-}
 
 interface PlaceSearchBarProps {
   onPlaceSelect?: (place: PlaceResult) => void;
@@ -102,13 +94,23 @@ function MapPinIcon() {
 }
 
 export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<PlaceResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const {
+    query,
+    setQuery,
+    results,
+    setResults,
+    isLoading,
+    isOpen,
+    setIsOpen,
+    error,
+    searchPlaces,
+    handleInputChange,
+    handleClear,
+    debounceRef,
+  } = usePlaceSearch();
+
   const [isFocused, setIsFocused] = useState(false);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
 
   // 선택한 장소를 추가할 여정 선택 모달 관련 상태
   const [selectedPlaceToAssign, setSelectedPlaceToAssign] = useState<PlaceResult | null>(null);
@@ -122,7 +124,6 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   const { activeJourney, addPlace, journeys, setJourneys, openCreateForm, setActiveJourney } = useJourneyStore();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
@@ -145,45 +146,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     }
   }, [activeJourney]);
 
-  const searchPlaces = useCallback(async (q: string) => {
-    if (q.trim().length < 1) {
-      setResults([]);
-      setIsOpen(false);
-      setError(null);
-      return;
-    }
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`/api/places?query=${encodeURIComponent(q)}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || '검색 실패');
-        setResults([]);
-      } else {
-        setResults(data.items || []);
-        setIsOpen(true);
-      }
-    } catch {
-      setError('네트워크 오류가 발생했습니다.');
-      setResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setQuery(val);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      searchPlaces(val);
-    }, 350);
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -286,13 +249,6 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     }
   };
 
-  const handleClear = () => {
-    setQuery('');
-    setResults([]);
-    setIsOpen(false);
-    setError(null);
-    inputRef.current?.focus();
-  };
 
   const showDropdown = isOpen && (results.length > 0 || error !== null);
 
@@ -340,7 +296,10 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
         ) : query.length > 0 ? (
           <button
             type="button"
-            onClick={handleClear}
+            onClick={() => {
+              handleClear();
+              inputRef.current?.focus();
+            }}
             className="flex-shrink-0 w-5 h-5 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors"
             aria-label="검색어 지우기"
           >

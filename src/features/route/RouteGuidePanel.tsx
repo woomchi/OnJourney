@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
+import { usePanelDrag } from '@/hooks/ui/usePanelDrag';
 import PlaybackBar from '@/components/route/PlaybackBar';
 import TransitGuideList from '@/components/route/TransitGuideList';
 import CarGuideList from '@/components/route/CarGuideList';
@@ -35,53 +36,10 @@ export default function RouteGuidePanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const touchStartY = useRef<number | null>(null);
-
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setIsExpanded(false);
-    }
-  }, [isOpen]);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    touchStartY.current = e.clientY;
-    setIsDragging(true);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (touchStartY.current === null) return;
-    const currentY = e.clientY;
-    const diff = currentY - touchStartY.current;
-    
-    if (isExpanded && diff < 0) {
-      setDragY(diff * 0.1); // Resistance dragging up when already expanded
-    } else {
-      setDragY(diff);
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    if (isExpanded) {
-      if (dragY > 80) {
-        setIsExpanded(false);
-      }
-    } else {
-      if (dragY > 80) {
-        onClose();
-      } else if (dragY < -50) {
-        setIsExpanded(true);
-      }
-    }
-    setDragY(0);
-    setIsDragging(false);
-    touchStartY.current = null;
-  };
+  const { dragY, isDraggingPanel: isDragging, isExpanded, collapse, handlers: dragHandlers } = usePanelDrag({
+    isOpen,
+    onClose,
+  });
 
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -189,7 +147,7 @@ export default function RouteGuidePanel({
   }, [isOpen, animate, focusedStep, originPlace.id, destPlace.id, route]);
 
   const handleStepClick = (idx: number, step: any, subType?: 'start' | 'end' | 'dest') => {
-    setIsExpanded(false);
+    collapse();
     const isThisStepFocused = !!(
       focusedStep &&
       focusedStep.originId === originPlace.id &&
@@ -250,7 +208,7 @@ export default function RouteGuidePanel({
   };
 
   const handlePrevStep = () => {
-    setIsExpanded(false);
+    collapse();
     const pages = getPages();
     const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
 
@@ -277,7 +235,7 @@ export default function RouteGuidePanel({
   };
 
   const handleNextStep = () => {
-    setIsExpanded(false);
+    collapse();
     const pages = getPages();
     if (!focusedStep || focusedStep.originId !== originPlace.id || focusedStep.destId !== destPlace.id) {
       const firstPage = pages[0];
@@ -300,7 +258,7 @@ export default function RouteGuidePanel({
 
   const handleZoomToPoint = (idx: number, step: any, type: 'start' | 'end' | 'dest', e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsExpanded(false);
+    collapse();
 
     setFocusedStep({
       originId: originPlace.id,
@@ -361,10 +319,7 @@ export default function RouteGuidePanel({
       >
       <div 
         className="flex-shrink-0 touch-none"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        {...dragHandlers}
       >
         {/* Mobile Handle */}
         <div className="w-full flex justify-center md:hidden">
@@ -524,7 +479,7 @@ export default function RouteGuidePanel({
             : 'translate-y-[150%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
           }
         `}
-        onClickCapture={() => setIsExpanded(false)}
+        onClickCapture={() => collapse()}
       >
         <PlaybackBar
           route={route}

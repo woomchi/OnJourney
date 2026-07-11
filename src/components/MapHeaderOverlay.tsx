@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
-import PlaceSearchBar from './PlaceSearchBar';
+import PlaceSearchBar from '@/features/places/PlaceSearchBar';
 
 export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();

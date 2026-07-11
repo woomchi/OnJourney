@@ -8,7 +8,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import LandingPage from '@/components/LandingPage';
 import MapHeaderOverlay from '@/components/MapHeaderOverlay';
 
-const MapArea = dynamic(() => import('@/components/MapArea'), {
+const MapArea = dynamic(() => import('@/features/map/MapArea'), {
   ssr: false,
   loading: () => (
     <div className="flex h-full w-full items-center justify-center bg-zinc-50">

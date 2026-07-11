@@ -5,6 +5,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { useDragScroll } from '@/hooks/useDragScroll';
+import { usePanelDrag } from '@/hooks/ui/usePanelDrag';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -37,53 +38,10 @@ export default function AlternativeRoutePanel({
     setHoveredAlternativeRoute,
   } = useJourneyStore();
 
-  const [dragY, setDragY] = useState(0);
-  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
-  const touchStartY = useRef<number | null>(null);
-
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setIsExpanded(false);
-    }
-  }, [isOpen]);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    touchStartY.current = e.clientY;
-    setIsDraggingPanel(true);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (touchStartY.current === null) return;
-    const currentY = e.clientY;
-    const diff = currentY - touchStartY.current;
-    
-    if (isExpanded && diff < 0) {
-      setDragY(diff * 0.1);
-    } else {
-      setDragY(diff);
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    if (isExpanded) {
-      if (dragY > 80) {
-        setIsExpanded(false);
-      }
-    } else {
-      if (dragY > 80) {
-        onClose();
-      } else if (dragY < -50) {
-        setIsExpanded(true);
-      }
-    }
-    setDragY(0);
-    setIsDraggingPanel(false);
-    touchStartY.current = null;
-  };
+  const { dragY, isDraggingPanel, isExpanded, handlers: dragHandlers } = usePanelDrag({
+    isOpen,
+    onClose,
+  });
 
   const queryClient = useQueryClient();
   const cacheKey = directionKeys.segment(originPlace.id, destPlace.id);
@@ -370,10 +328,7 @@ export default function AlternativeRoutePanel({
       {/* Mobile Handle & Header Wrapper */}
       <div 
         className="flex-shrink-0 touch-none"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        {...dragHandlers}
       >
         {/* Mobile Handle */}
         <div className="w-full flex justify-center md:hidden">

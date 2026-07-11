@@ -43,8 +43,6 @@ export default function SegmentInfo({ data, loading, index, placeId, destId }: S
     );
   }
 
-  const transitSteps = data.steps.filter((s) => s.type !== 'walk');
-  const hasTransit = transitSteps.length > 0;
 
   // Calculate percentage widths using a power-curve to compress proportions
   const COMPRESS_POWER = 0.3;
@@ -218,25 +216,23 @@ export default function SegmentInfo({ data, loading, index, placeId, destId }: S
               </div>
 
               {/* 하단 노선명 텍스트 */}
-              {hasTransit && (
-                <div
-                  className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden transition-all duration-200"
-                  style={{
-                    opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
-                  }}
-                  title={step.type !== 'walk' ? step.name : undefined}
-                >
-                  {step.type !== 'walk' ? (
-                    <span style={{ color: stepColor }} className="truncate">
-                      {step.type === 'subway'
-                        ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
-                        : step.name.replace(' 버스', '')}
-                    </span>
-                  ) : (
-                    <span className="invisible">&nbsp;</span>
-                  )}
-                </div>
-              )}
+              <div
+                className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden transition-all duration-200"
+                style={{
+                  opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
+                }}
+                title={step.type !== 'walk' ? step.name : undefined}
+              >
+                {step.type !== 'walk' ? (
+                  <span style={{ color: stepColor }} className="truncate">
+                    {step.type === 'subway'
+                      ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
+                      : step.name.replace(' 버스', '')}
+                  </span>
+                ) : (
+                  <span className="invisible">&nbsp;</span>
+                )}
+              </div>
             </div>
           );
         })}

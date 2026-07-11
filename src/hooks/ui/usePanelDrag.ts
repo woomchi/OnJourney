@@ -72,6 +72,7 @@ export function usePanelDrag({
       onPointerMove: handlePointerMove,
       onPointerUp: handlePointerUp,
       onPointerCancel: handlePointerUp,
+      style: { touchAction: 'none' }, // PWA 모바일 제스처(Pull-to-refresh) 충돌 방지
     }
   };
 }

@@ -10,6 +10,9 @@ import {
 } from 'react-naver-maps';
 import AnimatedMarker from '@/components/AnimatedMarker';
 import AnimatedPolyline from '@/components/AnimatedPolyline';
+import { MapRoutes } from '@/features/map/MapRoutes';
+import { MapMarkers } from '@/features/map/MapMarkers';
+
 import RouteGuidePanel from '@/features/route/RouteGuidePanel';
 import AlternativeRoutePanel from '@/features/route/AlternativeRoutePanel';
 import DirectionalStripes from '@/components/map/DirectionalStripes';
@@ -1091,199 +1094,23 @@ export default function MapArea() {
               position: navermaps ? navermaps.Position.BOTTOM_LEFT : 10,
             }}
           >
-            {/* 구간별 이동경로 Polyline 렌더링 */}
-            {isAllInitialRoutesLoaded && places.map((place, idx) => {
-              if (idx === places.length - 1) return null;
-              const nextPlace = places[idx + 1];
-              const transportType = activeJourney?.transport_type || 'public';
-              const cacheKey = `${place.id}-${nextPlace.id}`;
-              const segmentData = directionsCache[cacheKey];
-
-              const defaultRoute = getDefaultRoute(place, nextPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-
-              if (!defaultRoute || !defaultRoute.steps) {
-                return null;
-              }
-
-              const isAlternativeSegment = !!(alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id);
-              const hasHoveredAlternative = isAlternativeSegment && !!hoveredAlternativeRoute;
-
-              // 렌더링할 경로 목록 구성 (기본 경로는 항상 마운트 유지)
-              const routesToRender = [
-                { route: defaultRoute, isHoveredRoute: false }
-              ];
-
-              if (hasHoveredAlternative && hoveredAlternativeRoute) {
-                routesToRender.push({ route: hoveredAlternativeRoute, isHoveredRoute: true });
-              }
-
-              const handlePolylineClick = (targetRoute: any) => {
-                const bounds = calculateSegmentBounds(place, nextPlace, targetRoute);
-                if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
-                  // 이미 포커스된 상태에서 다시 클릭하면, 전체 구간 보기로 돌아가도록(zoom-out to segment) bounds 재적용
-                  setFocusBounds({ ...bounds });
-                  setFocusedStep(null);
-                } else {
-                  setFocusBounds(bounds);
-                  setFocusedSegment({ originId: place.id, destId: nextPlace.id });
-                  setFocusedStep(null);
-                }
-              };
-
-              return routesToRender.map(({ route, isHoveredRoute }) => {
-                const totalAnimDuration = isHoveredRoute ? 300 : 800;
-
-                // 각 스텝별로 거리에 비례하여 애니메이션 시간을 분배 (거리가 없으면 균등 분배)
-                const totalDistance = route.steps.reduce((sum: number, s: any) => sum + (s.distance || 1), 0);
-
-                let currentStepDelay = delays.pathDelays[`${place.id}-${nextPlace.id}`] ?? (idx * 800 + 400);
-                if (isHoveredRoute) currentStepDelay = 0;
-
-                return route.steps.map((step: any, sIdx: number) => {
-                  const stepPath = step.pathPoints || [];
-                  if (stepPath.length < 2) return null;
-
-                  const stepRatio = (step.distance || 1) / totalDistance;
-                  const stepDuration = Math.max(100, totalAnimDuration * stepRatio); // 최소 100ms 보장
-                  const stepDelay = currentStepDelay;
-
-                  // 다음 스텝의 시작 시간을 현재 스텝 애니메이션 종료 후로 설정
-                  currentStepDelay += stepDuration;
-
-                  // AnimatedPolyline 내부에서 LatLng 처리를 수행하므로, 원본 배열을 그대로 전달하여 참조를 유지합니다.
-                  const pathPoints = stepPath;
-
-                  // 특정 스텝(세부 노선) 포커스 여부 판별
-                  const hasFocusedStep = !!focusedStep;
-                  let isThisStepFocused = !!(
-                    focusedStep &&
-                    focusedStep.originId === place.id &&
-                    focusedStep.destId === nextPlace.id &&
-                    focusedStep.stepIndex === sIdx
-                  );
-
-                  if (
-                    focusedStep &&
-                    focusedStep.originId === place.id &&
-                    focusedStep.destId === nextPlace.id &&
-                    focusedStep.subType === 'dest' &&
-                    sIdx === route.steps.length - 1
-                  ) {
-                    isThisStepFocused = true;
-                  }
-
-                  // 포커스 세그먼트 매칭 여부 판별
-                  const isSegmentFocused = activeSegment
-                    ? (activeSegment.originId === place.id && activeSegment.destId === nextPlace.id)
-                    : true;
-
-                  // 포커스된 세그먼트가 아닌 경우(다른 구간) 렌더링을 완전히 제거하지 않고 visible로 숨겨 재마운트 애니메이션 방지
-                  // 대안 경로 미리보기가 활성화된 경우, 기본 경로는 숨기고 미리보기 경로만 표시
-                  // 장소 추가 모드(isSearchMode === true)일 때는 모든 기존 경로를 숨김
-                  const isVisible = !(activeSegment && !isSegmentFocused) && (!hasHoveredAlternative || isHoveredRoute) && !isSearchMode;
-
-                  // 순서가 빠를수록(idx가 작을수록) zIndex가 높도록 겹침 노출 순서 적용 (맨 위에 노출)
-                  // 특정 스텝만 포커스 상태라면 최상위(15000)로 올림
-                  const baseZIndex = isThisStepFocused
-                    ? 15000
-                    : isSegmentFocused
-                      ? (activeSegment ? 5000 + sIdx : (100 - idx) * 10)
-                      : (100 - idx);
-
-                  // 교통수단 색상 대신 순서(idx) 기반 색상으로 매핑
-                  const segmentColor = SEQUENCE_COLORS[idx % SEQUENCE_COLORS.length];
-                  const strokeColor = segmentColor;
-
-                  let strokeOpacity = 0.8;
-                  let strokeWeight = 4.5;
-
-                  if (hasFocusedStep) {
-                    strokeOpacity = 0.95;
-                    strokeWeight = 7.0;
-                  } else if (activeSegment) {
-                    strokeOpacity = 0.95;
-                    strokeWeight = 6.5;
-                  } else {
-                    strokeOpacity = 0.8;
-                    strokeWeight = 4.5;
-                  }
-
-                  const keyPrefix = isHoveredRoute ? 'hovered-' : '';
-                  const isWalk = step.type === 'walk';
-
-                  if (isWalk) {
-                    // 도보 구간: 구간 고유 색상의 점선으로 표시 (방향 화살표 제외하여 깔끔하게 처리)
-                    let walkOpacity = 0.65;
-                    let walkWeight = 2.5;
-
-                    if (hasFocusedStep) {
-                      walkOpacity = 0.95;
-                      walkWeight = 5.0;
-                    } else if (activeSegment) {
-                      walkOpacity = 0.95;
-                      walkWeight = 4.5;
-                    }
-
-                    return (
-                      <AnimatedPolyline
-                        key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}
-                        path={pathPoints}
-                        delay={stepDelay}
-                        duration={stepDuration}
-                        skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
-                        strokeColor={segmentColor}
-                        strokeOpacity={walkOpacity}
-                        strokeWeight={walkWeight}
-                        strokeStyle="shortdash"
-                        strokeLineCap="round"
-                        strokeLineJoin="round"
-                        zIndex={baseZIndex}
-                        onClick={() => handlePolylineClick(route)}
-                        visible={isVisible}
-                      />
-                    );
-                  }
-
-                  // 대중교통/차량 구간: 테두리선(백그라운드) + 본선(포그라운드) 이중 Polyline 렌더링으로 겹침 가독성 개선
-                  return (
-                    <Fragment key={`polyline-group-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}>
-                      {/* 1. 배경 외곽선 (흰색 테두리) */}
-                      <AnimatedPolyline
-                        path={pathPoints}
-                        delay={stepDelay}
-                        duration={stepDuration}
-                        skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
-                        strokeColor="#FFFFFF"
-                        strokeOpacity={0.95}
-                        strokeWeight={strokeWeight + 1.8}
-                        strokeStyle="solid"
-                        strokeLineCap="round"
-                        strokeLineJoin="round"
-                        zIndex={baseZIndex}
-                        onClick={() => handlePolylineClick(route)}
-                        visible={isVisible}
-                      />
-                      {/* 2. 본래 색상의 실제 경로선 */}
-                      <AnimatedPolyline
-                        path={pathPoints}
-                        delay={stepDelay}
-                        duration={stepDuration}
-                        skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
-                        strokeColor={strokeColor}
-                        strokeOpacity={strokeOpacity}
-                        strokeWeight={strokeWeight}
-                        strokeStyle="solid"
-                        strokeLineCap="round"
-                        strokeLineJoin="round"
-                        zIndex={baseZIndex + 1}
-                        onClick={() => handlePolylineClick(route)}
-                        visible={isVisible}
-                      />
-                    </Fragment>
-                  );
-                });
-              });
-            })}
+                        <MapRoutes
+              isAllInitialRoutesLoaded={isAllInitialRoutesLoaded}
+              places={places}
+              activeJourney={activeJourney}
+              directionsCache={directionsCache}
+              alternativeSegment={alternativeSegment}
+              hoveredAlternativeRoute={hoveredAlternativeRoute}
+              focusedSegment={focusedSegment}
+              setFocusBounds={setFocusBounds}
+              setFocusedStep={setFocusedStep}
+              setFocusedSegment={setFocusedSegment}
+              delays={delays}
+              focusedStep={focusedStep}
+              isSearchMode={isSearchMode}
+              animationVersion={animationVersion}
+              animatedSegmentsRef={animatedSegmentsRef}
+            />
 
             {/* 정적 방향 스트라이프 패턴 마커 렌더링 */}
             {navermaps && !isSearchMode && (
@@ -1314,159 +1141,21 @@ export default function MapArea() {
               />
             )}
 
-            {/* Marker는 반드시 NaverMap children 안에 있어야 함 */}
-            {places.map((place, idx) => {
-              const isSegmentMarker = !!(activeSegment && (place.id === activeSegment.originId || place.id === activeSegment.destId));
-              // 일반 경로선(최대 5002)보다 항상 위에 노출되도록 기본 zIndex를 10000 이상으로 상향 조정
-              const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
-              // 세부 구간 조회 시에는 일반 숫자 장소 마커를 가려 지도를 정돈하고, 대신 탑승/출발/도착 전용 마커로 가독성을 높임
-              // 장소 추가 모드(isSearchMode === true)일 때는 모든 기존 숫자 마커를 숨김
-              const isVisible = !activeSegment && !isSearchMode;
-
-              const markerWidth = isSegmentMarker ? 30 : 24;
-              const markerHeight = isSegmentMarker ? 40 : 32;
-              const anchorX = isSegmentMarker ? 15 : 12;
-              const anchorY = isSegmentMarker ? 38 : 30;
-
-              const theme = getSequenceTheme(idx, places.length);
-
-              return (
-                <AnimatedMarker
-                  key={place.id}
-                  delay={delays.markerDelays[place.id] ?? (idx * 800)}
-                  position={{ lat: place.lat, lng: place.lng }}
-                  title={place.place_name}
-                  onClick={() => handleMarkerClick(place, idx)}
-                  zIndex={zIndex}
-                  visible={isVisible}
-                  iconAnchor={navermaps ? new navermaps.Point(anchorX, anchorY) : undefined}
-                  iconContent={`<div style="
-                      cursor: pointer;
-                      filter: drop-shadow(0 3px 8px ${theme.color}70) drop-shadow(0 2px 4px rgba(0,0,0,0.15));
-                      transition: transform 0.2s ease;
-                    ">
-                      <svg width="${markerWidth}" height="${markerHeight}" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                          <linearGradient id="pinGrad-${idx}" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="${theme.gradientStart}" />
-                            <stop offset="100%" stop-color="${theme.gradientEnd}" />
-                          </linearGradient>
-                          <radialGradient id="glassShine-${idx}" cx="35%" cy="35%" r="50%">
-                            <stop offset="0%" stop-color="white" stop-opacity="0.6"/>
-                            <stop offset="100%" stop-color="white" stop-opacity="0"/>
-                          </radialGradient>
-                        </defs>
-                        <!-- 3D 핀 본체 (물방울 형태) -->
-                        <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
-                              fill="url(#pinGrad-${idx})" 
-                        />
-                        <!-- 글래스 광택 효과 레이어 -->
-                        <circle cx="12" cy="12" r="7.5" fill="url(#glassShine-${idx})" />
-                        
-                        <!-- 텍스트 숫자 배치 (y값 미세조정으로 정중앙 배치) -->
-                        <text x="12" y="16.5" fill="white" font-size="${isSegmentMarker ? 11.5 : 10.5}" font-weight="900" font-family="Pretendard, -apple-system, sans-serif" text-anchor="middle" style="text-shadow: 0 1px 2px rgba(0,0,0,0.35);">${idx + 1}</text>
-                      </svg>
-                    </div>`}
-                />
-              );
-            })}
-
-            {/* 추천 장소 마커 렌더링 (모든 장소 표시) */}
-            {isSearchMode && recommendedPlaces && recommendedPlaces
-              .filter((recPlace) => !places.some((p) => p.id === recPlace.id))
-              .map((recPlace) => {
-                const isActive = activeSearchPlace?.id === recPlace.id;
-                const theme = getCategoryTheme(recPlace.category);
-                const emoji = categoryEmojis[theme.type] || categoryEmojis.etc;
-                const zIndex = isActive ? 9999 : 9000;
-
-                // 활성화된 마커는 크기를 키우고 특별한 그림자 이펙트를 줌
-                const markerScale = isActive ? 'scale(1.25)' : 'scale(1)';
-                const dropShadow = isActive
-                  ? `drop-shadow(0 0 10px ${theme.color}) drop-shadow(0 6px 14px rgba(0,0,0,0.35))`
-                  : 'drop-shadow(0 4px 10px rgba(0,0,0,0.18))';
-
-                return (
-                  <AnimatedMarker
-                    key={`rec-${recPlace.id}`}
-                    delay={0}
-                    position={{ lat: recPlace.lat, lng: recPlace.lng }}
-                    title={recPlace.place_name}
-                    onClick={() => handleRecommendedMarkerClick(recPlace)}
-                    zIndex={zIndex}
-                    iconAnchor={navermaps ? new navermaps.Point(14, 34) : undefined}
-                    iconContent={`<div style="
-                        cursor: pointer;
-                        filter: ${dropShadow};
-                        transform: ${markerScale};
-                        transform-origin: bottom center;
-                        transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-                      "
-                      class="hover:scale-110 active:scale-95"
-                      >
-                        <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
-                                fill="${theme.color}" 
-                          />
-                          <text x="12" y="17" fill="white" font-size="11" font-family="Pretendard, sans-serif" text-anchor="middle">${emoji}</text>
-                        </svg>
-                      </div>`}
-                  />
-                );
-              })}
-
-            {/* 직접 클릭한 장소 마커 */}
-            {mapClickedPlace && (
-              <AnimatedMarker
-                key={`clicked-${mapClickedPlace.lat}-${mapClickedPlace.lng}`}
-                delay={0}
-                position={{ lat: mapClickedPlace.lat, lng: mapClickedPlace.lng }}
-                title={mapClickedPlace.place_name}
-                zIndex={9500}
-                iconAnchor={navermaps ? new navermaps.Point(14, 34) : undefined}
-                iconContent={`<div style="
-                    cursor: pointer;
-                    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.25));
-                    transition: transform 0.15s ease-out;
-                  "
-                  class="animate-bounce"
-                  >
-                    <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z" 
-                            fill="#E11D48" 
-                      />
-                      <circle cx="12" cy="12" r="4" fill="white" />
-                    </svg>
-                  </div>`}
-              />
-            )}
-            
-            {/* 사용자 GPS 마커 */}
-            {userLocation && (
-              <AnimatedMarker
-                key="user-location-gps"
-                delay={0}
-                position={userLocation}
-                title="내 위치"
-                zIndex={9600}
-                iconAnchor={navermaps ? new navermaps.Point(50, 50) : undefined}
-                iconContent={`<div class="relative w-[100px] h-[100px] flex items-center justify-center">
-                  <div id="user-compass-cone" class="absolute inset-0" style="display: ${gpsMode === 'compass' ? 'block' : 'none'};">
-                    <svg viewBox="0 0 100 100" class="w-full h-full">
-                      <defs>
-                        <radialGradient id="coneGrad" cx="50%" cy="50%" r="50%">
-                          <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.5"/>
-                          <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
-                        </radialGradient>
-                      </defs>
-                      <path d="M 50 50 L 15 15 A 50 50 0 0 1 85 15 Z" fill="url(#coneGrad)" />
-                    </svg>
-                  </div>
-                  <div class="absolute w-6 h-6 bg-blue-500 rounded-full animate-gps-pulse"></div>
-                  <div class="absolute w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-sm"></div>
-                </div>`}
-              />
-            )}
+            <MapMarkers
+              places={places}
+              recommendedPlaces={recommendedPlaces}
+              activeSearchPlace={activeSearchPlace}
+              mapClickedPlace={mapClickedPlace}
+              userLocation={userLocation}
+              gpsMode={gpsMode}
+              isSearchMode={isSearchMode}
+              activeSegment={activeSegment}
+              delays={delays}
+              navermaps={navermaps}
+              handleMarkerClick={handleMarkerClick}
+              handleRecommendedMarkerClick={handleRecommendedMarkerClick}
+              deviceHeading={deviceHeading}
+            />
           </NaverMap>
         </MapDiv>
       </NavermapsProvider>

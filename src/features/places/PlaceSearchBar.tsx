@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useAuth } from '@/providers/AuthProvider';
@@ -110,7 +110,6 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   } = usePlaceSearch();
 
   const [isFocused, setIsFocused] = useState(false);
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
   // 선택한 장소를 추가할 여정 선택 모달 관련 상태
   const [selectedPlaceToAssign, setSelectedPlaceToAssign] = useState<PlaceResult | null>(null);
@@ -122,6 +121,12 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
 
   const { user, openAuthModal } = useAuth();
   const { activeJourney, addPlace, journeys, setJourneys, openCreateForm, setActiveJourney } = useJourneyStore();
+
+  // 이미 추가된 장소 ID 동기화 (파생 상태로 변경하여 Flicker 및 불필요한 렌더링 해결)
+  const addedIds = useMemo(() => {
+    return new Set(activeJourney?.places?.map((p) => p.id) || []);
+  }, [activeJourney]);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -136,15 +141,6 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // 이미 추가된 장소 ID 동기화
-  useEffect(() => {
-    if (activeJourney) {
-      setTimeout(() => setAddedIds(new Set(activeJourney.places.map((p) => p.id))), 0);
-    } else {
-      setTimeout(() => setAddedIds(new Set()), 0);
-    }
-  }, [activeJourney]);
 
 
 
@@ -177,7 +173,6 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
         lng: item.lng,
       };
 
-      setAddedIds((prev) => new Set([...prev, item.id]));
       onPlaceSelect?.(item);
       setIsOpen(false);
       setQuery('');
@@ -185,13 +180,8 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
 
       try {
         await addPlace(place);
-      } catch {
-        // 실패 시 롤백
-        setAddedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(item.id);
-          return next;
-        });
+      } catch (err) {
+        console.error('장소 추가 실패:', err);
       }
     } else {
       // activeJourney가 null인 경우 여정 선택 모달 열기

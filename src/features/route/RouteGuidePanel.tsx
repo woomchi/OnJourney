@@ -146,7 +146,7 @@ export default function RouteGuidePanel({
     return () => observer.disconnect();
   }, [isOpen, animate, focusedStep, originPlace.id, destPlace.id, route]);
 
-  const handleStepClick = (idx: number, step: any, subType?: 'start' | 'end' | 'dest') => {
+  function handleStepClick(idx: number, step: any, subType?: 'start' | 'end' | 'dest') {
     collapse();
     const isThisStepFocused = !!(
       focusedStep &&
@@ -205,7 +205,7 @@ export default function RouteGuidePanel({
         subType
       });
     }
-  };
+  }
 
   const handlePrevStep = () => {
     collapse();

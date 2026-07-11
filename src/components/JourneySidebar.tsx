@@ -45,10 +45,10 @@ export default function JourneySidebar() {
   useEffect(() => {
     if (activeJourney) {
       if (snap === '280px') setSnap('360px');
-      else if (snap === '90px') setSnap('150px');
+      else if (snap === '90px') setSnap('126px');
     } else {
       if (snap === '360px') setSnap('280px');
-      else if (snap === '150px') setSnap('90px');
+      else if (snap === '126px') setSnap('90px');
     }
   }, [activeJourney, snap]);
   
@@ -61,7 +61,7 @@ export default function JourneySidebar() {
     const wasFocused = !!prevFocusedSegmentRef.current;
     
     if (isCurrentlyFocused && !wasFocused) {
-      setSnap(activeJourney ? '150px' : '90px');
+      setSnap(activeJourney ? '126px' : '90px');
     } else if (!isCurrentlyFocused && wasFocused) {
       setSnap(activeJourney ? '360px' : '280px');
     }
@@ -182,7 +182,7 @@ export default function JourneySidebar() {
 
   if (isMobile) {
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const minSnapPx = activeJourney ? 150 : 90;
+    const minSnapPx = activeJourney ? 126 : 90;
     const defaultSnapPx = activeJourney ? 360 : 280;
     const maxSnapPx = windowHeight - 12;
     

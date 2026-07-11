@@ -13,8 +13,6 @@ import AnimatedPolyline from '@/components/AnimatedPolyline';
 import { MapRoutes } from '@/features/map/MapRoutes';
 import { MapMarkers } from '@/features/map/MapMarkers';
 
-import RouteGuidePanel from '@/features/route/RouteGuidePanel';
-import AlternativeRoutePanel from '@/features/route/AlternativeRoutePanel';
 import DirectionalStripes from '@/components/map/DirectionalStripes';
 import TransferMarkers from '@/components/map/TransferMarkers';
 import { useJourneyStore } from '@/stores/journey-store';
@@ -469,100 +467,6 @@ export default function MapArea() {
     }
   }, [places.length, map]);
 
-  const activeRouteOfFocusedSegment = useMemo(() => {
-    if (!focusedSegment) return null;
-    const places = activeJourney?.places ?? [];
-    const originPlace = places.find(p => p.id === focusedSegment.originId);
-    const destPlace = places.find(p => p.id === focusedSegment.destId);
-    if (!originPlace || !destPlace) return null;
-
-    const cacheKey = `${focusedSegment.originId}-${focusedSegment.destId}`;
-    const segmentData = directionsCache[cacheKey];
-    const transportType = activeJourney?.transport_type || 'public';
-    return getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-  }, [focusedSegment, activeJourney, directionsCache]);
-
-  const focusedPlaces = useMemo(() => {
-    if (!focusedSegment) return null;
-    const places = activeJourney?.places ?? [];
-    const originPlace = places.find(p => p.id === focusedSegment.originId);
-    const destPlace = places.find(p => p.id === focusedSegment.destId);
-    if (!originPlace || !destPlace) return null;
-    return { originPlace, destPlace };
-  }, [focusedSegment, activeJourney]);
-
-  const alternativePlaces = useMemo(() => {
-    if (!alternativeSegment) return null;
-    const places = activeJourney?.places ?? [];
-    const originPlace = places.find(p => p.id === alternativeSegment.originId);
-    const destPlace = places.find(p => p.id === alternativeSegment.destId);
-    if (!originPlace || !destPlace) return null;
-    return { originPlace, destPlace };
-  }, [alternativeSegment, activeJourney]);
-
-  // 현재 선택된 세그먼트 이후의 다음 세그먼트 정보 계산
-  const nextSegmentInfo = useMemo(() => {
-    if (!focusedSegment || !activeJourney) return null;
-    const places = activeJourney.places ?? [];
-    const destIndex = places.findIndex(p => p.id === focusedSegment.destId);
-    if (destIndex < 0 || destIndex >= places.length - 1) return null;
-    const nextOriginPlace = places[destIndex];
-    const nextDestPlace = places[destIndex + 1];
-    return { nextOriginPlace, nextDestPlace };
-  }, [focusedSegment, activeJourney]);
-
-  // 현재 선택된 세그먼트 이전의 세그먼트 정보 계산
-  const prevSegmentInfo = useMemo(() => {
-    if (!focusedSegment || !activeJourney) return null;
-    const places = activeJourney.places ?? [];
-    const originIndex = places.findIndex(p => p.id === focusedSegment.originId);
-    if (originIndex <= 0) return null;
-    const prevOriginPlace = places[originIndex - 1];
-    const prevDestPlace = places[originIndex];
-    return { prevOriginPlace, prevDestPlace };
-  }, [focusedSegment, activeJourney]);
-
-  // 패널 트랜지션 애니메이션 구현을 위한 상태 캐싱 로직 추가
-  const [cachedRouteGuide, setCachedRouteGuide] = useState<{
-    route: SelectedRoute | DirectionResult;
-    originPlace: Place;
-    destPlace: Place;
-    nextDestPlace?: Place;
-    nextSegmentInfo: typeof nextSegmentInfo;
-    prevSegmentInfo: typeof prevSegmentInfo;
-  } | null>(null);
-
-  const [cachedAlternative, setCachedAlternative] = useState<{
-    originPlace: Place;
-    destPlace: Place;
-  } | null>(null);
-
-  const showRouteGuide = !!(activeRouteOfFocusedSegment && focusedPlaces && !alternativePlaces);
-  const showAlternative = !!alternativePlaces;
-
-  useEffect(() => {
-    if (showRouteGuide && activeRouteOfFocusedSegment && focusedPlaces) {
-      setCachedRouteGuide({
-        route: activeRouteOfFocusedSegment,
-        originPlace: focusedPlaces.originPlace,
-        destPlace: focusedPlaces.destPlace,
-        nextDestPlace: nextSegmentInfo?.nextDestPlace || undefined,
-        nextSegmentInfo,
-        prevSegmentInfo,
-      });
-    }
-  }, [showRouteGuide, activeRouteOfFocusedSegment, focusedPlaces, nextSegmentInfo, prevSegmentInfo]);
-
-  useEffect(() => {
-    if (showAlternative && alternativePlaces) {
-      setCachedAlternative({
-        originPlace: alternativePlaces.originPlace,
-        destPlace: alternativePlaces.destPlace,
-      });
-    }
-  }, [showAlternative, alternativePlaces]);
-
-  const isPanelOpen = showRouteGuide;
 
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
   const [windowHeight, setWindowHeight] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 800);
@@ -604,7 +508,7 @@ export default function MapArea() {
 
     // 경로 안내 패널이나 대안 경로 패널이 열려 있을 때 패딩 조정
     let leftPadding = mapWidth < 600 ? 16 : 30;
-    if (isPanelOpen || alternativePlaces) {
+    if (!!focusedSegment || !!alternativeSegment) {
       if (isMobile) {
         // 모바일에서는 바텀 시트이므로 하단 패딩 증가 (대략 40vh 정도 고려)
         bottomPadding = typeof window !== 'undefined' ? windowHeight * 0.4 : 350;
@@ -633,7 +537,7 @@ export default function MapArea() {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [isPanelOpen, alternativePlaces, windowWidth, windowHeight, isMobile, drawerSnapPoint, isDrawerMaximized]);
+  }, [focusedSegment, alternativeSegment, windowWidth, windowHeight, isMobile, drawerSnapPoint, isDrawerMaximized]);
 
   // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
   useEffect(() => {
@@ -1438,131 +1342,6 @@ export default function MapArea() {
       })()}
 
 
-      {/* 상세 경로 안내 패널: 사이드바 오른쪽에 따로 띄움 */}
-      {cachedRouteGuide && (() => {
-        const nextInfo = cachedRouteGuide.nextSegmentInfo;
-        const prevInfo = cachedRouteGuide.prevSegmentInfo;
-        return (
-          <RouteGuidePanel
-            isOpen={showRouteGuide && !isSearchMode && !isDrawerMaximized}
-            route={cachedRouteGuide.route}
-            originPlace={cachedRouteGuide.originPlace}
-            destPlace={cachedRouteGuide.destPlace}
-            onClose={() => {
-              setFocusedSegment(null);
-              setFocusedStep(null);
-              setFocusBounds(null);
-            }}
-            onNextSegment={nextInfo ? (jumpToStart?: boolean) => {
-              const { nextOriginPlace, nextDestPlace } = nextInfo;
-              const cacheKey = `${nextOriginPlace.id}-${nextDestPlace.id}`;
-              const segmentData = directionsCache[cacheKey];
-              const transportType = activeJourney?.transport_type || 'public';
-              const nextRoute = getDefaultRoute(nextOriginPlace, nextDestPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-              setFocusedSegment({ originId: nextOriginPlace.id, destId: nextDestPlace.id });
-
-              if (jumpToStart && nextRoute && nextRoute.steps) {
-                const firstStep = nextRoute.steps[0];
-                let subType: 'start' | 'end' | 'dest' | undefined = undefined;
-                if (firstStep.type !== 'walk' && firstStep.startName) {
-                  subType = 'start';
-                }
-
-                setFocusedStep({
-                  originId: nextOriginPlace.id,
-                  destId: nextDestPlace.id,
-                  stepIndex: 0,
-                  subType
-                });
-                setFocusBounds({
-                  sw: { lat: nextOriginPlace.lat, lng: nextOriginPlace.lng },
-                  ne: { lat: nextOriginPlace.lat, lng: nextOriginPlace.lng }
-                });
-              } else {
-                setFocusedStep(null);
-                const bounds = calculateSegmentBounds(nextOriginPlace, nextDestPlace, nextRoute);
-                setFocusBounds(bounds);
-              }
-            } : undefined}
-            onPrevSegment={prevInfo ? (jumpToDest?: boolean) => {
-              const { prevOriginPlace, prevDestPlace } = prevInfo;
-              const cacheKey = `${prevOriginPlace.id}-${prevDestPlace.id}`;
-              const segmentData = directionsCache[cacheKey];
-              const transportType = activeJourney?.transport_type || 'public';
-              const prevRoute = getDefaultRoute(prevOriginPlace, prevDestPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-              setFocusedSegment({ originId: prevOriginPlace.id, destId: prevDestPlace.id });
-
-              if (jumpToDest && prevRoute && prevRoute.steps) {
-                const lastIdx = prevRoute.steps.length - 1;
-                const lastStep = prevRoute.steps[lastIdx];
-                let subType: 'start' | 'end' | 'dest' | undefined = undefined;
-                if (lastStep.type !== 'walk' && lastStep.endName) {
-                  subType = 'end';
-                }
-
-                setFocusedStep({
-                  originId: prevOriginPlace.id,
-                  destId: prevDestPlace.id,
-                  stepIndex: lastIdx,
-                  subType
-                });
-                setFocusBounds({
-                  sw: { lat: prevDestPlace.lat, lng: prevDestPlace.lng },
-                  ne: { lat: prevDestPlace.lat, lng: prevDestPlace.lng }
-                });
-              } else {
-                setFocusedStep(null);
-                const bounds = calculateSegmentBounds(prevOriginPlace, prevDestPlace, prevRoute);
-                setFocusBounds(bounds);
-              }
-            } : undefined}
-            nextDestPlace={cachedRouteGuide.nextDestPlace}
-            onExited={() => {
-              if (!showRouteGuide) {
-                setCachedRouteGuide(null);
-              }
-            }}
-          />
-        );
-      })()}
-
-      {/* 대안 경로 패널 */}
-      {cachedAlternative && (
-        <AlternativeRoutePanel
-          isOpen={showAlternative && !isSearchMode && !isDrawerMaximized}
-          originPlace={cachedAlternative.originPlace}
-          destPlace={cachedAlternative.destPlace}
-          onClose={(isCancel?: boolean) => {
-            setAlternativeSegment(null);
-
-            if (isAlternativeFromFocus) {
-              setFocusedSegment({
-                originId: cachedAlternative.originPlace.id,
-                destId: cachedAlternative.destPlace.id
-              });
-
-              if (isCancel) {
-                const cacheKey = `${cachedAlternative.originPlace.id}-${cachedAlternative.destPlace.id}`;
-                const segmentData = directionsCache[cacheKey];
-                const transportType = activeJourney?.transport_type || 'public';
-                const defaultRoute = getDefaultRoute(cachedAlternative.originPlace, cachedAlternative.destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-
-                if (defaultRoute) {
-                  const bounds = calculateSegmentBounds(cachedAlternative.originPlace, cachedAlternative.destPlace, defaultRoute);
-                  setFocusBounds(bounds);
-                }
-              }
-            } else {
-              setFocusBounds(null);
-            }
-          }}
-          onExited={() => {
-            if (!showAlternative) {
-              setCachedAlternative(null);
-            }
-          }}
-        />
-      )}
     </div>
   );
 }

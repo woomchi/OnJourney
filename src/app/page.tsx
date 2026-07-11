@@ -7,6 +7,7 @@ import JourneySidebar from '@/components/JourneySidebar';
 import { useAuth } from '@/providers/AuthProvider';
 import LandingPage from '@/components/LandingPage';
 import MapHeaderOverlay from '@/components/MapHeaderOverlay';
+import { RoutePanels } from '@/features/route/RoutePanels';
 
 const MapArea = dynamic(() => import('@/features/map/MapArea'), {
   ssr: false,
@@ -57,6 +58,7 @@ export default function Home() {
       <main className="absolute inset-0 md:relative md:flex-1 md:h-full bg-zinc-50 flex items-center justify-center">
         <MapHeaderOverlay />
         <MapArea />
+        <RoutePanels />
       </main>
     </div>
   );

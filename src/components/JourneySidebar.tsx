@@ -179,8 +179,47 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    const defaultSnapPoint = activeJourney ? '376px' : '280px';
-    const hiddenHeight = `calc(100dvh - 12px - ${defaultSnapPoint})`;
+    const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const minSnapPx = activeJourney ? 150 : 90;
+    const defaultSnapPx = activeJourney ? 376 : 280;
+    
+    let validSnapPoints: (string | number)[] = [];
+    let defaultSnapPoint: string | number = 1;
+
+    // 런타임 에러 방지: 브라우저 높이가 snap point보다 작거나 같으면 
+    // 순서 오류(ascending order) 및 중복 오류(unique)가 발생하므로 조건부로 배열에 추가합니다.
+    if (windowHeight > minSnapPx + 5) {
+      validSnapPoints.push(`${minSnapPx}px`);
+    }
+    
+    if (windowHeight > defaultSnapPx + 5) {
+      validSnapPoints.push(`${defaultSnapPx}px`);
+      defaultSnapPoint = `${defaultSnapPx}px`;
+    }
+    
+    validSnapPoints.push(1);
+    const hiddenHeight = `calc(100dvh - 12px - ${defaultSnapPoint === 1 ? '100dvh' : defaultSnapPoint})`;
+    
+    let currentActiveSnapPoint = snap ?? defaultSnapPoint;
+    // '1' 문자열 처리 (vaul은 숫자 1을 사용)
+    if (currentActiveSnapPoint === '1') currentActiveSnapPoint = 1;
+    
+    if (!validSnapPoints.includes(currentActiveSnapPoint as any)) {
+      if (activeJourney) {
+        if (currentActiveSnapPoint === '280px') currentActiveSnapPoint = windowHeight > 376 ? '376px' : 1;
+        else if (currentActiveSnapPoint === '90px') currentActiveSnapPoint = windowHeight > 150 ? '150px' : 1;
+        else currentActiveSnapPoint = defaultSnapPoint;
+      } else {
+        if (currentActiveSnapPoint === '376px') currentActiveSnapPoint = windowHeight > 280 ? '280px' : 1;
+        else if (currentActiveSnapPoint === '150px') currentActiveSnapPoint = windowHeight > 90 ? '90px' : 1;
+        else currentActiveSnapPoint = defaultSnapPoint;
+      }
+      
+      // 최종 검증
+      if (!validSnapPoints.includes(currentActiveSnapPoint as any)) {
+        currentActiveSnapPoint = defaultSnapPoint;
+      }
+    }
     
     return (
       <>
@@ -191,8 +230,8 @@ export default function JourneySidebar() {
         <Drawer.Root 
           open={true} 
           modal={false} 
-          snapPoints={[activeJourney ? '150px' : '90px', defaultSnapPoint, 1]} 
-          activeSnapPoint={snap ?? defaultSnapPoint}
+          snapPoints={validSnapPoints} 
+          activeSnapPoint={currentActiveSnapPoint}
           fadeFromIndex={1}
           setActiveSnapPoint={setSnap}
           dismissible={false}

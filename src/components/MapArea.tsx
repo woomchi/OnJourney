@@ -588,10 +588,14 @@ export default function MapArea() {
   const isPanelOpen = showRouteGuide;
 
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [windowHeight, setWindowHeight] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 800);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const handleResize = () => setWindowWidth(window.innerWidth);
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      setWindowHeight(window.innerHeight);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -601,8 +605,8 @@ export default function MapArea() {
     const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
     const mapWidth = windowWidth - sidebarWidth;
 
-    // 모바일 환경에서는 상단에 검색바가 존재하므로, 폴리라인 등이 가려지지 않도록 충분한 여백(140px)을 확보합니다.
-    const topPadding = isMobile ? 140 : 40;
+    // 모바일 환경에서는 상단에 검색바가 존재하므로, 폴리라인 등이 가려지지 않도록 여백을 확보합니다.
+    let topPadding = isMobile ? 100 : 80;
 
     // 모바일 환경일 경우 바텀 시트 높이를 고려하여 지도가 잘리지 않도록 하단 패딩 동적 추가
     const rightPadding = mapWidth < 600 ? 16 : 30;
@@ -615,7 +619,7 @@ export default function MapArea() {
 
     if (isMobile && effectiveSnapPoint !== 1) {
       if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
-        bottomPadding = parseInt(effectiveSnapPoint, 10) + 40; // 스냅 포인트 높이 + 여백 추가로 가려짐 방지
+        bottomPadding = parseInt(effectiveSnapPoint, 10) + 20; // 스냅 포인트 높이 + 마커 여백 고려
       } else {
         bottomPadding = 300;
       }
@@ -626,10 +630,23 @@ export default function MapArea() {
     if (isPanelOpen || alternativePlaces) {
       if (isMobile) {
         // 모바일에서는 바텀 시트이므로 하단 패딩 증가 (대략 40vh 정도 고려)
-        bottomPadding = typeof window !== 'undefined' ? window.innerHeight * 0.4 : 350;
+        bottomPadding = typeof window !== 'undefined' ? windowHeight * 0.4 : 350;
       } else {
         // 데스크톱에서는 좌측 패널이므로 좌측 패딩 증가
         leftPadding = Math.min(390, mapWidth * 0.45);
+      }
+    }
+
+    // 안전장치: 모바일 브라우저 툴바 등에 의해 화면 높이가 매우 작아진 경우
+    // 상하 패딩의 합이 화면 높이를 초과하거나 너무 꽉 차면 fitBounds가 오작동(비정상 확대)하므로 안전 마진 확보
+    if (isMobile) {
+      const maxAllowedVerticalPadding = Math.max(0, windowHeight - 150); // 최소 150px의 지도 표시 영역 보장
+      const currentTotalVerticalPadding = topPadding + bottomPadding;
+      if (currentTotalVerticalPadding > maxAllowedVerticalPadding) {
+        // 공간이 부족할 경우, 검색바(topPadding) 공간을 우선 확보하고 나머지를 바텀 패딩에 할당
+        // 단, topPadding 자체도 과도하게 크지 않게 조정
+        topPadding = Math.min(topPadding, maxAllowedVerticalPadding * 0.3);
+        bottomPadding = maxAllowedVerticalPadding - topPadding;
       }
     }
 
@@ -639,7 +656,7 @@ export default function MapArea() {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [isPanelOpen, alternativePlaces, windowWidth, isMobile, drawerSnapPoint]);
+  }, [isPanelOpen, alternativePlaces, windowWidth, windowHeight, isMobile, drawerSnapPoint, isDrawerMaximized]);
 
   // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
   useEffect(() => {
@@ -714,7 +731,8 @@ export default function MapArea() {
           new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
           new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
         );
-        map.fitBounds(bounds, { maxZoom: 16, margin: currentMapPadding } as any);
+        map.fitBounds(bounds, { maxZoom: 16 });
+        map.setCenter(bounds.getCenter());
       } else {
         const renderer = new NaverMapRouteRenderer(map);
         renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -776,13 +794,14 @@ export default function MapArea() {
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
 
-    // 데이터가 변경되었는지 확인하여, 단순히 패딩이나 바텀시트 상태가 바뀐 것만으로는 fitBounds를 실행하지 않음
+    // 데이터나 바텀시트 상태가 변경되었는지 확인하여 fitBounds 실행 (바텀시트 조절 시 남은 영역에 맞게 줌 조절)
     const currentDataString = JSON.stringify({
       places: places.map(p => p.id),
       loadedSegmentsCount,
       transport_type: activeJourney?.transport_type,
       recommendedPlaces: recommendedPlaces?.map(p => p.id),
       isMobile,
+      drawerSnapPoint,
     });
 
     const wasFocused = lastFocusStateRef.current;
@@ -807,7 +826,8 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
-      map.fitBounds(bounds, { maxZoom: 16, margin: currentMapPadding } as any);
+      map.fitBounds(bounds, { maxZoom: 16 });
+      map.setCenter(bounds.getCenter());
     } else {
       const renderer = new NaverMapRouteRenderer(map);
       renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -839,7 +859,8 @@ export default function MapArea() {
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    map.fitBounds(bounds, { maxZoom: 18, margin: currentMapPadding } as any);
+    map.fitBounds(bounds, { maxZoom: 18 });
+    map.setCenter(bounds.getCenter());
 
     lastFittedFocusBoundsRef.current = currentFocusString;
   }, [focusBounds, map, currentMapPadding, isDrawerMaximized, isMobile]);

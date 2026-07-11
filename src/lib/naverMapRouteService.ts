@@ -457,7 +457,7 @@ export class NaverMapRouteRenderer {
     const boundsObj = calculateJourneyBounds(places, directionsCache, transportType);
     if (!boundsObj) return;
 
-    const expanded = expandBounds(boundsObj, 0.03); // 3% 확장하여 충분한 안전 마진 확보
+    const expanded = expandBounds(boundsObj, 0.01); // 1% 확장하여 여백 최소화 (패딩이 이미 역할을 함)
 
     const bounds = new navermaps.LatLngBounds(
       new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
@@ -465,7 +465,8 @@ export class NaverMapRouteRenderer {
     );
 
     this.map.setOptions({ padding });
-    this.map.fitBounds(bounds, { maxZoom: 18, margin: padding } as any);
+    this.map.fitBounds(bounds, { maxZoom: 18 });
+    this.map.setCenter(bounds.getCenter());
   }
 
   /**

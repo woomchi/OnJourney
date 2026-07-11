@@ -22,6 +22,7 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
     setActiveJourney,
     clearJourney,
     isDrawerMaximized,
+    setDrawerSnapPoint,
   } = useJourneyStore();
 
   const overscrollHandlers = useOverscrollDrawer();
@@ -54,6 +55,7 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
     }
     setIsListEditMode(true);
     setSelectedIds([]);
+    setDrawerSnapPoint(1);
   };
 
   const handleCancelEdit = () => {

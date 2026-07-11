@@ -36,6 +36,7 @@ export default function JourneyPlayerHeader({
     setActiveJourney,
     isEditMode,
     setEditMode,
+    setDrawerSnapPoint,
   } = useJourneyStore();
 
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
@@ -95,7 +96,10 @@ export default function JourneyPlayerHeader({
             onClick={
               isEditMode
                 ? handleDoneEdit
-                : () => setEditMode(true)
+                : () => {
+                    setEditMode(true);
+                    setDrawerSnapPoint(1);
+                  }
             }
             className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-1 ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'
               }`}

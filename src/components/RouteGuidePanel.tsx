@@ -98,6 +98,10 @@ export default function RouteGuidePanel({
     }
   }, [isOpen]);
 
+  const isAutoScrolling = useRef(false);
+  const autoScrollTimeout = useRef<NodeJS.Timeout | null>(null);
+  const skipNextScrollIntoView = useRef(false);
+
   useEffect(() => {
     if (
       animate &&
@@ -105,10 +109,21 @@ export default function RouteGuidePanel({
       focusedStep.originId === originPlace.id &&
       focusedStep.destId === destPlace.id
     ) {
+      if (skipNextScrollIntoView.current) {
+        skipNextScrollIntoView.current = false;
+        return;
+      }
+      
       const element = document.getElementById(`step-${originPlace.id}-${destPlace.id}-${focusedStep.stepIndex}`);
       if (element) {
+        isAutoScrolling.current = true;
+        if (autoScrollTimeout.current) clearTimeout(autoScrollTimeout.current);
+        
         setTimeout(() => {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          autoScrollTimeout.current = setTimeout(() => {
+            isAutoScrolling.current = false;
+          }, 800);
         }, 100);
       }
     }
@@ -124,24 +139,54 @@ export default function RouteGuidePanel({
         arr.push({ idx, step, subType: 'start' });
         arr.push({ idx, step, subType: 'dest' });
       } else if (step.type === 'walk' || (!step.startName && !step.endName)) {
-        arr.push({ idx, step });
+        arr.push({ idx, step, subType: 'start' });
+        arr.push({ idx, step, subType: 'end' });
       } else {
         if (step.startName) arr.push({ idx, step, subType: 'start' });
         if (step.endName) arr.push({ idx, step, subType: 'end' });
       }
     });
 
-    if (steps.length > 0) {
-      const lastStep = steps[steps.length - 1];
-      if (lastStep.type === 'walk' || lastStep.type === 'car' || lastStep.type === 'taxi') {
-        if (lastStep.type === 'walk') {
-          arr.push({ idx: steps.length - 1, step: lastStep, subType: 'dest' });
-        }
-      }
-    }
-
     return arr;
   };
+
+  useEffect(() => {
+    if (!scrollContainerRef.current || !isOpen || !animate) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isAutoScrolling.current) return;
+        
+        const visibleEntry = entries.find(entry => entry.isIntersecting);
+        if (visibleEntry && focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id) {
+          const id = visibleEntry.target.id;
+          const parts = id.split('-');
+          if (parts.length === 4) {
+            const idx = parseInt(parts[3], 10);
+            
+            if (focusedStep.stepIndex !== idx) {
+              const pages = getPages();
+              const page = pages.find(p => p.idx === idx && (p.subType === 'start' || !p.subType)) || pages.find(p => p.idx === idx);
+              
+              if (page) {
+                skipNextScrollIntoView.current = true;
+                handleStepClick(page.idx, page.step, page.subType);
+              }
+            }
+          }
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+        threshold: 0.5,
+      }
+    );
+
+    const stepElements = document.querySelectorAll(`[id^="step-${originPlace.id}-${destPlace.id}-"]`);
+    stepElements.forEach(el => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [isOpen, animate, focusedStep, originPlace.id, destPlace.id, route]);
 
   const handleStepClick = (idx: number, step: any, subType?: 'start' | 'end' | 'dest') => {
     setIsExpanded(false);
@@ -161,11 +206,11 @@ export default function RouteGuidePanel({
         lat = destPlace.lat;
         lng = destPlace.lng;
       } else if (subType === 'start') {
-        lat = step.startLat;
-        lng = step.startLng;
+        lat = idx === 0 ? originPlace.lat : step.startLat;
+        lng = idx === 0 ? originPlace.lng : step.startLng;
       } else if (subType === 'end') {
-        lat = step.endLat;
-        lng = step.endLng;
+        lat = idx === steps.length - 1 ? destPlace.lat : step.endLat;
+        lng = idx === steps.length - 1 ? destPlace.lng : step.endLng;
       } else {
         lat = step.startLat;
         lng = step.startLng;
@@ -271,8 +316,8 @@ export default function RouteGuidePanel({
       lat = destPlace.lat;
       lng = destPlace.lng;
     } else {
-      lat = type === 'start' ? step.startLat : step.endLat;
-      lng = type === 'start' ? step.startLng : step.endLng;
+      lat = type === 'start' ? (idx === 0 ? originPlace.lat : step.startLat) : (idx === steps.length - 1 ? destPlace.lat : step.endLat);
+      lng = type === 'start' ? (idx === 0 ? originPlace.lng : step.startLng) : (idx === steps.length - 1 ? destPlace.lng : step.endLng);
 
       if (lat === undefined || lng === undefined) {
         if (step.pathPoints && step.pathPoints.length > 0) {
@@ -307,7 +352,7 @@ export default function RouteGuidePanel({
         className={`absolute bg-white border-t border-zinc-200 flex flex-col z-[100] md:z-auto
           bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)] pb-[80px] md:pb-[88px]
           md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
-          ${isExpanded ? 'h-[calc(100dvh-80px)] md:h-auto' : 'h-[40vh] md:h-auto'}
+          ${isExpanded ? 'h-[calc(100dvh-80px)] md:h-auto' : 'h-[50vh] md:h-auto'}
           ${animate 
             ? (dragY !== 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
             : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
@@ -437,7 +482,7 @@ export default function RouteGuidePanel({
       </div>
 
         {/* Guide List */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 scrollbar-sleek">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 scrollbar-sleek snap-y snap-mandatory">
           {hasGuide ? (
             <CarGuideList 
               route={route} 

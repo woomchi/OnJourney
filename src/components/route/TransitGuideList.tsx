@@ -88,13 +88,13 @@ export default function TransitGuideList({
             key={idx}
             id={`step-${originPlace.id}-${destPlace.id}-${idx}`}
             onClick={() => {
-               if (step.type !== 'walk' && step.startName) {
+               if (step.startName || step.type === 'walk') {
                  handleStepClick(idx, step, 'start');
                } else {
                  handleStepClick(idx, step);
                }
             }}
-            className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none ${
+            className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none snap-center snap-always ${
               isThisStepFocused
                 ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
                 : isAnyStepFocused
@@ -128,13 +128,25 @@ export default function TransitGuideList({
                 </span>
               </div>
 
-              {/* 승차 / 하차 정보 */}
-              {(step.startName || step.endName) && (() => {
+              {/* 승차 / 하차 정보 (도보인 경우 출발 / 도착) */}
+              {((step.type !== 'walk' && (step.startName || step.endName)) || step.type === 'walk') && (() => {
                 const isStartFocused = isThisStepFocused && focusedStep?.subType === 'start';
                 const isEndFocused = isThisStepFocused && focusedStep?.subType === 'end';
+                
+                const startLabel = step.type === 'walk' ? '출발' : '승차';
+                const endLabel = step.type === 'walk' ? '도착' : '하차';
+                
+                let displayStartName = step.startName;
+                let displayEndName = step.endName;
+                
+                if (step.type === 'walk') {
+                   displayStartName = idx === 0 ? originPlace.place_name : (steps[idx - 1]?.endName || steps[idx - 1]?.name || '출발지');
+                   displayEndName = idx === steps.length - 1 ? destPlace.place_name : (steps[idx + 1]?.startName || steps[idx + 1]?.name || '도착지');
+                }
+
                 return (
                 <div className="mt-1.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none" onClick={(e) => e.stopPropagation()}>
-                  {step.startName && (
+                  {displayStartName && (
                     <div
                       onClick={(e) => handleZoomToPoint(idx, step, 'start', e)}
                       className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
@@ -145,8 +157,8 @@ export default function TransitGuideList({
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                        <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isStartFocused ? 'text-blue-600' : 'text-zinc-400'}`}>승차</span>
-                        <span className={`truncate transition-colors ${isStartFocused ? 'text-blue-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{step.startName}</span>
+                        <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isStartFocused ? 'text-blue-600' : 'text-zinc-400'}`}>{startLabel}</span>
+                        <span className={`truncate transition-colors ${isStartFocused ? 'text-blue-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{displayStartName}</span>
                       </div>
                       <div className={`flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center ${isStartFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
@@ -155,10 +167,10 @@ export default function TransitGuideList({
                       </div>
                     </div>
                   )}
-                  {step.startName && step.endName && (
+                  {displayStartName && displayEndName && (
                     <div className="w-px h-2 bg-zinc-200 ml-[13px]" />
                   )}
-                  {step.endName && (
+                  {displayEndName && (
                     <div
                       onClick={(e) => handleZoomToPoint(idx, step, 'end', e)}
                       className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
@@ -169,8 +181,8 @@ export default function TransitGuideList({
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                        <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isEndFocused ? 'text-rose-600' : 'text-zinc-400'}`}>하차</span>
-                        <span className={`truncate transition-colors ${isEndFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-rose-700'}`}>{step.endName}</span>
+                        <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isEndFocused ? 'text-rose-600' : 'text-zinc-400'}`}>{endLabel}</span>
+                        <span className={`truncate transition-colors ${isEndFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-rose-700'}`}>{displayEndName}</span>
                       </div>
                       <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isEndFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
@@ -241,38 +253,7 @@ export default function TransitGuideList({
                 </div>
               )}
 
-              {step.type === 'walk' && !step.startName && !step.endName && (
-                <p className="text-xs text-zinc-400 font-semibold mt-1">
-                  약 {step.duration}분 동안 도보로 이동합니다.
-                </p>
-              )}
 
-              {step.type === 'walk' && idx === steps.length - 1 && (() => {
-                const isDestFocused = isThisStepFocused && focusedStep?.subType === 'dest';
-                return (
-                <div className="mt-2.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none" onClick={(e) => e.stopPropagation()}>
-                  <div
-                    onClick={(e) => handleZoomToPoint(idx, step, 'dest', e)}
-                    className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
-                      isDestFocused
-                        ? 'bg-rose-100/70 ring-1 ring-rose-300 shadow-sm scale-[1.01]'
-                        : 'hover:bg-rose-50/70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                      <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isDestFocused ? 'text-rose-600' : 'text-zinc-400'}`}>도착</span>
-                      <span className={`truncate transition-colors ${isDestFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{destPlace.place_name}</span>
-                    </div>
-                    <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isDestFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-                );
-              })()}
             </div>
           </div>
         );

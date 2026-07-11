@@ -174,15 +174,21 @@ export default function MapArea() {
 
   useEffect(() => {
     if (isMobile) {
-      const target = document.getElementById('mobile-map-buttons-target');
+      const getTarget = () => {
+        if (focusedSegment) {
+          const routeTarget = document.getElementById('mobile-map-buttons-target-route');
+          if (routeTarget) return routeTarget;
+        }
+        return document.getElementById('mobile-map-buttons-target');
+      };
+
+      const target = getTarget();
       if (target) setPortalTarget(target);
 
       const observer = new MutationObserver(() => {
-        const el = document.getElementById('mobile-map-buttons-target');
-        if (el) {
+        const el = getTarget();
+        if (el && el !== portalTarget) {
           setPortalTarget(el);
-          // Once found, we can disconnect if we want, but keeping it is fine 
-          // in case the drawer re-renders.
         }
       });
       observer.observe(document.body, { childList: true, subtree: true });
@@ -190,7 +196,7 @@ export default function MapArea() {
     } else {
       setPortalTarget(null);
     }
-  }, [isMobile]);
+  }, [isMobile, focusedSegment, portalTarget]);
 
   useEffect(() => {
     if (!isSearchMode) {
@@ -596,6 +602,23 @@ export default function MapArea() {
 
 
   const handleResetBounds = () => {
+    // 상세 바텀 시트 (focusedSegment) 가 열려있을 때는, 현재 세그먼트를 기준으로 다시 fitBounds를 수행함 (전체 여정으로 돌아가지 않음)
+    if (focusedSegment) {
+      const originPlace = places.find(p => p.id === focusedSegment.originId);
+      const destPlace = places.find(p => p.id === focusedSegment.destId);
+      if (originPlace && destPlace) {
+        const cacheKey = `${originPlace.id}-${destPlace.id}`;
+        const segmentData = directionsCache[cacheKey];
+        const transportType = activeJourney?.transport_type || 'public';
+        const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+        const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+        
+        setFocusBounds({ ...bounds }); // trigger re-fit by spreading to create a new reference
+        setFocusedStep(null);
+        return;
+      }
+    }
+
     // 만약 이미 전체 화면 상태라면, 패딩 재적용 및 수동 핏팅 수행 (사용자 조작 복구용)
     if (!focusBounds) {
       if (!map || places.length === 0) return;
@@ -1265,7 +1288,7 @@ export default function MapArea() {
                   transition-all duration-200 ease-out
                   cursor-pointer select-none
                 "
-                title="전체 경로 보기"
+                title={focusedSegment ? "해당 이동 구간 보기" : "전체 경로 보기"}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

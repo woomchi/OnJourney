@@ -5,6 +5,7 @@ export interface UsePanelDragOptions {
   onClose: () => void;
   dragThreshold?: number;
   snapThreshold?: number;
+  enableMinimize?: boolean;
 }
 
 export function usePanelDrag({
@@ -12,15 +13,18 @@ export function usePanelDrag({
   onClose,
   dragThreshold = 80,
   snapThreshold = -50,
+  enableMinimize = false,
 }: UsePanelDragOptions) {
   const [dragY, setDragY] = useState(0);
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
   const touchStartY = useRef<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setIsExpanded(false);
+      setIsMinimized(false);
     }
   }, [isOpen]);
 
@@ -37,6 +41,8 @@ export function usePanelDrag({
     
     if (isExpanded && diff < 0) {
       setDragY(diff * 0.1);
+    } else if (isMinimized && diff > 0) {
+      setDragY(diff * 0.1);
     } else {
       setDragY(diff);
     }
@@ -48,9 +54,14 @@ export function usePanelDrag({
       if (dragY > dragThreshold) {
         setIsExpanded(false);
       }
-    } else {
+    } else if (isMinimized) {
+      if (dragY < snapThreshold) {
+        setIsMinimized(false);
+      }
+    } else { // Collapsed state
       if (dragY > dragThreshold) {
-        onClose();
+        if (enableMinimize) setIsMinimized(true);
+        else onClose();
       } else if (dragY < snapThreshold) {
         setIsExpanded(true);
       }
@@ -64,9 +75,12 @@ export function usePanelDrag({
     dragY,
     isDraggingPanel,
     isExpanded,
+    isMinimized,
     setIsExpanded,
+    setIsMinimized,
     collapse: () => setIsExpanded(false),
     expand: () => setIsExpanded(true),
+    minimize: () => setIsMinimized(true),
     handlers: {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,

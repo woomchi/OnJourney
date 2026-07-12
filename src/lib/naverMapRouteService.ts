@@ -465,9 +465,7 @@ export class NaverMapRouteRenderer {
     );
 
     this.map.setOptions({ padding });
-    setTimeout(() => {
-      this.map.fitBounds(bounds, { maxZoom: 18 });
-    }, 50);
+    this.map.fitBounds(bounds, { maxZoom: 18 });
   }
 
   /**

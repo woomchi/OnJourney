@@ -653,10 +653,8 @@ export default function MapArea() {
           new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
           new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
         );
-        setTimeout(() => {
-          map.fitBounds(bounds, { maxZoom: 16 });
-          map.setCenter(bounds.getCenter());
-        }, 50);
+        map.fitBounds(bounds, { maxZoom: 16 });
+        map.setCenter(bounds.getCenter());
       } else {
         const renderer = new NaverMapRouteRenderer(map);
         renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -703,6 +701,7 @@ export default function MapArea() {
 
   const lastFittedDataStringRef = useRef<string>('');
   const lastFocusStateRef = useRef<boolean>(false);
+  const isInitialFitRef = useRef<boolean>(true);
 
   // places 또는 map 인스턴스 또는 로드된 세그먼트 수가 변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
   // 검색 결과가 지워진 경우에도 원래 전체 경로로 줌을 되돌리도록 recommendedPlaces 상태를 연동합니다.
@@ -742,22 +741,27 @@ export default function MapArea() {
 
     map.setOptions({ padding: currentMapPadding });
 
-    if (places.length === 1) {
-      const first = places[0];
-      const latOffset = 0.0015;
-      const lngOffset = 0.0015;
-      const bounds = new navermaps.LatLngBounds(
-        new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
-        new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
-      );
-      setTimeout(() => {
+    const doFit = () => {
+      if (places.length === 1) {
+        const first = places[0];
+        const latOffset = 0.0015;
+        const lngOffset = 0.0015;
+        const bounds = new navermaps.LatLngBounds(
+          new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
+          new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
+        );
         map.fitBounds(bounds, { maxZoom: 16 });
-      }, 50);
-    } else {
-      setTimeout(() => {
+      } else {
         const renderer = new NaverMapRouteRenderer(map);
         renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
-      }, 50);
+      }
+    };
+
+    if (isInitialFitRef.current) {
+      isInitialFitRef.current = false;
+      setTimeout(doFit, 100); // 초기 로딩 시 지도 랜더링 지연에 대응하기 위한 타협점
+    } else {
+      doFit();
     }
 
     lastFittedDataStringRef.current = currentDataString;
@@ -786,9 +790,7 @@ export default function MapArea() {
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    setTimeout(() => {
-      map.fitBounds(bounds, { maxZoom: 18 });
-    }, 50);
+    map.fitBounds(bounds, { maxZoom: 18 });
 
     lastFittedFocusBoundsRef.current = currentFocusString;
   }, [focusBounds, map, currentMapPadding, isDrawerMaximized, isMobile]);

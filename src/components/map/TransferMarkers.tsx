@@ -400,7 +400,7 @@ export default function TransferMarkers({
               ? '도착' 
               : (pt.isAlighting ? '하차' : (pt.type === 'walk' ? '도보' : (pt.isFirst ? '탑승' : '환승'))));
         
-        const siteIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 10px; height: 10px; color: white;" class="start-icon-svg-${pt.key}"><path d="M12 4L4 18h16Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>`;
+        const siteIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 11px; height: 11px; color: white;"><path d="M8 5v14l11-7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>`;
         const iconEmoji = pt.isSegmentDest 
           ? '🚩' 
           : (pt.isSegmentStart ? siteIconSvg : (pt.type === 'walk' ? '🚶' : (pt.type === 'subway' ? '🚇' : (pt.type === 'train' ? '🚄' : '🚌'))));
@@ -442,14 +442,6 @@ export default function TransferMarkers({
             icon={{
               content: `
                 <style>
-                  .start-icon-svg-${pt.key} {
-                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    transform-origin: center;
-                    transform: rotate(${isThisStepFocused ? '90deg' : '0deg'});
-                  }
-                  .transfer-marker-${pt.key}:hover .start-icon-svg-${pt.key} {
-                    transform: rotate(${isThisStepFocused ? '0deg' : '90deg'});
-                  }
                   .transfer-marker-${pt.key} {
                     display: flex;
                     align-items: center;
@@ -494,9 +486,14 @@ export default function TransferMarkers({
                     display: flex;
                     flex-direction: column;
                     justify-content: center;
+                    max-width: 130px;
                   ">
+                    ${(pt.isSegmentStart || pt.isSegmentDest) ? `
+                    <span style="font-size: 10.5px; font-weight: 800; color: #18181b; line-height: 1.1;">${labelText}</span>
+                    ` : `
                     <span style="font-size: 8px; color: #71717a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1;">${labelText}</span>
-                    <span style="font-size: 10.5px; font-weight: 800; color: #18181b; line-height: 1.1; margin-top: 1px;">${displayBusName}</span>
+                    <span style="font-size: 10.5px; font-weight: 800; color: #18181b; line-height: 1.1; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">${displayBusName}</span>
+                    `}
                   </div>
                   <!-- 아래쪽 꼭지점 화살표 -->
                   <div style="

@@ -496,10 +496,11 @@ export default function MapArea() {
     const mapWidth = windowWidth - sidebarWidth;
 
     // 모바일 환경에서는 상단에 검색바가 존재하므로, 폴리라인 등이 가려지지 않도록 여백을 확보합니다.
-    let topPadding = isMobile ? 100 : 80;
+    let topPadding = isMobile ? 120 : 80;
 
     // 모바일 환경일 경우 바텀 시트 높이를 고려하여 지도가 잘리지 않도록 하단 패딩 동적 추가
-    const rightPadding = mapWidth < 600 ? 16 : 30;
+    // 마커 아이콘이 잘리지 않도록 모바일에서 좌우 패딩을 충분히(최소 48px) 확보합니다.
+    const rightPadding = mapWidth < 600 ? 48 : 30;
     let bottomPadding = mapWidth < 600 ? 30 : 45;
     
     // 바텀시트가 최대화되었을 때는 지도가 가려지므로 이전 높이(최소 또는 기본) 기준으로 패딩을 고정하여 지도가 튀는 현상(Shift)을 방지
@@ -518,14 +519,14 @@ export default function MapArea() {
           }
         } else {
           if (guidePanelState === 'minimized') {
-            bottomPadding = 220; // 이동 상세 패널 최소화 시 200px + 20px 여백
+            bottomPadding = 260; // 이동 상세 패널 최소화 시 200px + 60px 여백 (마커 라벨 등 고려)
           } else {
-            bottomPadding = 370; // 이동 상세 패널 기본 높이 (350px + 20px 여백)
+            bottomPadding = 410; // 이동 상세 패널 기본 높이 (350px + 60px 여백)
           }
         }
       } else if (effectiveSnapPoint !== 1) {
         if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
-          bottomPadding = parseInt(effectiveSnapPoint, 10) + 20; // 스냅 포인트 높이 + 마커 여백 고려
+          bottomPadding = parseInt(effectiveSnapPoint, 10) + 40; // 스냅 포인트 높이 + 마커 여백 고려
         } else {
           bottomPadding = 300;
         }
@@ -533,7 +534,7 @@ export default function MapArea() {
     }
 
     // 경로 안내 패널이나 대안 경로 패널이 열려 있을 때 패딩 조정
-    let leftPadding = mapWidth < 600 ? 16 : 30;
+    let leftPadding = mapWidth < 600 ? 48 : 30;
     if (!!focusedSegment || !!alternativeSegment) {
       if (!isMobile) {
         // 데스크톱에서는 좌측 패널이므로 좌측 패딩 증가

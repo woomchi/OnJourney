@@ -653,8 +653,10 @@ export default function MapArea() {
           new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
           new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
         );
-        map.fitBounds(bounds, { maxZoom: 16 });
-        map.setCenter(bounds.getCenter());
+        setTimeout(() => {
+          map.fitBounds(bounds, { maxZoom: 16 });
+          map.setCenter(bounds.getCenter());
+        }, 50);
       } else {
         const renderer = new NaverMapRouteRenderer(map);
         renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
@@ -748,10 +750,14 @@ export default function MapArea() {
         new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
         new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
       );
-      map.fitBounds(bounds, { maxZoom: 16 });
+      setTimeout(() => {
+        map.fitBounds(bounds, { maxZoom: 16 });
+      }, 50);
     } else {
-      const renderer = new NaverMapRouteRenderer(map);
-      renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
+      setTimeout(() => {
+        const renderer = new NaverMapRouteRenderer(map);
+        renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
+      }, 50);
     }
 
     lastFittedDataStringRef.current = currentDataString;
@@ -780,7 +786,9 @@ export default function MapArea() {
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    map.fitBounds(bounds, { maxZoom: 18 });
+    setTimeout(() => {
+      map.fitBounds(bounds, { maxZoom: 18 });
+    }, 50);
 
     lastFittedFocusBoundsRef.current = currentFocusString;
   }, [focusBounds, map, currentMapPadding, isDrawerMaximized, isMobile]);

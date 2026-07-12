@@ -141,12 +141,13 @@ export default function PlaceCard({
       // When exiting focus back to journey detail, scroll to it to prevent snap jumping
       // especially at the bottom of the list where drawer expansion clamps scrollTop
       if (wasFocusedRef.current && !isCurrentlyFocused && !focusedSegment && !focusedStep && cardRef.current) {
+        const scrollBlock = isDrawerMaximized ? 'nearest' : 'center';
         setTimeout(() => {
-          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: scrollBlock });
         }, 50);
         // Fire again after drawer transition completes to ensure correct final snap
         setTimeout(() => {
-          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: scrollBlock });
         }, 400);
       }
       

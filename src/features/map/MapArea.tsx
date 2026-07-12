@@ -60,6 +60,7 @@ export default function MapArea() {
     hasSearchQuery,
     isDrawerMaximized,
     drawerSnapPoint,
+    guidePanelState,
   } = useMapState();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
@@ -508,8 +509,20 @@ export default function MapArea() {
 
     if (isMobile) {
       if (!!focusedSegment || !!alternativeSegment) {
-        // 상세 안내 패널(RouteGuidePanel) 높이 350px 고려
-        bottomPadding = 370;
+        // 상세 안내 패널 상태에 따른 바텀 패딩 조절
+        if (!!alternativeSegment) {
+          if (guidePanelState === 'expanded') {
+            bottomPadding = windowHeight * 0.4 + 20; // 최대화 시 어차피 가려지므로 기존 40vh 유지하여 튀는 현상 방지
+          } else {
+            bottomPadding = windowHeight * 0.4 + 20; // 대안 경로 패널 기본 높이 (40vh)
+          }
+        } else {
+          if (guidePanelState === 'minimized') {
+            bottomPadding = 220; // 이동 상세 패널 최소화 시 200px + 20px 여백
+          } else {
+            bottomPadding = 370; // 이동 상세 패널 기본 높이 (350px + 20px 여백)
+          }
+        }
       } else if (effectiveSnapPoint !== 1) {
         if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
           bottomPadding = parseInt(effectiveSnapPoint, 10) + 20; // 스냅 포인트 높이 + 마커 여백 고려
@@ -547,7 +560,7 @@ export default function MapArea() {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [focusedSegment, alternativeSegment, windowWidth, windowHeight, isMobile, drawerSnapPoint, isDrawerMaximized]);
+  }, [focusedSegment, alternativeSegment, windowWidth, windowHeight, isMobile, drawerSnapPoint, isDrawerMaximized, guidePanelState]);
 
   // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
   useEffect(() => {

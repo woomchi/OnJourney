@@ -28,5 +28,6 @@ export function useMapState() {
     hasSearchQuery: state.searchQuery.trim().length > 0,
     isDrawerMaximized: state.isDrawerMaximized,
     drawerSnapPoint: state.drawerSnapPoint,
+    guidePanelState: state.guidePanelState,
   })));
 }

@@ -43,6 +43,20 @@ export default function AlternativeRoutePanel({
     onClose,
   });
 
+  const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (isExpanded) {
+        setGuidePanelState('expanded');
+      } else {
+        setGuidePanelState('default');
+      }
+    } else {
+      setGuidePanelState('default');
+    }
+  }, [isOpen, isExpanded, setGuidePanelState]);
+
   const queryClient = useQueryClient();
   const cacheKey = directionKeys.segment(originPlace.id, destPlace.id);
   const segmentData = queryClient.getQueryData<DirectionsApiResponse>(cacheKey);

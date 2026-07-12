@@ -44,6 +44,22 @@ export default function RouteGuidePanel({
     enableMinimize: true,
   });
 
+  const { setGuidePanelState } = useJourneyStore();
+
+  useEffect(() => {
+    if (isOpen) {
+      if (isExpanded) {
+        setGuidePanelState('expanded');
+      } else if (isMinimized) {
+        setGuidePanelState('minimized');
+      } else {
+        setGuidePanelState('default');
+      }
+    } else {
+      setGuidePanelState('default');
+    }
+  }, [isOpen, isExpanded, isMinimized, setGuidePanelState]);
+
   useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;

@@ -40,9 +40,9 @@ export function usePanelDrag({
     const diff = currentY - touchStartY.current;
     
     if (isExpanded && diff < 0) {
-      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.98));
+      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.8)); // 고무줄 효과 강화 (더 적게 늘어나도록)
     } else if (isMinimized && diff > 0) {
-      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.98));
+      setDragY(0); // 최소 높이에서는 더 이상 아래로 드래그되지 않도록 차단
     } else {
       setDragY(diff);
     }

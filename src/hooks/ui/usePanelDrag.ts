@@ -40,9 +40,9 @@ export function usePanelDrag({
     const diff = currentY - touchStartY.current;
     
     if (isExpanded && diff < 0) {
-      setDragY(diff * 0.1);
+      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.85));
     } else if (isMinimized && diff > 0) {
-      setDragY(diff * 0.1);
+      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.85));
     } else {
       setDragY(diff);
     }

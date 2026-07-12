@@ -8,6 +8,7 @@ import { usePanelDrag } from '@/hooks/ui/usePanelDrag';
 import PlaybackBar from '@/components/route/PlaybackBar';
 import TransitGuideList from '@/components/route/TransitGuideList';
 import CarGuideList from '@/components/route/CarGuideList';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface RouteGuidePanelProps {
   route: SelectedRoute | DirectionResult;
@@ -33,6 +34,7 @@ export default function RouteGuidePanel({
   onExited,
 }: RouteGuidePanelProps) {
   const [animate, setAnimate] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
@@ -305,21 +307,21 @@ export default function RouteGuidePanel({
         }}
         style={{ 
           zIndex: animate ? 45 : 40,
-          height: isDragging && !isExpanded && dragY < 0 
-            ? (isMinimized ? `calc(200px + ${-dragY}px)` : `calc(350px + ${-dragY}px)`) 
-            : undefined,
-          transform: animate && dragY !== 0 
-            ? (!isExpanded && dragY < 0 ? undefined : `translateY(${dragY}px)`) 
-            : undefined,
-          transition: isDragging ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+          height: isMobile ? 'calc(100dvh - 80px)' : undefined,
+          transform: isMobile 
+            ? animate 
+              ? `translateY(calc(${isExpanded ? '0px' : isMinimized ? '100% - 200px' : '100% - 350px'} + ${dragY}px))`
+              : 'translateY(100%)'
+            : animate && dragY !== 0 && !isExpanded && dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms',
         }}
         className={`absolute bg-white border-t border-zinc-200 flex flex-col z-[100] md:z-auto
           bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)] pb-[80px] md:pb-[88px]
           md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
-          ${isExpanded ? 'h-[calc(100dvh-80px)] md:h-auto' : isMinimized ? 'h-[200px] md:h-auto' : 'h-[350px] md:h-auto'}
-          ${animate 
-            ? (dragY !== 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
-            : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
+          md:h-auto
+          ${!isMobile && animate 
+            ? 'md:translate-x-0 md:translate-y-0 opacity-100'
+            : !isMobile && !animate ? 'md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0' : ''
           }
         `}
       >
@@ -451,7 +453,13 @@ export default function RouteGuidePanel({
       </div>
 
         {/* Guide List */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 pt-5 pb-12 scrollbar-sleek snap-y snap-mandatory">
+        <div 
+          ref={scrollContainerRef} 
+          className="flex-1 overflow-y-auto px-5 pt-5 scrollbar-sleek snap-y snap-mandatory"
+          style={{ 
+            paddingBottom: isMobile ? `calc(48px + ${isExpanded ? '0px' : isMinimized ? 'calc(100dvh - 80px - 200px)' : 'calc(100dvh - 80px - 350px)'})` : '48px'
+          }}
+        >
           {hasGuide ? (
             <CarGuideList 
               route={route} 
@@ -482,14 +490,14 @@ export default function RouteGuidePanel({
       <div 
         style={{ 
           zIndex: animate ? 105 : 40,
-          transition: isDragging ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: isDragging ? 'none' : 'all 400ms cubic-bezier(0.32, 0.72, 0, 1)',
         }}
         className={`absolute z-[105] 
           bottom-4 left-4 right-4 
           md:bottom-10 md:left-8 md:right-auto md:w-[328px] 
           ${animate 
-            ? 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100'
-            : 'translate-y-[150%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
+            ? 'translate-y-0 md:translate-x-0 opacity-100'
+            : 'translate-y-[150%] md:-translate-x-[calc(100%+24px)] opacity-0'
           }
         `}
         onClickCapture={() => collapse()}

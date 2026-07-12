@@ -312,16 +312,21 @@ export default function AlternativeRoutePanel({
       }}
       style={{
         zIndex: animate ? 45 : 40,
-        transform: dragY !== 0 && animate ? `translateY(${dragY}px)` : undefined,
-        transition: isDraggingPanel ? 'none' : 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+        height: isMobile ? 'calc(100dvh - 80px)' : undefined,
+        transform: isMobile 
+          ? animate 
+            ? `translateY(calc(${isExpanded ? '0px' : '100% - 40vh'} + ${dragY}px))`
+            : 'translateY(100%)'
+          : animate && dragY !== 0 && !isExpanded && dragY > 0 ? `translateY(${dragY}px)` : undefined,
+        transition: isDraggingPanel ? 'none' : 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms',
       }}
       className={`absolute bg-white border-t border-zinc-200 flex flex-col overflow-hidden z-[100] md:z-auto
         bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
         md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
-        ${isExpanded ? 'h-[calc(100dvh-80px)] md:h-auto' : 'h-[40vh] md:h-auto'}
-        ${animate
-          ? (dragY !== 0 ? 'md:translate-x-0 md:translate-y-0 opacity-100' : 'translate-y-0 md:translate-x-0 md:translate-y-0 opacity-100')
-          : 'translate-y-[100%] md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
+        md:h-auto
+        ${!isMobile && animate
+          ? 'md:translate-x-0 md:translate-y-0 opacity-100'
+          : !isMobile && !animate ? 'md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0' : ''
         }
       `}
     >
@@ -459,7 +464,10 @@ export default function AlternativeRoutePanel({
       <div
         ref={listDragRef}
         {...listDragEvents}
-        className={`flex-1 overflow-y-auto px-5 pb-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek ${isListDragging ? 'cursor-grabbing' : ''}`}
+        className={`flex-1 overflow-y-auto px-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek ${isListDragging ? 'cursor-grabbing' : ''}`}
+        style={{
+          paddingBottom: isMobile ? `calc(20px + ${isExpanded ? '0px' : 'calc(100dvh - 80px - 40vh)'})` : '20px'
+        }}
       >
         {loading ? (
           <div className="animate-pulse flex flex-col gap-3 mt-2">

@@ -214,9 +214,9 @@ export default function JourneySidebar() {
       const currentPx = getCurrentSnapPx();
       
       if (currentPx === maxSnapPx && diff < 0) {
-        setDragY(diff * 0.1);
+        setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.85));
       } else if (currentPx === minSnapPx && diff > 0) {
-        setDragY(diff * 0.1);
+        setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.85));
       } else {
         setDragY(diff);
       }
@@ -255,7 +255,7 @@ export default function JourneySidebar() {
           style={{
             height: `${maxSnapPx}px`,
             transform: `translateY(${baseTranslateY + dragY}px)`,
-            transition: isDragging ? 'none' : 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1)',
           }}
         >
           {/* Portal Target for Map Buttons */}

@@ -31,13 +31,15 @@ export default function JourneySidebar() {
   const touchStartY = useRef<number | null>(null);
   const wasActiveJourneyRef = useRef(activeJourney);
 
-  // Initialize snap point on mount based on activeJourney
+  // Initialize snap point on mount based on existing store state or activeJourney
   useEffect(() => {
     if (activeJourney !== wasActiveJourneyRef.current) {
       setSnap(activeJourney ? '360px' : '294px');
       wasActiveJourneyRef.current = activeJourney;
     } else if (snap === null) {
-      setSnap(activeJourney ? '360px' : '294px');
+      // Use existing drawerSnapPoint if available (from persistence), otherwise fallback
+      const storeSnap = useJourneyStore.getState().drawerSnapPoint;
+      setSnap(storeSnap !== null && storeSnap !== undefined ? storeSnap : (activeJourney ? '360px' : '294px'));
     }
   }, [activeJourney, snap]);
 

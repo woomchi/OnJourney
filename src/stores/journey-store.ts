@@ -19,6 +19,12 @@ export const useJourneyStore = create<JourneyStore>()(
       partialize: (state) => ({
         journeys: state.journeys,
         activeJourney: state.activeJourney,
+        focusedSegment: state.focusedSegment,
+        focusBounds: state.focusBounds,
+        focusedStep: state.focusedStep,
+        alternativeSegment: state.alternativeSegment,
+        drawerSnapPoint: state.drawerSnapPoint,
+        guidePanelState: state.guidePanelState,
       }),
     }
   )

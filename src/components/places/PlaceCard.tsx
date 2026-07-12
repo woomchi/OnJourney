@@ -123,17 +123,34 @@ export default function PlaceCard({
     }
   }, [focusedSegment, place.id, alternativeSegment, setAlternativeSegment]);
 
+  const wasFocusedRef = useRef(false);
+
   useEffect(() => {
     if (!editMode) {
-      const isFocused =
+      const isCurrentlyFocused =
         (focusedSegment?.originId === place.id && focusedSegment?.destId === nextPlace?.id) ||
         (focusedStep?.originId === place.id && focusedStep?.destId === nextPlace?.id);
 
-      if (isFocused && cardRef.current) {
+      // When entering focus, scroll to it
+      if (isCurrentlyFocused && cardRef.current) {
         setTimeout(() => {
           cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 50);
       }
+      
+      // When exiting focus back to journey detail, scroll to it to prevent snap jumping
+      // especially at the bottom of the list where drawer expansion clamps scrollTop
+      if (wasFocusedRef.current && !isCurrentlyFocused && !focusedSegment && !focusedStep && cardRef.current) {
+        setTimeout(() => {
+          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+        // Fire again after drawer transition completes to ensure correct final snap
+        setTimeout(() => {
+          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 400);
+      }
+      
+      wasFocusedRef.current = !!isCurrentlyFocused;
     }
   }, [focusedSegment, focusedStep, place.id, nextPlace?.id, editMode]);
 

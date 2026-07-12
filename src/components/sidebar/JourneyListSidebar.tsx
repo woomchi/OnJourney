@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useQueryClient } from '@tanstack/react-query';
@@ -8,12 +8,131 @@ import { deleteJourneys } from '@/lib/journeys';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import type { Journey } from '@/types/journey';
 import { useOverscrollDrawer } from '@/hooks/useOverscrollDrawer';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
-interface JourneyListSidebarProps {
-  isLoading: boolean;
+interface SortableJourneyCardProps {
+  journey: Journey;
+  isListEditMode: boolean;
+  selectedIds: string[];
+  handleToggleSelect: (id: string) => void;
+  setActiveJourney: (journey: Journey) => void;
+  formatJourneyDate: (date: any) => string;
+  isDrawerMaximized: boolean;
 }
 
-export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProps) {
+function SortableJourneyCard({
+  journey,
+  isListEditMode,
+  selectedIds,
+  handleToggleSelect,
+  setActiveJourney,
+  formatJourneyDate,
+  isDrawerMaximized
+}: SortableJourneyCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: journey.id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: transition ? 'transform 150ms cubic-bezier(0.2, 0, 0, 1)' : undefined,
+    zIndex: isDragging ? 20 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`journey-card-content relative flex items-center w-full bg-white border rounded-2xl shadow-sm transition-colors transition-shadow duration-200 group ${
+        !isDrawerMaximized ? 'snap-start snap-always' : ''
+      } ${
+        isDragging
+          ? 'border-blue-400 bg-blue-50/40 z-20'
+          : isListEditMode
+            ? 'border-zinc-100 cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+            : 'border-zinc-100 hover:border-blue-500 hover:shadow-md'
+      } ${isListEditMode && !isDragging ? 'opacity-90' : ''}`}
+      onClick={() => {
+        if (isListEditMode) {
+          handleToggleSelect(journey.id);
+        }
+      }}
+    >
+      {isListEditMode && (
+        <div className="pl-4 flex-shrink-0 flex items-center justify-center">
+          <input
+            type="checkbox"
+            id={`checkbox-${journey.id}`}
+            checked={selectedIds.includes(journey.id)}
+            readOnly
+            className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
+          />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={(e) => {
+          if (isListEditMode) {
+            e.stopPropagation();
+            handleToggleSelect(journey.id);
+          } else {
+            setActiveJourney(journey);
+          }
+        }}
+        className={`flex-1 text-left p-5 flex flex-col gap-3 focus:outline-none ${isListEditMode ? 'pl-4' : ''}`}
+      >
+        <div>
+          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full transition-colors group-hover:bg-blue-100">
+            {journey.transport_type === 'public' ? '🚌 대중교통' : '🚗 차량'}
+          </span>
+          <h3 className="text-[15px] font-bold text-zinc-900 mt-2 truncate transition-colors group-hover:text-blue-600">
+            {journey.title}
+          </h3>
+        </div>
+        <div className="flex justify-between items-center text-[11px] text-zinc-400 border-t border-zinc-50 pt-2.5 mt-1 w-full">
+          <span>{formatJourneyDate(journey.journey_date)}</span>
+          <span>장소 {journey.places?.length ?? 0}개</span>
+        </div>
+      </button>
+      {isListEditMode && (
+        <div
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          className="pr-4 flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 transition-colors p-1 rounded hover:bg-zinc-100 touch-none drag-handle"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+            <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }) {
   const { user, openAuthModal, signOut } = useAuth();
   const {
     journeys,
@@ -31,17 +150,10 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
   const [isListEditMode, setIsListEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [localJourneys, setLocalJourneys] = useState<Journey[]>([]);
-  const [isListDragging, setIsListDragging] = useState(false);
-  const draggedJourneyIndexRef = useRef<number | null>(null);
-  const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
-  const [droppedJourneyId, setDroppedJourneyId] = useState<string | null>(null);
 
-  // Sync localJourneys with journeys when not dragging
   useEffect(() => {
-    if (!isListDragging) {
-      setLocalJourneys(journeys);
-    }
-  }, [journeys, isListDragging]);
+    setLocalJourneys(journeys);
+  }, [journeys]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -85,79 +197,6 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
     }
   };
 
-  // Drag handlers for journey list
-  const handleJourneyDragStart = (e: React.DragEvent, index: number) => {
-    if (!isListEditMode) {
-      e.preventDefault();
-      return;
-    }
-
-    const cardElement = (e.currentTarget as HTMLElement).querySelector('.journey-card-content');
-    if (cardElement) {
-      const rect = cardElement.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      // Inject floating preview styles momentarily
-      cardElement.classList.add('shadow-2xl', 'scale-[1.02]', 'border-blue-200', 'bg-white');
-      e.dataTransfer.setDragImage(cardElement, x, y);
-      setTimeout(() => {
-        cardElement.classList.remove('shadow-2xl', 'scale-[1.02]', 'border-blue-200', 'bg-white');
-      }, 0);
-    }
-
-    setIsListDragging(true);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-    draggedJourneyIndexRef.current = index;
-    setDraggedJourneyId(localJourneys[index]?.id || null);
-
-    // Haptic feedback
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(10);
-    }
-  };
-
-  const handleJourneyDragOver = (e: React.DragEvent, index: number) => {
-    if (!isListEditMode) return;
-    e.preventDefault();
-    const draggedIndex = draggedJourneyIndexRef.current;
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    const updated = [...localJourneys];
-    const [draggedItem] = updated.splice(draggedIndex, 1);
-    updated.splice(index, 0, draggedItem);
-    draggedJourneyIndexRef.current = index;
-    setLocalJourneys(updated);
-
-    // Haptic feedback
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(5);
-    }
-  };
-
-  const handleJourneyDragEnd = () => {
-    setIsListDragging(false);
-    draggedJourneyIndexRef.current = null;
-    if (user) {
-      const orderIds = localJourneys.map((j) => j.id);
-      localStorage.setItem(`journey_order_${user.id}`, JSON.stringify(orderIds));
-    }
-    setJourneys(localJourneys);
-
-    if (draggedJourneyId) {
-      setDroppedJourneyId(draggedJourneyId);
-      // Haptic feedback
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(15);
-      }
-      setTimeout(() => {
-        setDroppedJourneyId((curr) => curr === draggedJourneyId ? null : curr);
-      }, 800);
-    }
-    setDraggedJourneyId(null);
-  };
-
   const handleCreateClick = () => {
     if (!user) {
       openAuthModal();
@@ -166,9 +205,42 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
     openCreateForm();
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setLocalJourneys((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        
+        if (user) {
+          const orderIds = newItems.map((j) => j.id);
+          localStorage.setItem(`journey_order_${user.id}`, JSON.stringify(orderIds));
+        }
+        setJourneys(newItems);
+        return newItems;
+      });
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+    }
+  };
+
   return (
     <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] h-full flex flex-col bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
-      {/* 앱 로고 헤더 */}
       <header className={`hidden md:block px-8 py-7 border-b border-zinc-100/80 flex-shrink-0 ${isListEditMode ? 'bg-white' : 'bg-white/50 backdrop-blur-md'}`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -199,7 +271,6 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
         </div>
       </header>
 
-      {/* 서비스 로고 밑 작은 바 */}
       {!isLoading && (
         <div className={`px-8 py-3.5 border-b border-zinc-100/80 flex items-center justify-between text-xs font-semibold flex-shrink-0 drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isListEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}>
           {isListEditMode ? (
@@ -240,7 +311,6 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
         </div>
       )}
 
-      {/* 본문 */}
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
@@ -260,78 +330,30 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
           }`}
           style={{ paddingBottom: isDrawerMaximized ? '1.5rem' : 'calc(1.5rem + var(--drawer-hidden-height, 0px))' }}
         >
-          {localJourneys.map((journey, idx) => {
-            const isDragged = draggedJourneyId === journey.id;
-            const isDropped = droppedJourneyId === journey.id;
-            return (
-              <div
-                key={journey.id}
-                draggable={isListEditMode}
-                onDragStart={(e) => handleJourneyDragStart(e, idx)}
-                onDragOver={(e) => handleJourneyDragOver(e, idx)}
-                onDragEnd={handleJourneyDragEnd}
-                className={`journey-card-content relative flex items-center w-full bg-white border rounded-2xl shadow-sm transition-all group ${
-                  !isDrawerMaximized ? 'snap-start snap-always' : ''
-                } ${
-                  isDropped
-                    ? 'animate-drop-ripple border-blue-400 z-20 shadow-[0_4px_20px_rgba(59,130,246,0.15)]'
-                    : isListEditMode
-                      ? 'border-zinc-100 cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
-                      : 'border-zinc-100 hover:border-blue-500 hover:shadow-md'
-                } ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${isListEditMode ? 'opacity-90' : ''}`}
-                onClick={() => {
-                  if (isListEditMode) {
-                    handleToggleSelect(journey.id);
-                  }
-                }}
-              >
-                {isListEditMode && (
-                  <div className="pl-4 flex-shrink-0 flex items-center justify-center">
-                    <input
-                      type="checkbox"
-                      id={`checkbox-${journey.id}`}
-                      checked={selectedIds.includes(journey.id)}
-                      readOnly
-                      className="w-5 h-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
-                    />
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    if (isListEditMode) {
-                      e.stopPropagation();
-                      handleToggleSelect(journey.id);
-                    } else {
-                      setActiveJourney(journey);
-                    }
-                  }}
-                  className={`flex-1 text-left p-5 flex flex-col gap-3 focus:outline-none ${isListEditMode ? 'pl-4' : ''
-                    }`}
-                >
-                  <div>
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full transition-colors group-hover:bg-blue-100">
-                      {journey.transport_type === 'public' ? '🚌 대중교통' : '🚗 차량'}
-                    </span>
-                    <h3 className="text-[15px] font-bold text-zinc-900 mt-2 truncate transition-colors group-hover:text-blue-600">
-                      {journey.title}
-                    </h3>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] text-zinc-400 border-t border-zinc-50 pt-2.5 mt-1 w-full">
-                    <span>{formatJourneyDate(journey.journey_date)}</span>
-                    <span>장소 {journey.places?.length ?? 0}개</span>
-                  </div>
-                </button>
-                {isListEditMode && (
-                  <div className="pr-4 flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 transition-colors p-1 rounded hover:bg-zinc-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis]}
+          >
+            <SortableContext
+              items={localJourneys.map(j => j.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {localJourneys.map((journey) => (
+                <SortableJourneyCard
+                  key={journey.id}
+                  journey={journey}
+                  isListEditMode={isListEditMode}
+                  selectedIds={selectedIds}
+                  handleToggleSelect={handleToggleSelect}
+                  setActiveJourney={setActiveJourney}
+                  formatJourneyDate={formatJourneyDate}
+                  isDrawerMaximized={isDrawerMaximized}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
       ) : (
         <div 
@@ -355,7 +377,6 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
         </div>
       )}
 
-      {/* 하단 고정 버튼 영역 */}
       {isListEditMode ? (
         <div className="p-6 border-t border-zinc-100 bg-white flex-shrink-0">
           <button

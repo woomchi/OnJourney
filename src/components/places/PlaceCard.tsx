@@ -12,6 +12,8 @@ import SegmentInfo from './SegmentInfo';
 import TimelineNode from './TimelineNode';
 import { getCategoryTheme } from '@/lib/categoryUtils';
 import { getSequenceTheme } from '@/constants/colors';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const themeClasses = {
   cafe: {
@@ -63,11 +65,6 @@ interface PlaceCardProps {
   index: number;
   isLast: boolean;
   editMode: boolean;
-  onDragStart: (e: React.DragEvent) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDragEnd: () => void;
-  isDragged: boolean;
-  isDropped?: boolean;
   isSelected: boolean;
   onToggleSelect: () => void;
   nextPlace: Place | null;
@@ -79,11 +76,6 @@ export default function PlaceCard({
   index,
   isLast,
   editMode,
-  onDragStart,
-  onDragOver,
-  onDragEnd,
-  isDragged,
-  isDropped = false,
   isSelected,
   onToggleSelect,
   nextPlace,
@@ -102,7 +94,25 @@ export default function PlaceCard({
     setIsAlternativeFromFocus,
     isDrawerMaximized,
   } = useJourneyStore();
+  
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: place.id,
+    disabled: !editMode,
+  });
+
   const cardRef = useRef<HTMLLIElement>(null);
+  
+  const setRefs = (node: HTMLLIElement | null) => {
+    setNodeRef(node);
+    cardRef.current = node;
+  };
 
   const isFocused = 
     (focusedSegment?.originId === place.id && focusedSegment?.destId === nextPlace?.id) ||
@@ -114,7 +124,6 @@ export default function PlaceCard({
     focusedStep.destId === nextPlace?.id
   );
 
-  // 다른 이동 구간을 클릭하여 포커스가 변경되면 아코디언 닫기 (이제는 패널이므로 MapArea에서 제어하지만 호환성 유지)
   useEffect(() => {
     if (focusedSegment && focusedSegment.originId !== place.id) {
       if (alternativeSegment?.originId === place.id) {
@@ -131,21 +140,17 @@ export default function PlaceCard({
         (focusedSegment?.originId === place.id && focusedSegment?.destId === nextPlace?.id) ||
         (focusedStep?.originId === place.id && focusedStep?.destId === nextPlace?.id);
 
-      // When entering focus, scroll to it
       if (isCurrentlyFocused && cardRef.current) {
         setTimeout(() => {
           cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 50);
       }
       
-      // When exiting focus back to journey detail, scroll to it to prevent snap jumping
-      // especially at the bottom of the list where drawer expansion clamps scrollTop
       if (wasFocusedRef.current && !isCurrentlyFocused && !focusedSegment && !focusedStep && cardRef.current) {
         const scrollBlock = isDrawerMaximized ? 'nearest' : 'center';
         setTimeout(() => {
           cardRef.current?.scrollIntoView({ behavior: 'smooth', block: scrollBlock });
         }, 50);
-        // Fire again after drawer transition completes to ensure correct final snap
         setTimeout(() => {
           cardRef.current?.scrollIntoView({ behavior: 'smooth', block: scrollBlock });
         }, 400);
@@ -153,7 +158,7 @@ export default function PlaceCard({
       
       wasFocusedRef.current = !!isCurrentlyFocused;
     }
-  }, [focusedSegment, focusedStep, place.id, nextPlace?.id, editMode]);
+  }, [focusedSegment, focusedStep, place.id, nextPlace?.id, editMode, isDrawerMaximized]);
 
   const queryClient = useQueryClient();
   const places = activeJourney?.places ?? [];
@@ -170,20 +175,21 @@ export default function PlaceCard({
     ? getDefaultRoute(place, nextPlace, segmentData, transportType)
     : undefined;
 
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: transition ? 'transform 150ms cubic-bezier(0.2, 0, 0, 1)' : undefined,
+    zIndex: isDragging ? 20 : 1,
+  };
+
   return (
     <li
-      ref={cardRef}
-      draggable={editMode}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
-      className={`relative transition-all duration-200 pt-3 pb-3 ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${
+      ref={setRefs}
+      style={style}
+      className={`relative pt-3 pb-3 require-drag-handle ${isDragging ? 'z-20' : ''} ${
         !isDrawerMaximized ? 'snap-start snap-always' : ''
       }`}
     >
-      {/* 카드 + 번호 행 */}
       <div className="flex items-center gap-0 group">
-        {/* 번호 + 세로선 컬럼 (여정 재생 레코드판 컨셉 적용 및 비주얼 고도화) */}
         <TimelineNode
           index={index}
           totalPlaces={places.length}
@@ -196,20 +202,15 @@ export default function PlaceCard({
           activeRoute={activeRoute}
         />
 
-
-        {/* 장소 카드 */}
         <div
           onClick={editMode ? onToggleSelect : undefined}
           className={`place-card-content flex-1 min-w-0 mx-2 bg-white border rounded-2xl shadow-sm transition-all duration-200 ${
-            isDropped
-              ? 'animate-drop-ripple border-blue-400 z-20 shadow-[0_4px_20px_rgba(59,130,246,0.15)]'
-              : editMode
-                ? 'border-zinc-100 cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
-                : 'border-zinc-100 group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
-          }`}
+            editMode
+              ? 'border-zinc-100 cursor-pointer hover:border-blue-300 hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+              : 'border-zinc-100 group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
+          } ${isDragging ? 'border-blue-400 bg-blue-50/40' : ''}`}
         >
           <div className="flex items-center px-4 py-3 gap-2">
-            {/* 체크박스 - 편집 상태에만 왼쪽에 노출 */}
             {editMode && (
               <div className="flex-shrink-0 flex items-center justify-center mr-1">
                 <input
@@ -221,7 +222,6 @@ export default function PlaceCard({
               </div>
             )}
 
-            {/* 장소 정보 */}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-zinc-800 truncate leading-tight">
                 {place.place_name}
@@ -231,13 +231,12 @@ export default function PlaceCard({
               )}
             </div>
 
-
-
-            {/* 드래그 핸들 - 편집 상태에만 오른쪽에 노출 */}
             {editMode && (
               <div
+                {...attributes}
+                {...listeners}
                 onClick={(e) => e.stopPropagation()}
-                className="flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 transition-colors touch-none"
+                className="flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 transition-colors touch-none drag-handle"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                   <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
@@ -246,7 +245,6 @@ export default function PlaceCard({
             )}
           </div>
 
-          {/* 카테고리 뱃지 */}
           {place.category && (() => {
             const theme = getCategoryTheme(place.category);
             const classes = themeClasses[theme.type] || themeClasses.etc;
@@ -261,9 +259,6 @@ export default function PlaceCard({
         </div>
       </div>
 
-      {/* 대안 이동 정보 아코디언은 상세 패널(MapArea)로 분리됨 */}
-
-      {/* 기본 구간 이동 정보 (항상 노출) */}
       {!editMode && !isLast && (() => {
         return (
           <div className="pl-16 mt-1 flex flex-col gap-1 relative">
@@ -314,7 +309,6 @@ export default function PlaceCard({
               />
             </div>
 
-            {/* 대안 교통정보 토글 버튼을 이동 구간(SegmentInfo) 상단 우측에 겹치도록 배치 */}
             <div className="absolute top-2 right-6 z-10">
               <button
                 type="button"
@@ -362,7 +356,6 @@ export default function PlaceCard({
                 aria-label="대안 경로 탐색"
                 title="대안 경로 탐색"
               >
-                {/* The circular icon part that flips */}
                 <div 
                   className={`
                     flex items-center justify-center w-6 h-6 rounded-full transition-all duration-500

@@ -10,6 +10,10 @@
     "clean": "npx rimraf .next"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/modifiers": "^9.0.0",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@radix-ui/react-dialog": "^1.1.17",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
@@ -23,7 +27,6 @@
     "fast-xml-parser": "^5.9.3",
     "idb-keyval": "^6.2.6",
     "lucide-react": "^1.21.0",
-    "mobile-drag-drop": "^3.0.0-rc.0",
     "next": "16.2.9",
     "pg": "^8.21.0",
     "react": "19.2.4",

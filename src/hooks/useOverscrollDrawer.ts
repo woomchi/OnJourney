@@ -6,11 +6,17 @@ export function useOverscrollDrawer() {
   const touchStartY = useRef<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.drag-handle')) return;
     touchStartY.current = e.touches[0].clientY;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartY.current === null) return;
+    
+    const targetNode = e.target as HTMLElement;
+    if (targetNode.closest('.drag-handle')) return;
+
     const currentY = e.touches[0].clientY;
     const deltaY = touchStartY.current - currentY; // Positive = pulling up, Negative = pulling down
     

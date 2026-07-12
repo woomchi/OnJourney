@@ -6,7 +6,6 @@ import "./globals.css";
 
 import PWAProvider from "@/components/PWAProvider";
 import OfflineBanner from "@/components/ui/OfflineBanner";
-import PolyfillProvider from "@/components/PolyfillProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,10 +54,8 @@ export default function RootLayout({
         <QueryProvider>
           <AuthProvider>
             <PWAProvider>
-              <PolyfillProvider>
                 <OfflineBanner />
                 {children}
-              </PolyfillProvider>
             </PWAProvider>
           </AuthProvider>
         </QueryProvider>

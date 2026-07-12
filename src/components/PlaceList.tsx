@@ -1,10 +1,25 @@
 "use client";
 
-import { useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
 import PlaceCard from './places/PlaceCard';
 import { useOverscrollDrawer } from '@/hooks/useOverscrollDrawer';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
 interface PlaceListProps {
   editMode?: boolean;
@@ -24,10 +39,18 @@ export default function PlaceList({
   children,
 }: PlaceListProps) {
   const { activeJourney, isDrawerMaximized } = useJourneyStore();
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [droppedId, setDroppedId] = useState<string | null>(null);
   const overscrollHandlers = useOverscrollDrawer();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
@@ -59,69 +82,19 @@ export default function PlaceList({
     );
   }
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    if (!editMode) {
-      e.preventDefault();
-      return;
-    }
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-    // Find the clean card element to use as the drag preview
-    const cardElement = (e.currentTarget as HTMLElement).querySelector('.place-card-content');
-    if (cardElement) {
-      const rect = cardElement.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      // Inject floating preview styles momentarily
-      cardElement.classList.add('shadow-2xl', 'scale-[1.02]', 'border-blue-200', 'bg-white');
-      e.dataTransfer.setDragImage(cardElement, x, y);
-      setTimeout(() => {
-        cardElement.classList.remove('shadow-2xl', 'scale-[1.02]', 'border-blue-200', 'bg-white');
-      }, 0);
-    }
-
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-    setDraggedIndex(index);
-    setDraggedId(localPlaces[index]?.id || null);
-
-    // Haptic feedback
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(10);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    if (!editMode) return;
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    // Shift places dynamically
-    const updated = [...localPlaces];
-    const [draggedItem] = updated.splice(draggedIndex, 1);
-    updated.splice(index, 0, draggedItem);
-    setDraggedIndex(index);
-    setLocalPlaces(updated);
-
-    // Haptic feedback
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(5);
-    }
-  };
-
-  const handleDragEnd = () => {
-    if (draggedId) {
-      setDroppedId(draggedId);
-      // Haptic feedback
+    if (over && active.id !== over.id) {
+      setLocalPlaces((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate(15);
       }
-      setTimeout(() => {
-        setDroppedId((curr) => curr === draggedId ? null : curr);
-      }, 800);
     }
-    setDraggedIndex(null);
-    setDraggedId(null);
   };
 
   const transportType = activeJourney.transport_type || 'public';
@@ -136,24 +109,31 @@ export default function PlaceList({
       style={{ paddingBottom: isDrawerMaximized ? '0.5rem' : 'calc(0.5rem + var(--drawer-hidden-height, 0px))' }}
     >
       <ul className="flex flex-col px-2">
-        {localPlaces.map((place, idx) => (
-          <PlaceCard
-            key={place.id}
-            place={place}
-            index={idx}
-            isLast={idx === localPlaces.length - 1}
-            editMode={editMode}
-            onDragStart={(e) => handleDragStart(e, idx)}
-            onDragOver={(e) => handleDragOver(e, idx)}
-            onDragEnd={handleDragEnd}
-            isDragged={draggedIndex === idx}
-            isDropped={droppedId === place.id}
-            isSelected={selectedIds.includes(place.id)}
-            onToggleSelect={() => onToggleSelect(place.id)}
-            nextPlace={idx < localPlaces.length - 1 ? localPlaces[idx + 1] : null}
-            transportType={transportType}
-          />
-        ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          modifiers={[restrictToVerticalAxis]}
+        >
+          <SortableContext
+            items={localPlaces.map(p => p.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {localPlaces.map((place, idx) => (
+              <PlaceCard
+                key={place.id}
+                place={place}
+                index={idx}
+                isLast={idx === localPlaces.length - 1}
+                editMode={editMode}
+                isSelected={selectedIds.includes(place.id)}
+                onToggleSelect={() => onToggleSelect(place.id)}
+                nextPlace={idx < localPlaces.length - 1 ? localPlaces[idx + 1] : null}
+                transportType={transportType}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </ul>
       {children}
     </div>

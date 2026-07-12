@@ -65,7 +65,7 @@ export default function CarGuideList({ route, originPlace, destPlace, handleStep
         return (
           <div 
             key={idx} 
-            className={`relative flex gap-4 pl-8 pr-3 py-2 items-start group cursor-pointer transition-all duration-200 rounded-xl select-none snap-center snap-always ${
+            className={`relative flex gap-4 pl-8 pr-3 py-2 items-start group cursor-pointer transition-all duration-200 rounded-xl select-none snap-start snap-always ${
               isThisStepFocused
                 ? 'bg-blue-50/60 border border-blue-200 shadow-sm scale-[1.01]'
                 : 'bg-transparent border border-transparent hover:bg-zinc-50'

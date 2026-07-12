@@ -261,7 +261,7 @@ export default function JourneySidebar() {
           style={{
             height: `${maxSnapPx}px`,
             transform: `translateY(${baseTranslateY + dragY}px)`,
-            transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1)',
+            transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.34, 1.2, 0.64, 1)',
           }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}

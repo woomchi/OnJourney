@@ -94,7 +94,7 @@ export default function TransitGuideList({
                  handleStepClick(idx, step);
                }
             }}
-            className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none snap-center snap-always ${
+            className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none snap-start snap-always ${
               isThisStepFocused
                 ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
                 : isAnyStepFocused

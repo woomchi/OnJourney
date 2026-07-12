@@ -3,6 +3,7 @@
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { PlayTriangleIcon, PauseBarsIcon, ArrowRightIcon } from '@/components/ui/icons';
 
 interface PlaybackBarProps {
   route: SelectedRoute | DirectionResult;
@@ -74,9 +75,7 @@ export default function PlaybackBar({
           className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
           aria-label="이전 단계"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 rotate-180">
-            <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-          </svg>
+          <PlayTriangleIcon className="w-5 h-5 rotate-180" />
         </button>
 
         <button
@@ -91,14 +90,9 @@ export default function PlaybackBar({
         >
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           {!showPlayIcon ? (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 relative z-10 group-hover:text-white transition-colors duration-300">
-              <rect x="6" y="4.5" width="4.5" height="15" rx="1.5" />
-              <rect x="13.5" y="4.5" width="4.5" height="15" rx="1.5" />
-            </svg>
+            <PauseBarsIcon className="w-5 h-5 relative z-10 group-hover:text-white transition-colors duration-300" />
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300">
-              <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-            </svg>
+            <PlayTriangleIcon className="w-5 h-5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
           )}
         </button>
 
@@ -109,9 +103,7 @@ export default function PlaybackBar({
           className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
           aria-label="다음 단계"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-            <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-          </svg>
+          <PlayTriangleIcon className="w-5 h-5" />
         </button>
       </div>
 
@@ -119,9 +111,7 @@ export default function PlaybackBar({
       <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer select-none items-end text-right pl-2" onClick={handlePlayToggle}>
         <div className="text-[13px] font-extrabold text-zinc-800 flex items-center justify-end gap-1.5 truncate w-full">
           <span className="truncate max-w-[120px]" title={originPlace.place_name}>{originPlace.place_name}</span>
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-          </svg>
+          <ArrowRightIcon className="w-3 h-3 text-zinc-400 flex-shrink-0" />
           <span className="truncate max-w-[120px]" title={destPlace.place_name}>{destPlace.place_name}</span>
         </div>
         <div className="text-[11px] font-bold text-zinc-500 flex items-center justify-end gap-2 mt-0.5 w-full">

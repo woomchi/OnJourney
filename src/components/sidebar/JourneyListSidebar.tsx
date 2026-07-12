@@ -8,6 +8,7 @@ import { deleteJourneys } from '@/lib/journeys';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import type { Journey } from '@/types/journey';
 import { useOverscrollDrawer } from '@/hooks/useOverscrollDrawer';
+import { Loader2, GripVertical, Pencil, Check, Trash2, Plus } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -123,9 +124,7 @@ function SortableJourneyCard({
           onClick={(e) => e.stopPropagation()}
           className="pr-4 flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 transition-colors p-1 rounded hover:bg-zinc-100 touch-none drag-handle"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-            <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-          </svg>
+          <GripVertical className="w-5 h-5" />
         </div>
       )}
     </div>
@@ -287,9 +286,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
                 onClick={handleCancelEdit}
                 className="text-blue-600 hover:text-blue-700 transition-colors font-bold flex items-center gap-1"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
+                <Check className="w-4 h-4" strokeWidth={2.5} />
                 완료
               </button>
             </>
@@ -301,9 +298,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
                 onClick={handleStartEdit}
                 className="text-zinc-500 hover:text-zinc-700 transition-colors flex items-center gap-1"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-                </svg>
+                <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
                 편집
               </button>
             </>
@@ -314,10 +309,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
-            <svg className="w-6 h-6 animate-spin text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-            </svg>
+            <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
             <p className="text-sm text-zinc-400 font-medium">불러오는 중...</p>
           </div>
         </div>
@@ -388,9 +380,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
               : 'bg-zinc-100 text-zinc-300 cursor-default'
               }`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-            </svg>
+            <Trash2 className="w-4 h-4" strokeWidth={2.5} />
             <span className="tracking-wide">
               {selectedIds.length > 0 ? `선택 삭제 (${selectedIds.length})` : '삭제'}
             </span>
@@ -404,9 +394,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
               onClick={handleCreateClick}
               className="w-full py-4 bg-zinc-950 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer flex justify-center items-center gap-2"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
               <span className="tracking-wide">새 여정 만들기</span>
             </button>
           </div>

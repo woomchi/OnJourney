@@ -14,6 +14,8 @@ import { getCategoryTheme } from '@/lib/categoryUtils';
 import { getSequenceTheme } from '@/constants/colors';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
+import { AlternativeRouteIcon } from '@/components/ui/icons';
 
 const themeClasses = {
   cafe: {
@@ -48,17 +50,6 @@ const themeClasses = {
   }
 };
 
-function AlternativeRouteIcon({ className = "w-4 h-4", isActive = false }: { className?: string; isActive?: boolean }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" 
-      className={`transition-transform duration-500 ease-in-out ${isActive ? '-scale-x-100' : 'scale-x-100'} ${className}`}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-15L21 6m0 0L16.5 10.5M21 6H7.5" />
-    </svg>
-  );
-}
 
 interface PlaceCardProps {
   place: Place;
@@ -238,9 +229,7 @@ export default function PlaceCard({
                 onClick={(e) => e.stopPropagation()}
                 className="flex-shrink-0 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-zinc-500 p-2 rounded hover:bg-zinc-100 transition-colors touch-none drag-handle"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                  <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-                </svg>
+                <GripVertical className="w-5 h-5" />
               </div>
             )}
           </div>

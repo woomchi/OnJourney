@@ -3,23 +3,17 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { getCategoryTheme } from '@/lib/categoryUtils';
+import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
+import { Loader2, Search, X, Clock, MapPin, Check, Plus } from 'lucide-react';
 
 interface SearchOverlayProps {
   activeJourney: Journey;
 }
 
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371; // Radius of the earth in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
-  return R * c; // Distance in km
+  return calculateHaversineDistance(lat1, lng1, lat2, lng2) / 1000; // km 단위 반환
 }
 
 function calculateScore(item: PlaceResult, index: number, query: string, targetLat: number | null, targetLng: number | null) {
@@ -416,13 +410,10 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-sm pl-1"
           />
           {isSearchLoading ? (
-            <svg className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-            </svg>
+            <Loader2 className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0 mr-1" />
           ) : searchQuery.length > 0 ? (
             <button type="button" onClick={() => { setSearchQuery(''); setSearchResults([]); clearRecommendedPlaces(); searchInputRef.current?.focus(); }} className="w-4 h-4 flex-shrink-0 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors cursor-pointer mr-1">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-2.5 h-2.5 text-zinc-600"><path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" /></svg>
+              <X className="w-2.5 h-2.5 text-zinc-600" />
             </button>
           ) : null}
           <button
@@ -434,9 +425,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             }}
             className="flex-shrink-0 text-zinc-400 hover:text-blue-600 transition-colors cursor-pointer p-1 -mr-1"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
+            <Search className="w-4 h-4" />
           </button>
         </div>
         {/* 카테고리 칩 */}
@@ -459,10 +448,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
           <p className="text-sm text-red-500 py-6 text-center">{searchError}</p>
         ) : searchResults.length === 0 && searchQuery.length > 0 && !isSearchLoading ? (
           <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-2 opacity-50">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-            </svg>
+            <MapPin className="w-8 h-8 mb-2 opacity-50" strokeWidth={1.5} />
             <p className="text-sm font-medium">검색 결과가 없습니다.</p>
           </div>
         ) : searchResults.length === 0 ? (
@@ -491,9 +477,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                       }}
                     >
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:text-blue-500 group-hover:bg-blue-100/50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
+                        <Clock className="w-4 h-4" strokeWidth={2.5} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-zinc-700 truncate group-hover:text-zinc-900">{q}</p>
@@ -504,9 +488,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                         className="w-6 h-6 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200 transition-colors cursor-pointer"
                         title="기록 삭제"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                          <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-                        </svg>
+                        <X className="w-4 h-4" />
                       </button>
                     </li>
                   ))}
@@ -570,17 +552,11 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                     >
                       {isAdded ? (
                         <>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 block group-hover/btn:hidden">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                          </svg>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 hidden group-hover/btn:block">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                          </svg>
+                          <Check className="w-3.5 h-3.5 block group-hover/btn:hidden" strokeWidth={2.5} />
+                          <X className="w-3.5 h-3.5 hidden group-hover/btn:block" strokeWidth={2.5} />
                         </>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
+                        <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
                       )}
                     </button>
                   </div>
@@ -599,9 +575,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
           className="relative group w-full py-4 bg-zinc-900 rounded-2xl text-white font-bold text-[15px] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex justify-center items-center gap-2 overflow-hidden cursor-pointer"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 relative z-10 transition-transform group-hover:scale-110 duration-300">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
+          <Check className="w-4 h-4 relative z-10 transition-transform group-hover:scale-110 duration-300" strokeWidth={2.5} />
           <span className="relative z-10 tracking-wide">닫기</span>
         </button>
       </div>

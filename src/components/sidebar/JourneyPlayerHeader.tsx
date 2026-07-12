@@ -8,6 +8,8 @@ import { getDefaultRoute } from '@/lib/routeUtils';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey } from '@/types/journey';
+import { Loader2, ChevronLeft, Pencil, Check } from 'lucide-react';
+import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
 
 interface JourneyPlayerHeaderProps {
   activeJourney: Journey;
@@ -71,9 +73,7 @@ export default function JourneyPlayerHeader({
             {isEditMode ? (
               <div className="w-3.5 h-3.5" />
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-              </svg>
+              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
             )}
             {isEditMode ? '취소' : '목록'}
           </button>
@@ -85,10 +85,7 @@ export default function JourneyPlayerHeader({
         <div className="absolute top-1.5 right-2 z-20 flex justify-end items-center gap-1">
           {isSyncing && (
             <div className="flex items-center" title="클라우드 동기화 중">
-              <svg className="w-3 h-3 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
+              <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
             </div>
           )}
           <button
@@ -106,16 +103,12 @@ export default function JourneyPlayerHeader({
           >
             {isEditMode ? (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
+                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
                 완료
               </>
             ) : (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-                </svg>
+                <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
                 편집
               </>
             )}
@@ -173,9 +166,7 @@ export default function JourneyPlayerHeader({
             className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
             title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-              <path d="M11.5 12l8.5 6V6l-8.5 6zM2 12l8.5 6V6L2 12z" />
-            </svg>
+            <SkipBackIcon className="w-6 h-6" />
           </button>
 
           {/* 여정 재생/정지 */}
@@ -218,21 +209,14 @@ export default function JourneyPlayerHeader({
             >
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               {isPlaying ? (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 relative z-10 group-hover:text-white transition-colors duration-300">
-                  <rect x="6" y="5" width="4" height="14" rx="1.5" />
-                  <rect x="14" y="5" width="4" height="14" rx="1.5" />
-                </svg>
+                <PauseBarsIcon className="w-3.5 h-3.5 relative z-10 group-hover:text-white transition-colors duration-300" />
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300">
-                  <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                </svg>
+                <PlayTriangleIcon className="w-3.5 h-3.5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
               )}
             </button>
           ) : (
             <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5 text-zinc-300">
-                <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-              </svg>
+              <PlayTriangleIcon className="w-3.5 h-3.5 ml-0.5 text-zinc-300" />
             </div>
           )}
 
@@ -252,9 +236,7 @@ export default function JourneyPlayerHeader({
             className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
             title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-              <path d="M12.5 12L4 6v12l8.5-6zM22 12l-8.5-6v12L22 12z" />
-            </svg>
+            <SkipForwardIcon className="w-6 h-6" />
           </button>
         </div>
       )}

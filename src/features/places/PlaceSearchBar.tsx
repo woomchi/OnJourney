@@ -8,6 +8,8 @@ import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import type { Journey, Place } from '@/types/journey';
 import { getCategoryTheme } from '@/lib/categoryUtils';
 import { usePlaceSearch, PlaceResult } from '@/features/places/usePlaceSearch';
+import { formatJourneyDate } from '@/lib/journeyUtils';
+import { Search, Loader2, Plus, MapPin, X } from 'lucide-react';
 
 const themeClasses = {
   cafe: 'text-amber-700 bg-amber-50 border border-amber-100',
@@ -22,76 +24,6 @@ interface PlaceSearchBarProps {
   onPlaceSelect?: (place: PlaceResult) => void;
 }
 
-function formatJourneyDate(dateStr: string) {
-  if (!dateStr || !dateStr.includes('-')) return dateStr || '';
-  const [year, month, day] = dateStr.split('-');
-  return `${year}년 ${Number(month)}월 ${Number(day)}일`;
-}
-
-function SearchIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={2}
-      stroke="currentColor"
-      className={`w-5 h-5 transition-colors duration-200 ${active ? 'text-blue-600' : 'text-zinc-400'}`}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-      />
-    </svg>
-  );
-}
-
-function SpinnerIcon() {
-  return (
-    <svg
-      className="w-4 h-4 animate-spin text-blue-500"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={2.5}
-      stroke="currentColor"
-      className="w-4 h-4"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-    </svg>
-  );
-}
-
-function MapPinIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5"
-    >
-      <path
-        fillRule="evenodd"
-        d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
 
 export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   const {
@@ -269,7 +201,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
       >
         {/* 아이콘 */}
         <div className={`flex-shrink-0 p-1.5 rounded-full transition-colors duration-200 ${isFocused ? 'bg-blue-50' : 'bg-zinc-50'}`}>
-          <SearchIcon active={isFocused} />
+          <Search className={`w-5 h-5 transition-colors duration-200 ${isFocused ? 'text-blue-600' : 'text-zinc-400'}`} strokeWidth={2} />
         </div>
 
         {/* 입력창 */}
@@ -289,7 +221,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
 
         {/* 로딩 / 클리어 */}
         {isLoading ? (
-          <SpinnerIcon />
+          <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
         ) : query.length > 0 ? (
           <button
             type="button"
@@ -300,9 +232,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
             className="flex-shrink-0 w-5 h-5 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors"
             aria-label="검색어 지우기"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-zinc-600">
-              <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
-            </svg>
+            <X className="w-3 h-3 text-zinc-600" />
           </button>
         ) : null}
       </div>
@@ -348,7 +278,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
                         }
                       `}
                     >
-                      <MapPinIcon />
+                      <MapPin className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="currentColor" strokeWidth={0} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-zinc-800 truncate">
                           {item.place_name}
@@ -372,7 +302,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
                         </span>
                       ) : (
                         <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 hover:bg-blue-200 flex items-center justify-center text-blue-600 transition-colors">
-                          <PlusIcon />
+                          <Plus className="w-4 h-4" strokeWidth={2.5} />
                         </span>
                       )}
                     </button>
@@ -419,9 +349,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
                 className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-500 transition-colors"
                 aria-label="닫기"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
+                <X className="w-4 h-4" strokeWidth={2.5} />
               </button>
             </div>
             <p className="text-sm text-zinc-500 mb-6 leading-relaxed">

@@ -4,6 +4,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
 import PlaceCard from './places/PlaceCard';
 import { useOverscrollDrawer } from '@/hooks/useOverscrollDrawer';
+import { MapPin } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -59,17 +60,7 @@ export default function PlaceList({
         className="flex flex-col items-center justify-center text-center py-12 px-6 flex-1 overflow-y-auto"
       >
         <div className="w-20 h-20 mb-5 rounded-3xl bg-blue-50 flex items-center justify-center shadow-inner">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1}
-            stroke="currentColor"
-            className="w-10 h-10 text-blue-300"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-          </svg>
+          <MapPin className="w-10 h-10 text-blue-300" strokeWidth={1} />
         </div>
         <p className="text-sm font-semibold text-zinc-600 mb-1">아직 추가된 장소가 없습니다.</p>
         <p className="text-xs text-zinc-400 leading-relaxed max-w-[200px]">

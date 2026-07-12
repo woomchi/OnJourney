@@ -12,6 +12,7 @@ interface PlaceListProps {
   onToggleSelect: (id: string) => void;
   localPlaces: Place[];
   setLocalPlaces: React.Dispatch<React.SetStateAction<Place[]>>;
+  children?: React.ReactNode;
 }
 
 export default function PlaceList({
@@ -20,6 +21,7 @@ export default function PlaceList({
   onToggleSelect,
   localPlaces,
   setLocalPlaces,
+  children,
 }: PlaceListProps) {
   const { activeJourney, isDrawerMaximized } = useJourneyStore();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -50,6 +52,9 @@ export default function PlaceList({
         <p className="text-xs text-zinc-400 leading-relaxed max-w-[200px]">
           아래 버튼이나 지도 위 검색창으로 장소를 추가해보세요.
         </p>
+        <div className="w-full mt-6">
+          {children}
+        </div>
       </div>
     );
   }
@@ -150,6 +155,7 @@ export default function PlaceList({
           />
         ))}
       </ul>
+      {children}
     </div>
   );
 }

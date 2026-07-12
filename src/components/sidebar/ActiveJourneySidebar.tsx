@@ -94,15 +94,15 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
             }}
             localPlaces={localPlaces}
             setLocalPlaces={setLocalPlaces}
-          />
-
-          {!isSearchMode && (
-            <SidebarBottomActions
-              isEditMode={isEditMode}
-              selectedPlaceIds={selectedPlaceIds}
-              handleDeleteSelectedPlaces={handleDeleteSelectedPlaces}
-            />
-          )}
+          >
+            {!isSearchMode && (
+              <SidebarBottomActions
+                isEditMode={isEditMode}
+                selectedPlaceIds={selectedPlaceIds}
+                handleDeleteSelectedPlaces={handleDeleteSelectedPlaces}
+              />
+            )}
+          </PlaceList>
 
           <SearchOverlay activeJourney={activeJourney} />
         </div>

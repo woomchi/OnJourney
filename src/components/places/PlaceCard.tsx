@@ -176,7 +176,7 @@ export default function PlaceCard({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className={`relative transition-all duration-200 pt-3 ${isLast ? 'pb-0' : 'pb-3'} ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${
+      className={`relative transition-all duration-200 pt-3 pb-3 ${isDragged ? 'opacity-40 scale-[0.98]' : ''} ${
         !isDrawerMaximized ? 'snap-start snap-always' : ''
       }`}
     >

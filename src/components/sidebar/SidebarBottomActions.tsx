@@ -22,7 +22,7 @@ export default function SidebarBottomActions({
   } = useJourneyStore();
 
   return (
-    <div className={`p-6 border-t border-zinc-100 flex-shrink-0 ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-md'}`}>
+    <div className={`px-6 py-4 border-t border-zinc-100 flex-shrink-0 ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-md'}`}>
       {isEditMode ? (
         <button
           type="button"

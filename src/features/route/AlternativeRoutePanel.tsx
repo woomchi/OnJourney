@@ -332,7 +332,7 @@ export default function AlternativeRoutePanel({
     >
       {/* Mobile Handle & Header Wrapper */}
       <div 
-        className="flex-shrink-0 touch-none"
+        className="flex-shrink-0 touch-none drawer-drag-area cursor-grab active:cursor-grabbing"
         {...dragHandlers}
       >
         {/* Mobile Handle */}

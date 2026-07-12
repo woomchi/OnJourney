@@ -199,6 +199,11 @@ export default function JourneySidebar() {
 
     const handlePointerDown = (e: React.PointerEvent) => {
       const target = e.target as HTMLElement;
+      
+      // Allow dragging only from the handle or a designated drag area
+      const isDragArea = target.closest('.drawer-drag-area') || target.closest('.drawer-handle');
+      if (!isDragArea) return;
+
       // Prevent capturing if clicking on interactive elements
       if (target.closest('button') || target.closest('a') || target.closest('input')) return;
       
@@ -214,19 +219,20 @@ export default function JourneySidebar() {
       const currentPx = getCurrentSnapPx();
       
       if (currentPx === maxSnapPx && diff < 0) {
-        setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.85));
+        setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.98));
       } else if (currentPx === minSnapPx && diff > 0) {
-        setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.85));
+        setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.98));
       } else {
         setDragY(diff);
       }
     };
 
     const handlePointerUp = (e: React.PointerEvent) => {
+      if (touchStartY.current === null) return;
       e.currentTarget.releasePointerCapture(e.pointerId);
       
       const currentPx = getCurrentSnapPx();
-      const threshold = 50;
+      const threshold = 25;
 
       if (dragY < -threshold) {
         if (currentPx === minSnapPx) setSnap(`${defaultSnapPx}px`);
@@ -257,6 +263,10 @@ export default function JourneySidebar() {
             transform: `translateY(${baseTranslateY + dragY}px)`,
             transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1)',
           }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
         >
           {/* Portal Target for Map Buttons */}
           <div 
@@ -266,13 +276,7 @@ export default function JourneySidebar() {
             }`} 
           />
           
-          <div 
-            className="flex-shrink-0 touch-none flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing w-full absolute top-0 z-[100]"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-          >
+          <div className="drawer-handle flex-shrink-0 touch-none flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing w-full absolute top-0 z-[100]">
             <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
           </div>
 

@@ -201,7 +201,7 @@ export default function JourneyListSidebar({ isLoading }: JourneyListSidebarProp
 
       {/* 서비스 로고 밑 작은 바 */}
       {!isLoading && (
-        <div className="px-8 py-3.5 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between text-xs font-semibold flex-shrink-0">
+        <div className="px-8 py-3.5 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between text-xs font-semibold flex-shrink-0 drawer-drag-area cursor-grab active:cursor-grabbing touch-none">
           {isListEditMode ? (
             <>
               <button

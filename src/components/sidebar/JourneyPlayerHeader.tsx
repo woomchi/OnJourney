@@ -53,7 +53,7 @@ export default function JourneyPlayerHeader({
   const nextJourney = activeIndex >= 0 && activeIndex < journeys.length - 1 ? journeys[activeIndex + 1] : null;
 
   return (
-    <header className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}>
+    <header className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}>
       {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
       {!isSearchMode && (
         <div className="absolute top-1.5 left-2 z-20">

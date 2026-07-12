@@ -334,7 +334,7 @@ export default function RouteGuidePanel({
       />
       
       <div 
-        className="flex-shrink-0 touch-none"
+        className="flex-shrink-0 touch-none drawer-drag-area cursor-grab active:cursor-grabbing"
         {...dragHandlers}
       >
         {/* Mobile Handle */}

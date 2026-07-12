@@ -11,8 +11,8 @@ export interface UsePanelDragOptions {
 export function usePanelDrag({
   isOpen,
   onClose,
-  dragThreshold = 80,
-  snapThreshold = -50,
+  dragThreshold = 35,
+  snapThreshold = -25,
   enableMinimize = false,
 }: UsePanelDragOptions) {
   const [dragY, setDragY] = useState(0);
@@ -40,9 +40,9 @@ export function usePanelDrag({
     const diff = currentY - touchStartY.current;
     
     if (isExpanded && diff < 0) {
-      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.85));
+      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.98));
     } else if (isMinimized && diff > 0) {
-      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.85));
+      setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.98));
     } else {
       setDragY(diff);
     }

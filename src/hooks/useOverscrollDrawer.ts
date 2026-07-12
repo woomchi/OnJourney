@@ -21,14 +21,14 @@ export function useOverscrollDrawer() {
     const defaultSnap = activeJourney ? '360px' : '294px';
     const minSnap = activeJourney ? '126px' : '74px';
 
-    if (isAtTop && deltaY < -1) {
+    if (isAtTop && deltaY < -20) {
       if (drawerSnapPoint === 1 || drawerSnapPoint === '1') {
         setDrawerSnapPoint(defaultSnap);
       } else {
         setDrawerSnapPoint(minSnap);
       }
       touchStartY.current = null;
-    } else if (isAtBottom && deltaY > 1) {
+    } else if (isAtBottom && deltaY > 20) {
       if (drawerSnapPoint === minSnap) {
         setDrawerSnapPoint(defaultSnap);
       } else {
@@ -46,13 +46,13 @@ export function useOverscrollDrawer() {
     const defaultSnap = activeJourney ? '360px' : '294px';
     const minSnap = activeJourney ? '126px' : '74px';
 
-    if (isAtTop && e.deltaY < -1) {
+    if (isAtTop && e.deltaY < -10) {
       if (drawerSnapPoint === 1 || drawerSnapPoint === '1') {
         setDrawerSnapPoint(defaultSnap);
       } else {
         setDrawerSnapPoint(minSnap);
       }
-    } else if (isAtBottom && e.deltaY > 1) {
+    } else if (isAtBottom && e.deltaY > 10) {
       if (drawerSnapPoint === minSnap) {
         setDrawerSnapPoint(defaultSnap);
       } else {

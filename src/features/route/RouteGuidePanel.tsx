@@ -97,7 +97,13 @@ export default function RouteGuidePanel({
         if (autoScrollTimeout.current) clearTimeout(autoScrollTimeout.current);
         
         setTimeout(() => {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const container = scrollContainerRef.current;
+          if (container) {
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+            const offset = elementRect.top - containerRect.top + container.scrollTop - (containerRect.height / 2) + (elementRect.height / 2);
+            container.scrollTo({ top: offset, behavior: 'smooth' });
+          }
           autoScrollTimeout.current = setTimeout(() => {
             isAutoScrolling.current = false;
           }, 800);

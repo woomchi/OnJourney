@@ -130,16 +130,21 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 외부 클릭 시 드롭다운 닫기
+  // 외부 클릭 시 드롭다운 닫기 및 포커스 해제 (모바일 키보드 내림)
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
         setIsFocused(false);
+        inputRef.current?.blur();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
 
@@ -177,6 +182,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
       setIsOpen(false);
       setQuery('');
       setResults([]);
+      inputRef.current?.blur();
 
       try {
         await addPlace(place);
@@ -187,6 +193,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
       // activeJourney가 null인 경우 여정 선택 모달 열기
       setSelectedPlaceToAssign(item);
       setIsOpen(false);
+      inputRef.current?.blur();
     }
   };
 

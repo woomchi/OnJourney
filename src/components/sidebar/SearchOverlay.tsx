@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 import { useJourneyStore } from '@/stores/journey-store';
 import { getCategoryTheme } from '@/lib/categoryUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
@@ -121,16 +122,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
-
-  // 언마운트 시 메모리 누수 방지 (타이머 정리)
-  useEffect(() => {
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
-  }, []);
 
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
 
@@ -341,21 +333,26 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
 
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const debouncedRunSearch = useDebouncedCallback((val: string) => {
+    runSearch(val, false);
+  }, 350);
+
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchQuery(val);
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    
+
     if (val.trim().length === 0) {
       runSearch(val, false);
     } else if (val.trim().length >= 2) {
-      searchDebounceRef.current = setTimeout(() => runSearch(val, false), 350);
+      debouncedRunSearch(val);
     }
   };
 
   const handleCategoryClick = async (category: string) => {
     setSearchQuery(category);
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    debouncedRunSearch.cancel();
     await runSearch(category, true);
     saveRecentQuery(category);
   };
@@ -403,7 +400,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             value={searchQuery}
             onChange={handleSearchInputChange}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); runSearch(searchQuery, true); saveRecentQuery(searchQuery); }
+              if (e.key === 'Enter') { debouncedRunSearch.cancel(); runSearch(searchQuery, true); saveRecentQuery(searchQuery); }
               if (e.key === 'Escape') closeSearchMode();
             }}
             placeholder={mapCenterAddress ? `${mapCenterAddress} 주변 장소 검색` : '방문할 장소를 검색해보세요'}
@@ -419,7 +416,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
           <button
             type="button"
             onClick={() => {
-              if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+              debouncedRunSearch.cancel();
               runSearch(searchQuery, true);
               saveRecentQuery(searchQuery);
             }}

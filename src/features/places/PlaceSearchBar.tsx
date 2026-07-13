@@ -38,7 +38,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     searchPlaces,
     handleInputChange,
     handleClear,
-    debounceRef,
+    cancelDebounce,
   } = usePlaceSearch();
 
   const [isFocused, setIsFocused] = useState(false);
@@ -83,7 +83,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      cancelDebounce();
       searchPlaces(query);
     }
     if (e.key === 'Escape') {

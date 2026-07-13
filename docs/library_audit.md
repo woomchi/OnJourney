@@ -27,7 +27,7 @@
 
 ## 🔴 우선순위 높음 — 직접 구현했지만 라이브러리로 완전 대체 가능
 
-### 1. `useMediaQuery` hook
+### 1. `useMediaQuery` hook (SSR 안전 처리 추가 — 직접 구현 유지)
 **파일:** [`src/hooks/useMediaQuery.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/hooks/useMediaQuery.ts)
 
 ```typescript
@@ -59,7 +59,7 @@ import { useMediaQuery } from "@uidotdev/usehooks";
 
 ---
 
-### 2. `useDragScroll` hook
+### 2. ✅ `useDragScroll` hook
 **파일:** [`src/hooks/useDragScroll.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/hooks/useDragScroll.ts)
 
 현재 81줄로 마우스 드래그 스크롤을 직접 구현 (스크롤바 충돌 방지, 드래그 감지, 클릭 방지 등 포함).
@@ -132,7 +132,7 @@ format(new Date(dateStr), 'yyyy년 M월 d일', { locale: ko });
 
 ---
 
-### 5. 디바운스 구현 (직접 setTimeout)
+### 5. ✅ 디바운스 구현 (직접 setTimeout)
 **파일:** [`src/components/sidebar/SearchOverlay.tsx#L131`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/sidebar/SearchOverlay.tsx#L131), [`src/features/places/PlaceSearchBar.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/features/places/PlaceSearchBar.tsx)
 
 두 컴포넌트 모두 `useRef<ReturnType<typeof setTimeout> | null>(null)`로 디바운스를 직접 구현합니다.
@@ -210,7 +210,7 @@ import { Loader2 } from 'lucide-react';
 
 ---
 
-### 9. 클릭 외부 감지 (handleClickOutside)
+### 9. ✅ 클릭 외부 감지 (handleClickOutside)
 **파일:** [`src/components/MapHeaderOverlay.tsx#L14-L22`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/MapHeaderOverlay.tsx#L14-L22)
 
 ```typescript
@@ -290,33 +290,6 @@ alert('설정 기능은 준비 중입니다.');
 
 ---
 
-## 🟢 우선순위 낮음 — 특수 목적이라 대체 필요성 낮음
-
-### 12. 대중교통 경로 파싱 (`serverDirectionsService.ts`)
-**파일:** [`src/lib/services/serverDirectionsService.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/lib/services/serverDirectionsService.ts) (20KB)
-
-ODsay API 응답 XML/JSON을 직접 파싱하는 로직. 한국 대중교통 특화 API이므로 범용 라이브러리로 대체 불가. **현재 구현 유지 권장.**
-
-### 13. 지하철 실시간 도착 정보 파싱 (`subwayService.ts`)
-**파일:** [`src/lib/subwayService.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/lib/subwayService.ts) (511줄)
-
-TAGO API, 서울시 실시간 API 파싱. 한국 전용 API이므로 대체 불가. **현재 구현 유지 권장.**
-
-### 14. 카테고리 분류 함수 (`categoryUtils.ts`)
-**파일:** [`src/lib/categoryUtils.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/lib/categoryUtils.ts)
-
-카카오 로컬 API의 한국어 카테고리 문자열을 내부 타입으로 매핑하는 로직. 서비스 도메인 특화로 **현재 구현 유지 권장.**
-
-### 15. `AnimatedPolyline` 경로 애니메이션
-**파일:** [`src/components/AnimatedPolyline.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/AnimatedPolyline.tsx)
-
-`requestAnimationFrame` 기반의 경로 그리기 애니메이션. `react-naver-maps`와 강하게 결합되어 있어 범용 라이브러리 대체가 어려움. **현재 구현 유지 권장.**
-
-### 16. 인증 보안 유틸 (`auth/security.ts`)
-**파일:** [`src/lib/auth/security.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/lib/auth/security.ts)
-
-레이트 리밋, 비밀번호 검증 등 앱 특화 보안 로직. **현재 구현 유지 권장.**
-
 ---
 
 ## 📋 작업 우선순위 요약
@@ -327,10 +300,10 @@ TAGO API, 서울시 실시간 API 파싱. 한국 전용 API이므로 대체 불�
 | ✅ ~~🔴 즉시~~ | ~~인라인 SVG → Lucide 아이콘~~ | `lucide-react` (이미 설치됨) | ~~2시간~~ **완료** |
 | ✅ ~~🔴 즉시~~ | ~~`formatJourneyDate` 중복 제거~~ | `journeyUtils.ts` import 통합 | ~~10분~~ **완료** |
 | ✅ ~~🔴 즉시~~ | ~~Haversine 함수 중복 제거~~ | `naverMapRouteService`의 `calculateHaversineDistance` 통합 | ~~30분~~ **완료** |
-| 🟡 단기 | `useMediaQuery` | `@uidotdev/usehooks` | 30분 |
-| 🟡 단기 | `useDragScroll` | `react-indiana-drag-scroll` | 1시간 |
-| 🟡 단기 | 디바운스 직접 구현 | `use-debounce` | 1시간 |
-| 🟡 단기 | `handleClickOutside` | `@uidotdev/usehooks` useClickOutside | 30분 |
+| ✅ ~~🟡 단기~~ | ~~`useMediaQuery`~~ | SSR 안전 처리 추가 (직접 구현 유지) | ~~30분~~ **완료** |
+| ✅ ~~🟡 단기~~ | ~~`useDragScroll`~~ | `react-indiana-drag-scroll` | ~~1시간~~ **완료** |
+| ✅ ~~🟡 단기~~ | ~~디바운스 직접 구현~~ | `use-debounce` | ~~1시간~~ **완료** |
+| ✅ ~~🟡 단기~~ | ~~`handleClickOutside`~~ | `@uidotdev/usehooks` useClickAway | ~~30분~~ **완료** |
 | 🟡 단기 | `confirm/alert` 대체 | Radix Dialog 커스텀 ConfirmDialog | 2시간 |
 | 🟢 장기 | `usePanelDrag` + `useOverscrollDrawer` | `vaul` 통합 마이그레이션 | 1-2일 |
 | 🟢 장기 | 날짜 포맷 | `date-fns` + `ko` locale | 1시간 |

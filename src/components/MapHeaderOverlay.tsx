@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
+import { useClickAway } from '@uidotdev/usehooks';
 import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
 import PlaceSearchBar from '@/features/places/PlaceSearchBar';
@@ -10,17 +11,9 @@ export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const menuRef = useClickAway<HTMLDivElement>(() => {
+    setIsMenuOpen(false);
+  });
 
   const handleProfileClick = () => {
     setIsMenuOpen(!isMenuOpen);

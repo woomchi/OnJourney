@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
-import { useDragScroll } from '@/hooks/useDragScroll';
+import ScrollContainer from 'react-indiana-drag-scroll';
 import { usePanelDrag } from '@/hooks/ui/usePanelDrag';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -74,8 +74,13 @@ export default function AlternativeRoutePanel({
   const [activeSubTab, setActiveSubTab] = useState<string>('추천');
   const [displayLimit, setDisplayLimit] = useState(3);
 
-  const { ref: tabDragRef, events: tabDragEvents, isDragging: isTabDragging, withClickPrevent: withTabClickPrevent } = useDragScroll<HTMLDivElement>();
-  const { ref: listDragRef, events: listDragEvents, isDragging: isListDragging, withClickPrevent: withListClickPrevent } = useDragScroll<HTMLDivElement>();
+  const isDraggedRef = useRef(false);
+  const withClickPrevent = useCallback((fn: () => void) => {
+    return () => {
+      if (isDraggedRef.current) return;
+      fn();
+    };
+  }, []);
 
   const [hoveredPreviewRoute, setHoveredPreviewRoute] = useState<DirectionResult | SelectedRoute | null>(null);
   const previewRoute = hoveredPreviewRoute || activeRoute;
@@ -238,7 +243,7 @@ export default function AlternativeRoutePanel({
       <button
         key={route.id}
         type="button"
-        onClick={withListClickPrevent(() => {
+        onClick={withClickPrevent(() => {
           setHoveredPreviewRoute(route);
         })}
         className={`
@@ -442,10 +447,14 @@ export default function AlternativeRoutePanel({
 
         {/* Sub Tabs for Public Transport */}
         {activeTab === 'public' && subTabs.length > 1 && (
-          <div
-            ref={tabDragRef}
-            {...tabDragEvents}
-            className={`flex items-center gap-1.5 overflow-x-auto scrollbar-sleek pb-1.5 pt-0.5 ${isTabDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          <ScrollContainer
+            className="flex items-center gap-1.5 pb-1.5 pt-0.5 cursor-grab"
+            horizontal
+            vertical={false}
+            hideScrollbars
+            onStartScroll={() => { isDraggedRef.current = false; }}
+            onScroll={() => { isDraggedRef.current = true; }}
+            onEndScroll={() => { setTimeout(() => { isDraggedRef.current = false; }, 50); }}
           >
             {subTabs.map((subTab) => {
               const count = subTab === '추천' ? recommendedRouteIds.size : subTab === '전체' ? routes.length : (publicRouteGroups[subTab]?.length || 0);
@@ -453,7 +462,7 @@ export default function AlternativeRoutePanel({
                 <button
                   key={subTab}
                   type="button"
-                  onClick={withTabClickPrevent(() => {
+                  onClick={withClickPrevent(() => {
                     setActiveSubTab(subTab);
                     setDisplayLimit(3);
                   })}
@@ -470,15 +479,19 @@ export default function AlternativeRoutePanel({
                 </button>
               );
             })}
-          </div>
+          </ScrollContainer>
         )}
       </div>
 
       {/* List Container */}
-      <div
-        ref={listDragRef}
-        {...listDragEvents}
-        className={`flex-1 overflow-y-auto px-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek ${isListDragging ? 'cursor-grabbing' : ''}`}
+      <ScrollContainer
+        className="flex-1 px-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek"
+        vertical
+        horizontal={false}
+        hideScrollbars={false}
+        onStartScroll={() => { isDraggedRef.current = false; }}
+        onScroll={() => { isDraggedRef.current = true; }}
+        onEndScroll={() => { setTimeout(() => { isDraggedRef.current = false; }, 50); }}
         style={{
           paddingBottom: isMobile ? `calc(20px + ${isExpanded ? '0px' : 'calc(100dvh - 80px - 40vh)'})` : '20px'
         }}
@@ -510,7 +523,7 @@ export default function AlternativeRoutePanel({
             )}
           </>
         )}
-      </div>
+      </ScrollContainer>
     </div>
   );
 }

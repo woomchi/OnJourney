@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 
 export interface PlaceResult {
   id: string;
@@ -15,8 +16,6 @@ export function usePlaceSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const searchPlaces = useCallback(async (q: string) => {
     if (q.trim().length < 1) {
@@ -48,14 +47,14 @@ export function usePlaceSearch() {
     }
   }, []);
 
+  const debouncedSearch = useDebouncedCallback((val: string) => {
+    searchPlaces(val);
+  }, 350);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      searchPlaces(val);
-    }, 350);
+    debouncedSearch(val);
   };
 
   const handleClear = () => {
@@ -63,6 +62,10 @@ export function usePlaceSearch() {
     setResults([]);
     setIsOpen(false);
     setError(null);
+  };
+
+  const cancelDebounce = () => {
+    debouncedSearch.cancel();
   };
 
   return {
@@ -77,6 +80,6 @@ export function usePlaceSearch() {
     searchPlaces,
     handleInputChange,
     handleClear,
-    debounceRef,
+    cancelDebounce,
   };
 }

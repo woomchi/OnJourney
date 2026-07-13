@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
+import { useDialog } from '@/providers/DialogProvider';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { deleteJourneys } from '@/lib/journeys';
@@ -145,6 +146,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
 
   const overscrollHandlers = useOverscrollDrawer();
   const queryClient = useQueryClient();
+  const { confirm, alert } = useDialog();
 
   const [isListEditMode, setIsListEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -182,7 +184,12 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
 
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`선택한 ${selectedIds.length}개의 여정을 삭제하시겠습니까?`)) {
+    const confirmed = await confirm({
+      message: `선택한 ${selectedIds.length}개의 여정을 삭제하시겠습니까?`,
+      confirmLabel: '삭제',
+      variant: 'destructive',
+    });
+    if (!confirmed) {
       return;
     }
     try {
@@ -192,7 +199,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
       setIsListEditMode(false);
     } catch (err) {
       console.error('여정 삭제 실패:', err);
-      alert('여정 삭제에 실패했습니다.');
+      await alert('여정 삭제에 실패했습니다.');
     }
   };
 

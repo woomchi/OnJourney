@@ -3,12 +3,14 @@
 import { useState, useRef } from 'react';
 import { useClickAway } from '@uidotdev/usehooks';
 import { useAuth } from '@/providers/AuthProvider';
+import { useDialog } from '@/providers/DialogProvider';
 import { useJourneyStore } from '@/stores/journey-store';
 import PlaceSearchBar from '@/features/places/PlaceSearchBar';
 import { User, Settings, LogOut } from 'lucide-react';
 
 export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();
+  const { alert } = useDialog();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useClickAway<HTMLDivElement>(() => {
@@ -41,9 +43,9 @@ export default function MapHeaderOverlay() {
             </div>
             <button
               className="w-full text-left px-4 py-3 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors flex items-center gap-2"
-              onClick={() => {
+              onClick={async () => {
                 setIsMenuOpen(false);
-                alert('설정 기능은 준비 중입니다.');
+                await alert('설정 기능은 준비 중입니다.');
               }}
             >
               <Settings className="w-4 h-4" strokeWidth={1.5} />

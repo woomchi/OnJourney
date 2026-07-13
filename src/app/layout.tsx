@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { DialogProvider } from "@/providers/DialogProvider";
 import QueryProvider from "@/providers/QueryProvider";
 import "./globals.css";
 
@@ -53,10 +54,12 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <QueryProvider>
           <AuthProvider>
-            <PWAProvider>
+            <DialogProvider>
+              <PWAProvider>
                 <OfflineBanner />
                 {children}
-            </PWAProvider>
+              </PWAProvider>
+            </DialogProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

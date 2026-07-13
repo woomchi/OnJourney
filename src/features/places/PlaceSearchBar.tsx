@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useAuth } from '@/providers/AuthProvider';
+import { useDialog } from '@/providers/DialogProvider';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import type { Journey, Place } from '@/types/journey';
 import { getCategoryTheme } from '@/lib/categoryUtils';
@@ -52,6 +53,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   }, []);
 
   const { user, openAuthModal } = useAuth();
+  const { alert } = useDialog();
   const { activeJourney, addPlace, journeys, setJourneys, openCreateForm, setActiveJourney } = useJourneyStore();
 
   // 이미 추가된 장소 ID 동기화 (파생 상태로 변경하여 Flicker 및 불필요한 렌더링 해결)
@@ -144,7 +146,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     // 해당 여정에 이미 장소가 있는지 확인
     const isAlreadyAdded = (journey.places || []).some((p) => p.id === place.id);
     if (isAlreadyAdded) {
-      alert('이미 해당 여정에 추가된 장소입니다.');
+      await alert('이미 해당 여정에 추가된 장소입니다.');
       return;
     }
 
@@ -171,7 +173,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
       await updateJourneyPlaces(journey.id, updatedPlaces);
     } catch (err) {
       console.error('장소 추가 DB 연동 실패:', err);
-      alert('장소 추가에 실패했습니다.');
+      await alert('장소 추가에 실패했습니다.');
       // 실패 시 롤백
       const rolledBackJourneys = journeys.map((j) => (j.id === journey.id ? journey : j));
       setJourneys(rolledBackJourneys);

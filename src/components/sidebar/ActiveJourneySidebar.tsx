@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useDialog } from '@/providers/DialogProvider';
 import PlaceList from '@/components/PlaceList';
 import EditJourneyModal from '@/components/EditJourneyModal';
 import type { Journey, Place } from '@/types/journey';
@@ -21,6 +22,8 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
     setEditMode,
     isSearchMode,
   } = useJourneyStore();
+
+  const { confirm, alert } = useDialog();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
@@ -45,7 +48,12 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
 
   const handleDeleteSelectedPlaces = async () => {
     if (selectedPlaceIds.length === 0 || !activeJourney) return;
-    if (!confirm(`선택한 ${selectedPlaceIds.length}개의 장소를 삭제하시겠습니까?`)) {
+    const confirmed = await confirm({
+      message: `선택한 ${selectedPlaceIds.length}개의 장소를 삭제하시겠습니까?`,
+      confirmLabel: '삭제',
+      variant: 'destructive',
+    });
+    if (!confirmed) {
       return;
     }
     try {
@@ -57,7 +65,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
       setEditMode(false);
     } catch (err) {
       console.error('장소 삭제 실패:', err);
-      alert('장소 삭제에 실패했습니다.');
+      await alert('장소 삭제에 실패했습니다.');
     }
   };
 
@@ -67,7 +75,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
         await reorderPlaces(localPlaces);
       } catch (err) {
         console.error('순서 변경 저장 실패:', err);
-        alert('순서 변경 저장에 실패했습니다.');
+        await alert('순서 변경 저장에 실패했습니다.');
       }
     }
     setEditMode(false);

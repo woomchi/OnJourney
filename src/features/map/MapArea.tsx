@@ -23,6 +23,7 @@ import { getDefaultRoute } from '@/lib/routeUtils';
 import { SEQUENCE_COLORS, getSequenceTheme } from '@/constants/colors';
 import { getCategoryTheme } from '@/lib/categoryUtils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useDialog } from '@/providers/DialogProvider';
 import type { Place, SelectedRoute, DirectionResult, PlaceResult } from '@/types/journey';
 
 
@@ -62,6 +63,7 @@ export default function MapArea() {
     drawerSnapPoint,
     guidePanelState,
   } = useMapState();
+  const { alert } = useDialog();
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 
   // Track initial place IDs to handle dynamic sequential animation delays
@@ -297,7 +299,7 @@ export default function MapArea() {
 
   const handleMyLocationClick = async () => {
     if (!navigator.geolocation) {
-      alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
+      await alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
       return;
     }
 
@@ -352,7 +354,7 @@ export default function MapArea() {
             window.addEventListener('deviceorientation', handleDeviceOrientation, true);
             setGpsMode('compass');
           } else {
-            alert('기기 방향 접근 권한이 거부되었습니다.');
+            await alert('기기 방향 접근 권한이 거부되었습니다.');
           }
         } catch (error) {
           console.error('기기 방향 권한 요청 실패:', error);

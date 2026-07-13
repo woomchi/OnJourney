@@ -1,6 +1,6 @@
 # OnJourney 라이브러리 대체 가능 코드 전수 검사 보고서
 
-> 작성일: 2026-07-12  
+> 작성일: 2026-07-12 · 최종 갱신: 2026-07-13  
 > 프로젝트: `c:\Users\hitsz\Desktop\OnJourney`  
 > 목적: 직접 구현된 컴포넌트 및 유틸리티 로직 중 기존/신규 라이브러리로 대체 가능한 항목 식별
 
@@ -13,158 +13,73 @@
 | `@dnd-kit/*` | core 6, sortable 10 | 드래그&드롭 (여정 카드 정렬) |
 | `@radix-ui/react-dialog` | 1.1 | 다이얼로그 Primitive |
 | `@tanstack/react-query` | 5 | 서버 상태 관리 |
+| `@uidotdev/usehooks` | - | `useClickAway` 등 유틸 훅 |
 | `class-variance-authority` | 0.7 | 조건부 className 빌더 |
 | `clsx` + `tailwind-merge` | - | className 병합 유틸 |
 | `fast-xml-parser` | 5 | XML 파싱 (TAGO API 응답) |
 | `idb-keyval` | 6 | IndexedDB 키-값 캐시 |
-| `lucide-react` | 1.21 | 아이콘 (일부 사용) |
+| `lucide-react` | 1.21 | 아이콘 |
+| `react-indiana-drag-scroll` | - | 마우스 드래그 스크롤 |
 | `react-naver-maps` | 0.2 | 네이버 지도 React 래퍼 |
+| `use-debounce` | - | 검색 디바운스 |
 | `vaul` | 1.1 | 모바일 바텀 드로어 |
 | `zustand` | 5 | 클라이언트 전역 상태 관리 |
 | `zustand/react/shallow` | - | 렌더 최적화 |
 
 ---
 
-## 🔴 우선순위 높음 — 직접 구현했지만 라이브러리로 완전 대체 가능
+## ✅ 완료된 리팩토링
 
-### 1. `useMediaQuery` hook (SSR 안전 처리 추가 — 직접 구현 유지)
-**파일:** [`src/hooks/useMediaQuery.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/hooks/useMediaQuery.ts)
+| 항목 | 방법 | 비고 |
+|---|---|---|
+| 스피너 SVG 중복 제거 | `lucide-react` `Loader2` | 공통 컴포넌트/아이콘으로 통합 |
+| 인라인 SVG → Lucide 아이콘 | `lucide-react` | 프로젝트 전반 적용 |
+| `formatJourneyDate` 중복 제거 | `journeyUtils.ts` import 통합 | 라이브러리 불필요 |
+| Haversine 함수 중복 제거 | `naverMapRouteService.calculateHaversineDistance` 통합 | `geolib` 미도입 |
+| `useMediaQuery` | SSR 안전 처리 추가 (직접 구현 유지) | `@uidotdev/usehooks` 미도입 |
+| `useDragScroll` | `react-indiana-drag-scroll` | 훅 삭제, 컴포넌트 래퍼로 대체 |
+| 디바운스 직접 구현 | `use-debounce` | `SearchOverlay`, `PlaceSearchBar` |
+| `handleClickOutside` | `@uidotdev/usehooks` `useClickAway` | `MapHeaderOverlay` |
+| `confirm()` / `alert()` | `DialogProvider` + Radix Dialog | `useDialog()` 훅으로 전역 대체 |
+
+### `confirm/alert` 대체 상세 (2026-07-13 완료)
+
+**추가 파일:** [`src/providers/DialogProvider.tsx`](../src/providers/DialogProvider.tsx)
 
 ```typescript
-// 현재 구현: 17줄의 직접 구현
-export function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(false);
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(query);
-    setMatches(mediaQuery.matches);
-    const handler = (event: MediaQueryListEvent) => setMatches(event.matches);
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, [query]);
-  return matches;
-}
+import { useDialog } from '@/providers/DialogProvider';
+
+const { confirm, alert } = useDialog();
+
+// 확인 다이얼로그 (삭제 등)
+const ok = await confirm({
+  message: '선택한 3개의 여정을 삭제하시겠습니까?',
+  confirmLabel: '삭제',
+  variant: 'destructive',
+});
+
+// 알림 다이얼로그
+await alert('여정 삭제에 실패했습니다.');
 ```
 
-**대체 라이브러리:** `@uidotdev/usehooks` 또는 `react-use`
-
-```bash
-npm install @uidotdev/usehooks
-```
-```typescript
-// 대체 후
-import { useMediaQuery } from "@uidotdev/usehooks";
-```
-
-**이점:** SSR 안전 처리, 초기값 처리, 테스트 코드 불필요
+**적용 파일:**
+- `JourneyListSidebar.tsx` — 여정 삭제 확인/실패 알림
+- `ActiveJourneySidebar.tsx` — 장소 삭제 확인, 저장/삭제 실패 알림
+- `MapHeaderOverlay.tsx` — 설정 준비 중 알림
+- `PlaceSearchBar.tsx` — 중복 장소/추가 실패 알림
+- `MapArea.tsx` — GPS/나침반 권한 알림
 
 ---
 
-### 2. ✅ `useDragScroll` hook
-**파일:** [`src/hooks/useDragScroll.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/hooks/useDragScroll.ts)
+## 🔲 남은 작업
 
-현재 81줄로 마우스 드래그 스크롤을 직접 구현 (스크롤바 충돌 방지, 드래그 감지, 클릭 방지 등 포함).
+### 🟢 장기 — `usePanelDrag` + `useOverscrollDrawer` → `vaul` 통합
 
-**대체 라이브러리:** `react-indiana-drag-scroll` 또는 `@dnd-kit`의 드래그 인터페이스
+**파일:**
+- [`src/hooks/ui/usePanelDrag.ts`](../src/hooks/ui/usePanelDrag.ts)
+- [`src/hooks/useOverscrollDrawer.ts`](../src/hooks/useOverscrollDrawer.ts)
 
-```bash
-npm install react-indiana-drag-scroll
-```
-```tsx
-// 대체 후
-import ScrollContainer from 'react-indiana-drag-scroll';
-<ScrollContainer className="...">
-  {children}
-</ScrollContainer>
-```
-
-**이점:** 터치 이벤트, 스크롤바 충돌, 모멘텀 스크롤 등 엣지 케이스 처리 내장
-
----
-
-### 3. ✅ Haversine 거리 계산 함수
-**파일:** [`src/lib/naverMapRouteService.ts#L51-L63`](file:///c:/Users/hitsz/Desktop/OnJourney/src/lib/naverMapRouteService.ts#L51-L63), [`src/components/sidebar/SearchOverlay.tsx#L13-L23`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/sidebar/SearchOverlay.tsx#L13-L23)
-
-`getDistance` 함수가 `SearchOverlay.tsx`에 인라인 정의되어 있고, `calculateHaversineDistance`가 `naverMapRouteService.ts`에 별도 구현되어 있어 **중복**이 존재합니다.
-
-**대체 라이브러리:** `geolib` (경량, 좌표 계산 전문)
-
-```bash
-npm install geolib
-```
-```typescript
-// 대체 후
-import { getDistance } from 'geolib';
-const distInMeters = getDistance(
-  { latitude: lat1, longitude: lng1 },
-  { latitude: lat2, longitude: lng2 }
-);
-```
-
-**이점:** 검증된 정확도, 추가 지리 연산(bearings, 중심점 등) 무료 제공, 코드 중복 제거
-
----
-
-### 4. ✅ 날짜 포맷팅 함수
-**파일:** [`src/lib/journeyUtils.ts#L3-L7`](file:///c:/Users/hitsz/Desktop/OnJourney/src/lib/journeyUtils.ts#L3-L7), [`src/features/places/PlaceSearchBar.tsx#L25-L29`](file:///c:/Users/hitsz/Desktop/OnJourney/src/features/places/PlaceSearchBar.tsx#L25-L29)
-
-`formatJourneyDate` 함수가 `journeyUtils.ts`에 정의되어 있음에도, `PlaceSearchBar.tsx`에 **동일 로직이 인라인 중복 구현**되어 있습니다.
-
-```typescript
-// journeyUtils.ts와 PlaceSearchBar.tsx 양쪽에 동일 코드 존재
-function formatJourneyDate(dateStr: string) {
-  const [year, month, day] = dateStr.split('-');
-  return `${year}년 ${Number(month)}월 ${Number(day)}일`;
-}
-```
-
-**대체 방법 (라이브러리 미필요):** `PlaceSearchBar.tsx`의 인라인 함수를 삭제하고 `journeyUtils.ts`의 `formatJourneyDate`를 import하면 해결됩니다.
-
-**심화 대체:** `date-fns` + `date-fns/locale/ko`
-
-```bash
-npm install date-fns
-```
-```typescript
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
-format(new Date(dateStr), 'yyyy년 M월 d일', { locale: ko });
-```
-
----
-
-### 5. ✅ 디바운스 구현 (직접 setTimeout)
-**파일:** [`src/components/sidebar/SearchOverlay.tsx#L131`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/sidebar/SearchOverlay.tsx#L131), [`src/features/places/PlaceSearchBar.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/features/places/PlaceSearchBar.tsx)
-
-두 컴포넌트 모두 `useRef<ReturnType<typeof setTimeout> | null>(null)`로 디바운스를 직접 구현합니다.
-
-**대체 라이브러리:** `use-debounce`
-
-```bash
-npm install use-debounce
-```
-```typescript
-import { useDebounce } from 'use-debounce';
-const [debouncedQuery] = useDebounce(searchQuery, 350);
-useEffect(() => {
-  runSearch(debouncedQuery);
-}, [debouncedQuery]);
-```
-
-**이점:** 컴포넌트 언마운트 시 자동 정리, 타입 안전, 코드 단순화
-
----
-
-## 🟡 우선순위 중간 — 직접 구현이지만 개선 가능한 항목
-
-### 6. `usePanelDrag` hook (바텀시트 드래그)
-**파일:** [`src/hooks/ui/usePanelDrag.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/hooks/ui/usePanelDrag.ts)
-
-93줄로 직접 구현한 패널 드래그 로직 (고무줄 효과, 스냅 포인트, 확장/최소화 상태 관리).
-
-**대체 라이브러리:** `vaul` (이미 설치됨!) 또는 `framer-motion`의 드래그 제스처
-
-> [!IMPORTANT]
-> `vaul`이 이미 프로젝트에 설치되어 있으며, `JourneyListSidebar`에서 `data-vaul-no-drag` attribute를 이미 사용 중입니다. `usePanelDrag`의 기능 대부분을 `vaul`의 Drawer로 통합할 수 있습니다.
+`vaul`이 이미 설치되어 있으며 `JourneyListSidebar`에서 `data-vaul-no-drag`를 사용 중입니다. 바텀시트 드래그·스냅·오버스크롤 로직을 `vaul` Drawer로 통합하면 두 훅을 제거할 수 있습니다.
 
 ```tsx
 import { Drawer } from 'vaul';
@@ -173,161 +88,35 @@ import { Drawer } from 'vaul';
 </Drawer.Root>
 ```
 
----
-
-### 7. `useOverscrollDrawer` hook
-**파일:** [`src/hooks/useOverscrollDrawer.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/hooks/useOverscrollDrawer.ts)
-
-터치/휠 이벤트로 스크롤 과인 시 드로어 스냅 포인트를 변경하는 76줄의 커스텀 훅.
-
-**대체 라이브러리:** `vaul`의 내장 overscroll 처리
-
-`vaul`은 내부적으로 overscroll과 snap 제어를 통합 처리합니다. `vaul`로 완전히 마이그레이션하면 이 훅 자체가 불필요해집니다.
+**예상 공수:** 1–2일
 
 ---
 
-### 8. ✅ 로딩 스피너 SVG (반복 인라인)
-**파일:** `SearchOverlay.tsx`, `JourneyListSidebar.tsx`, `JourneyPlayerHeader.tsx`, `PlaceSearchBar.tsx` 등
+### 🟢 장기 — 날짜 포맷 `date-fns` 도입 (선택)
 
-동일한 SVG 스피너가 여러 컴포넌트에 중복 인라인됩니다:
+**파일:** [`src/lib/journeyUtils.ts`](../src/lib/journeyUtils.ts)
 
-```tsx
-// 동일 코드가 최소 4곳에 반복
-<svg className="w-4 h-4 animate-spin text-blue-500" ...>
-  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-</svg>
+현재 `formatJourneyDate`는 직접 구현으로 충분히 동작합니다. 다국어·상대 시간 등 확장이 필요할 때 `date-fns` + `ko` locale로 마이그레이션할 수 있습니다.
+
+```bash
+npm install date-fns
 ```
 
-**대체 방법:** `lucide-react`(이미 설치됨)의 `Loader2` 아이콘 사용
-
-```tsx
-import { Loader2 } from 'lucide-react';
-<Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-```
-
-또는 `src/components/ui/Spinner.tsx` 공통 컴포넌트 분리
-
----
-
-### 9. ✅ 클릭 외부 감지 (handleClickOutside)
-**파일:** [`src/components/MapHeaderOverlay.tsx#L14-L22`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/MapHeaderOverlay.tsx#L14-L22)
-
-```typescript
-useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-      setIsMenuOpen(false);
-    }
-  };
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => document.removeEventListener('mousedown', handleClickOutside);
-}, []);
-```
-
-**대체 라이브러리:** `@uidotdev/usehooks`의 `useClickOutside` 또는 `react-use`의 `useClickAway`
-
-```typescript
-import { useClickOutside } from "@uidotdev/usehooks";
-const ref = useClickOutside(() => setIsMenuOpen(false));
-```
-
----
-
-### 10. ✅ 인라인 SVG 아이콘 과다 사용
-**파일:** `JourneyListSidebar.tsx`, `JourneyPlayerHeader.tsx`, `SearchOverlay.tsx`, `PlaybackBar.tsx` 등
-
-`lucide-react`가 이미 설치되어 있음에도 대부분의 컴포넌트에서 SVG를 인라인으로 직접 작성합니다.
-
-**예시 — 현재:**
-```tsx
-<svg xmlns="..." fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-</svg>
-```
-
-**예시 — 대체:**
-```tsx
-import { Check, ChevronLeft, Edit2, Play, Pause, SkipBack, SkipForward, Trash2, Plus, X, Search, Clock } from 'lucide-react';
-<Check className="w-4 h-4" />
-```
-
-**대체 가능 아이콘 목록:**
-| 현재 인라인 SVG | Lucide 대체 |
-|---|---|
-| 체크마크 (m4.5 12.75 6 6 9-13.5) | `Check` |
-| 뒤로가기 화살표 | `ChevronLeft` |
-| 편집 (연필) | `Pencil` / `Edit2` |
-| 재생 버튼 | `Play` |
-| 일시정지 | `Pause` |
-| 이전 트랙 | `SkipBack` |
-| 다음 트랙 | `SkipForward` |
-| 삭제 (휴지통) | `Trash2` |
-| 추가 (+) | `Plus` |
-| 닫기 (X) | `X` |
-| 검색 | `Search` |
-| 시계 | `Clock` |
-| 위치 핀 | `MapPin` |
-| 사용자 프로필 | `User` |
-| 로그아웃 | `LogOut` |
-| 설정 | `Settings` |
-| 드래그 핸들 (≡) | `GripVertical` |
-
----
-
-### 11. `confirm()` / `alert()` 브라우저 네이티브 다이얼로그
-**파일:** [`src/components/sidebar/JourneyListSidebar.tsx#L186`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/sidebar/JourneyListSidebar.tsx#L186), [`src/components/MapHeaderOverlay.tsx#L54`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/MapHeaderOverlay.tsx#L54)
-
-```typescript
-if (!confirm(`선택한 ${selectedIds.length}개의 여정을 삭제하시겠습니까?`)) return;
-alert('여정 삭제에 실패했습니다.');
-alert('설정 기능은 준비 중입니다.');
-```
-
-**대체 방법:** 이미 설치된 `@radix-ui/react-dialog` + `dialog.tsx` 컴포넌트 활용
-
-커스텀 `ConfirmDialog` 컴포넌트를 만들면 디자인 일관성과 UX가 크게 향상됩니다.
-
----
+**예상 공수:** 1시간
 
 ---
 
 ## 📋 작업 우선순위 요약
 
-| 우선순위 | 항목 | 라이브러리/방법 | 예상 공수 |
-|---|---|---|---|
-| ✅ ~~🔴 즉시~~ | ~~스피너 SVG 중복 제거~~ | `lucide-react`의 `Loader2` | ~~30분~~ **완료** |
-| ✅ ~~🔴 즉시~~ | ~~인라인 SVG → Lucide 아이콘~~ | `lucide-react` (이미 설치됨) | ~~2시간~~ **완료** |
-| ✅ ~~🔴 즉시~~ | ~~`formatJourneyDate` 중복 제거~~ | `journeyUtils.ts` import 통합 | ~~10분~~ **완료** |
-| ✅ ~~🔴 즉시~~ | ~~Haversine 함수 중복 제거~~ | `naverMapRouteService`의 `calculateHaversineDistance` 통합 | ~~30분~~ **완료** |
-| ✅ ~~🟡 단기~~ | ~~`useMediaQuery`~~ | SSR 안전 처리 추가 (직접 구현 유지) | ~~30분~~ **완료** |
-| ✅ ~~🟡 단기~~ | ~~`useDragScroll`~~ | `react-indiana-drag-scroll` | ~~1시간~~ **완료** |
-| ✅ ~~🟡 단기~~ | ~~디바운스 직접 구현~~ | `use-debounce` | ~~1시간~~ **완료** |
-| ✅ ~~🟡 단기~~ | ~~`handleClickOutside`~~ | `@uidotdev/usehooks` useClickAway | ~~30분~~ **완료** |
-| 🟡 단기 | `confirm/alert` 대체 | Radix Dialog 커스텀 ConfirmDialog | 2시간 |
-| 🟢 장기 | `usePanelDrag` + `useOverscrollDrawer` | `vaul` 통합 마이그레이션 | 1-2일 |
-| 🟢 장기 | 날짜 포맷 | `date-fns` + `ko` locale | 1시간 |
-
----
-
-## 💡 추가 설치 권장 라이브러리
-
-```bash
-# 유틸 훅 모음 (useMediaQuery, useClickOutside 등 커버)
-npm install @uidotdev/usehooks
-
-# 드래그 스크롤
-npm install react-indiana-drag-scroll
-
-# 디바운스
-npm install use-debounce
-
-# 지리 계산 (Haversine 등)
-npm install geolib
-
-# 날짜 포맷 (선택)
-npm install date-fns
-```
-
-> [!NOTE]
-> `lucide-react`는 이미 설치(`^1.21.0`)되어 있으나 프로젝트 전반에서 인라인 SVG를 사용합니다. **추가 설치 없이 즉시 활용 가능한 가장 임팩트 큰 개선 사항**입니다.
+| 상태 | 항목 | 방법 |
+|---|---|---|
+| ✅ 완료 | 스피너/아이콘 SVG | `lucide-react` |
+| ✅ 완료 | `formatJourneyDate` 중복 | `journeyUtils` import |
+| ✅ 완료 | Haversine 중복 | `calculateHaversineDistance` 통합 |
+| ✅ 완료 | `useMediaQuery` | SSR 안전 직접 구현 |
+| ✅ 완료 | `useDragScroll` | `react-indiana-drag-scroll` |
+| ✅ 완료 | 디바운스 | `use-debounce` |
+| ✅ 완료 | 클릭 외부 감지 | `useClickAway` |
+| ✅ 완료 | `confirm/alert` | `DialogProvider` + Radix Dialog |
+| 🟢 장기 | `usePanelDrag` + `useOverscrollDrawer` | `vaul` 통합 |
+| 🟢 장기 | 날짜 포맷 | `date-fns` (선택) |

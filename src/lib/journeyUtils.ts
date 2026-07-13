@@ -1,9 +1,20 @@
 import type { Journey } from '@/types/journey';
+import { format, parseISO } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 export function formatJourneyDate(dateStr: string) {
-  if (!dateStr || !dateStr.includes('-')) return dateStr || '';
-  const [year, month, day] = dateStr.split('-');
-  return `${year}년 ${Number(month)}월 ${Number(day)}일`;
+  if (!dateStr) return '';
+  try {
+    const date = parseISO(dateStr);
+    if (isNaN(date.getTime())) {
+      if (!dateStr.includes('-')) return dateStr;
+      const [year, month, day] = dateStr.split('-');
+      return `${year}년 ${Number(month)}월 ${Number(day)}일`;
+    }
+    return format(date, 'yyyy년 M월 d일', { locale: ko });
+  } catch (e) {
+    return dateStr;
+  }
 }
 
 export function sortJourneysByStoredOrder(journeys: Journey[], userId: string): Journey[] {

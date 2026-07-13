@@ -11,6 +11,7 @@ import AuthModal from '@/components/AuthModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import ActiveJourneySidebar from '@/components/sidebar/ActiveJourneySidebar';
 import JourneyListSidebar from '@/components/sidebar/JourneyListSidebar';
+import { Drawer } from 'vaul';
 
 export default function JourneySidebar() {
   const { user, loading: authLoading } = useAuth();
@@ -183,112 +184,50 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const minSnapPx = activeJourney ? 126 : 74;
-    const defaultSnapPx = activeJourney ? 360 : 294;
-    const maxSnapPx = windowHeight - 12;
-    
-    const getCurrentSnapPx = () => {
-      if (snap === 1 || snap === '1') return maxSnapPx;
-      if (typeof snap === 'string' && snap.endsWith('px')) {
-        return parseInt(snap, 10);
-      }
-      if (typeof snap === 'number') {
-        return snap;
-      }
-      return defaultSnapPx;
-    };
+    const minSnapPx = activeJourney ? '126px' : '74px';
+    const defaultSnapPx = activeJourney ? '360px' : '294px';
 
-    const handlePointerDown = (e: React.PointerEvent) => {
-      const target = e.target as HTMLElement;
-      
-      // Allow dragging only from the handle or a designated drag area
-      const isDragArea = target.closest('.drawer-drag-area') || target.closest('.drawer-handle');
-      if (!isDragArea) return;
-
-      // Prevent capturing if clicking on interactive elements
-      if (target.closest('button') || target.closest('a') || target.closest('input')) return;
-      
-      e.currentTarget.setPointerCapture(e.pointerId);
-      touchStartY.current = e.clientY;
-      setIsDragging(true);
-    };
-
-    const handlePointerMove = (e: React.PointerEvent) => {
-      if (touchStartY.current === null) return;
-      const diff = e.clientY - touchStartY.current;
-      
-      const currentPx = getCurrentSnapPx();
-      
-      if (currentPx === maxSnapPx && diff < 0) {
-        setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.98));
-      } else if (currentPx === minSnapPx && diff > 0) {
-        setDragY(Math.sign(diff) * Math.pow(Math.abs(diff), 0.98));
-      } else {
-        setDragY(diff);
-      }
-    };
-
-    const handlePointerUp = (e: React.PointerEvent) => {
-      if (touchStartY.current === null) return;
-      e.currentTarget.releasePointerCapture(e.pointerId);
-      
-      const currentPx = getCurrentSnapPx();
-      const threshold = 25;
-
-      if (dragY < -threshold) {
-        if (currentPx === minSnapPx) setSnap(`${defaultSnapPx}px`);
-        else if (currentPx === defaultSnapPx) setSnap(1);
-      } else if (dragY > threshold) {
-        if (currentPx === maxSnapPx) setSnap(`${defaultSnapPx}px`);
-        else if (currentPx === defaultSnapPx) setSnap(`${minSnapPx}px`);
-      }
-      
-      setDragY(0);
-      setIsDragging(false);
-      touchStartY.current = null;
-    };
-
-    let currentActiveSnapPoint = snap ?? `${defaultSnapPx}px`;
+    let currentActiveSnapPoint = snap ?? defaultSnapPx;
     if (currentActiveSnapPoint === '1') currentActiveSnapPoint = 1;
-
-    const currentPx = getCurrentSnapPx();
-    const baseTranslateY = maxSnapPx - currentPx;
-    const hiddenHeight = currentPx === maxSnapPx ? '0px' : `${maxSnapPx - currentPx}px`;
 
     return (
       <>
-        <div 
-          className="fixed bottom-0 left-0 right-0 z-20 flex flex-col bg-white rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] outline-none border-t border-zinc-200"
-          style={{
-            height: `${maxSnapPx}px`,
-            transform: `translateY(${baseTranslateY + dragY}px)`,
-            transition: isDragging ? 'none' : 'transform 400ms cubic-bezier(0.34, 1.2, 0.64, 1)',
-          }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
+        <Drawer.Root
+          open={true}
+          dismissible={false}
+          snapPoints={[minSnapPx, defaultSnapPx, 1]}
+          activeSnapPoint={currentActiveSnapPoint}
+          setActiveSnapPoint={(newSnap) => setSnap(newSnap)}
+          modal={false}
         >
-          {/* Portal Target for Map Buttons */}
-          <div 
-            id="mobile-map-buttons-target" 
-            className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
-              (snap === 1 || snap === '1') ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
-            }`} 
-          />
-          
-          <div className="drawer-handle flex-shrink-0 touch-none flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing w-full absolute top-0 z-[100]">
-            <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
-          </div>
+          <Drawer.Portal>
+            <Drawer.Content 
+              className="fixed bottom-0 left-0 right-0 z-20 flex flex-col bg-white rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] outline-none border-t border-zinc-200"
+              style={{ height: 'calc(100dvh - 12px)' }}
+            >
+              {/* Portal Target for Map Buttons */}
+              <div 
+                id="mobile-map-buttons-target" 
+                className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
+                  (snap === 1 || snap === '1') ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
+                }`} 
+              />
+              
+              <div className="drawer-handle flex-shrink-0 flex flex-col items-center pt-3 pb-2 w-full absolute top-0 z-[100]">
+                <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
+              </div>
 
-          <div 
-            className="flex-1 overflow-hidden flex flex-col pt-7"
-            style={{ '--drawer-hidden-height': hiddenHeight } as React.CSSProperties}
-          >
-            {content}
-          </div>
-        </div>
+              <div 
+                className="flex-1 overflow-hidden flex flex-col pt-7"
+                // Pass down drawer hidden height to content via style so overscroll logic inside components can adjust padding if needed
+                // With vaul, this is less needed, but we keep the style var if components rely on it.
+                style={{ '--drawer-hidden-height': '0px' } as React.CSSProperties}
+              >
+                {content}
+              </div>
+            </Drawer.Content>
+          </Drawer.Portal>
+        </Drawer.Root>
         <CreateJourneyModal />
         <AuthModal />
       </>

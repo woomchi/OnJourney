@@ -41,6 +41,29 @@
 | 디바운스 직접 구현 | `use-debounce` | `SearchOverlay`, `PlaceSearchBar` |
 | `handleClickOutside` | `@uidotdev/usehooks` `useClickAway` | `MapHeaderOverlay` |
 | `confirm()` / `alert()` | `DialogProvider` + Radix Dialog | `useDialog()` 훅으로 전역 대체 |
+| 날짜 포맷 | `date-fns` | `formatJourneyDate` 적용 |
+| `usePanelDrag` + `useOverscrollDrawer` | `vaul` | 커스텀 훅 제거, `Drawer` 컴포넌트로 통합 |
+
+### `vaul` 통합 대체 상세 (2026-07-13 완료)
+
+**수정 파일:**
+- [`src/components/JourneySidebar.tsx`](../src/components/JourneySidebar.tsx)
+- [`src/components/sidebar/JourneyListSidebar.tsx`](../src/components/sidebar/JourneyListSidebar.tsx)
+- [`src/components/PlaceList.tsx`](../src/components/PlaceList.tsx)
+- [`src/features/route/AlternativeRoutePanel.tsx`](../src/features/route/AlternativeRoutePanel.tsx)
+- [`src/features/route/RouteGuidePanel.tsx`](../src/features/route/RouteGuidePanel.tsx)
+
+**삭제 파일:**
+- `src/hooks/ui/usePanelDrag.ts`
+- `src/hooks/useOverscrollDrawer.ts`
+
+```tsx
+import { Drawer } from 'vaul';
+
+<Drawer.Root snapPoints={['126px', '360px', 1]} activeSnapPoint={snap}>
+  <Drawer.Content>...</Drawer.Content>
+</Drawer.Root>
+```
 
 ### `confirm/alert` 대체 상세 (2026-07-13 완료)
 
@@ -73,36 +96,7 @@ await alert('여정 삭제에 실패했습니다.');
 
 ## 🔲 남은 작업
 
-### 🟢 장기 — `usePanelDrag` + `useOverscrollDrawer` → `vaul` 통합
-
-**파일:**
-- [`src/hooks/ui/usePanelDrag.ts`](../src/hooks/ui/usePanelDrag.ts)
-- [`src/hooks/useOverscrollDrawer.ts`](../src/hooks/useOverscrollDrawer.ts)
-
-`vaul`이 이미 설치되어 있으며 `JourneyListSidebar`에서 `data-vaul-no-drag`를 사용 중입니다. 바텀시트 드래그·스냅·오버스크롤 로직을 `vaul` Drawer로 통합하면 두 훅을 제거할 수 있습니다.
-
-```tsx
-import { Drawer } from 'vaul';
-<Drawer.Root snapPoints={['126px', '360px', 1]} activeSnapPoint={snap}>
-  <Drawer.Content>...</Drawer.Content>
-</Drawer.Root>
-```
-
-**예상 공수:** 1–2일
-
----
-
-### 🟢 장기 — 날짜 포맷 `date-fns` 도입 (선택)
-
-**파일:** [`src/lib/journeyUtils.ts`](../src/lib/journeyUtils.ts)
-
-현재 `formatJourneyDate`는 직접 구현으로 충분히 동작합니다. 다국어·상대 시간 등 확장이 필요할 때 `date-fns` + `ko` locale로 마이그레이션할 수 있습니다.
-
-```bash
-npm install date-fns
-```
-
-**예상 공수:** 1시간
+### 🟢 장기
 
 ---
 
@@ -118,5 +112,5 @@ npm install date-fns
 | ✅ 완료 | 디바운스 | `use-debounce` |
 | ✅ 완료 | 클릭 외부 감지 | `useClickAway` |
 | ✅ 완료 | `confirm/alert` | `DialogProvider` + Radix Dialog |
-| 🟢 장기 | `usePanelDrag` + `useOverscrollDrawer` | `vaul` 통합 |
-| 🟢 장기 | 날짜 포맷 | `date-fns` (선택) |
+| ✅ 완료 | 날짜 포맷 | `date-fns` 도입 |
+| ✅ 완료 | `usePanelDrag` + `useOverscrollDrawer` | `vaul` 통합 |

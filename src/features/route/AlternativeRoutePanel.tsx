@@ -5,7 +5,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import ScrollContainer from 'react-indiana-drag-scroll';
-import { usePanelDrag } from '@/hooks/ui/usePanelDrag';
+import { Drawer } from 'vaul';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -38,16 +38,13 @@ export default function AlternativeRoutePanel({
     setHoveredAlternativeRoute,
   } = useJourneyStore();
 
-  const { dragY, isDraggingPanel, isExpanded, handlers: dragHandlers } = usePanelDrag({
-    isOpen,
-    onClose,
-  });
+  const [snap, setSnap] = useState<number | string | null>('40vh');
 
   const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
 
   useEffect(() => {
     if (isOpen) {
-      if (isExpanded) {
+      if (snap === 1 || snap === '1') {
         setGuidePanelState('expanded');
       } else {
         setGuidePanelState('default');
@@ -55,7 +52,7 @@ export default function AlternativeRoutePanel({
     } else {
       setGuidePanelState('default');
     }
-  }, [isOpen, isExpanded, setGuidePanelState]);
+  }, [isOpen, snap, setGuidePanelState]);
 
   const queryClient = useQueryClient();
   const cacheKey = directionKeys.segment(originPlace.id, destPlace.id);
@@ -309,7 +306,6 @@ export default function AlternativeRoutePanel({
             </div>
           )}
 
-          {/* Duration */}
           <div className="flex flex-col items-end min-w-[32px]">
             <span className={`text-[13px] font-black tracking-tight ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
               {route.duration}분
@@ -320,47 +316,9 @@ export default function AlternativeRoutePanel({
     );
   };
 
-
-
-  return (
-    <div
-      onTransitionEnd={(e) => {
-        if (e.target === e.currentTarget && !isOpen && onExited) {
-          onExited();
-        }
-      }}
-      style={{
-        zIndex: animate ? 45 : 40,
-        height: isMobile ? 'calc(100dvh - 80px)' : undefined,
-        transform: isMobile 
-          ? animate 
-            ? `translateY(calc(${isExpanded ? '0px' : '100% - 40vh'} + ${dragY}px))`
-            : 'translateY(100%)'
-          : animate && dragY !== 0 && !isExpanded && dragY > 0 ? `translateY(${dragY}px)` : undefined,
-        transition: isDraggingPanel ? 'none' : 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms',
-      }}
-      className={`absolute bg-white border-t border-zinc-200 flex flex-col overflow-hidden z-[100] md:z-auto
-        bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
-        md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
-        md:h-auto
-        ${!isMobile && animate
-          ? 'md:translate-x-0 md:translate-y-0 opacity-100'
-          : !isMobile && !animate ? 'md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0' : ''
-        }
-      `}
-    >
-      {/* Mobile Handle & Header Wrapper */}
-      <div 
-        className="flex-shrink-0 touch-none drawer-drag-area cursor-grab active:cursor-grabbing"
-        {...dragHandlers}
-      >
-        {/* Mobile Handle */}
-        <div className="w-full flex justify-center md:hidden">
-          <div className="mx-auto w-12 h-1.5 rounded-full bg-zinc-300 my-3" />
-        </div>
-        
-        {/* Header */}
-        <div className="px-4 pb-4 border-b border-zinc-100 flex flex-col gap-2">
+  const content = (
+    <>
+      <div className="px-4 pb-4 border-b border-zinc-100 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -374,7 +332,6 @@ export default function AlternativeRoutePanel({
             취소
           </button>
 
-          {/* Origin -> Destination */}
           <h3 className="text-sm font-extrabold text-zinc-800 flex items-center justify-center gap-1.5 truncate">
             <span className="truncate max-w-[100px]" title={originPlace.place_name}>{originPlace.place_name}</span>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
@@ -414,9 +371,7 @@ export default function AlternativeRoutePanel({
           </button>
         </div>
       </div>
-      </div>
 
-      {/* Tabs */}
       <div className="px-5 pt-4 pb-2 flex-shrink-0 flex flex-col gap-2">
         <div className="flex bg-zinc-50 p-1 rounded-xl border border-zinc-100">
           {(['public', 'car', 'walk'] as const).map((tab) => {
@@ -445,7 +400,6 @@ export default function AlternativeRoutePanel({
           })}
         </div>
 
-        {/* Sub Tabs for Public Transport */}
         {activeTab === 'public' && subTabs.length > 1 && (
           <ScrollContainer
             className="flex items-center gap-1.5 pb-1.5 pt-0.5 cursor-grab"
@@ -483,7 +437,6 @@ export default function AlternativeRoutePanel({
         )}
       </div>
 
-      {/* List Container */}
       <ScrollContainer
         className="flex-1 px-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek"
         vertical
@@ -493,7 +446,7 @@ export default function AlternativeRoutePanel({
         onScroll={() => { isDraggedRef.current = true; }}
         onEndScroll={() => { setTimeout(() => { isDraggedRef.current = false; }, 50); }}
         style={{
-          paddingBottom: isMobile ? `calc(20px + ${isExpanded ? '0px' : 'calc(100dvh - 80px - 40vh)'})` : '20px'
+          paddingBottom: '20px'
         }}
       >
         {loading ? (
@@ -508,8 +461,8 @@ export default function AlternativeRoutePanel({
           </div>
         ) : (
           <>
-            {(activeSubTab === '추천' || isMobile ? displayedRoutes : displayedRoutes.slice(0, displayLimit)).map((route) => renderRouteButton(route))}
-            {!isMobile && activeSubTab !== '추천' && displayedRoutes.length > displayLimit && (
+            {(activeSubTab === '추천' ? displayedRoutes : displayedRoutes.slice(0, displayLimit)).map((route) => renderRouteButton(route))}
+            {activeSubTab !== '추천' && displayedRoutes.length > displayLimit && (
               <button
                 type="button"
                 onClick={() => setDisplayLimit(prev => prev + 5)}
@@ -524,6 +477,61 @@ export default function AlternativeRoutePanel({
           </>
         )}
       </ScrollContainer>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer.Root
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) onClose(true);
+        }}
+        snapPoints={['40vh', 1]}
+        activeSnapPoint={snap}
+        setActiveSnapPoint={setSnap}
+        modal={false}
+        dismissible={true}
+      >
+        <Drawer.Portal>
+          <Drawer.Content 
+            className="fixed bottom-0 left-0 right-0 z-20 flex flex-col bg-white rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] outline-none border-t border-zinc-200"
+            style={{ height: 'calc(100dvh - 12px)', zIndex: 45 }}
+          >
+            <div className="drawer-handle flex-shrink-0 flex flex-col items-center pt-3 pb-2 w-full absolute top-0 z-[100]">
+              <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
+            </div>
+            <div className="flex-1 overflow-hidden flex flex-col pt-7">
+              {content}
+            </div>
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
+    );
+  }
+
+  return (
+    <div
+      onTransitionEnd={(e) => {
+        if (e.target === e.currentTarget && !isOpen && onExited) {
+          onExited();
+        }
+      }}
+      style={{
+        zIndex: animate ? 45 : 40,
+        transition: 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms',
+      }}
+      className={`absolute bg-white border-t border-zinc-200 flex flex-col overflow-hidden z-[100] md:z-auto
+        bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
+        md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+        md:h-auto
+        ${animate
+          ? 'md:translate-x-0 md:translate-y-0 opacity-100'
+          : 'md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
+        }
+      `}
+    >
+      {content}
     </div>
   );
 }

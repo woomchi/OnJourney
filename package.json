@@ -25,6 +25,7 @@
     "@uidotdev/usehooks": "^2.4.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
     "fast-xml-parser": "^5.9.3",
     "idb-keyval": "^6.2.6",
     "lucide-react": "^1.21.0",

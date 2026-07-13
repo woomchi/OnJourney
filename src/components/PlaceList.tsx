@@ -3,7 +3,6 @@
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
 import PlaceCard from './places/PlaceCard';
-import { useOverscrollDrawer } from '@/hooks/useOverscrollDrawer';
 import { MapPin } from 'lucide-react';
 import {
   DndContext,
@@ -40,7 +39,6 @@ export default function PlaceList({
   children,
 }: PlaceListProps) {
   const { activeJourney, isDrawerMaximized } = useJourneyStore();
-  const overscrollHandlers = useOverscrollDrawer();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -56,7 +54,6 @@ export default function PlaceList({
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
       <div 
-        {...overscrollHandlers}
         className="flex flex-col items-center justify-center text-center py-12 px-6 flex-1 overflow-y-auto"
       >
         <div className="w-20 h-20 mb-5 rounded-3xl bg-blue-50 flex items-center justify-center shadow-inner">
@@ -92,8 +89,6 @@ export default function PlaceList({
 
   return (
     <div 
-      data-vaul-no-drag
-      {...overscrollHandlers}
       className={`flex-1 overflow-y-auto scrollbar-sidebar overscroll-none ${
         !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
       }`}

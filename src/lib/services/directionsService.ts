@@ -99,7 +99,9 @@ export async function fetchSegmentDirections(origin: Place, dest: Place): Promis
     if (!res.ok) {
       throw new Error('이동 경로 요청 실패');
     }
-    return await res.json();
+    const payload = await res.json();
+    if (!payload.success) throw new Error(payload.error || '이동 경로 요청 실패');
+    return payload.data;
   } catch (err) {
     console.warn(`[directionsService] API failed for ${origin.place_name} -> ${dest.place_name}, using fallback.`, err);
     return getFallbackDirections(origin, dest);

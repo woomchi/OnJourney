@@ -226,16 +226,16 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       // 1차 검색: 현재 지도 영역 기반으로 정확도순 검색 (거리순 제외)
       let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}`);
       if (currentSearchId !== activeSearchId.current) return;
-      let data = await res.json();
+      let payload = await res.json();
       let items: PlaceResult[] = [];
 
-      if (!res.ok) {
-        setSearchError(data.error || '검색 실패');
+      if (!res.ok || !payload.success) {
+        setSearchError(payload.error || '검색 실패');
         setSearchResults([]);
         clearRecommendedPlaces();
         return;
       } else {
-        items = data.items || [];
+        items = payload.data?.items || [];
       }
 
       // 1차 검색 결과가 15개 미만이라면(현재 지도 영역 내에 해당 장소가 부족함 = 특수한 고유명사일 확률이 높음), 범위를 넓혀 전국망 2차 검색 진행
@@ -245,16 +245,16 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         // coordParam은 남겨서 현 중심점 기준으로 가장 가까운 곳부터 우선 탐색되도록 유도하되 rect는 해제 (전국망 확장)
         const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}`);
         if (currentSearchId !== activeSearchId.current) return;
-        const fallbackData = await fallbackRes.json();
+        const fallbackPayload = await fallbackRes.json();
         
-        if (fallbackRes.ok && fallbackData.items && fallbackData.items.length > 0) {
+        if (fallbackRes.ok && fallbackPayload.success && fallbackPayload.data?.items && fallbackPayload.data.items.length > 0) {
           // 기존 로컬 결과와 전국망 결과를 합친 후 중복 제거
-          const newItems = fallbackData.items as PlaceResult[];
+          const newItems = fallbackPayload.data.items as PlaceResult[];
           const merged = [...items, ...newItems];
           const uniqueItems = Array.from(new Map(merged.map(item => [item.id, item])).values());
           items = uniqueItems;
         } else if (items.length === 0) {
-          setSearchError(fallbackData.error || '검색 결과가 없습니다.');
+          setSearchError(fallbackPayload.error || '검색 결과가 없습니다.');
           setSearchResults([]);
           clearRecommendedPlaces();
           return;

@@ -30,13 +30,13 @@ export function usePlaceSearch() {
 
     try {
       const res = await fetch(`/api/places?query=${encodeURIComponent(q)}`);
-      const data = await res.json();
+      const payload = await res.json();
 
-      if (!res.ok) {
-        setError(data.error || '검색 실패');
+      if (!res.ok || !payload.success) {
+        setError(payload.error || '검색 실패');
         setResults([]);
       } else {
-        setResults(data.items || []);
+        setResults(payload.data?.items || []);
         setIsOpen(true);
       }
     } catch {

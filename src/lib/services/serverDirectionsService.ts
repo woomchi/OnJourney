@@ -1,4 +1,4 @@
-import type { DirectionResult, DirectionStep } from '@/types/journey';
+import type { DirectionResult, DirectionStep, DirectionsApiResponse } from '@/types/journey';
 import { SUBWAY_COLORS, BUS_COLORS, ODSAY_BUS_TYPES } from '@/constants/colors';
 import { WALK_LIMITS } from '@/constants/transit';
 
@@ -551,3 +551,147 @@ export function calculateCarFallback(
     ],
   };
 }
+
+import { getRouteCache, saveRouteCache } from '@/lib/repositories/routeCacheRepository';
+import { DirectionsQueryType } from '../validations/directions';
+
+export async function fetchDirections(params: DirectionsQueryType): Promise<DirectionsApiResponse> {
+  const { sx, sy, ex, ey } = params;
+
+  const roundCoord = (val: number) => Math.round(val * 10000) / 10000;
+  const rsx = roundCoord(sx);
+  const rsy = roundCoord(sy);
+  const rex = roundCoord(ex);
+  const rey = roundCoord(ey);
+
+  const cacheParams = { rsx, rsy, rex, rey };
+  const distanceKm = haversineDistance(sy, sx, ey, ex);
+
+  const cacheData = await getRouteCache(cacheParams);
+
+  if (cacheData) {
+    if (distanceKm <= 2.0 && Array.isArray(cacheData.public)) {
+      cacheData.public = cacheData.public.filter(
+        (route: any) => route.id !== 'public-0' && route.name !== '대중교통(예상)'
+      );
+    }
+    return cacheData;
+  }
+
+  const fallbackPath = [
+    { lat: sy, lng: sx },
+    { lat: ey, lng: ex },
+  ];
+
+  const [publicRes, carRes] = await Promise.allSettled([
+    fetchPublicTransitOptions(sx, sy, ex, ey),
+    fetchCarRoute(sx, sy, ex, ey)
+  ]);
+
+  let publicResults: DirectionResult[] = [];
+  if (publicRes.status === 'fulfilled') {
+    publicResults = publicRes.value;
+  } else {
+    if (distanceKm > 2.0) {
+      const carFallback = calculateCarFallback(sx, sy, ex, ey);
+      publicResults = [
+        {
+          id: 'public-0',
+          type: 'public' as const,
+          name: '대중교통(예상)',
+          duration: Math.round(carFallback.duration * 1.3),
+          fare: 1500,
+          steps: [
+            {
+              type: 'bus' as const,
+              name: '대중교통(예상)',
+              duration: Math.round(carFallback.duration * 1.3),
+              color: '#0068b7',
+              pathPoints: fallbackPath,
+            }
+          ],
+          pathPoints: fallbackPath
+        }
+      ];
+    }
+  }
+
+  let carResults: DirectionResult[] = [];
+  if (carRes.status === 'fulfilled') {
+    carResults = carRes.value;
+  } else {
+    carResults = [calculateCarFallback(sx, sy, ex, ey)];
+  }
+
+  const walkDuration = Math.round((distanceKm / 4.5) * 60);
+  const bicycleDuration = Math.round((distanceKm / 15) * 60);
+  const kickboardDuration = Math.round((distanceKm / 18) * 60);
+  const kickboardFare = 1000 + Math.round(kickboardDuration * 150);
+
+  const walkResult: DirectionResult = {
+    id: 'walk',
+    type: 'walk' as const,
+    name: '도보',
+    duration: walkDuration,
+    fare: 0,
+    steps: [
+      {
+        type: 'walk' as const,
+        name: '도보',
+        duration: walkDuration,
+        color: '#E4E4E7',
+        pathPoints: fallbackPath
+      }
+    ],
+    pathPoints: fallbackPath
+  };
+
+  const bicycleResult: DirectionResult = {
+    id: 'bicycle',
+    type: 'bicycle' as const,
+    name: '자전거',
+    duration: bicycleDuration,
+    fare: 0,
+    steps: [
+      {
+        type: 'walk' as const,
+        name: '자전거',
+        duration: bicycleDuration,
+        color: '#10B981',
+        pathPoints: fallbackPath
+      }
+    ],
+    pathPoints: fallbackPath
+  };
+
+  const kickboardResult: DirectionResult = {
+    id: 'kickboard',
+    type: 'kickboard' as const,
+    name: '공유 킥보드',
+    duration: kickboardDuration,
+    fare: kickboardFare,
+    steps: [
+      {
+        type: 'walk' as const,
+        name: '공유 킥보드',
+        duration: kickboardDuration,
+        color: '#8B5CF6',
+        pathPoints: fallbackPath
+      }
+    ],
+    pathPoints: fallbackPath
+  };
+
+  const walkResults = [walkResult, bicycleResult, kickboardResult];
+
+  const responseData: DirectionsApiResponse = {
+    public: publicResults,
+    car: carResults,
+    walk: walkResults
+  };
+
+  saveRouteCache(cacheParams, responseData).catch(console.error);
+
+  return responseData;
+}
+

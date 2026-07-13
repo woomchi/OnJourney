@@ -260,7 +260,9 @@ export class NaverDirectionService {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `HTTP error ${res.status}`);
       }
-      return await res.json();
+      const payload = await res.json();
+      if (!payload.success) throw new Error(payload.error || 'API 응답 오류');
+      return payload.data;
     } catch (error: any) {
       console.warn('[NaverDirectionService] Real route API call failed, generating fallback route. Reason:', error.message);
       return this.generateFallbackResponse(start, goal, waypoints);

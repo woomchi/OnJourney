@@ -497,7 +497,7 @@ export default function RouteGuidePanel({
           onOpenChange={(open) => {
             if (!open) onClose();
           }}
-          snapPoints={['200px', '350px', 1]}
+          snapPoints={['210px', '360px', 1]}
           activeSnapPoint={snap}
           setActiveSnapPoint={setSnap}
           modal={false}

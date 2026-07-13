@@ -516,16 +516,16 @@ export default function MapArea() {
           }
         } else {
           if (guidePanelState === 'minimized') {
-            bottomPadding = 260; // 이동 상세 패널 최소화 시 200px + 60px 여백 (마커 라벨 등 고려)
+            bottomPadding = 270; // 이동 상세 패널 최소화 시 210px + 60px 여백 (마커 라벨 등 고려)
           } else {
-            bottomPadding = 410; // 이동 상세 패널 기본 높이 (350px + 60px 여백)
+            bottomPadding = 420; // 이동 상세 패널 기본 높이 (360px + 60px 여백)
           }
         }
       } else if (effectiveSnapPoint !== 1) {
         if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
           bottomPadding = parseInt(effectiveSnapPoint, 10) + 40; // 스냅 포인트 높이 + 마커 여백 고려
         } else {
-          bottomPadding = 300;
+          bottomPadding = 310;
         }
       }
     }

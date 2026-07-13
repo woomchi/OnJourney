@@ -35,23 +35,23 @@ export default function JourneySidebar() {
   // Initialize snap point on mount based on existing store state or activeJourney
   useEffect(() => {
     if (activeJourney !== wasActiveJourneyRef.current) {
-      setSnap(activeJourney ? '360px' : '294px');
+      setSnap(activeJourney ? '370px' : '304px');
       wasActiveJourneyRef.current = activeJourney;
     } else if (snap === null) {
       // Use existing drawerSnapPoint if available (from persistence), otherwise fallback
       const storeSnap = useJourneyStore.getState().drawerSnapPoint;
-      setSnap(storeSnap !== null && storeSnap !== undefined ? storeSnap : (activeJourney ? '360px' : '294px'));
+      setSnap(storeSnap !== null && storeSnap !== undefined ? storeSnap : (activeJourney ? '370px' : '304px'));
     }
   }, [activeJourney, snap]);
 
   // Adjust snap point automatically when activeJourney changes
   useEffect(() => {
     if (activeJourney) {
-      if (snap === '294px') setSnap('360px');
-      else if (snap === '74px') setSnap('126px');
+      if (snap === '304px') setSnap('370px');
+      else if (snap === '84px') setSnap('136px');
     } else {
-      if (snap === '360px') setSnap('294px');
-      else if (snap === '126px') setSnap('74px');
+      if (snap === '370px') setSnap('304px');
+      else if (snap === '136px') setSnap('84px');
     }
   }, [activeJourney, snap]);
   
@@ -64,9 +64,9 @@ export default function JourneySidebar() {
     const wasFocused = !!prevFocusedSegmentRef.current;
     
     if (isCurrentlyFocused && !wasFocused) {
-      setSnap(activeJourney ? '126px' : '74px');
+      setSnap(activeJourney ? '136px' : '84px');
     } else if (!isCurrentlyFocused && wasFocused) {
-      setSnap(activeJourney ? '360px' : '294px');
+      setSnap(activeJourney ? '370px' : '304px');
     }
     prevFocusedSegmentRef.current = focusedSegment;
   }, [focusedSegment, isMobile, activeJourney]);
@@ -184,8 +184,8 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    const minSnapPx = activeJourney ? '126px' : '74px';
-    const defaultSnapPx = activeJourney ? '360px' : '294px';
+    const minSnapPx = activeJourney ? '136px' : '84px';
+    const defaultSnapPx = activeJourney ? '370px' : '304px';
 
     let currentActiveSnapPoint = snap ?? defaultSnapPx;
     if (currentActiveSnapPoint === '1') currentActiveSnapPoint = 1;

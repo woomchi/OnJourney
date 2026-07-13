@@ -38,8 +38,8 @@ export default function RouteGuidePanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
-  const [snap, setSnap] = useState<number | string | null>('350px');
-  const collapse = () => setSnap('200px'); // minimize when stepping
+  const [snap, setSnap] = useState<number | string | null>('360px');
+  const collapse = () => setSnap('210px'); // minimize when stepping
 
   const { setGuidePanelState } = useJourneyStore();
 
@@ -47,7 +47,7 @@ export default function RouteGuidePanel({
     if (isOpen) {
       if (snap === 1 || snap === '1') {
         setGuidePanelState('expanded');
-      } else if (snap === '200px') {
+      } else if (snap === '210px') {
         setGuidePanelState('minimized');
       } else {
         setGuidePanelState('default');

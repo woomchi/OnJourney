@@ -94,7 +94,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-white overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
       <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 md:p-8">
         <div className="w-full max-w-sm md:max-w-md lg:max-w-lg flex flex-col animate-in fade-in zoom-in-95 duration-500">
 

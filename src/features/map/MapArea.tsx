@@ -17,6 +17,7 @@ import DirectionalStripes from '@/components/map/DirectionalStripes';
 import TransferMarkers from '@/components/map/TransferMarkers';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMapState } from '@/features/map/useMapState';
+import { useMapUIStore } from '@/stores/map-store';
 import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
@@ -138,21 +139,24 @@ export default function MapArea() {
 
 
 
-  const [activeRecommendedPlace, setActiveRecommendedPlace] = useState<PlaceResult | null>(null);
-
-  const [mapClickedPlace, setMapClickedPlace] = useState<{ lat: number; lng: number; address: string; place_name: string } | null>(null);
-
-  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const {
+    activeRecommendedPlace, setActiveRecommendedPlace,
+    mapClickedPlace, setMapClickedPlace,
+    isLocating, setIsLocating,
+    userLocation, setUserLocation,
+    currentAddress, setCurrentAddress,
+    showLocationCard, setShowLocationCard,
+    gpsMode, setGpsMode,
+    deviceHeading, setDeviceHeading,
+    forceLoad, setForceLoad,
+    mapCenter, setMapCenter,
+    zoomLevel, setZoomLevel,
+    mapBounds, setMapBounds
+  } = useMapUIStore();
   const lastKnownLocationRef = useRef<{ lat: number; lng: number } | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [currentAddress, setCurrentAddress] = useState('');
-  const [showLocationCard, setShowLocationCard] = useState(false);
-
-  const [gpsMode, setGpsMode] = useState<'none' | 'location' | 'compass'>('none');
   const gpsModeRef = useRef(gpsMode);
   useEffect(() => { gpsModeRef.current = gpsMode; }, [gpsMode]);
   
-  const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
   const headingEmaRef = useRef<{ x: number, y: number } | null>(null);
   
   // 회전값 변경 시 DOM을 직접 업데이트하여 마커 애니메이션 리셋 방지
@@ -323,10 +327,7 @@ export default function MapArea() {
           lastKnownLocationRef.current = { lat, lng };
           setUserLocation({ lat, lng });
 
-          setGpsMode((currentMode) => {
-            return currentMode;
-          });
-          
+
           // side effect (map.panTo) MUST be outside of the setState callback in React 18+
           if (gpsModeRef.current !== 'none' && map) {
             map.panTo(new window.naver.maps.LatLng(lat, lng));
@@ -389,7 +390,7 @@ export default function MapArea() {
   const { fetchSequentialDirections } = useJourneyDirections();
   const directionsCache = useJourneyDirectionsCache(places);
 
-  const [forceLoad, setForceLoad] = useState(false);
+
 
   useEffect(() => {
     if (places.length < 2) return;
@@ -445,12 +446,6 @@ export default function MapArea() {
   }, [places, directionsCache]);
 
   const [map, setMap] = useState<naver.maps.Map | null>(null);
-  const [zoomLevel, setZoomLevel] = useState<number>(15);
-  const [mapBounds, setMapBounds] = useState<naver.maps.LatLngBounds | null>(null);
-  const [mapCenter, setMapCenter] = useState<naver.maps.CoordLiteral>({
-    lat: 37.5665,
-    lng: 126.9780,
-  });
 
   // 여정에 등록된 장소가 없을 경우 사용자의 실시간 GPS 위치를 지도의 기본 중심지로 설정
   useEffect(() => {
@@ -852,25 +847,27 @@ export default function MapArea() {
     // 드래그나 줌 조작이 완전히 멈춘 유휴(idle) 상태일 때만 바운드와 줌 레벨을 갱신하여 렌더링 부하 최소화
     const idleListener = navermaps.Event.addListener(map, 'idle', () => {
       const newZoom = map.getZoom();
-      setZoomLevel(prev => prev === newZoom ? prev : newZoom);
+      const prevZoom = useMapUIStore.getState().zoomLevel;
+      setZoomLevel(prevZoom === newZoom ? prevZoom : newZoom);
 
       const newBounds = map.getBounds() as naver.maps.LatLngBounds;
-      setMapBounds(prev => {
-        if (!prev || !newBounds) return newBounds;
-        const prevSW = prev.getSW();
-        const prevNE = prev.getNE();
+      const prevBounds = useMapUIStore.getState().mapBounds;
+      if (!prevBounds || !newBounds) {
+        setMapBounds(newBounds);
+      } else {
+        const prevSW = prevBounds.getSW();
+        const prevNE = prevBounds.getNE();
         const newSW = newBounds.getSW();
         const newNE = newBounds.getNE();
         if (
-          prevSW.lat() === newSW.lat() &&
-          prevSW.lng() === newSW.lng() &&
-          prevNE.lat() === newNE.lat() &&
-          prevNE.lng() === newNE.lng()
+          prevSW.lat() !== newSW.lat() ||
+          prevSW.lng() !== newSW.lng() ||
+          prevNE.lat() !== newNE.lat() ||
+          prevNE.lng() !== newNE.lng()
         ) {
-          return prev;
+          setMapBounds(newBounds);
         }
-        return newBounds;
-      });
+      }
 
       // 전역 스토어에 영역(Bounds) 정보 갱신
       if (newBounds) {
@@ -1160,9 +1157,8 @@ export default function MapArea() {
               <button
                 type="button"
                 onClick={() => handleAddRecommendedPlace(activeRecommendedPlace)}
-                className="relative group w-full py-3 bg-zinc-950 hover:bg-zinc-900 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer overflow-hidden"
+                className="relative w-full py-3 bg-zinc-950 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-blue-600 before:to-indigo-600 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 transition-all"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 relative z-10">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -1236,9 +1232,8 @@ export default function MapArea() {
                 console.error('장소 추가 실패:', err);
               }
             }}
-            className="relative group w-full py-3 bg-zinc-950 hover:bg-zinc-900 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer overflow-hidden"
+            className="relative w-full py-3 bg-zinc-950 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-rose-600 before:to-orange-500 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 transition-all"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-rose-600 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 relative z-10">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>

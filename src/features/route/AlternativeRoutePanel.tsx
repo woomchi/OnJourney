@@ -498,10 +498,10 @@ export default function AlternativeRoutePanel({
             className="fixed bottom-0 left-0 right-0 z-20 flex flex-col bg-white rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] outline-none border-t border-zinc-200"
             style={{ height: 'calc(100dvh - 12px)', zIndex: 45 }}
           >
-            <div className="drawer-handle flex-shrink-0 flex flex-col items-center pt-3 pb-2 w-full absolute top-0 z-[100]">
-              <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
+            <div className="drawer-handle flex-shrink-0 flex justify-center py-3 w-full cursor-grab active:cursor-grabbing z-[100]">
+              <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
             </div>
-            <div className="flex-1 overflow-hidden flex flex-col pt-7">
+            <div className="flex-1 overflow-hidden flex flex-col">
               {content}
             </div>
           </Drawer.Content>

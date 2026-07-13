@@ -514,10 +514,10 @@ export default function RouteGuidePanel({
                   (snap === 1 || snap === '1') ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
                 }`} 
               />
-              <div className="drawer-handle flex-shrink-0 flex flex-col items-center pt-3 pb-2 w-full absolute top-0 z-[100]">
-                <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
+              <div className="drawer-handle flex-shrink-0 flex justify-center py-3 w-full cursor-grab active:cursor-grabbing z-[100]">
+                <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
               </div>
-              <div className="flex-1 overflow-hidden flex flex-col pt-7">
+              <div className="flex-1 overflow-hidden flex flex-col">
                 {content}
               </div>
             </Drawer.Content>

@@ -461,7 +461,7 @@ export default function TransferMarkers({
                   .transfer-marker-${pt.key}:hover {
                     transform: translate(calc(-50% + ${offsetX}px), -105%) scale(${isThisStepFocused ? '1.15' : '1.05'});
                     box-shadow: ${isThisStepFocused ? `0 0 0 4px ${pt.color}40, 0 8px 24px ${pt.color}60` : '0 6px 20px rgba(0, 0, 0, 0.22)'};
-                    z-index: 20000;
+                    z-index: 100;
                   }
                 </style>
                 <div class="transfer-marker-${pt.key}">

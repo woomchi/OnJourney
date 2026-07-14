@@ -89,21 +89,32 @@ export function getFallbackDirections(origin: Place, dest: Place): DirectionsApi
   };
 }
 
-/**
- * 단일 구간 길찾기 API를 호출하고 결과를 반환합니다. 실패 시 Fallback 데이터를 제공합니다.
- */
-export async function fetchSegmentDirections(origin: Place, dest: Place): Promise<DirectionsApiResponse> {
+export async function fetchPublicDirectionsApi(origin: Place, dest: Place): Promise<{ public: DirectionResult[] }> {
   try {
-    const url = `/api/directions?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+    const url = `/api/directions/public?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
     const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error('이동 경로 요청 실패');
-    }
+    if (!res.ok) throw new Error('대중교통 경로 요청 실패');
     const payload = await res.json();
-    if (!payload.success) throw new Error(payload.error || '이동 경로 요청 실패');
+    if (!payload.success) throw new Error(payload.error || '대중교통 경로 요청 실패');
     return payload.data;
   } catch (err) {
-    console.warn(`[directionsService] API failed for ${origin.place_name} -> ${dest.place_name}, using fallback.`, err);
-    return getFallbackDirections(origin, dest);
+    console.warn(`[directionsService] Public API failed for ${origin.place_name} -> ${dest.place_name}, using fallback.`, err);
+    const fallback = getFallbackDirections(origin, dest);
+    return { public: fallback.public };
+  }
+}
+
+export async function fetchCarWalkDirectionsApi(origin: Place, dest: Place): Promise<{ car: DirectionResult[], walk: DirectionResult[] }> {
+  try {
+    const url = `/api/directions/car?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('차량 경로 요청 실패');
+    const payload = await res.json();
+    if (!payload.success) throw new Error(payload.error || '차량 경로 요청 실패');
+    return payload.data;
+  } catch (err) {
+    console.warn(`[directionsService] Car API failed for ${origin.place_name} -> ${dest.place_name}, using fallback.`, err);
+    const fallback = getFallbackDirections(origin, dest);
+    return { car: fallback.car, walk: fallback.walk };
   }
 }

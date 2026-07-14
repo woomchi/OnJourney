@@ -48,3 +48,9 @@ export async function saveRouteCache(params: RouteCacheParams, routeData: Direct
     console.error('[routeCacheRepository] saveRouteCache error:', error);
   }
 }
+
+export async function updateRouteCache(params: RouteCacheParams, partialData: Partial<DirectionsApiResponse>): Promise<void> {
+  const existing = await getRouteCache(params);
+  const newData = { ...existing, ...partialData } as DirectionsApiResponse;
+  await saveRouteCache(params, newData);
+}

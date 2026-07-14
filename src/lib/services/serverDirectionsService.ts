@@ -63,22 +63,46 @@ export async function fetchPublicTransitOptions(
   let delayTime = 200;
 
   for (let i = 0; i < attempts; i++) {
-    const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (!res.ok) {
-      throw new Error(`ODsay API Error: status ${res.status}`);
-    }
-    data = await res.json();
-
-    // ODsay 429 Too Many Requests 에러 감지 시 재시도
-    if (data.error && (data.error.code === '429' || data.error.message?.includes('Requests'))) {
-      if (i < attempts - 1) {
-        console.warn(`[directions] ODsay API returned 429 error. Retrying in ${delayTime}ms... (Attempt ${i + 1}/${attempts})`);
-        await new Promise(resolve => setTimeout(resolve, delayTime));
-        delayTime *= 2; // Exponential Backoff
-        continue;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(url, { next: { revalidate: 3600 }, signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        if (res.status === 429) {
+          if (i < attempts - 1) {
+            console.warn(`[directions] ODsay API returned 429 status. Retrying in ${delayTime}ms... (Attempt ${i + 1}/${attempts})`);
+            await new Promise(resolve => setTimeout(resolve, delayTime));
+            delayTime *= 2;
+            continue;
+          }
+        }
+        throw new Error(`ODsay API Error: status ${res.status}`);
       }
+      data = await res.json();
+
+      // ODsay 429 Too Many Requests 에러 감지 시 재시도
+      if (data.error && (data.error.code === '429' || data.error.message?.includes('Requests'))) {
+        if (i < attempts - 1) {
+          console.warn(`[directions] ODsay API returned 429 error. Retrying in ${delayTime}ms... (Attempt ${i + 1}/${attempts})`);
+          await new Promise(resolve => setTimeout(resolve, delayTime));
+          delayTime *= 2; // Exponential Backoff
+          continue;
+        }
+      }
+      break;
+    } catch (err: any) {
+      if (err.name === 'AbortError' || err.message?.includes('timeout')) {
+        console.warn(`[directions] ODsay API timeout. Retrying in ${delayTime}ms... (Attempt ${i + 1}/${attempts})`);
+        if (i < attempts - 1) {
+          await new Promise(resolve => setTimeout(resolve, delayTime));
+          delayTime *= 2;
+          continue;
+        }
+      }
+      throw err;
     }
-    break;
   }
 
   if (data.error) {
@@ -152,7 +176,12 @@ export async function fetchPublicTransitOptions(
           const laneData = await laneRes.json();
           if (laneData.result && laneData.result.lane) {
             laneList = laneData.result.lane;
-            hasDetailedLanes = true;
+            const transitCount = subPaths.filter((sp: any) => [1,2,4,5,6].includes(sp.trafficType)).length;
+            if (laneList.length === transitCount) {
+              hasDetailedLanes = true;
+            } else {
+              console.warn(`[directions] path ${pathIdx} loadLane length mismatch (${laneList.length} vs ${transitCount}), ignoring detailed lanes`);
+            }
           }
         }
       } catch (e) {
@@ -433,13 +462,26 @@ export async function fetchCarRoute(
 
   const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${sx},${sy}&goal=${ex},${ey}&option=trafast:traoptimal:traavoidtoll`;
 
-  const res = await fetch(url, {
-    headers: {
-      'X-NCP-APIGW-API-KEY-ID': clientId,
-      'X-NCP-APIGW-API-KEY': clientSecret,
-    },
-    next: { revalidate: 3600 },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: {
+        'X-NCP-APIGW-API-KEY-ID': clientId,
+        'X-NCP-APIGW-API-KEY': clientSecret,
+      },
+      next: { revalidate: 3600 },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Naver Directions 5 API Timeout');
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -552,146 +594,101 @@ export function calculateCarFallback(
   };
 }
 
-import { getRouteCache, saveRouteCache } from '@/lib/repositories/routeCacheRepository';
+import { getRouteCache, updateRouteCache } from '@/lib/repositories/routeCacheRepository';
 import { DirectionsQueryType } from '../validations/directions';
 
-export async function fetchDirections(params: DirectionsQueryType): Promise<DirectionsApiResponse> {
+export async function fetchPublicDirections(params: DirectionsQueryType): Promise<{ public: DirectionResult[] }> {
   const { sx, sy, ex, ey } = params;
-
   const roundCoord = (val: number) => Math.round(val * 10000) / 10000;
-  const rsx = roundCoord(sx);
-  const rsy = roundCoord(sy);
-  const rex = roundCoord(ex);
-  const rey = roundCoord(ey);
-
-  const cacheParams = { rsx, rsy, rex, rey };
-  const distanceKm = haversineDistance(sy, sx, ey, ex);
-
+  const cacheParams = { rsx: roundCoord(sx), rsy: roundCoord(sy), rex: roundCoord(ex), rey: roundCoord(ey) };
+  
   const cacheData = await getRouteCache(cacheParams);
-
-  if (cacheData) {
-    if (distanceKm <= 2.0 && Array.isArray(cacheData.public)) {
-      cacheData.public = cacheData.public.filter(
-        (route: any) => route.id !== 'public-0' && route.name !== '대중교통(예상)'
-      );
+  if (cacheData && cacheData.public) {
+    const hasFallback = cacheData.public.some((r: any) => r.id === 'public-0' || r.name === '대중교통(예상)');
+    if (!hasFallback) {
+      return { public: cacheData.public };
     }
-    return cacheData;
   }
 
-  const fallbackPath = [
-    { lat: sy, lng: sx },
-    { lat: ey, lng: ex },
-  ];
-
-  const [publicRes, carRes] = await Promise.allSettled([
-    fetchPublicTransitOptions(sx, sy, ex, ey),
-    fetchCarRoute(sx, sy, ex, ey)
-  ]);
-
-  let publicResults: DirectionResult[] = [];
-  if (publicRes.status === 'fulfilled') {
-    publicResults = publicRes.value;
-  } else {
+  try {
+    const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey);
+    const responseData = { public: publicResults };
+    updateRouteCache(cacheParams, responseData).catch(console.error);
+    return responseData;
+  } catch (error) {
+    console.error('[fetchPublicDirections] Public transit API request failed:', error);
+    const distanceKm = haversineDistance(sy, sx, ey, ex);
     if (distanceKm > 2.0) {
       const carFallback = calculateCarFallback(sx, sy, ex, ey);
-      publicResults = [
-        {
+      const fallbackPath = [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
+      return {
+        public: [{
           id: 'public-0',
-          type: 'public' as const,
+          type: 'public',
           name: '대중교통(예상)',
           duration: Math.round(carFallback.duration * 1.3),
           fare: 1500,
-          steps: [
-            {
-              type: 'bus' as const,
-              name: '대중교통(예상)',
-              duration: Math.round(carFallback.duration * 1.3),
-              color: '#0068b7',
-              pathPoints: fallbackPath,
-            }
-          ],
+          steps: [{
+            type: 'bus',
+            name: '대중교통(예상)',
+            duration: Math.round(carFallback.duration * 1.3),
+            color: '#0068b7',
+            pathPoints: fallbackPath,
+          }],
           pathPoints: fallbackPath
-        }
-      ];
+        }]
+      };
     }
+    return { public: [] };
   }
+}
 
-  let carResults: DirectionResult[] = [];
-  if (carRes.status === 'fulfilled') {
-    carResults = carRes.value;
-  } else {
-    carResults = [calculateCarFallback(sx, sy, ex, ey)];
-  }
+export async function fetchCarWalkDirections(params: DirectionsQueryType): Promise<{ car: DirectionResult[], walk: DirectionResult[] }> {
+  const { sx, sy, ex, ey } = params;
+  const roundCoord = (val: number) => Math.round(val * 10000) / 10000;
+  const cacheParams = { rsx: roundCoord(sx), rsy: roundCoord(sy), rex: roundCoord(ex), rey: roundCoord(ey) };
+  const distanceKm = haversineDistance(sy, sx, ey, ex);
+  const fallbackPath = [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
 
   const walkDuration = Math.round((distanceKm / 4.5) * 60);
   const bicycleDuration = Math.round((distanceKm / 15) * 60);
   const kickboardDuration = Math.round((distanceKm / 18) * 60);
   const kickboardFare = 1000 + Math.round(kickboardDuration * 150);
 
-  const walkResult: DirectionResult = {
-    id: 'walk',
-    type: 'walk' as const,
-    name: '도보',
-    duration: walkDuration,
-    fare: 0,
-    steps: [
-      {
-        type: 'walk' as const,
-        name: '도보',
-        duration: walkDuration,
-        color: '#E4E4E7',
-        pathPoints: fallbackPath
-      }
-    ],
-    pathPoints: fallbackPath
-  };
+  const walkResults: DirectionResult[] = [
+    {
+      id: 'walk', type: 'walk', name: '도보', duration: walkDuration, fare: 0,
+      steps: [{ type: 'walk', name: '도보', duration: walkDuration, color: '#E4E4E7', pathPoints: fallbackPath }], pathPoints: fallbackPath
+    },
+    {
+      id: 'bicycle', type: 'bicycle', name: '자전거', duration: bicycleDuration, fare: 0,
+      steps: [{ type: 'walk', name: '자전거', duration: bicycleDuration, color: '#10B981', pathPoints: fallbackPath }], pathPoints: fallbackPath
+    },
+    {
+      id: 'kickboard', type: 'kickboard', name: '공유 킥보드', duration: kickboardDuration, fare: kickboardFare,
+      steps: [{ type: 'walk', name: '공유 킥보드', duration: kickboardDuration, color: '#8B5CF6', pathPoints: fallbackPath }], pathPoints: fallbackPath
+    }
+  ];
 
-  const bicycleResult: DirectionResult = {
-    id: 'bicycle',
-    type: 'bicycle' as const,
-    name: '자전거',
-    duration: bicycleDuration,
-    fare: 0,
-    steps: [
-      {
-        type: 'walk' as const,
-        name: '자전거',
-        duration: bicycleDuration,
-        color: '#10B981',
-        pathPoints: fallbackPath
-      }
-    ],
-    pathPoints: fallbackPath
-  };
+  const cacheData = await getRouteCache(cacheParams);
+  if (cacheData && cacheData.car && cacheData.walk) {
+    const hasFallback = cacheData.car.some((r: any) => r.id === 'car-trafast' && r.name.includes('(예상)'));
+    if (!hasFallback) {
+      return { car: cacheData.car, walk: cacheData.walk };
+    }
+  }
 
-  const kickboardResult: DirectionResult = {
-    id: 'kickboard',
-    type: 'kickboard' as const,
-    name: '공유 킥보드',
-    duration: kickboardDuration,
-    fare: kickboardFare,
-    steps: [
-      {
-        type: 'walk' as const,
-        name: '공유 킥보드',
-        duration: kickboardDuration,
-        color: '#8B5CF6',
-        pathPoints: fallbackPath
-      }
-    ],
-    pathPoints: fallbackPath
-  };
-
-  const walkResults = [walkResult, bicycleResult, kickboardResult];
-
-  const responseData: DirectionsApiResponse = {
-    public: publicResults,
-    car: carResults,
-    walk: walkResults
-  };
-
-  saveRouteCache(cacheParams, responseData).catch(console.error);
-
-  return responseData;
+  try {
+    const carResults = await fetchCarRoute(sx, sy, ex, ey);
+    const responseData = { car: carResults, walk: walkResults };
+    updateRouteCache(cacheParams, responseData).catch(console.error);
+    return responseData;
+  } catch (error) {
+    console.error('[fetchCarWalkDirections] Car route API request failed:', error);
+    return {
+      car: [calculateCarFallback(sx, sy, ex, ey)],
+      walk: walkResults
+    };
+  }
 }
 

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { withErrorHandler, successResponse } from '@/lib/apiResponse';
 import { directionsQuerySchema } from '@/lib/validations/directions';
-import { fetchDirections } from '@/lib/services/serverDirectionsService';
+import { fetchPublicDirections } from '@/lib/services/serverDirectionsService';
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
@@ -10,7 +10,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   // Zod 검증
   const validatedParams = directionsQuerySchema.parse(rawParams);
 
-  const data = await fetchDirections(validatedParams);
+  const data = await fetchPublicDirections(validatedParams);
 
   return successResponse(data);
 });

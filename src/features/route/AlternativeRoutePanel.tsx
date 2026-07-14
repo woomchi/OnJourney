@@ -9,7 +9,7 @@ import { Drawer } from 'vaul';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { directionKeys } from '@/hooks/queries/useDirections';
-import { fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/directionsService';
+import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 
 interface AlternativeRoutePanelProps {
@@ -55,9 +55,21 @@ export default function AlternativeRoutePanel({
   }, [isOpen, snap, setGuidePanelState]);
 
   const queryClient = useQueryClient();
-  const cacheKey = directionKeys.segment(originPlace.id, destPlace.id);
-  const segmentData = queryClient.getQueryData<DirectionsApiResponse>(cacheKey);
-  const loading = queryClient.getQueryState(cacheKey)?.status === 'pending';
+  
+  const publicKey = directionKeys.segmentPublic(originPlace.id, destPlace.id);
+  const carKey = directionKeys.segmentCar(originPlace.id, destPlace.id);
+  
+  const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(publicKey);
+  const carData = queryClient.getQueryData<{ car: DirectionResult[], walk: DirectionResult[] }>(carKey);
+  
+  const segmentData = (publicData || carData) ? {
+    public: publicData?.public || [],
+    car: carData?.car || [],
+    walk: carData?.walk || []
+  } : undefined;
+
+  const publicLoading = queryClient.getQueryState(publicKey)?.status === 'pending';
+  const carLoading = queryClient.getQueryState(carKey)?.status === 'pending';
   const transportType = activeJourney?.transport_type || 'public';
 
   const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType);
@@ -67,6 +79,8 @@ export default function AlternativeRoutePanel({
       ? activeRoute.type
       : transportType
   );
+
+  const loading = activeTab === 'public' ? publicLoading : carLoading;
 
   const [activeSubTab, setActiveSubTab] = useState<string>('추천');
   const [displayLimit, setDisplayLimit] = useState(3);
@@ -98,13 +112,19 @@ export default function AlternativeRoutePanel({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!segmentData && !loading) {
+    if (!publicData && !publicLoading) {
       queryClient.fetchQuery({
-        queryKey: cacheKey,
-        queryFn: () => fetchDirectionsApi(originPlace, destPlace)
+        queryKey: publicKey,
+        queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
       }).catch(console.error);
     }
-  }, [segmentData, loading, cacheKey, queryClient, originPlace, destPlace]);
+    if (!carData && !carLoading) {
+      queryClient.fetchQuery({
+        queryKey: carKey,
+        queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
+      }).catch(console.error);
+    }
+  }, [publicData, publicLoading, carData, carLoading, publicKey, carKey, queryClient, originPlace, destPlace]);
 
   const getEmoji = (type: string, name: string) => {
     if (type === 'public') {

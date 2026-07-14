@@ -5,7 +5,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useJourneyDirectionsCache, directionKeys } from '@/hooks/queries/useDirections';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Place } from '@/types/journey';
-import { fetchSegmentDirections as fetchDirectionsApi } from '@/lib/services/directionsService';
+import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import SegmentInfo from './SegmentInfo';
@@ -157,10 +157,12 @@ export default function PlaceCard({
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
   const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
   const { isCacheRestored } = useJourneyStore();
-  const queryState = nextPlace ? queryClient.getQueryState(directionKeys.segment(place.id, nextPlace.id)) : null;
-  const isSegmentLoading = !isCacheRestored || (queryState 
-    ? queryState.status === 'pending' && queryState.fetchStatus !== 'paused'
-    : false);
+  const publicQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentPublic(place.id, nextPlace.id)) : null;
+  const carQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentCar(place.id, nextPlace.id)) : null;
+  const isSegmentLoading = !isCacheRestored || (
+    (publicQueryState?.status === 'pending' && publicQueryState?.fetchStatus !== 'paused') ||
+    (carQueryState?.status === 'pending' && carQueryState?.fetchStatus !== 'paused')
+  );
 
   const activeRoute = nextPlace 
     ? getDefaultRoute(place, nextPlace, segmentData, transportType)
@@ -316,10 +318,16 @@ export default function PlaceCard({
                       setFocusBounds(bounds);
                     }
                     if (!segmentData) {
-                      queryClient.fetchQuery({
-                        queryKey: directionKeys.segment(place.id, nextPlace.id),
-                        queryFn: () => fetchDirectionsApi(place, nextPlace)
-                      }).catch(console.error);
+                      Promise.allSettled([
+                        queryClient.fetchQuery({
+                          queryKey: directionKeys.segmentPublic(place.id, nextPlace.id),
+                          queryFn: () => fetchPublicDirectionsApi(place, nextPlace)
+                        }),
+                        queryClient.fetchQuery({
+                          queryKey: directionKeys.segmentCar(place.id, nextPlace.id),
+                          queryFn: () => fetchCarWalkDirectionsApi(place, nextPlace)
+                        })
+                      ]).catch(console.error);
                     }
                   } else {
                     setAlternativeSegment(null);

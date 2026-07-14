@@ -4,11 +4,13 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
 import PlaceCard from './places/PlaceCard';
 import { MapPin } from 'lucide-react';
+import { Sheet } from 'react-modal-sheet';
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -43,8 +45,11 @@ export default function PlaceList({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8,
       },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 6 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -92,7 +97,7 @@ export default function PlaceList({
       className={`flex-1 overflow-y-auto scrollbar-sidebar overscroll-none ${
         !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
       }`}
-      style={{ paddingBottom: isDrawerMaximized ? '0.5rem' : 'calc(0.5rem + var(--drawer-hidden-height, 0px))' }}
+      style={{ paddingBottom: '0.5rem' }}
     >
       <ul className="flex flex-col px-2">
         <DndContext

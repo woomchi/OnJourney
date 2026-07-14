@@ -5,7 +5,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import ScrollContainer from 'react-indiana-drag-scroll';
-import { Drawer } from 'vaul';
+import { Sheet } from 'react-modal-sheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -28,6 +28,14 @@ export default function AlternativeRoutePanel({
   onExited,
 }: AlternativeRoutePanelProps) {
   const [animate, setAnimate] = useState(false);
+  const [windowHeight, setWindowHeight] = useState(0);
+
+  useEffect(() => {
+    setWindowHeight(window.innerHeight);
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const {
     activeJourney,
@@ -502,31 +510,28 @@ export default function AlternativeRoutePanel({
 
   if (isMobile) {
     return (
-      <Drawer.Root
-        open={isOpen}
-        onOpenChange={(open) => {
-          if (!open) onClose(true);
+      <Sheet
+        isOpen={isOpen}
+        onClose={() => onClose(true)}
+        snapPoints={[0, 0.4, 1]}
+        initialSnap={1}
+        onSnap={(index) => {
+          if (index === 0 || index === 1) setSnap('40vh');
+          else if (index === 2) setSnap(1);
         }}
-        snapPoints={['40vh', 1]}
-        activeSnapPoint={snap}
-        setActiveSnapPoint={setSnap}
-        modal={false}
-        dismissible={true}
       >
-        <Drawer.Portal>
-          <Drawer.Content 
-            className="fixed bottom-0 left-0 right-0 z-20 flex flex-col bg-white rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] outline-none border-t border-zinc-200"
-            style={{ height: 'calc(100dvh - 12px)', zIndex: 45 }}
-          >
-            <div className="drawer-handle flex-shrink-0 flex justify-center py-3 w-full cursor-grab active:cursor-grabbing z-[100]">
-              <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
-            </div>
-            <div className="flex-1 overflow-hidden flex flex-col">
-              {content}
-            </div>
-          </Drawer.Content>
-        </Drawer.Portal>
-      </Drawer.Root>
+        <Sheet.Container 
+          className="!rounded-t-[20px] !shadow-[0_-8px_30px_rgba(0,0,0,0.15)] !border-t !border-zinc-200 !bg-white"
+          style={{ zIndex: 45 }}
+        >
+          <Sheet.Header className="pt-3 pb-2 flex justify-center">
+            <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
+          </Sheet.Header>
+          <Sheet.Content className="flex-1 overflow-hidden flex flex-col pt-3">
+            {content}
+          </Sheet.Content>
+        </Sheet.Container>
+      </Sheet>
     );
   }
 

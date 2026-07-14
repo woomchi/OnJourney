@@ -8,12 +8,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { deleteJourneys } from '@/lib/journeys';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import type { Journey } from '@/types/journey';
+import { Sheet } from 'react-modal-sheet';
 import { Loader2, GripVertical, Pencil, Check, Trash2, Plus } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -212,8 +214,11 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8,
       },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 6 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -323,7 +328,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
           className={`flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar scroll-pt-1.5 scroll-pb-6 overscroll-none ${
             !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
           }`}
-          style={{ paddingBottom: isDrawerMaximized ? '1.5rem' : 'calc(1.5rem + var(--drawer-hidden-height, 0px))' }}
+          style={{ paddingBottom: '1.5rem' }}
         >
           <DndContext
             sensors={sensors}

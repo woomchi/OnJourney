@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
-import { Drawer } from 'vaul';
+import { Sheet } from 'react-modal-sheet';
 import PlaybackBar from '@/components/route/PlaybackBar';
 import TransitGuideList from '@/components/route/TransitGuideList';
 import CarGuideList from '@/components/route/CarGuideList';
@@ -34,6 +34,14 @@ export default function RouteGuidePanel({
   onExited,
 }: RouteGuidePanelProps) {
   const [animate, setAnimate] = useState(false);
+  const [windowHeight, setWindowHeight] = useState(0);
+
+  useEffect(() => {
+    setWindowHeight(window.innerHeight);
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
@@ -492,37 +500,35 @@ export default function RouteGuidePanel({
   if (isMobile) {
     return (
       <>
-        <Drawer.Root
-          open={isOpen}
-          onOpenChange={(open) => {
-            if (!open) onClose();
+        <Sheet
+          isOpen={isOpen}
+          onClose={() => onClose()}
+          snapPoints={[0, 210, 360, 1]}
+          initialSnap={2}
+          onSnap={(index) => {
+            if (index === 0 || index === 1) setSnap('210px');
+            else if (index === 2) setSnap('360px');
+            else if (index === 3) setSnap(1);
           }}
-          snapPoints={['210px', '360px', 1]}
-          activeSnapPoint={snap}
-          setActiveSnapPoint={setSnap}
-          modal={false}
-          dismissible={true}
         >
-          <Drawer.Portal>
-            <Drawer.Content 
-              className="fixed bottom-0 left-0 right-0 z-20 flex flex-col bg-white rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] outline-none border-t border-zinc-200"
-              style={{ height: 'calc(100dvh - 12px)', zIndex: 45 }}
-            >
-              <div 
-                id="mobile-map-buttons-target-route" 
-                className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
-                  (snap === 1 || snap === '1') ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
-                }`} 
-              />
-              <div className="drawer-handle flex-shrink-0 flex justify-center py-3 w-full cursor-grab active:cursor-grabbing z-[100]">
-                <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
-              </div>
-              <div className="flex-1 overflow-hidden flex flex-col">
-                {content}
-              </div>
-            </Drawer.Content>
-          </Drawer.Portal>
-        </Drawer.Root>
+          <Sheet.Container 
+            className="!rounded-t-[20px] !shadow-[0_-8px_30px_rgba(0,0,0,0.15)] !border-t !border-zinc-200 !bg-white"
+            style={{ zIndex: 45 }}
+          >
+            <div 
+              id="mobile-map-buttons-target-route" 
+              className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
+                (snap === 1 || snap === '1') ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
+              }`} 
+            />
+            <Sheet.Header className="pt-3 pb-2 flex justify-center">
+              <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
+            </Sheet.Header>
+            <Sheet.Content className="flex-1 overflow-hidden flex flex-col pt-3">
+              {content}
+            </Sheet.Content>
+          </Sheet.Container>
+        </Sheet>
         {playbackBar}
       </>
     );

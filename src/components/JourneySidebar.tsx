@@ -11,7 +11,7 @@ import AuthModal from '@/components/AuthModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import ActiveJourneySidebar from '@/components/sidebar/ActiveJourneySidebar';
 import JourneyListSidebar from '@/components/sidebar/JourneyListSidebar';
-import { Drawer } from 'vaul';
+import { Sheet, SheetRef } from 'react-modal-sheet';
 
 export default function JourneySidebar() {
   const { user, loading: authLoading } = useAuth();
@@ -92,6 +92,17 @@ export default function JourneySidebar() {
   const queryClient = useQueryClient();
   const { data: fetchedJourneys, isLoading: isJourneysLoading } = useJourneys();
 
+  // 렌더링 후 화면 높이 계산을 위한 상태
+  const [windowHeight, setWindowHeight] = useState(0);
+  const sheetRef = useRef<SheetRef>(null);
+
+  useEffect(() => {
+    setWindowHeight(window.innerHeight);
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
@@ -136,6 +147,23 @@ export default function JourneySidebar() {
   }, [isSyncing]);
 
   const isLoading = authLoading || isJourneysLoading;
+
+  const minSnapPx = activeJourney ? 136 : 84;
+  const defaultSnapPx = activeJourney ? 370 : 304;
+
+  let activeSnapIndex = 2; // defaultSnapPx (index 2)
+  if (snap === 1 || snap === '1') {
+    activeSnapIndex = 3; // 1 (Full screen)
+  } else if (snap === minSnapPx || snap === `${minSnapPx}px`) {
+    activeSnapIndex = 1; // minSnapPx
+  }
+
+  // 외부에서 snap 값이 변경되었을 때 바텀 시트 반영
+  useEffect(() => {
+    if (isMobile && sheetRef.current) {
+      sheetRef.current.snapTo(activeSnapIndex);
+    }
+  }, [activeSnapIndex, isMobile]);
 
   const content = activeJourney ? (
     <ActiveJourneySidebar activeJourney={activeJourney} />
@@ -184,50 +212,52 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    const minSnapPx = activeJourney ? '136px' : '84px';
-    const defaultSnapPx = activeJourney ? '370px' : '304px';
-
-    let currentActiveSnapPoint = snap ?? defaultSnapPx;
-    if (currentActiveSnapPoint === '1') currentActiveSnapPoint = 1;
+    const minSnapPx = activeJourney ? 136 : 84;
+    const defaultSnapPx = activeJourney ? 370 : 304;
+    
+    // react-modal-sheet v5 requires ascending order starting with 0 and ending with 1
+    const snapPoints = [0, minSnapPx, defaultSnapPx, 1];
 
     return (
       <>
-        <Drawer.Root
-          open={true}
-          dismissible={false}
-          snapPoints={[minSnapPx, defaultSnapPx, 1]}
-          activeSnapPoint={currentActiveSnapPoint}
-          setActiveSnapPoint={(newSnap) => setSnap(newSnap)}
-          modal={false}
+        <Sheet
+          ref={sheetRef}
+          isOpen={true}
+          onClose={() => {
+            // 방어 코드: 사용자가 0으로 닫으려 할 때 닫히지 않고 최소 높이로 유지
+            if (sheetRef.current) sheetRef.current.snapTo(1);
+          }}
+          snapPoints={snapPoints}
+          initialSnap={2} // defaultSnapPx
+          onSnap={(snapIndex) => {
+            if (snapIndex === 0) {
+              if (sheetRef.current) sheetRef.current.snapTo(1);
+              setSnap(`${minSnapPx}px`);
+            }
+            else if (snapIndex === 1) setSnap(`${minSnapPx}px`);
+            else if (snapIndex === 2) setSnap(`${defaultSnapPx}px`);
+            else if (snapIndex === 3) setSnap(1);
+          }}
         >
-          <Drawer.Portal>
-            <Drawer.Content 
-              className="fixed bottom-0 left-0 right-0 z-20 flex flex-col bg-white rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] outline-none border-t border-zinc-200"
-              style={{ height: 'calc(100dvh - 12px)' }}
-            >
-              {/* Portal Target for Map Buttons */}
-              <div 
-                id="mobile-map-buttons-target" 
-                className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
-                  (snap === 1 || snap === '1') ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
-                }`} 
-              />
-              
-              <div className="drawer-handle flex-shrink-0 flex flex-col items-center pt-3 pb-2 w-full absolute top-0 z-[100]">
-                <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
-              </div>
-
-              <div 
-                className="flex-1 overflow-hidden flex flex-col pt-7"
-                // Pass down drawer hidden height to content via style so overscroll logic inside components can adjust padding if needed
-                // With vaul, this is less needed, but we keep the style var if components rely on it.
-                style={{ '--drawer-hidden-height': '0px' } as React.CSSProperties}
-              >
-                {content}
-              </div>
-            </Drawer.Content>
-          </Drawer.Portal>
-        </Drawer.Root>
+          <Sheet.Container 
+            className="!rounded-t-[20px] !shadow-[0_-8px_30px_rgba(0,0,0,0.15)] !border-t !border-zinc-200 !bg-white"
+            style={{ zIndex: 20 }}
+          >
+            {/* Portal Target for Map Buttons */}
+            <div 
+              id="mobile-map-buttons-target" 
+              className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
+                activeSnapIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
+              }`} 
+            />
+            <Sheet.Header className="pt-3 pb-2 flex justify-center">
+              <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
+            </Sheet.Header>
+            <Sheet.Content className="flex flex-col pt-3 overflow-hidden">
+              {content}
+            </Sheet.Content>
+          </Sheet.Container>
+        </Sheet>
         <CreateJourneyModal />
         <AuthModal />
       </>

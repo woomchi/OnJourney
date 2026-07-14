@@ -1,4 +1,5 @@
 import type { DirectionResult, DirectionStep, DirectionsApiResponse } from '@/types/journey';
+import { unstable_cache } from 'next/cache';
 import { externalFetch } from '@/lib/utils/externalFetch';
 import { SUBWAY_COLORS, BUS_COLORS, ODSAY_BUS_TYPES } from '@/constants/colors';
 import { WALK_LIMITS } from '@/constants/transit';
@@ -63,10 +64,24 @@ export async function fetchPublicTransitOptions(
   const attempts = 3;
   let delayTime = 200;
 
+  const getCachedDirections = unstable_cache(
+    async () => {
+      const res = await externalFetch(url, { cache: 'no-store' });
+      return await res.json();
+    },
+    [
+      'odsay-directions-pubtrans',
+      sx.toFixed(3),
+      sy.toFixed(3),
+      ex.toFixed(3),
+      ey.toFixed(3)
+    ],
+    { revalidate: 3600 }
+  );
+
   for (let i = 0; i < attempts; i++) {
     try {
-      const res = await externalFetch(url, { next: { revalidate: 3600 } });
-      data = await res.json();
+      data = await getCachedDirections();
       break;
     } catch (err: any) {
       const isRateLimit = err.status === 429 || err.code === '429' || err.message?.includes('Requests');
@@ -147,17 +162,24 @@ export async function fetchPublicTransitOptions(
       try {
         const mapObjectParam = `0:0@${info.mapObj}`;
         const laneUrl = `https://api.odsay.com/v1/api/loadLane?apiKey=${encodeURIComponent(apiKey)}&mapObject=${encodeURIComponent(mapObjectParam)}`;
-        const laneRes = await externalFetch(laneUrl, { next: { revalidate: 3600 } });
-        if (laneRes.ok) {
-          const laneData = await laneRes.json();
-          if (laneData.result && laneData.result.lane) {
-            laneList = laneData.result.lane;
-            const transitCount = subPaths.filter((sp: any) => [1,2,4,5,6].includes(sp.trafficType)).length;
-            if (laneList.length === transitCount) {
-              hasDetailedLanes = true;
-            } else {
-              console.warn(`[directions] path ${pathIdx} loadLane length mismatch (${laneList.length} vs ${transitCount}), ignoring detailed lanes`);
-            }
+        
+        const getCachedLoadLane = unstable_cache(
+          async () => {
+            const laneRes = await externalFetch(laneUrl, { cache: 'no-store' });
+            return await laneRes.json();
+          },
+          ['odsay-loadlane', mapObjectParam],
+          { revalidate: 3600 }
+        );
+
+        const laneData = await getCachedLoadLane();
+        if (laneData.result && laneData.result.lane) {
+          laneList = laneData.result.lane;
+          const transitCount = subPaths.filter((sp: any) => [1,2,4,5,6].includes(sp.trafficType)).length;
+          if (laneList.length === transitCount) {
+            hasDetailedLanes = true;
+          } else {
+            console.warn(`[directions] path ${pathIdx} loadLane length mismatch (${laneList.length} vs ${transitCount}), ignoring detailed lanes`);
           }
         }
       } catch (e) {

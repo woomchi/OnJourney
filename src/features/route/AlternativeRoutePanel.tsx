@@ -5,7 +5,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import ScrollContainer from 'react-indiana-drag-scroll';
-import { Sheet } from 'react-modal-sheet';
+import { Sheet, SheetRef } from 'react-modal-sheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -37,6 +37,7 @@ export default function AlternativeRoutePanel({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   const isMobile = useMediaQuery('(max-width: 767px)');
+  const sheetRef = useRef<SheetRef>(null);
   const {
     activeJourney,
     selectSegmentRoute,
@@ -511,12 +512,19 @@ export default function AlternativeRoutePanel({
   if (isMobile) {
     return (
       <Sheet
+        ref={sheetRef}
         isOpen={isOpen}
-        onClose={() => onClose(true)}
+        onClose={() => {
+          if (sheetRef.current) sheetRef.current.snapTo(1);
+        }}
         snapPoints={[0, 0.4, 1]}
         initialSnap={1}
         onSnap={(index) => {
-          if (index === 0 || index === 1) setSnap('40vh');
+          if (index === 0) {
+            if (sheetRef.current) sheetRef.current.snapTo(1);
+            setSnap('40vh');
+          }
+          else if (index === 1) setSnap('40vh');
           else if (index === 2) setSnap(1);
         }}
       >

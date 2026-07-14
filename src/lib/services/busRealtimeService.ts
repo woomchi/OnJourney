@@ -23,12 +23,13 @@ const getCachedStationData = unstable_cache(
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     try {
-      const res = await fetch(url, { signal: controller.signal });
-      if (!res.ok) return null;
-      return await res.json();
-    } catch (e) {
-      console.error('[busRealtimeService] ODsay cache fetch error:', e);
-      return null;
+      const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+      if (!res.ok) throw new Error('ODsay fetch status not ok');
+      const data = await res.json();
+      if (data && data.error) {
+        throw new Error('ODsay API error');
+      }
+      return data;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -58,7 +59,12 @@ export async function fetchBusRealtime(params: BusRealtimeQueryType) {
     };
   }
 
-  const odsayData = await getCachedStationData(station, odsayKey);
+  let odsayData = null;
+  try {
+    odsayData = await getCachedStationData(station, odsayKey);
+  } catch (e) {
+    console.error('[busRealtimeService] ODsay cache fetch error:', e);
+  }
 
   if (odsayData?.result?.station?.length > 0) {
     let st = odsayData.result.station.find((s: any) => {

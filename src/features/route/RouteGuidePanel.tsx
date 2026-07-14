@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
-import { Sheet } from 'react-modal-sheet';
+import { Sheet, SheetRef } from 'react-modal-sheet';
 import PlaybackBar from '@/components/route/PlaybackBar';
 import TransitGuideList from '@/components/route/TransitGuideList';
 import CarGuideList from '@/components/route/CarGuideList';
@@ -44,6 +44,7 @@ export default function RouteGuidePanel({
   }, []);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<SheetRef>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
   const [snap, setSnap] = useState<number | string | null>('360px');
@@ -501,12 +502,19 @@ export default function RouteGuidePanel({
     return (
       <>
         <Sheet
+          ref={sheetRef}
           isOpen={isOpen}
-          onClose={() => onClose()}
+          onClose={() => {
+            if (sheetRef.current) sheetRef.current.snapTo(1);
+          }}
           snapPoints={[0, 210, 360, 1]}
           initialSnap={2}
           onSnap={(index) => {
-            if (index === 0 || index === 1) setSnap('210px');
+            if (index === 0) {
+              if (sheetRef.current) sheetRef.current.snapTo(1);
+              setSnap('210px');
+            }
+            else if (index === 1) setSnap('210px');
             else if (index === 2) setSnap('360px');
             else if (index === 3) setSnap(1);
           }}

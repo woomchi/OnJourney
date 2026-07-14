@@ -1,4 +1,5 @@
 import type { DirectionResult, DirectionStep, DirectionsApiResponse } from '@/types/journey';
+import { externalFetch } from '@/lib/utils/externalFetch';
 import { SUBWAY_COLORS, BUS_COLORS, ODSAY_BUS_TYPES } from '@/constants/colors';
 import { WALK_LIMITS } from '@/constants/transit';
 
@@ -64,38 +65,16 @@ export async function fetchPublicTransitOptions(
 
   for (let i = 0; i < attempts; i++) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(url, { next: { revalidate: 3600 }, signal: controller.signal });
-      clearTimeout(timeoutId);
-      
-      if (!res.ok) {
-        if (res.status === 429) {
-          if (i < attempts - 1) {
-            console.warn(`[directions] ODsay API returned 429 status. Retrying in ${delayTime}ms... (Attempt ${i + 1}/${attempts})`);
-            await new Promise(resolve => setTimeout(resolve, delayTime));
-            delayTime *= 2;
-            continue;
-          }
-        }
-        throw new Error(`ODsay API Error: status ${res.status}`);
-      }
+      const res = await externalFetch(url, { next: { revalidate: 3600 } });
       data = await res.json();
-
-      // ODsay 429 Too Many Requests 에러 감지 시 재시도
-      if (data.error && (data.error.code === '429' || data.error.message?.includes('Requests'))) {
-        if (i < attempts - 1) {
-          console.warn(`[directions] ODsay API returned 429 error. Retrying in ${delayTime}ms... (Attempt ${i + 1}/${attempts})`);
-          await new Promise(resolve => setTimeout(resolve, delayTime));
-          delayTime *= 2; // Exponential Backoff
-          continue;
-        }
-      }
       break;
     } catch (err: any) {
-      if (err.name === 'AbortError' || err.message?.includes('timeout')) {
-        console.warn(`[directions] ODsay API timeout. Retrying in ${delayTime}ms... (Attempt ${i + 1}/${attempts})`);
+      const isRateLimit = err.status === 429 || err.code === '429' || err.message?.includes('Requests');
+      const isTimeout = err.status === 408 || err.message?.includes('timeout');
+      
+      if (isRateLimit || isTimeout) {
         if (i < attempts - 1) {
+          console.warn(`[directions] ODsay API retry. (${isRateLimit ? '429' : 'timeout'}) Retrying in ${delayTime}ms...`);
           await new Promise(resolve => setTimeout(resolve, delayTime));
           delayTime *= 2;
           continue;
@@ -105,13 +84,10 @@ export async function fetchPublicTransitOptions(
     }
   }
 
-  if (data.error) {
-    console.error('[directions] ODsay API returned error:', data.error);
-    throw new Error(`대중교통 경로 호출 실패: ${data.error.message || JSON.stringify(data.error)}`);
-  }
-
   if (!data.result || !data.result.path || data.result.path.length === 0) {
-    throw new Error('대중교통 경로를 찾을 수 없습니다.');
+    const err = new Error('대중교통 경로를 찾을 수 없습니다.');
+    err.name = 'NoRouteFound';
+    throw err;
   }
 
   // 네이버 지도 스타일의 도보 검색 반경 필터링 적용
@@ -171,7 +147,7 @@ export async function fetchPublicTransitOptions(
       try {
         const mapObjectParam = `0:0@${info.mapObj}`;
         const laneUrl = `https://api.odsay.com/v1/api/loadLane?apiKey=${encodeURIComponent(apiKey)}&mapObject=${encodeURIComponent(mapObjectParam)}`;
-        const laneRes = await fetch(laneUrl, { next: { revalidate: 3600 } });
+        const laneRes = await externalFetch(laneUrl, { next: { revalidate: 3600 } });
         if (laneRes.ok) {
           const laneData = await laneRes.json();
           if (laneData.result && laneData.result.lane) {
@@ -462,36 +438,28 @@ export async function fetchCarRoute(
 
   const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${sx},${sy}&goal=${ex},${ey}&option=trafast:traoptimal:traavoidtoll`;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
-
   let res;
   try {
-    res = await fetch(url, {
+    res = await externalFetch(url, {
       headers: {
         'X-NCP-APIGW-API-KEY-ID': clientId,
         'X-NCP-APIGW-API-KEY': clientSecret,
       },
-      next: { revalidate: 3600 },
-      signal: controller.signal
+      next: { revalidate: 3600 }
     });
-    clearTimeout(timeoutId);
   } catch (err: any) {
-    if (err.name === 'AbortError') {
+    if (err.status === 408) {
       throw new Error('Naver Directions 5 API Timeout');
     }
     throw err;
   }
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Naver API Error: status ${res.status}, body ${errorText}`);
-  }
-
   const data = await res.json();
 
   if (!data.route) {
-    throw new Error('차량 경로를 찾을 수 없습니다.');
+    const err = new Error('차량 경로를 찾을 수 없습니다.');
+    err.name = 'NoRouteFound';
+    throw err;
   }
 
   const results: DirectionResult[] = [];
@@ -594,52 +562,41 @@ export function calculateCarFallback(
   };
 }
 
-import { getRouteCache, updateRouteCache } from '@/lib/repositories/routeCacheRepository';
 import { DirectionsQueryType } from '../validations/directions';
 
 export async function fetchPublicDirections(params: DirectionsQueryType): Promise<{ public: DirectionResult[] }> {
   const { sx, sy, ex, ey } = params;
-  const roundCoord = (val: number) => Math.round(val * 10000) / 10000;
-  const cacheParams = { rsx: roundCoord(sx), rsy: roundCoord(sy), rex: roundCoord(ex), rey: roundCoord(ey) };
-  
-  const cacheData = await getRouteCache(cacheParams);
-  if (cacheData && cacheData.public) {
-    const hasFallback = cacheData.public.some((r: any) => r.id === 'public-0' || r.name === '대중교통(예상)');
-    if (!hasFallback) {
-      return { public: cacheData.public };
-    }
-  }
 
   try {
     const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey);
-    const responseData = { public: publicResults };
-    updateRouteCache(cacheParams, responseData).catch(console.error);
-    return responseData;
-  } catch (error) {
-    console.error('[fetchPublicDirections] Public transit API request failed:', error);
-    const distanceKm = haversineDistance(sy, sx, ey, ex);
-    if (distanceKm > 2.0) {
-      const carFallback = calculateCarFallback(sx, sy, ex, ey);
-      const fallbackPath = [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
-      return {
-        public: [{
-          id: 'public-0',
-          type: 'public',
-          name: '대중교통(예상)',
-          duration: Math.round(carFallback.duration * 1.3),
-          fare: 1500,
-          steps: [{
-            type: 'bus',
+    return { public: publicResults };
+  } catch (error: any) {
+    if (error.name === 'NoRouteFound' || error.message?.includes('찾을 수 없습니다')) {
+      const distanceKm = haversineDistance(sy, sx, ey, ex);
+      if (distanceKm > 2.0) {
+        const carFallback = calculateCarFallback(sx, sy, ex, ey);
+        const fallbackPath = [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
+        return {
+          public: [{
+            id: 'public-0',
+            type: 'public',
             name: '대중교통(예상)',
             duration: Math.round(carFallback.duration * 1.3),
-            color: '#0068b7',
-            pathPoints: fallbackPath,
-          }],
-          pathPoints: fallbackPath
-        }]
-      };
+            fare: 1500,
+            steps: [{
+              type: 'bus',
+              name: '대중교통(예상)',
+              duration: Math.round(carFallback.duration * 1.3),
+              color: '#0068b7',
+              pathPoints: fallbackPath,
+            }],
+            pathPoints: fallbackPath
+          }]
+        };
+      }
+      return { public: [] };
     }
-    return { public: [] };
+    throw error;
   }
 }
 
@@ -670,25 +627,17 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     }
   ];
 
-  const cacheData = await getRouteCache(cacheParams);
-  if (cacheData && cacheData.car && cacheData.walk) {
-    const hasFallback = cacheData.car.some((r: any) => r.id === 'car-trafast' && r.name.includes('(예상)'));
-    if (!hasFallback) {
-      return { car: cacheData.car, walk: cacheData.walk };
-    }
-  }
-
   try {
     const carResults = await fetchCarRoute(sx, sy, ex, ey);
-    const responseData = { car: carResults, walk: walkResults };
-    updateRouteCache(cacheParams, responseData).catch(console.error);
-    return responseData;
-  } catch (error) {
-    console.error('[fetchCarWalkDirections] Car route API request failed:', error);
-    return {
-      car: [calculateCarFallback(sx, sy, ex, ey)],
-      walk: walkResults
-    };
+    return { car: carResults, walk: walkResults };
+  } catch (error: any) {
+    if (error.name === 'NoRouteFound' || error.message?.includes('찾을 수 없습니다')) {
+      return {
+        car: [calculateCarFallback(sx, sy, ex, ey)],
+        walk: walkResults
+      };
+    }
+    throw error;
   }
 }
 

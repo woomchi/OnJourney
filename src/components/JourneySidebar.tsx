@@ -158,10 +158,20 @@ export default function JourneySidebar() {
     activeSnapIndex = 1; // minSnapPx
   }
 
+  const isFirstSnapRender = useRef(true);
+
   // 외부에서 snap 값이 변경되었을 때 바텀 시트 반영
   useEffect(() => {
+    if (isFirstSnapRender.current) {
+      isFirstSnapRender.current = false;
+      return;
+    }
     if (isMobile && sheetRef.current) {
-      sheetRef.current.snapTo(activeSnapIndex);
+      // react-modal-sheet의 내부 layout 계산이 완료될 시간을 확보하기 위해 지연
+      const timer = setTimeout(() => {
+        sheetRef.current?.snapTo(activeSnapIndex);
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [activeSnapIndex, isMobile]);
 

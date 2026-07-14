@@ -15,7 +15,15 @@ export const useJourneyStore = create<JourneyStore>()(
     }),
     {
       name: 'onjourney-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => 
+        typeof window !== 'undefined' 
+          ? window.localStorage 
+          : {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {},
+            }
+      ),
       partialize: (state) => ({
         journeys: state.journeys,
         activeJourney: state.activeJourney,

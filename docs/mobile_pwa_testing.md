@@ -43,13 +43,54 @@ INF |  https://[랜덤문자열].trycloudflare.com                              
 > **주의사항**: 위 방법으로 생성된 터널 주소는 터미널을 종료하면 사라집니다. 다음에 테스트할 때 명령어를 다시 실행하면 새로운 랜덤 주소가 발급됩니다.
 
 ### 5. ⚠️ 모바일 기기에서 지도/경로 정보가 안 뜰 때 (네이버 지도 API 도메인 설정)
-임시 발급된 `*.trycloudflare.com` 도메인에서 네이버 지도가 정상 작동하려면, 네이버 클라우드 플랫폼 콘솔에 해당 도메인을 등록해주어야 합니다. 매번 바뀌는 임시 도메인을 매번 등록하는 번거로움을 피하기 위해 **와일드카드(*)** 형식으로 등록하면 편리합니다.
 
-1. [네이버 클라우드 플랫폼 콘솔](https://console.ncloud.com/)에 로그인합니다.
-2. **AI·NAVER API** > **Application** > **Application 정보** 메뉴로 이동합니다.
-3. 등록된 애플리케이션 중 본 프로젝트에 사용 중인 애플리케이션을 선택하고 **[변경]** 버튼을 누릅니다.
-4. **웹 서비스 URL** 항목에 아래의 와일드카드 도메인을 추가로 입력하고 저장합니다:
-   - `https://*.trycloudflare.com`
-   - `http://*.trycloudflare.com`
-   - *(필요시 Local Tunnel용)* `https://*.loca.lt` 및 `http://*.loca.lt`
-5. 설정을 저장하고 1~2분 후 모바일 브라우저를 새로고침하면 네이버 지도와 경로(Polyline) 정보가 오류 없이 정상적으로 로드됩니다.
+네이버 클라우드 플랫폼(NCP)의 **'Web 서비스 URL' 설정은 와일드카드(`*`) 도메인 등록을 지원하지 않습니다.** 따라서 `*.trycloudflare.com`으로 등록해 두어도 동작하지 않으며, 매번 생성되는 임시 랜덤 주소를 직접 등록해주어야 하는 번거로움이 있습니다.
+
+이 문제를 해결하고 **주소를 고정하여 편리하게 테스트하는 3가지 방법**을 제안합니다.
+
+---
+
+#### 💡 해결 방법 A: LocalTunnel로 고정 서브도메인 사용하기 (추천 - 가장 간편)
+Cloudflare 대신 **LocalTunnel**을 사용하면 별도의 회원가입 없이 원하는 고정 서브도메인을 임의로 지정하여 실행할 수 있습니다.
+
+1. 터널 실행 시 `--subdomain` 옵션을 붙여 실행합니다:
+   ```bash
+   npx localtunnel --port 3000 --subdomain <원하는-고정-이름>
+   # 예: npx localtunnel --port 3000 --subdomain onjourney-dev
+   ```
+2. 실행 시 발급되는 주소는 항상 `https://onjourney-dev.loca.lt`로 고정됩니다.
+3. [네이버 클라우드 플랫폼 콘솔](https://console.ncloud.com/)의 **AI·NAVER API** > **Application** > **Application 정보** > **웹 서비스 URL**에 위 고정 주소를 한 번만 등록해 두면 다시 수정할 필요가 없습니다:
+   - `https://onjourney-dev.loca.lt`
+   - `http://onjourney-dev.loca.lt`
+
+*주의: 해당 고정 도메인을 누군가 이미 선점하여 사용 중이라면 접속이 안 될 수 있으므로, 자신만의 고유한 서브도메인명을 사용하는 것이 좋습니다.*
+
+---
+
+#### 💡 해결 방법 B: Ngrok 무료 고정 도메인 사용하기 (가장 안정적)
+터널링 서비스 중 가장 안정적인 **Ngrok**은 가입 시 계정당 1개의 **무료 고정 도메인(Static Domain)**을 제공합니다.
+
+1. [ngrok 홈페이지](https://ngrok.com/)에 회원가입 후 로그인합니다.
+2. 대시보드의 **Domains** 메뉴에서 무료 고정 도메인(예: `xxxxx-xxxx.ngrok-free.app`)을 생성합니다.
+3. PC에 ngrok CLI를 설치하고 계정을 연동한 뒤, 다음과 같이 터널을 실행합니다:
+   ```bash
+   ngrok http 3000 --domain=<발급받은-고정-도메인>
+   # 예: ngrok http 3000 --domain=xxxxx-xxxx.ngrok-free.app
+   ```
+4. NCP 콘솔의 **웹 서비스 URL**에 해당 고정 도메인을 한 번만 등록하여 사용합니다:
+   - `https://xxxxx-xxxx.ngrok-free.app`
+   - `http://xxxxx-xxxx.ngrok-free.app`
+
+---
+
+#### 💡 해결 방법 C: 안드로이드 한정 - Chrome USB 포트 포워딩 (터널링 없음)
+안드로이드 기기를 사용 중이라면, 복잡한 터널링이나 외부 도메인 등록 없이 USB 연결만으로 테스트할 수 있습니다. Chrome 브라우저는 `localhost` 접속을 HTTPS와 동일한 보안 컨텍스트로 취급하여 PWA 기능이 정상 작동합니다.
+
+1. PC와 안드로이드 스마트폰을 USB 케이블로 연결하고, 스마트폰의 **'USB 디버깅'**을 활성화합니다.
+2. PC Chrome 브라우저 주소창에 `chrome://inspect`를 입력하여 접속합니다.
+3. **[Port forwarding...]** 버튼을 누르고 아래와 같이 포트를 설정한 뒤 **[Enable port forwarding]**을 체크합니다:
+   - Port: `3000`
+   - IP address and port: `localhost:3000`
+4. 스마트폰 Chrome 앱을 열고 `http://localhost:3000`으로 접속합니다.
+5. NCP 콘솔의 **웹 서비스 URL**에는 이미 로컬 테스트용으로 등록되어 있는 `http://localhost:3000`을 그대로 사용하므로 추가 도메인 등록을 할 필요가 전혀 없습니다!
+

@@ -5,7 +5,10 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: [
     "*.trycloudflare.com",
-    "*.loca.lt"
+    "*.loca.lt",
+    "*.ngrok-free.dev",
+    "*.ngrok-free.app",
+    "*.ngrok.io"
   ],
   /* config options here */
 };

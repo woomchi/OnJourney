@@ -6,6 +6,7 @@ import { useDialog } from '@/providers/DialogProvider';
 import PlaceList from '@/components/PlaceList';
 import EditJourneyModal from '@/components/EditJourneyModal';
 import type { Journey, Place } from '@/types/journey';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 import JourneyPlayerHeader from './JourneyPlayerHeader';
 import SearchOverlay from './SearchOverlay';
@@ -21,7 +22,16 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
     isEditMode,
     setEditMode,
     isSearchMode,
+    drawerSnapPoint,
   } = useJourneyStore();
+
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  
+  // Calculate dynamic height for mobile bottom sheet to restrict overflow container height properly
+  // 26px comes from the Sheet.Header's height inside JourneySidebar.tsx (pt-3, pb-2, h-1.5)
+  const mobileHeight = isMobile && drawerSnapPoint !== 1 && drawerSnapPoint !== '1'
+    ? `calc(${drawerSnapPoint} - 26px)`
+    : '100%';
 
   const { confirm, alert } = useDialog();
 
@@ -81,18 +91,17 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
     setEditMode(false);
   };
 
-  return (
+  const innerContent = (
     <>
-      <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] h-full flex flex-col bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
-        <JourneyPlayerHeader
-          activeJourney={activeJourney}
+      <JourneyPlayerHeader
+        activeJourney={activeJourney}
           isSearchMode={isSearchMode}
           setIsEditModalOpen={setIsEditModalOpen}
           handleDoneEdit={handleDoneEdit}
         />
 
-        <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-          <PlaceList
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        <PlaceList
             editMode={isEditMode}
             selectedIds={selectedPlaceIds}
             onToggleSelect={(id) => {
@@ -112,9 +121,18 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
             )}
           </PlaceList>
 
-          <SearchOverlay activeJourney={activeJourney} />
-        </div>
-      </aside>
+        <SearchOverlay activeJourney={activeJourney} />
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {isMobile ? innerContent : (
+        <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] flex flex-col h-full bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+          {innerContent}
+        </aside>
+      )}
 
       <EditJourneyModal
         isOpen={isEditModalOpen}

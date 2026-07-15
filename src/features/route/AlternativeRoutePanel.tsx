@@ -48,6 +48,7 @@ export default function AlternativeRoutePanel({
   } = useJourneyStore();
 
   const [snap, setSnap] = useState<number | string | null>('40vh');
+  const Scroller = isMobile ? Sheet.Content : 'div';
 
   const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
 
@@ -345,7 +346,7 @@ export default function AlternativeRoutePanel({
     );
   };
 
-  const content = (
+  const headerContent = (
     <>
       <div className="px-4 pb-4 border-b border-zinc-100 flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -415,6 +416,7 @@ export default function AlternativeRoutePanel({
                   setActiveSubTab('추천');
                   setDisplayLimit(3);
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
                 className={`
                   flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer
                   ${isActive
@@ -430,83 +432,89 @@ export default function AlternativeRoutePanel({
         </div>
 
         {activeTab === 'public' && subTabs.length > 1 && (
-          <ScrollContainer
-            className="flex items-center gap-1.5 pb-1.5 pt-0.5 cursor-grab"
-            horizontal
-            vertical={false}
-            hideScrollbars
-            onStartScroll={() => { isDraggedRef.current = false; }}
-            onScroll={() => { isDraggedRef.current = true; }}
-            onEndScroll={() => { setTimeout(() => { isDraggedRef.current = false; }, 50); }}
-          >
-            {subTabs.map((subTab) => {
-              const count = subTab === '추천' ? recommendedRouteIds.size : subTab === '전체' ? routes.length : (publicRouteGroups[subTab]?.length || 0);
-              return (
-                <button
-                  key={subTab}
-                  type="button"
-                  onClick={withClickPrevent(() => {
-                    setActiveSubTab(subTab);
-                    setDisplayLimit(3);
-                  })}
-                  className={`
-                    flex-shrink-0 px-3 py-1.5 text-[11px] font-bold rounded-full transition-all duration-200 border cursor-pointer flex items-center gap-1
-                    ${activeSubTab === subTab
-                      ? 'bg-zinc-800 text-white border-zinc-800 shadow-sm'
-                      : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
-                    }
-                  `}
-                >
-                  <span>{subTab}</span>
-                  <span className={`text-[10px] ${activeSubTab === subTab ? 'text-zinc-400' : 'text-zinc-400'}`}>{count}</span>
-                </button>
-              );
-            })}
-          </ScrollContainer>
+          <div onPointerDown={(e) => e.stopPropagation()}>
+            <ScrollContainer
+              className="flex items-center gap-1.5 pb-1.5 pt-0.5 cursor-grab"
+              horizontal
+              vertical={false}
+              hideScrollbars
+              onStartScroll={() => { isDraggedRef.current = false; }}
+              onScroll={() => { isDraggedRef.current = true; }}
+              onEndScroll={() => { setTimeout(() => { isDraggedRef.current = false; }, 50); }}
+            >
+              {subTabs.map((subTab) => {
+                const count = subTab === '추천' ? recommendedRouteIds.size : subTab === '전체' ? routes.length : (publicRouteGroups[subTab]?.length || 0);
+                return (
+                  <button
+                    key={subTab}
+                    type="button"
+                    onClick={withClickPrevent(() => {
+                      setActiveSubTab(subTab);
+                      setDisplayLimit(3);
+                    })}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={`
+                      flex-shrink-0 px-3 py-1.5 text-[11px] font-bold rounded-full transition-all duration-200 border cursor-pointer flex items-center gap-1
+                      ${activeSubTab === subTab
+                        ? 'bg-zinc-800 text-white border-zinc-800 shadow-sm'
+                        : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                      }
+                    `}
+                  >
+                    <span>{subTab}</span>
+                    <span className={`text-[10px] ${activeSubTab === subTab ? 'text-zinc-400' : 'text-zinc-400'}`}>{count}</span>
+                  </button>
+                );
+              })}
+            </ScrollContainer>
+          </div>
         )}
       </div>
-
-      <ScrollContainer
-        className="flex-1 px-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek"
-        vertical
-        horizontal={false}
-        hideScrollbars={false}
-        onStartScroll={() => { isDraggedRef.current = false; }}
-        onScroll={() => { isDraggedRef.current = true; }}
-        onEndScroll={() => { setTimeout(() => { isDraggedRef.current = false; }, 50); }}
-        style={{
-          paddingBottom: '20px'
-        }}
-      >
-        {loading ? (
-          <div className="animate-pulse flex flex-col gap-3 mt-2">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-[60px] bg-zinc-100 rounded-xl w-full border border-zinc-50"></div>
-            ))}
-          </div>
-        ) : displayedRoutes.length === 0 ? (
-          <div className="text-center py-12 text-sm font-medium text-zinc-400">
-            선택 가능한 경로가 없습니다.
-          </div>
-        ) : (
-          <>
-            {(activeSubTab === '추천' ? displayedRoutes : displayedRoutes.slice(0, displayLimit)).map((route) => renderRouteButton(route))}
-            {activeSubTab !== '추천' && displayedRoutes.length > displayLimit && (
-              <button
-                type="button"
-                onClick={() => setDisplayLimit(prev => prev + 5)}
-                className="w-full py-2.5 mt-1 text-[13px] font-bold text-zinc-600 bg-zinc-50 hover:bg-zinc-100 rounded-xl transition-colors border border-zinc-150 flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                대안 더보기 (남은 대안: {displayedRoutes.length - displayLimit}개)
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                </svg>
-              </button>
-            )}
-          </>
-        )}
-      </ScrollContainer>
     </>
+  );
+
+  const listProps = isMobile ? { disableDrag: snap !== 1 && snap !== '1' } : {};
+
+  const listContent = (
+    <Scroller
+      {...listProps}
+      className="flex-1 px-5 pt-1 flex flex-col gap-1.5 scrollbar-sleek overflow-y-auto"
+      style={{ paddingBottom: '20px' }}
+      onPointerDown={(e: React.PointerEvent) => {
+        if (isMobile) {
+          e.stopPropagation();
+        }
+      }}
+    >
+      {loading ? (
+        <div className="animate-pulse flex flex-col gap-3 mt-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-[60px] bg-zinc-100 rounded-xl w-full border border-zinc-50"></div>
+          ))}
+        </div>
+      ) : displayedRoutes.length === 0 ? (
+        <div className="text-center py-12 text-sm font-medium text-zinc-400">
+          선택 가능한 경로가 없습니다.
+        </div>
+      ) : (
+        <>
+          {(activeSubTab === '추천' ? displayedRoutes : displayedRoutes.slice(0, displayLimit)).map((route) => renderRouteButton(route))}
+          {activeSubTab !== '추천' && displayedRoutes.length > displayLimit && (
+            <button
+              type="button"
+              onClick={() => setDisplayLimit(prev => prev + 5)}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-full py-2.5 mt-1 text-[13px] font-bold text-zinc-600 bg-zinc-50 hover:bg-zinc-100 rounded-xl transition-colors border border-zinc-150 flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              대안 더보기 (남은 대안: {displayedRoutes.length - displayLimit}개)
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
+        </>
+      )}
+    </Scroller>
   );
 
   if (isMobile) {
@@ -514,6 +522,7 @@ export default function AlternativeRoutePanel({
       <Sheet
         ref={sheetRef}
         isOpen={isOpen}
+        style={{ zIndex: 45 }}
         onClose={() => {
           if (sheetRef.current) sheetRef.current.snapTo(1);
         }}
@@ -532,12 +541,13 @@ export default function AlternativeRoutePanel({
           className="!rounded-t-[20px] !shadow-[0_-8px_30px_rgba(0,0,0,0.15)] !border-t !border-zinc-200 !bg-white"
           style={{ zIndex: 45 }}
         >
-          <Sheet.Header className="pt-3 pb-2 flex justify-center">
-            <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
+          <Sheet.Header className="flex flex-col flex-shrink-0">
+            <div className="pt-3 pb-2 flex justify-center w-full">
+              <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
+            </div>
+            {headerContent}
           </Sheet.Header>
-          <Sheet.Content className="flex-1 overflow-hidden flex flex-col pt-3">
-            {content}
-          </Sheet.Content>
+          {listContent}
         </Sheet.Container>
       </Sheet>
     );
@@ -564,7 +574,10 @@ export default function AlternativeRoutePanel({
         }
       `}
     >
-      {content}
+      <div className="flex flex-col h-full bg-white relative">
+        {headerContent}
+        {listContent}
+      </div>
     </div>
   );
 }

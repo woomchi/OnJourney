@@ -91,7 +91,9 @@ export default function AlternativeSegmentInfo({
       </div>
 
       {/* List Container with fixed height for exactly 2.5 items */}
-      <div className="max-h-[126px] overflow-y-auto pr-1 flex flex-col gap-1.5 scrollbar-sleek">
+      <div 
+        className="max-h-[126px] overflow-y-auto pr-1 flex flex-col gap-1.5 scrollbar-sleek"
+      >
         {routes.length === 0 ? (
           <div className="text-center py-6 text-xs text-zinc-400">
             선택 가능한 경로가 없습니다.

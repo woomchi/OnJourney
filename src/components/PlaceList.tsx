@@ -2,9 +2,11 @@
 
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
+import { Sheet } from 'react-modal-sheet';
 import PlaceCard from './places/PlaceCard';
 import { MapPin } from 'lucide-react';
-import { Sheet } from 'react-modal-sheet';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import React from 'react';
 import {
   DndContext,
   closestCenter,
@@ -41,6 +43,9 @@ export default function PlaceList({
   children,
 }: PlaceListProps) {
   const { activeJourney, isDrawerMaximized } = useJourneyStore();
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const Scroller = isMobile ? Sheet.Content : 'div';
+  const scrollerProps = isMobile ? { disableDrag: !isDrawerMaximized } : {};
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -56,9 +61,11 @@ export default function PlaceList({
     })
   );
 
+
+
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
-      <div 
+      <Scroller 
         className="flex flex-col items-center justify-center text-center py-12 px-6 flex-1 overflow-y-auto"
       >
         <div className="w-20 h-20 mb-5 rounded-3xl bg-blue-50 flex items-center justify-center shadow-inner">
@@ -71,7 +78,7 @@ export default function PlaceList({
         <div className="w-full mt-6">
           {children}
         </div>
-      </div>
+      </Scroller>
     );
   }
 
@@ -93,9 +100,10 @@ export default function PlaceList({
   const transportType = activeJourney.transport_type || 'public';
 
   return (
-    <div 
+    <Scroller 
+      {...scrollerProps}
       className={`flex-1 overflow-y-auto scrollbar-sidebar overscroll-none ${
-        !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
+        !isDrawerMaximized && !isMobile ? 'snap-y snap-mandatory' : ''
       }`}
       style={{ paddingBottom: '0.5rem' }}
     >
@@ -127,6 +135,6 @@ export default function PlaceList({
         </DndContext>
       </ul>
       {children}
-    </div>
+    </Scroller>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { Sheet } from 'react-modal-sheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
@@ -54,11 +56,19 @@ export default function JourneyPlayerHeader({
   const prevJourney = activeIndex > 0 ? journeys[activeIndex - 1] : null;
   const nextJourney = activeIndex >= 0 && activeIndex < journeys.length - 1 ? journeys[activeIndex + 1] : null;
 
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const HeaderComponent = isMobile ? Sheet.Header : 'header';
+
   return (
-    <header className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}>
+    <HeaderComponent className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-6' : ''}`}>
+      {isMobile && (
+        <div className="absolute top-0 left-0 w-full pt-3 pb-2 flex justify-center z-20 pointer-events-none">
+          <div className="w-12 h-1.5 rounded-full bg-zinc-300" />
+        </div>
+      )}
       {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
       {!isSearchMode && (
-        <div className="absolute top-1.5 left-2 z-20">
+        <div className={`absolute ${isMobile ? 'top-[28px]' : 'top-1.5'} left-2 z-20`}>
           <button
             type="button"
             onClick={() => {
@@ -68,6 +78,7 @@ export default function JourneyPlayerHeader({
                 clearJourney();
               }
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="flex items-center gap-1 text-zinc-400 hover:text-zinc-700 transition-colors text-[11px] font-semibold rounded-md px-1 py-1"
           >
             {isEditMode ? (
@@ -82,7 +93,7 @@ export default function JourneyPlayerHeader({
 
       {/* 오른쪽 상단 모서리: 편집 및 동기화 */}
       {!isSearchMode && (
-        <div className="absolute top-1.5 right-2 z-20 flex justify-end items-center gap-1">
+        <div className={`absolute ${isMobile ? 'top-[28px]' : 'top-1.5'} right-2 z-20 flex justify-end items-center gap-1`}>
           {isSyncing && (
             <div className="flex items-center" title="클라우드 동기화 중">
               <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
@@ -98,6 +109,7 @@ export default function JourneyPlayerHeader({
                     setDrawerSnapPoint(1);
                   }
             }
+            onPointerDown={(e) => e.stopPropagation()}
             className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-1 ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'
               }`}
           >
@@ -121,6 +133,7 @@ export default function JourneyPlayerHeader({
         <button
           type="button"
           onClick={() => setIsEditModalOpen(true)}
+          onPointerDown={(e) => e.stopPropagation()}
           className="flex-1 flex flex-col items-center justify-center min-w-0 rounded-xl transition-all duration-300 hover:bg-zinc-50/80 cursor-pointer px-1 py-1 group border border-transparent hover:border-zinc-200/50"
           title="여정 정보 수정"
         >
@@ -163,6 +176,7 @@ export default function JourneyPlayerHeader({
                 setActiveJourney(prevJourney);
               }
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
             title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
           >
@@ -201,6 +215,7 @@ export default function JourneyPlayerHeader({
                   }
                 }
               }}
+              onPointerDown={(e) => e.stopPropagation()}
               className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 group overflow-hidden ${isPlaying
                 ? 'bg-white border border-zinc-200 hover:border-transparent text-zinc-950 shadow-sm'
                 : 'bg-zinc-950 border border-zinc-800 hover:border-transparent text-white shadow-md'
@@ -233,6 +248,7 @@ export default function JourneyPlayerHeader({
                 setActiveJourney(nextJourney);
               }
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
             title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
           >
@@ -344,6 +360,6 @@ export default function JourneyPlayerHeader({
           </div>
         );
       })()}
-    </header>
+    </HeaderComponent>
   );
 }

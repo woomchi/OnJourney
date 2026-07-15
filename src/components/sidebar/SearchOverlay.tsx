@@ -7,7 +7,9 @@ import { getCategoryTheme } from '@/lib/categoryUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
-import { Loader2, Search, X, Clock, MapPin, Check, Plus } from 'lucide-react';
+import { MapPin, Search, X, Check, Clock, Plus, Loader2 } from 'lucide-react';
+import { Sheet } from 'react-modal-sheet';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface SearchOverlayProps {
   activeJourney: Journey;
@@ -121,6 +123,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   })));
 
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const Scroller = isMobile ? Sheet.Content : 'div';
   const [searchError, setSearchError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
@@ -440,7 +444,10 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         </div>
       </div>
       {/* 검색 결과 리스트 */}
-      <div id="search-results-container" className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-sidebar relative">
+      <Scroller 
+        id="search-results-container" 
+        className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-sidebar relative"
+      >
         {searchError ? (
           <p className="text-sm text-red-500 py-6 text-center">{searchError}</p>
         ) : searchResults.length === 0 && searchQuery.length > 0 && !isSearchLoading ? (
@@ -562,7 +569,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             })}
           </ul>
         )}
-      </div>
+      </Scroller>
 
       {/* 하단 고정: 선택 완료 버튼 */}
       <div className="p-6 border-t border-zinc-100 flex-shrink-0 bg-white/80 backdrop-blur-md">

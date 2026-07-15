@@ -233,6 +233,7 @@ export default function JourneySidebar() {
         <Sheet
           ref={sheetRef}
           isOpen={true}
+          style={{ zIndex: 30 }}
           onClose={() => {
             // 방어 코드: 사용자가 0으로 닫으려 할 때 닫히지 않고 최소 높이로 유지
             if (sheetRef.current) sheetRef.current.snapTo(1);
@@ -260,12 +261,7 @@ export default function JourneySidebar() {
                 activeSnapIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
               }`} 
             />
-            <Sheet.Header className="pt-3 pb-2 flex justify-center">
-              <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
-            </Sheet.Header>
-            <Sheet.Content className="flex flex-col pt-3 overflow-hidden">
-              {content}
-            </Sheet.Content>
+            {content}
           </Sheet.Container>
         </Sheet>
         <CreateJourneyModal />

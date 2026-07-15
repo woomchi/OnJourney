@@ -9,6 +9,8 @@ import { deleteJourneys } from '@/lib/journeys';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import type { Journey } from '@/types/journey';
 import { Sheet } from 'react-modal-sheet';
+import React from 'react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Loader2, GripVertical, Pencil, Check, Trash2, Plus } from 'lucide-react';
 import {
   DndContext,
@@ -143,6 +145,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     clearJourney,
     isDrawerMaximized,
     setDrawerSnapPoint,
+    drawerSnapPoint,
   } = useJourneyStore();
 
   const queryClient = useQueryClient();
@@ -150,7 +153,12 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
 
   const [isListEditMode, setIsListEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [localJourneys, setLocalJourneys] = useState<Journey[]>([]);
+
+  const [localJourneys, setLocalJourneys] = useState<Journey[]>(journeys);
+
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const Scroller = isMobile ? Sheet.Content : 'div';
+  const scrollerProps = isMobile ? { disableDrag: !isDrawerMaximized } : {};
 
   useEffect(() => {
     setLocalJourneys(journeys);
@@ -248,8 +256,8 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     }
   };
 
-  return (
-    <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] h-full flex flex-col bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+  const innerContent = (
+    <>
       <header className={`hidden md:block px-8 py-7 border-b border-zinc-100/80 flex-shrink-0 ${isListEditMode ? 'bg-white' : 'bg-white/50 backdrop-blur-md'}`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -280,53 +288,77 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
         </div>
       </header>
 
+      {isLoading && isMobile && (
+        <Sheet.Header className="pt-3 pb-2 flex justify-center flex-shrink-0">
+          <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
+        </Sheet.Header>
+      )}
+
       {!isLoading && (
-        <div className={`px-8 py-3.5 border-b border-zinc-100/80 flex items-center justify-between text-xs font-semibold flex-shrink-0 drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isListEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}>
-          {isListEditMode ? (
-            <>
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="text-zinc-500 hover:text-zinc-700 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="text-blue-600 hover:text-blue-700 transition-colors font-bold flex items-center gap-1"
-              >
-                <Check className="w-4 h-4" strokeWidth={2.5} />
-                완료
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="text-zinc-400 font-normal">총 {journeys.length}개의 여정</span>
-              <button
-                type="button"
-                onClick={handleStartEdit}
-                className="text-zinc-500 hover:text-zinc-700 transition-colors flex items-center gap-1"
-              >
-                <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                편집
-              </button>
-            </>
-          )}
-        </div>
+        (() => {
+          const HeaderComponent = isMobile ? Sheet.Header : 'div';
+          return (
+            <HeaderComponent 
+              className={`flex flex-col flex-shrink-0 border-b border-zinc-100/80 ${isListEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}
+            >
+              {isMobile && (
+                <div className="pt-3 pb-2 flex justify-center w-full flex-shrink-0">
+                  <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
+                </div>
+              )}
+              <div className={`px-8 pb-3.5 flex items-center justify-between text-xs font-semibold ${isMobile ? 'pt-0' : 'pt-3.5'}`}>
+                {isListEditMode ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="text-zinc-500 hover:text-zinc-700 transition-colors cursor-pointer"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="text-blue-600 hover:text-blue-700 transition-colors font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Check className="w-4 h-4" strokeWidth={2.5} />
+                      완료
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-zinc-400 font-normal">총 {journeys.length}개의 여정</span>
+                    <button
+                      type="button"
+                      onClick={handleStartEdit}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="text-zinc-500 hover:text-zinc-700 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
+                      편집
+                    </button>
+                  </>
+                )}
+              </div>
+            </HeaderComponent>
+          );
+        })()
       )}
 
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
+        <Scroller {...scrollerProps} className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
             <p className="text-sm text-zinc-400 font-medium">불러오는 중...</p>
           </div>
-        </div>
+        </Scroller>
       ) : journeys.length > 0 ? (
-        <div 
+        <Scroller 
+          {...scrollerProps}
           className={`flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar scroll-pt-1.5 scroll-pb-6 overscroll-none ${
-            !isDrawerMaximized ? 'snap-y snap-mandatory' : ''
+            !isDrawerMaximized && !isMobile ? 'snap-y snap-mandatory' : ''
           }`}
           style={{ paddingBottom: '1.5rem' }}
         >
@@ -354,9 +386,10 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
               ))}
             </SortableContext>
           </DndContext>
-        </div>
+        </Scroller>
       ) : (
-        <div 
+        <Scroller 
+          {...scrollerProps}
           className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-transparent to-zinc-50/35 select-none overflow-y-auto"
         >
           <div className="w-16 h-16 rounded-3xl bg-zinc-50 border border-zinc-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex items-center justify-center mb-6 text-2xl">
@@ -373,7 +406,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
           >
             새 여정 만들기
           </button>
-        </div>
+        </Scroller>
       )}
 
       {isListEditMode ? (
@@ -407,6 +440,14 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
           </div>
         )
       )}
+    </>
+  );
+
+  return isMobile ? (
+    innerContent
+  ) : (
+    <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] flex flex-col h-full bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+      {innerContent}
     </aside>
   );
 }

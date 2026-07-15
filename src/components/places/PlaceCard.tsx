@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useJourneyDirectionsCache, directionKeys } from '@/hooks/queries/useDirections';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Place } from '@/types/journey';
@@ -79,12 +80,14 @@ export default function PlaceCard({
     setFocusedSegment,
     setFocusedStep,
     focusedStep,
-    alternativeSegment,
-    setAlternativeSegment,
     isAlternativeFromFocus,
     setIsAlternativeFromFocus,
     isDrawerMaximized,
+    alternativeSegment,
+    setAlternativeSegment,
   } = useJourneyStore();
+
+  const isMobile = useMediaQuery('(max-width: 767px)');
   
   const {
     attributes,
@@ -179,7 +182,7 @@ export default function PlaceCard({
       ref={setRefs}
       style={style}
       className={`relative pt-3 pb-3 require-drag-handle ${isDragging ? 'z-20' : ''} ${
-        !isDrawerMaximized ? 'snap-start snap-always' : ''
+        !isDrawerMaximized && !isMobile ? 'snap-start snap-always' : ''
       }`}
     >
       <div className="flex items-center gap-0 group">

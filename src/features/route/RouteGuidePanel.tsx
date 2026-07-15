@@ -37,6 +37,7 @@ export default function RouteGuidePanel({
   const [windowHeight, setWindowHeight] = useState(0);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWindowHeight(window.innerHeight);
     const handleResize = () => setWindowHeight(window.innerHeight);
     window.addEventListener('resize', handleResize);
@@ -51,6 +52,58 @@ export default function RouteGuidePanel({
   const collapse = () => setSnap('210px'); // minimize when stepping
 
   const { setGuidePanelState } = useJourneyStore();
+
+  const snapPx = snap === 1 || snap === '1'
+    ? windowHeight
+    : typeof snap === 'number'
+      ? snap
+      : parseInt(String(snap), 10) || 0;
+
+  const headerHeight = 110; // 상세 경로 헤더 높이
+  const contentMaxHeight = isMobile && snapPx > 0
+    ? `${snapPx - 26 - headerHeight}px`
+    : '100%';
+
+  // 최하단 스냅 포인트 상태에서 아래로 쓸어내리는 드래그 제스처를 윈도우 포인터 캡처링 단계에서 원천 차단(Hard Lock)
+  useEffect(() => {
+    if (!isMobile) return;
+
+    let pointerStartY = 0;
+
+    const handlePointerDown = (e: Event) => {
+      const pe = e as PointerEvent;
+      const isInside = (pe.target as HTMLElement)?.closest('.route-guide-sheet');
+      if (isInside) {
+        pointerStartY = pe.clientY;
+      }
+    };
+
+    const handlePointerMove = (e: Event) => {
+      const pe = e as PointerEvent;
+      if (pe.buttons === 0) return;
+      
+      const isInside = (pe.target as HTMLElement)?.closest('.route-guide-sheet');
+      if (!isInside) return;
+
+      const pointerY = pe.clientY;
+      const deltaY = pointerY - pointerStartY;
+      const isMinSnap = snap === '210px' || snap === 210;
+      
+      if (isMinSnap && deltaY > 0) {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (e.cancelable) e.preventDefault();
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    window.addEventListener('pointermove', handlePointerMove, { capture: true, passive: false });
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown, true);
+      window.removeEventListener('pointermove', handlePointerMove, { capture: true } as any);
+    };
+  }, [snap, isMobile]);
 
   useEffect(() => {
     if (isOpen) {
@@ -77,6 +130,7 @@ export default function RouteGuidePanel({
       const timer = setTimeout(() => setAnimate(true), 50);
       return () => clearTimeout(timer);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnimate(false);
     }
   }, [isOpen]);
@@ -416,15 +470,20 @@ export default function RouteGuidePanel({
         <Sheet
           ref={sheetRef}
           isOpen={isOpen}
+          className="route-guide-sheet"
           style={{ zIndex: 45 }}
           onClose={() => {
-            if (sheetRef.current) sheetRef.current.snapTo(1);
+            setTimeout(() => {
+              if (sheetRef.current) sheetRef.current.snapTo(1);
+            }, 0);
           }}
           snapPoints={[0, 210, 360, 1]}
           initialSnap={2}
           onSnap={(index) => {
             if (index === 0) {
-              if (sheetRef.current) sheetRef.current.snapTo(1);
+              setTimeout(() => {
+                if (sheetRef.current) sheetRef.current.snapTo(1);
+              }, 0);
               setSnap('210px');
             }
             else if (index === 1) setSnap('210px');
@@ -452,6 +511,7 @@ export default function RouteGuidePanel({
               scrollRef={scrollContainerRef as React.MutableRefObject<any>}
               disableDrag={snap !== 1 && snap !== '1'}
               className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar pb-20 relative bg-white"
+              style={{ maxHeight: contentMaxHeight }}
             >
               {listContent}
             </Sheet.Content>

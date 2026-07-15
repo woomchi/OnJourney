@@ -27,10 +27,28 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
 
   const isMobile = useMediaQuery('(max-width: 767px)');
   
-  // Calculate dynamic height for mobile bottom sheet to restrict overflow container height properly
-  // 26px comes from the Sheet.Header's height inside JourneySidebar.tsx (pt-3, pb-2, h-1.5)
-  const mobileHeight = isMobile && drawerSnapPoint !== 1 && drawerSnapPoint !== '1'
-    ? `calc(${drawerSnapPoint} - 26px)`
+  // Track viewport height for absolute pixel animations (Framer Motion doesn't interpolate hybrid calc/% height values well)
+  const [windowHeight, setWindowHeight] = useState(0);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWindowHeight(window.innerHeight);
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const snapPx = drawerSnapPoint === 1 || drawerSnapPoint === '1'
+    ? windowHeight
+    : typeof drawerSnapPoint === 'number'
+      ? drawerSnapPoint
+      : parseInt(String(drawerSnapPoint), 10) || 0;
+
+  // Use 76px header height for Edit Mode, 126px for Normal Player Mode (due to media controls overlay)
+  const headerHeight = isEditMode ? 76 : 126;
+
+  const contentMaxHeight = isMobile && snapPx > 0
+    ? `${snapPx - 26 - headerHeight}px`
     : '100%';
 
   const { confirm, alert } = useDialog();
@@ -42,17 +60,20 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
   // Reset isEditMode and selectedPlaceIds when activeJourney changes
   useEffect(() => {
     setEditMode(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedPlaceIds([]);
   }, [activeJourney?.id, setEditMode]);
 
   // Sync localPlaces with activeJourney.places when not in edit mode
   useEffect(() => {
     if (!isEditMode && activeJourney?.places) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalPlaces(activeJourney.places);
     }
   }, [activeJourney?.places, isEditMode]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedPlaceIds([]);
   }, [isEditMode]);
 
@@ -92,7 +113,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
   };
 
   const innerContent = (
-    <div className="flex flex-col w-full" style={{ height: isMobile ? mobileHeight : '100%' }}>
+    <div className="flex flex-col w-full h-full bg-white">
       <JourneyPlayerHeader
         activeJourney={activeJourney}
         isSearchMode={isSearchMode}
@@ -100,7 +121,10 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
         handleDoneEdit={handleDoneEdit}
       />
 
-      <div className="flex-1 flex flex-col min-h-0 relative">
+      <div
+        className="flex-1 flex flex-col min-h-0 relative"
+        style={{ maxHeight: contentMaxHeight }}
+      >
         <PlaceList
           editMode={isEditMode}
           selectedIds={selectedPlaceIds}

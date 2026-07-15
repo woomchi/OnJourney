@@ -146,21 +146,149 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     isDrawerMaximized,
     setDrawerSnapPoint,
     drawerSnapPoint,
+    activeJourney,
+    isEditMode,
+    setEditMode,
   } = useJourneyStore();
 
   const queryClient = useQueryClient();
   const { confirm, alert } = useDialog();
 
-  const [isListEditMode, setIsListEditMode] = useState(false);
+  const isListEditMode = isEditMode;
+  const setIsListEditMode = setEditMode;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [localJourneys, setLocalJourneys] = useState<Journey[]>(journeys);
-
+  const scrollRef = React.useRef<HTMLDivElement>(null);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const Scroller = isMobile ? Sheet.Content : 'div';
-  const scrollerProps = isMobile ? { disableDrag: !isDrawerMaximized } : {};
+  const scrollerProps = isMobile
+    ? { disableDrag: !isDrawerMaximized, scrollRef: scrollRef }
+    : { ref: scrollRef };
+
+  const [windowHeight, setWindowHeight] = useState(0);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWindowHeight(window.innerHeight);
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const snapPx = drawerSnapPoint === 1 || drawerSnapPoint === '1'
+    ? windowHeight
+    : typeof drawerSnapPoint === 'number'
+      ? drawerSnapPoint
+      : parseInt(String(drawerSnapPoint), 10) || 0;
+
+  const headerHeight = 66; // 여정 목록 상단 헤더 높이
+  const contentMaxHeight = isMobile && snapPx > 0
+    ? `${snapPx - 26 - headerHeight}px`
+    : '100%';
+
+  // 스크롤러 스타일 정의 (모바일일 때 하단 absolute 플로팅 바 영역 확보를 위해 padding-bottom을 5.5rem으로 확장)
+  const scrollerStyle = {
+    maxHeight: contentMaxHeight,
+    paddingBottom: isMobile ? '5.5rem' : '1.5rem'
+  };
+
+  // 제스처 감지용 Ref
+  const touchStartRef = React.useRef<{ y: number; scrollTop: number } | null>(null);
+  const wheelAccumulator = React.useRef({
+    lastTime: 0,
+    delta: 0,
+    startedAtTop: false,
+    startedAtBottom: false
+  });
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    const target = scrollRef.current || e.currentTarget;
+    touchStartRef.current = {
+      y: e.touches[0].clientY,
+      scrollTop: target.scrollTop
+    };
+    if (!isDrawerMaximized) {
+      e.stopPropagation();
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
+    if (!isDrawerMaximized) {
+      e.stopPropagation();
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
+    if (!touchStartRef.current || isDrawerMaximized) return;
+
+    const target = scrollRef.current || e.currentTarget;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    const { scrollTop: startScrollTop } = touchStartRef.current;
+    const currentScrollTop = target.scrollTop;
+
+    const maxScroll = target.scrollHeight - target.clientHeight;
+    const isScrollable = maxScroll > 5;
+
+    const isAtTopAtStart = startScrollTop <= 2;
+    const isAtBottomAtStart = isScrollable
+      ? (startScrollTop > 2 && maxScroll - startScrollTop < 3)
+      : true;
+
+    const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
+
+    if (didNotScroll) {
+      if (isAtTopAtStart && deltaY > 30) {
+        setDrawerSnapPoint(activeJourney ? '136px' : '84px');
+      }
+      else if (isAtBottomAtStart && deltaY < -30) {
+        setDrawerSnapPoint(1);
+      }
+    }
+
+    touchStartRef.current = null;
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLElement>) => {
+    if (isDrawerMaximized) return;
+
+    const target = scrollRef.current || e.currentTarget;
+    const now = Date.now();
+
+    const maxScroll = target.scrollHeight - target.clientHeight;
+    const isScrollable = maxScroll > 5;
+
+    const isAtTop = target.scrollTop <= 2;
+    const isAtBottom = isScrollable
+      ? (target.scrollTop > 2 && maxScroll - target.scrollTop < 3)
+      : true;
+
+    if (now - wheelAccumulator.current.lastTime > 200) {
+      wheelAccumulator.current.delta = 0;
+      wheelAccumulator.current.startedAtTop = isAtTop;
+      wheelAccumulator.current.startedAtBottom = isAtBottom;
+    }
+    wheelAccumulator.current.lastTime = now;
+
+    if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
+      wheelAccumulator.current.delta += e.deltaY;
+      if (wheelAccumulator.current.delta < -70) {
+        setDrawerSnapPoint(activeJourney ? '136px' : '84px');
+        wheelAccumulator.current.delta = 0;
+      }
+    }
+    else if (isAtBottom && e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
+      wheelAccumulator.current.delta += e.deltaY;
+      if (wheelAccumulator.current.delta > 70) {
+        setDrawerSnapPoint(1);
+        wheelAccumulator.current.delta = 0;
+      }
+    } else {
+      wheelAccumulator.current.delta = 0;
+    }
+  };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalJourneys(journeys);
   }, [journeys]);
 
@@ -357,10 +485,14 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
       ) : journeys.length > 0 ? (
         <Scroller 
           {...scrollerProps}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onWheel={handleWheel}
           className={`flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar scroll-pt-1.5 scroll-pb-6 overscroll-none ${
             !isDrawerMaximized && !isMobile ? 'snap-y snap-mandatory' : ''
           }`}
-          style={{ paddingBottom: '1.5rem' }}
+          style={scrollerStyle}
         >
           <DndContext
             sensors={sensors}
@@ -390,7 +522,12 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
       ) : (
         <Scroller 
           {...scrollerProps}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onWheel={handleWheel}
           className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-transparent to-zinc-50/35 select-none overflow-y-auto"
+          style={scrollerStyle}
         >
           <div className="w-16 h-16 rounded-3xl bg-zinc-50 border border-zinc-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex items-center justify-center mb-6 text-2xl">
             ✈️
@@ -428,13 +565,13 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
         </div>
       ) : (
         journeys.length > 0 && (
-          <div className="p-6 border-t border-zinc-100 bg-white flex-shrink-0">
+          <div className="hidden md:block md:relative md:bottom-auto md:left-auto md:w-auto md:bg-white md:p-6 shadow-none flex-shrink-0">
             <button
               type="button"
               onClick={handleCreateClick}
-              className="w-full py-4 bg-zinc-950 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer flex justify-center items-center gap-2"
+              className="w-full py-4 bg-zinc-950/90 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-xl transition-all cursor-pointer flex justify-center items-center gap-2 backdrop-blur-md border border-white/10"
             >
-              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              <Plus className="w-4.5 h-4.5" strokeWidth={2.5} />
               <span className="tracking-wide">새 여정 만들기</span>
             </button>
           </div>

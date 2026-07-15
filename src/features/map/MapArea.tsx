@@ -502,7 +502,7 @@ export default function MapArea() {
     
     // 바텀시트가 최대화되었을 때는 지도가 가려지므로 이전 높이(최소 또는 기본) 기준으로 패딩을 고정하여 지도가 튀는 현상(Shift)을 방지
     const effectiveSnapPoint = isDrawerMaximized 
-      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '360px' : '294px')) 
+      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '360px' : '350px')) 
       : drawerSnapPoint;
 
     if (isMobile) {

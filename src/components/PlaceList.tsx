@@ -42,19 +42,126 @@ export default function PlaceList({
   setLocalPlaces,
   children,
 }: PlaceListProps) {
-  const { 
-    activeJourney, 
-    isDrawerMaximized, 
-    isSearchMode, 
+  const {
+    activeJourney,
+    isDrawerMaximized,
+    isSearchMode,
     openSearchMode,
     setFocusedStep,
     setFocusedSegment,
     setAlternativeSegment,
-    setFocusBounds
+    setFocusBounds,
+    setDrawerSnapPoint
   } = useJourneyStore();
   const isMobile = useMediaQuery('(max-width: 767px)');
+  const scrollRef = React.useRef<HTMLDivElement>(null);
   const Scroller = isMobile ? Sheet.Content : 'div';
-  const scrollerProps = isMobile ? { disableDrag: !isDrawerMaximized } : {};
+  const scrollerProps = isMobile
+    ? { disableDrag: !isDrawerMaximized, scrollRef: scrollRef }
+    : { ref: scrollRef };
+
+  // 제스처 감지용 Ref
+  const touchStartRef = React.useRef<{ y: number; scrollTop: number } | null>(null);
+  const wheelAccumulator = React.useRef({
+    lastTime: 0,
+    delta: 0,
+    startedAtTop: false,
+    startedAtBottom: false
+  });
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    const target = scrollRef.current || e.currentTarget;
+    touchStartRef.current = {
+      y: e.touches[0].clientY,
+      scrollTop: target.scrollTop
+    };
+    // 중간 높이 상태일 때 터치 시작 이벤트가 바텀 시트로 넘어가서 네이티브 드래그가 시작되는 것을 방지
+    if (!isDrawerMaximized) {
+      e.stopPropagation();
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
+    // 스크롤 중 터치 이동 이벤트가 바텀 시트로 전파되어 시트가 멋대로 커지는 것 방지
+    if (!isDrawerMaximized) {
+      e.stopPropagation();
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
+    if (!touchStartRef.current || isDrawerMaximized) return;
+
+    const target = scrollRef.current || e.currentTarget;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    const { scrollTop: startScrollTop } = touchStartRef.current;
+    const currentScrollTop = target.scrollTop;
+
+    const maxScroll = target.scrollHeight - target.clientHeight;
+    const isScrollable = maxScroll > 5;
+
+    const isAtTopAtStart = startScrollTop <= 2;
+    const isAtBottomAtStart = isScrollable
+      ? (startScrollTop > 2 && maxScroll - startScrollTop < 3)
+      : true;
+
+    // 리스트 컨텐츠가 스크롤되었는지 여부 확인 (스크롤이 발생했다면 오버스크롤 무시)
+    const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
+
+    if (didNotScroll) {
+      // 민감도를 높이기 위해 임계값을 30px로 하향
+      if (isAtTopAtStart && deltaY > 30) {
+        setDrawerSnapPoint(activeJourney ? '136px' : '84px');
+      }
+      else if (isAtBottomAtStart && deltaY < -30) {
+        setDrawerSnapPoint(1);
+      }
+    }
+
+    touchStartRef.current = null;
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLElement>) => {
+    if (isDrawerMaximized) return;
+
+    const target = scrollRef.current || e.currentTarget;
+    const now = Date.now();
+
+    const maxScroll = target.scrollHeight - target.clientHeight;
+    const isScrollable = maxScroll > 5;
+
+    const isAtTop = target.scrollTop <= 2;
+    const isAtBottom = isScrollable
+      ? (target.scrollTop > 2 && maxScroll - target.scrollTop < 3)
+      : true;
+
+    // 0.2초 이상 휠 입력이 없었다면 새로운 스크롤 세션으로 간주
+    if (now - wheelAccumulator.current.lastTime > 200) {
+      wheelAccumulator.current.delta = 0;
+      // 스크롤 세션을 시작할 때 어떤 경계선에 있었는지 각각 독립적으로 기록
+      wheelAccumulator.current.startedAtTop = isAtTop;
+      wheelAccumulator.current.startedAtBottom = isAtBottom;
+    }
+    wheelAccumulator.current.lastTime = now;
+
+    // 최상단에서 시작한 세션은 축소(위로 스크롤)만, 최하단에서 시작한 세션은 팽창(아래로 스크롤)만 허용하여
+    // 한 번에 강하게 스크롤했을 때 반대편 경계선에서 오버스크롤이 터지는 것을 완벽 차단(Lock)
+    if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
+      wheelAccumulator.current.delta += e.deltaY;
+      if (wheelAccumulator.current.delta < -70) {
+        setDrawerSnapPoint(activeJourney ? '136px' : '84px');
+        wheelAccumulator.current.delta = 0;
+      }
+    }
+    else if (isAtBottom && e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
+      wheelAccumulator.current.delta += e.deltaY;
+      if (wheelAccumulator.current.delta > 70) {
+        setDrawerSnapPoint(1);
+        wheelAccumulator.current.delta = 0;
+      }
+    } else {
+      wheelAccumulator.current.delta = 0;
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -74,7 +181,7 @@ export default function PlaceList({
 
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
-      <Scroller 
+      <Scroller
         className="flex flex-col items-center justify-center text-center py-12 px-6 flex-1 overflow-y-auto"
       >
         <div className="w-20 h-20 mb-5 rounded-3xl bg-blue-50 flex items-center justify-center shadow-inner">
@@ -109,12 +216,21 @@ export default function PlaceList({
   const transportType = activeJourney.transport_type || 'public';
 
   return (
-    <Scroller 
-      {...scrollerProps}
-      className={`flex-1 overflow-y-auto scrollbar-sidebar overscroll-none ${
-        !isDrawerMaximized && !isMobile ? 'snap-y snap-mandatory' : ''
-      }`}
+    <Scroller
+      className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar relative bg-zinc-50"
       style={{ paddingBottom: '0.5rem' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+      onPointerDown={(e) => {
+        // 중간 높이 상태일 때, react-modal-sheet의 네이티브 드래그가 스크롤을 가로채서
+        // 강제로 최대 높이로 팽창시키는 라이브러리 버그를 방지하기 위해 이벤트 버블링을 막습니다.
+        if (!isDrawerMaximized) {
+          e.stopPropagation();
+        }
+      }}
+      {...scrollerProps}
     >
       <ul className="flex flex-col px-2">
         <DndContext
@@ -148,7 +264,7 @@ export default function PlaceList({
           <li className="relative pl-11 pr-2 py-3 flex items-center group/add">
             {/* 이전 장소에서 이어지는 타임라인 연결선 */}
             <div className="absolute left-[1.375rem] top-0 bottom-1/2 w-0.5 bg-gradient-to-b from-zinc-200 to-transparent -translate-x-1/2" />
-            
+
             {/* 기존의 까만색 장소 추가 버튼 디자인 */}
             <button
               type="button"

@@ -4,7 +4,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
 import { Sheet } from 'react-modal-sheet';
 import PlaceCard from './places/PlaceCard';
-import { MapPin } from 'lucide-react';
+import { MapPin, Plus } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import React from 'react';
 import {
@@ -42,7 +42,16 @@ export default function PlaceList({
   setLocalPlaces,
   children,
 }: PlaceListProps) {
-  const { activeJourney, isDrawerMaximized } = useJourneyStore();
+  const { 
+    activeJourney, 
+    isDrawerMaximized, 
+    isSearchMode, 
+    openSearchMode,
+    setFocusedStep,
+    setFocusedSegment,
+    setAlternativeSegment,
+    setFocusBounds
+  } = useJourneyStore();
   const isMobile = useMediaQuery('(max-width: 767px)');
   const Scroller = isMobile ? Sheet.Content : 'div';
   const scrollerProps = isMobile ? { disableDrag: !isDrawerMaximized } : {};
@@ -133,6 +142,31 @@ export default function PlaceList({
             ))}
           </SortableContext>
         </DndContext>
+
+        {/* 장소 추가 버튼 (이동 카드 위치에 렌더링) */}
+        {!editMode && !isSearchMode && (
+          <li className="relative pl-11 pr-2 py-3 flex items-center group/add">
+            {/* 이전 장소에서 이어지는 타임라인 연결선 */}
+            <div className="absolute left-[1.375rem] top-0 bottom-1/2 w-0.5 bg-gradient-to-b from-zinc-200 to-transparent -translate-x-1/2" />
+            
+            {/* 기존의 까만색 장소 추가 버튼 디자인 */}
+            <button
+              type="button"
+              onClick={() => {
+                setFocusedStep?.(null);
+                setFocusedSegment?.(null);
+                setAlternativeSegment?.(null);
+                setFocusBounds?.(null);
+                openSearchMode();
+              }}
+              className="relative group w-full py-4 bg-zinc-900 rounded-2xl text-white font-bold text-[15px] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex justify-center items-center gap-2 overflow-hidden shadow-sm"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <Plus className="w-4 h-4 relative z-10 transition-transform group-hover:rotate-90 duration-300" strokeWidth={2.5} />
+              <span className="relative z-10 tracking-wide">장소 추가</span>
+            </button>
+          </li>
+        )}
       </ul>
       {children}
     </Scroller>

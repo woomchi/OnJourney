@@ -92,38 +92,38 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
   };
 
   const innerContent = (
-    <>
+    <div className="flex flex-col w-full" style={{ height: isMobile ? mobileHeight : '100%' }}>
       <JourneyPlayerHeader
         activeJourney={activeJourney}
-          isSearchMode={isSearchMode}
-          setIsEditModalOpen={setIsEditModalOpen}
-          handleDoneEdit={handleDoneEdit}
-        />
+        isSearchMode={isSearchMode}
+        setIsEditModalOpen={setIsEditModalOpen}
+        handleDoneEdit={handleDoneEdit}
+      />
 
       <div className="flex-1 flex flex-col min-h-0 relative">
         <PlaceList
-            editMode={isEditMode}
-            selectedIds={selectedPlaceIds}
-            onToggleSelect={(id) => {
-              setSelectedPlaceIds((prev) =>
-                prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-              );
-            }}
-            localPlaces={localPlaces}
-            setLocalPlaces={setLocalPlaces}
-          >
-            {!isSearchMode && (
-              <SidebarBottomActions
-                isEditMode={isEditMode}
-                selectedPlaceIds={selectedPlaceIds}
-                handleDeleteSelectedPlaces={handleDeleteSelectedPlaces}
-              />
-            )}
-          </PlaceList>
+          editMode={isEditMode}
+          selectedIds={selectedPlaceIds}
+          onToggleSelect={(id) => {
+            setSelectedPlaceIds((prev) =>
+              prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+            );
+          }}
+          localPlaces={localPlaces}
+          setLocalPlaces={setLocalPlaces}
+        >
+          {!isSearchMode && (
+            <SidebarBottomActions
+              isEditMode={isEditMode}
+              selectedPlaceIds={selectedPlaceIds}
+              handleDeleteSelectedPlaces={handleDeleteSelectedPlaces}
+            />
+          )}
+        </PlaceList>
 
         <SearchOverlay activeJourney={activeJourney} />
       </div>
-    </>
+    </div>
   );
 
   return (

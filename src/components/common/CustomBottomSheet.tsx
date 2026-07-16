@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { motion, useDragControls, useMotionValue } from 'framer-motion';
+import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
 
 export interface CustomBottomSheetProps {
   isOpen: boolean;
@@ -66,6 +66,16 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
 
   const [activeSnapY, setActiveSnapY] = useState(isOpen ? getTargetY(initialSnap) : 0);
 
+  // activeSnapY가 변경될 때 모션 밸류 y를 직접 애니메이션 제어
+  useEffect(() => {
+    const controls = animate(y, activeSnapY, {
+      type: 'spring',
+      damping: 25,
+      stiffness: 200
+    });
+    return () => controls.stop();
+  }, [activeSnapY, y]);
+
   useEffect(() => {
     if (isOpen) {
       setActiveSnapY(getTargetY(initialSnap));
@@ -103,7 +113,18 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       );
     }
 
-    setActiveSnapY(targetSnap.y);
+    if (activeSnapY === targetSnap.y) {
+      // 동일한 스냅 포인트 구역 내에서 미세 조작 후 놓았을 때 제자리로 복귀하도록 명시적 애니메이션 수행
+      animate(y, targetSnap.y, {
+        type: 'spring',
+        damping: 25,
+        stiffness: 200
+      });
+    } else {
+      // 스냅 포인트 구역이 달라진 경우 상태를 변경하여 useEffect를 통한 애니메이션 유발
+      setActiveSnapY(targetSnap.y);
+    }
+
     if (onSnap) onSnap(targetSnap.name);
   };
 
@@ -118,8 +139,6 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
           top: -maxHeight,
           bottom: isOpen ? -minHeight : 0 // Prevents dragging below minHeight when open
         }}
-        animate={{ y: activeSnapY }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         style={{
           y,
           position: 'fixed',

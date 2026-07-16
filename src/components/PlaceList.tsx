@@ -2,7 +2,6 @@
 
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place } from '@/types/journey';
-import { Sheet } from 'react-modal-sheet';
 import PlaceCard from './places/PlaceCard';
 import { MapPin, Plus } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -55,10 +54,6 @@ export default function PlaceList({
   } = useJourneyStore();
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  const Scroller = isMobile ? Sheet.Content : 'div';
-  const scrollerProps = isMobile
-    ? { disableDrag: !isDrawerMaximized, scrollRef: scrollRef }
-    : { ref: scrollRef };
 
   // 제스처 감지용 Ref
   const touchStartRef = React.useRef<{ y: number; scrollTop: number } | null>(null);
@@ -181,7 +176,7 @@ export default function PlaceList({
 
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
-      <Scroller
+      <div
         className="flex flex-col items-center justify-center text-center py-12 px-6 flex-1 overflow-y-auto"
       >
         <div className="w-20 h-20 mb-5 rounded-3xl bg-blue-50 flex items-center justify-center shadow-inner">
@@ -194,7 +189,7 @@ export default function PlaceList({
         <div className="w-full mt-6">
           {children}
         </div>
-      </Scroller>
+      </div>
     );
   }
 
@@ -216,21 +211,10 @@ export default function PlaceList({
   const transportType = activeJourney.transport_type || 'public';
 
   return (
-    <Scroller
+    <div
+      ref={scrollRef}
       className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar relative bg-zinc-50"
       style={{ paddingBottom: '0.5rem' }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onWheel={handleWheel}
-      onPointerDown={(e) => {
-        // 중간 높이 상태일 때, react-modal-sheet의 네이티브 드래그가 스크롤을 가로채서
-        // 강제로 최대 높이로 팽창시키는 라이브러리 버그를 방지하기 위해 이벤트 버블링을 막습니다.
-        if (!isDrawerMaximized) {
-          e.stopPropagation();
-        }
-      }}
-      {...scrollerProps}
     >
       <ul className="flex flex-col px-2">
         <DndContext
@@ -285,6 +269,6 @@ export default function PlaceList({
         )}
       </ul>
       {children}
-    </Scroller>
+    </div>
   );
 }

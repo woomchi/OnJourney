@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { Sheet } from 'react-modal-sheet';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -60,7 +59,7 @@ export default function JourneyPlayerHeader({
   const nextJourney = activeIndex >= 0 && activeIndex < journeys.length - 1 ? journeys[activeIndex + 1] : null;
 
   const isMobile = useMediaQuery('(max-width: 767px)');
-  const HeaderComponent = isMobile ? Sheet.Header : 'header';
+  const HeaderComponent = 'header';
 
   return (
     <HeaderComponent 

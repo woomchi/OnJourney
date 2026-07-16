@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
 
 export interface CustomBottomSheetProps {
@@ -65,13 +65,18 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   };
 
   const [activeSnapY, setActiveSnapY] = useState(isOpen ? getTargetY(initialSnap) : 0);
+  const dragVelocityRef = useRef(0);
 
   // activeSnapY가 변경될 때 모션 밸류 y를 직접 애니메이션 제어
   useEffect(() => {
+    const initialVelocity = dragVelocityRef.current;
+    dragVelocityRef.current = 0; // 사용 후 리셋
+
     const controls = animate(y, activeSnapY, {
       type: 'spring',
       damping: 25,
-      stiffness: 200
+      stiffness: 200,
+      velocity: initialVelocity
     });
     return () => controls.stop();
   }, [activeSnapY, y]);
@@ -90,13 +95,14 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
     const velocityY = info.velocity.y; // Swipe velocity (positive down, negative up)
 
     const snapPoints = [
-      { y: -minHeight, name: 'min' as const },
+      { y: -maxHeight, name: 'max' as const },
       { y: -defaultHeight, name: 'default' as const },
-      { y: -maxHeight, name: 'max' as const }
+      { y: -minHeight, name: 'min' as const }
     ];
 
     const VELOCITY_THRESHOLD = 500;
-    let targetSnap = snapPoints[1]; // default
+    // 임계값(80px) 미달 시 제자리로 복귀하도록 현재 활성화된 스냅 포인트(activeSnapY)로 초기화
+    let targetSnap = snapPoints.find(p => p.y === activeSnapY) || snapPoints[1];
 
     if (velocityY > VELOCITY_THRESHOLD) {
       // Swiping down -> Snap to a lower (less pulled up, larger value) snap point
@@ -107,10 +113,26 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       const abovePoints = snapPoints.filter(p => p.y < currentY);
       targetSnap = abovePoints.length > 0 ? abovePoints[abovePoints.length - 1] : snapPoints[snapPoints.length - 1];
     } else {
-      // Slow drag -> Snap to closest point
-      targetSnap = snapPoints.reduce((prev, curr) =>
-        Math.abs(curr.y - currentY) < Math.abs(prev.y - currentY) ? curr : prev
-      );
+      // Slow drag -> Snap to next point if user dragged at least 20px
+      const deltaY = currentY - activeSnapY;
+      const PIXEL_THRESHOLD = 20;
+      if (deltaY > PIXEL_THRESHOLD) {
+        // Dragging DOWN -> Find below points (y > activeSnapY)
+        const belowPoints = snapPoints.filter(p => p.y > activeSnapY);
+        if (belowPoints.length > 0) {
+          targetSnap = belowPoints.reduce((prev, curr) =>
+            Math.abs(curr.y - currentY) < Math.abs(prev.y - currentY) ? curr : prev
+          );
+        }
+      } else if (deltaY < -PIXEL_THRESHOLD) {
+        // Dragging UP -> Find above points (y < activeSnapY)
+        const abovePoints = snapPoints.filter(p => p.y < activeSnapY);
+        if (abovePoints.length > 0) {
+          targetSnap = abovePoints.reduce((prev, curr) =>
+            Math.abs(curr.y - currentY) < Math.abs(prev.y - currentY) ? curr : prev
+          );
+        }
+      }
     }
 
     if (activeSnapY === targetSnap.y) {
@@ -118,10 +140,12 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       animate(y, targetSnap.y, {
         type: 'spring',
         damping: 25,
-        stiffness: 200
+        stiffness: 200,
+        velocity: velocityY
       });
     } else {
       // 스냅 포인트 구역이 달라진 경우 상태를 변경하여 useEffect를 통한 애니메이션 유발
+      dragVelocityRef.current = velocityY;
       setActiveSnapY(targetSnap.y);
     }
 
@@ -134,7 +158,8 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         drag="y"
         dragControls={dragControls}
         dragListener={false} // Only drag when explicitly starting from a handler
-        dragElastic={{ top: 0.1, bottom: 0 }} // Elastic on top, rigid hard-lock at bottom
+        dragElastic={0} // Disable elasticity (rigid/no bounce) at boundaries
+        dragMomentum={false} // 가속도에 의한 관성 밀림 현상 원천 차단
         dragConstraints={{
           top: -maxHeight,
           bottom: isOpen ? -minHeight : 0 // Prevents dragging below minHeight when open

@@ -39,7 +39,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
   }, []);
 
   const snapPx = drawerSnapPoint === 1 || drawerSnapPoint === '1'
-    ? windowHeight
+    ? windowHeight - 16
     : typeof drawerSnapPoint === 'number'
       ? drawerSnapPoint
       : parseInt(String(drawerSnapPoint), 10) || 0;

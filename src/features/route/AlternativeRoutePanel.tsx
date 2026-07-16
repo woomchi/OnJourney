@@ -70,7 +70,7 @@ export default function AlternativeRoutePanel({
   const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
 
   const snapPx = snap === 1 || snap === '1'
-    ? windowHeight
+    ? windowHeight - 16
     : typeof snap === 'number'
       ? snap
       : parseInt(String(snap), 10) || 0;
@@ -559,7 +559,7 @@ export default function AlternativeRoutePanel({
         isOpen={isOpen}
         minHeight={altHeight}
         defaultHeight={altHeight}
-        maxHeight={windowHeight}
+        maxHeight={windowHeight - 16}
         initialSnap={currentSnapType}
         zIndex={45}
         onSnap={(snapName) => {

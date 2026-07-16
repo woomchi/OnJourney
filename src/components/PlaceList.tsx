@@ -43,6 +43,7 @@ export default function PlaceList({
 }: PlaceListProps) {
   const {
     activeJourney,
+    drawerSnapPoint,
     isDrawerMaximized,
     isSearchMode,
     openSearchMode,
@@ -70,21 +71,17 @@ export default function PlaceList({
       y: e.touches[0].clientY,
       scrollTop: target.scrollTop
     };
-    // 중간 높이 상태일 때 터치 시작 이벤트가 바텀 시트로 넘어가서 네이티브 드래그가 시작되는 것을 방지
-    if (!isDrawerMaximized) {
-      e.stopPropagation();
-    }
+    // 터치 이벤트가 바텀 시트로 넘어가서 의도치 않은 드래그가 시작되는 것을 방지하기 위해 상위 전파 항상 차단
+    e.stopPropagation();
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
-    // 스크롤 중 터치 이동 이벤트가 바텀 시트로 전파되어 시트가 멋대로 커지는 것 방지
-    if (!isDrawerMaximized) {
-      e.stopPropagation();
-    }
+    // 스크롤 중 터치 이동 이벤트가 바텀 시트로 전파되어 시트가 움직이는 것 항상 차단
+    e.stopPropagation();
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
-    if (!touchStartRef.current || isDrawerMaximized) return;
+    if (!touchStartRef.current) return;
 
     const target = scrollRef.current || e.currentTarget;
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
@@ -103,11 +100,28 @@ export default function PlaceList({
     const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
 
     if (didNotScroll) {
-      // 민감도를 높이기 위해 임계값을 30px로 하향
-      if (isAtTopAtStart && deltaY > 30) {
-        setDrawerSnapPoint(activeJourney ? '136px' : '84px');
+      const minSnap = activeJourney ? '136px' : '84px';
+
+      let currentSnap: 'min' | 'default' | 'max' = 'default';
+      if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
+        currentSnap = 'min';
+      } else if (drawerSnapPoint === 1 || drawerSnapPoint === '1' || isDrawerMaximized) {
+        currentSnap = 'max';
       }
-      else if (isAtBottomAtStart && deltaY < -30) {
+
+      // 최대/최소 높이 상태(벽)에서는 리스트 스크롤 제스처를 통한 크기 변경 비활성화
+      if (currentSnap !== 'default') {
+        touchStartRef.current = null;
+        return;
+      }
+
+      // 민감도를 다른 영역과 통일하기 위해 임계값을 20px로 변경
+      if (isAtTopAtStart && deltaY > 20) {
+        // 아래로 스와이프 (축소 방향)
+        setDrawerSnapPoint(minSnap);
+      }
+      else if (isAtBottomAtStart && deltaY < -20) {
+        // 위로 스와이프 (확대 방향)
         setDrawerSnapPoint(1);
       }
     }
@@ -116,8 +130,6 @@ export default function PlaceList({
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLElement>) => {
-    if (isDrawerMaximized) return;
-
     const target = scrollRef.current || e.currentTarget;
     const now = Date.now();
 
@@ -138,12 +150,27 @@ export default function PlaceList({
     }
     wheelAccumulator.current.lastTime = now;
 
+    const minSnap = activeJourney ? '136px' : '84px';
+
+    let currentSnap: 'min' | 'default' | 'max' = 'default';
+    if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
+      currentSnap = 'min';
+    } else if (drawerSnapPoint === 1 || drawerSnapPoint === '1' || isDrawerMaximized) {
+      currentSnap = 'max';
+    }
+
+    // 최대/최소 높이 상태(벽)에서는 리스트 스크롤 제스처를 통한 크기 변경 비활성화
+    if (currentSnap !== 'default') {
+      wheelAccumulator.current.delta = 0;
+      return;
+    }
+
     // 최상단에서 시작한 세션은 축소(위로 스크롤)만, 최하단에서 시작한 세션은 팽창(아래로 스크롤)만 허용하여
     // 한 번에 강하게 스크롤했을 때 반대편 경계선에서 오버스크롤이 터지는 것을 완벽 차단(Lock)
     if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
       wheelAccumulator.current.delta += e.deltaY;
       if (wheelAccumulator.current.delta < -70) {
-        setDrawerSnapPoint(activeJourney ? '136px' : '84px');
+        setDrawerSnapPoint(minSnap);
         wheelAccumulator.current.delta = 0;
       }
     }
@@ -213,7 +240,11 @@ export default function PlaceList({
   return (
     <div
       ref={scrollRef}
-      className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar relative bg-zinc-50"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+      className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative bg-zinc-50"
       style={{ paddingBottom: '0.5rem' }}
     >
       <ul className="flex flex-col px-2">

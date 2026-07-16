@@ -176,7 +176,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
   }, []);
 
   const snapPx = drawerSnapPoint === 1 || drawerSnapPoint === '1'
-    ? windowHeight
+    ? windowHeight - 16
     : typeof drawerSnapPoint === 'number'
       ? drawerSnapPoint
       : parseInt(String(drawerSnapPoint), 10) || 0;
@@ -207,19 +207,17 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
       y: e.touches[0].clientY,
       scrollTop: target.scrollTop
     };
-    if (!isDrawerMaximized) {
-      e.stopPropagation();
-    }
+    // 터치 이벤트가 바텀 시트로 넘어가서 의도치 않은 드래그가 시작되는 것을 방지하기 위해 상위 전파 항상 차단
+    e.stopPropagation();
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
-    if (!isDrawerMaximized) {
-      e.stopPropagation();
-    }
+    // 스크롤 중 터치 이동 이벤트가 바텀 시트로 전파되어 시트가 움직이는 것 항상 차단
+    e.stopPropagation();
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
-    if (!touchStartRef.current || isDrawerMaximized) return;
+    if (!touchStartRef.current) return;
 
     const target = scrollRef.current || e.currentTarget;
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
@@ -237,10 +235,28 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
 
     if (didNotScroll) {
-      if (isAtTopAtStart && deltaY > 30) {
-        setDrawerSnapPoint(activeJourney ? '136px' : '84px');
+      const minSnap = activeJourney ? '136px' : '84px';
+
+      let currentSnap: 'min' | 'default' | 'max' = 'default';
+      if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
+        currentSnap = 'min';
+      } else if (drawerSnapPoint === 1 || drawerSnapPoint === '1' || isDrawerMaximized) {
+        currentSnap = 'max';
       }
-      else if (isAtBottomAtStart && deltaY < -30) {
+
+      // 최대/최소 높이 상태(벽)에서는 리스트 스크롤 제스처를 통한 크기 변경 비활성화
+      if (currentSnap !== 'default') {
+        touchStartRef.current = null;
+        return;
+      }
+
+      // 민감도를 다른 영역과 통일하기 위해 임계값을 20px로 변경
+      if (isAtTopAtStart && deltaY > 20) {
+        // 아래로 스와이프 (축소 방향)
+        setDrawerSnapPoint(minSnap);
+      }
+      else if (isAtBottomAtStart && deltaY < -20) {
+        // 위로 스와이프 (확대 방향)
         setDrawerSnapPoint(1);
       }
     }
@@ -249,8 +265,6 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLElement>) => {
-    if (isDrawerMaximized) return;
-
     const target = scrollRef.current || e.currentTarget;
     const now = Date.now();
 
@@ -269,10 +283,25 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     }
     wheelAccumulator.current.lastTime = now;
 
+    const minSnap = activeJourney ? '136px' : '84px';
+
+    let currentSnap: 'min' | 'default' | 'max' = 'default';
+    if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
+      currentSnap = 'min';
+    } else if (drawerSnapPoint === 1 || drawerSnapPoint === '1' || isDrawerMaximized) {
+      currentSnap = 'max';
+    }
+
+    // 최대/최소 높이 상태(벽)에서는 리스트 스크롤 제스처를 통한 크기 변경 비활성화
+    if (currentSnap !== 'default') {
+      wheelAccumulator.current.delta = 0;
+      return;
+    }
+
     if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
       wheelAccumulator.current.delta += e.deltaY;
       if (wheelAccumulator.current.delta < -70) {
-        setDrawerSnapPoint(activeJourney ? '136px' : '84px');
+        setDrawerSnapPoint(minSnap);
         wheelAccumulator.current.delta = 0;
       }
     }
@@ -520,7 +549,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onWheel={handleWheel}
-          className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-transparent to-zinc-50/35 select-none overflow-y-auto"
+          className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-transparent to-zinc-50/35 select-none overflow-y-auto overscroll-y-none"
           style={scrollerStyle}
         >
           <div className="w-16 h-16 rounded-3xl bg-zinc-50 border border-zinc-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex items-center justify-center mb-6 text-2xl">

@@ -256,7 +256,7 @@ export default function JourneySidebar() {
           isOpen={!focusedSegment && !alternativeSegment}
           minHeight={minSnapPx}
           defaultHeight={defaultSnapPx}
-          maxHeight={windowHeight}
+          maxHeight={windowHeight - 16}
           initialSnap={currentSnapType}
           zIndex={30}
           onSnap={(snapName) => {

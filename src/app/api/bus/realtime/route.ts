@@ -8,11 +8,12 @@ export const dynamic = 'force-dynamic';
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const rawParams = Object.fromEntries(searchParams.entries());
+  const referer = request.headers.get('referer') || undefined;
 
   // Zod 검증
   const validatedParams = busRealtimeQuerySchema.parse(rawParams);
 
-  const data = await fetchBusRealtime(validatedParams);
+  const data = await fetchBusRealtime(validatedParams, referer);
 
   return successResponse(data);
 });

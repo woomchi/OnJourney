@@ -51,7 +51,8 @@ export async function fetchPublicTransitOptions(
   sx: number,
   sy: number,
   ex: number,
-  ey: number
+  ey: number,
+  referer?: string
 ): Promise<DirectionResult[]> {
   const apiKey = process.env.ODSAY_API_KEY;
   if (!apiKey) {
@@ -65,8 +66,12 @@ export async function fetchPublicTransitOptions(
   let delayTime = 200;
 
   const getCachedDirections = unstable_cache(
-    async () => {
-      const res = await externalFetch(url, { cache: 'no-store' });
+    async (ref?: string) => {
+      const headers: Record<string, string> = {};
+      if (ref) {
+        headers['Referer'] = ref;
+      }
+      const res = await externalFetch(url, { cache: 'no-store', headers });
       return await res.json();
     },
     [
@@ -81,7 +86,7 @@ export async function fetchPublicTransitOptions(
 
   for (let i = 0; i < attempts; i++) {
     try {
-      data = await getCachedDirections();
+      data = await getCachedDirections(referer);
       break;
     } catch (err: any) {
       const isRateLimit = err.status === 429 || err.code === '429' || err.message?.includes('Requests');
@@ -164,15 +169,19 @@ export async function fetchPublicTransitOptions(
         const laneUrl = `https://api.odsay.com/v1/api/loadLane?apiKey=${encodeURIComponent(apiKey)}&mapObject=${encodeURIComponent(mapObjectParam)}`;
         
         const getCachedLoadLane = unstable_cache(
-          async () => {
-            const laneRes = await externalFetch(laneUrl, { cache: 'no-store' });
+          async (ref?: string) => {
+            const headers: Record<string, string> = {};
+            if (ref) {
+              headers['Referer'] = ref;
+            }
+            const laneRes = await externalFetch(laneUrl, { cache: 'no-store', headers });
             return await laneRes.json();
           },
           ['odsay-loadlane', mapObjectParam],
           { revalidate: 3600 }
         );
 
-        const laneData = await getCachedLoadLane();
+        const laneData = await getCachedLoadLane(referer);
         if (laneData.result && laneData.result.lane) {
           laneList = laneData.result.lane;
           const transitCount = subPaths.filter((sp: any) => [1,2,4,5,6].includes(sp.trafficType)).length;
@@ -586,11 +595,11 @@ export function calculateCarFallback(
 
 import { DirectionsQueryType } from '../validations/directions';
 
-export async function fetchPublicDirections(params: DirectionsQueryType): Promise<{ public: DirectionResult[] }> {
+export async function fetchPublicDirections(params: DirectionsQueryType, referer?: string): Promise<{ public: DirectionResult[] }> {
   const { sx, sy, ex, ey } = params;
 
   try {
-    const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey);
+    const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey, referer);
     return { public: publicResults };
   } catch (error: any) {
     if (error.name === 'NoRouteFound' || error.message?.includes('찾을 수 없습니다')) {

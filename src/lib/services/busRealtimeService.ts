@@ -17,13 +17,17 @@ const CITY_MAP: Record<string, string> = {
 
 // ODsay 정류소 검색 (Next.js Cache 적용)
 const getCachedStationData = unstable_cache(
-  async (stationName: string, apiKey: string) => {
+  async (stationName: string, apiKey: string, referer?: string) => {
     const url = `https://api.odsay.com/v1/api/searchStation?lang=0&stationName=${encodeURIComponent(stationName)}&stationClass=1&apiKey=${encodeURIComponent(apiKey)}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     try {
-      const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+      const headers: Record<string, string> = {};
+      if (referer) {
+        headers['Referer'] = referer;
+      }
+      const res = await fetch(url, { signal: controller.signal, cache: 'no-store', headers });
       if (!res.ok) throw new Error('ODsay fetch status not ok');
       const data = await res.json();
       if (data && data.error) {
@@ -38,7 +42,7 @@ const getCachedStationData = unstable_cache(
   { revalidate: 60 * 60 * 24 } // 24시간 캐시
 );
 
-export async function fetchBusRealtime(params: BusRealtimeQueryType) {
+export async function fetchBusRealtime(params: BusRealtimeQueryType, referer?: string) {
   const { station, busNo } = params;
   const targetBusNo = busNo.replace(/번\s*버스$/, '').replace(/번$/, '').trim();
 
@@ -61,7 +65,7 @@ export async function fetchBusRealtime(params: BusRealtimeQueryType) {
 
   let odsayData = null;
   try {
-    odsayData = await getCachedStationData(station, odsayKey);
+    odsayData = await getCachedStationData(station, odsayKey, referer);
   } catch (e) {
     console.error('[busRealtimeService] ODsay cache fetch error:', e);
   }

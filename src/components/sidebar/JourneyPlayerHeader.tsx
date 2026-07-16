@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Sheet } from 'react-modal-sheet';
+import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
@@ -43,6 +44,8 @@ export default function JourneyPlayerHeader({
     setDrawerSnapPoint,
   } = useJourneyStore();
 
+  const bottomSheet = useOptionalBottomSheet();
+
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
 
   useEffect(() => {
@@ -60,15 +63,17 @@ export default function JourneyPlayerHeader({
   const HeaderComponent = isMobile ? Sheet.Header : 'header';
 
   return (
-    <HeaderComponent className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-6' : ''}`}>
-      {isMobile && (
-        <div className="absolute top-0 left-0 w-full pt-3 pb-2 flex justify-center z-20 pointer-events-none">
-          <div className="w-12 h-1.5 rounded-full bg-zinc-300" />
-        </div>
-      )}
+    <HeaderComponent 
+      onPointerDown={(e: any) => {
+        if (isMobile && bottomSheet?.dragControls) {
+          bottomSheet.dragControls.start(e);
+        }
+      }}
+      className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-2' : 'pt-2'}`}
+    >
       {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
       {!isSearchMode && (
-        <div className={`absolute ${isMobile ? 'top-[28px]' : 'top-1.5'} left-2 z-20`}>
+        <div className={`absolute top-1.5 left-2 z-20`}>
           <button
             type="button"
             onClick={() => {
@@ -93,7 +98,7 @@ export default function JourneyPlayerHeader({
 
       {/* 오른쪽 상단 모서리: 편집 및 동기화 */}
       {!isSearchMode && (
-        <div className={`absolute ${isMobile ? 'top-[28px]' : 'top-1.5'} right-2 z-20 flex justify-end items-center gap-1`}>
+        <div className={`absolute top-1.5 right-2 z-20 flex justify-end items-center gap-1`}>
           {isSyncing && (
             <div className="flex items-center" title="클라우드 동기화 중">
               <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
@@ -200,8 +205,13 @@ export default function JourneyPlayerHeader({
                     const firstPlace = activeJourney.places[0];
                     const secondPlace = activeJourney.places[1];
 
-                    const queryKey = directionKeys.segment(firstPlace.id, secondPlace.id);
-                    const segmentData = queryClient.getQueryData<any>(queryKey);
+                    const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id));
+                    const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id));
+                    const segmentData = {
+                      public: publicData?.public || [],
+                      car: carData?.car || [],
+                      walk: carData?.walk || []
+                    };
                     const transportType = activeJourney.transport_type || 'public';
                     const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 

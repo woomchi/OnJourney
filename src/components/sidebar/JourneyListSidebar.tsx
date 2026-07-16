@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDialog } from '@/providers/DialogProvider';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { deleteJourneys } from '@/lib/journeys';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import type { Journey } from '@/types/journey';
-import { Sheet } from 'react-modal-sheet';
 import React from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Loader2, GripVertical, Pencil, Check, Trash2, Plus } from 'lucide-react';
@@ -151,6 +151,8 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     setEditMode,
   } = useJourneyStore();
 
+  const bottomSheet = useOptionalBottomSheet();
+
   const queryClient = useQueryClient();
   const { confirm, alert } = useDialog();
 
@@ -161,10 +163,8 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
   const [localJourneys, setLocalJourneys] = useState<Journey[]>(journeys);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const isMobile = useMediaQuery('(max-width: 767px)');
-  const Scroller = isMobile ? Sheet.Content : 'div';
-  const scrollerProps = isMobile
-    ? { disableDrag: !isDrawerMaximized, scrollRef: scrollRef }
-    : { ref: scrollRef };
+  const Scroller = 'div';
+  const scrollerProps = { ref: scrollRef };
 
   const [windowHeight, setWindowHeight] = useState(0);
   useEffect(() => {
@@ -416,25 +416,19 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
         </div>
       </header>
 
-      {isLoading && isMobile && (
-        <Sheet.Header className="pt-3 pb-2 flex justify-center flex-shrink-0">
-          <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
-        </Sheet.Header>
-      )}
-
       {!isLoading && (
         (() => {
-          const HeaderComponent = isMobile ? Sheet.Header : 'div';
+          const HeaderComponent = 'div';
           return (
             <HeaderComponent 
-              className={`flex flex-col flex-shrink-0 border-b border-zinc-100/80 ${isListEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}
+              onPointerDown={(e) => {
+                if (isMobile && bottomSheet?.dragControls) {
+                  bottomSheet.dragControls.start(e);
+                }
+              }}
+              className={`flex flex-col flex-shrink-0 border-b border-zinc-100/80 cursor-grab active:cursor-grabbing touch-none ${isListEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}
             >
-              {isMobile && (
-                <div className="pt-3 pb-2 flex justify-center w-full flex-shrink-0">
-                  <div className="w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 pointer-events-none" />
-                </div>
-              )}
-              <div className={`px-8 pb-3.5 flex items-center justify-between text-xs font-semibold ${isMobile ? 'pt-0' : 'pt-3.5'}`}>
+              <div className={`px-8 pb-3.5 flex items-center justify-between text-xs font-semibold pt-1`}>
                 {isListEditMode ? (
                   <>
                     <button

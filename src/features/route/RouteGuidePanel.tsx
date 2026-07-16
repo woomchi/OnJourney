@@ -4,11 +4,27 @@ import { useEffect, useState, useRef } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
-import { Sheet, SheetRef } from 'react-modal-sheet';
+import { CustomBottomSheet, useBottomSheet } from '@/components/common/CustomBottomSheet';
+import { motion, useTransform } from 'framer-motion';
 import PlaybackBar from '@/components/route/PlaybackBar';
 import TransitGuideList from '@/components/route/TransitGuideList';
 import CarGuideList from '@/components/route/CarGuideList';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+
+const FloatingButtonsContainer = () => {
+  const { y, maxHeight } = useBottomSheet();
+  const opacity = useTransform(y, [-360, -maxHeight + 100], [1, 0]);
+  // Use a transform to dynamically disable pointer events when hidden
+  const pointerEvents = useTransform(y, (latest: number) => latest < -400 ? 'none' : 'auto');
+  
+  return (
+    <motion.div 
+      id="mobile-map-buttons-target-route"
+      className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] *:pointer-events-auto"
+      style={{ opacity, pointerEvents: pointerEvents as any }}
+    />
+  );
+};
 
 interface RouteGuidePanelProps {
   route: SelectedRoute | DirectionResult;
@@ -45,7 +61,6 @@ export default function RouteGuidePanel({
   }, []);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const sheetRef = useRef<SheetRef>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
   const [snap, setSnap] = useState<number | string | null>('360px');
@@ -63,47 +78,6 @@ export default function RouteGuidePanel({
   const contentMaxHeight = isMobile && snapPx > 0
     ? `${snapPx - 26 - headerHeight}px`
     : '100%';
-
-  // 최하단 스냅 포인트 상태에서 아래로 쓸어내리는 드래그 제스처를 윈도우 포인터 캡처링 단계에서 원천 차단(Hard Lock)
-  useEffect(() => {
-    if (!isMobile) return;
-
-    let pointerStartY = 0;
-
-    const handlePointerDown = (e: Event) => {
-      const pe = e as PointerEvent;
-      const isInside = (pe.target as HTMLElement)?.closest('.route-guide-sheet');
-      if (isInside) {
-        pointerStartY = pe.clientY;
-      }
-    };
-
-    const handlePointerMove = (e: Event) => {
-      const pe = e as PointerEvent;
-      if (pe.buttons === 0) return;
-      
-      const isInside = (pe.target as HTMLElement)?.closest('.route-guide-sheet');
-      if (!isInside) return;
-
-      const pointerY = pe.clientY;
-      const deltaY = pointerY - pointerStartY;
-      const isMinSnap = snap === '210px' || snap === 210;
-      
-      if (isMinSnap && deltaY > 0) {
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        if (e.cancelable) e.preventDefault();
-      }
-    };
-
-    window.addEventListener('pointerdown', handlePointerDown, true);
-    window.addEventListener('pointermove', handlePointerMove, { capture: true, passive: false });
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown, true);
-      window.removeEventListener('pointermove', handlePointerMove, { capture: true } as any);
-    };
-  }, [snap, isMobile]);
 
   useEffect(() => {
     if (isOpen) {
@@ -465,58 +439,35 @@ export default function RouteGuidePanel({
   );
 
   if (isMobile) {
+    let currentSnapType: 'min' | 'default' | 'max' = 'default';
+    if (snap === '210px' || snap === 210) currentSnapType = 'min';
+    else if (snap === 1 || snap === '1') currentSnapType = 'max';
+
     return (
       <>
-        <Sheet
-          ref={sheetRef}
+        <CustomBottomSheet
           isOpen={isOpen}
-          className="route-guide-sheet"
-          style={{ zIndex: 45 }}
+          minHeight={210}
+          defaultHeight={360}
+          maxHeight={windowHeight}
+          initialSnap={currentSnapType}
+          zIndex={45}
+          onSnap={(snapName) => {
+            if (snapName === 'min') setSnap('210px');
+            else if (snapName === 'default') setSnap('360px');
+            else if (snapName === 'max') setSnap(1);
+          }}
           onClose={() => {
-            setTimeout(() => {
-              if (sheetRef.current) sheetRef.current.snapTo(1);
-            }, 0);
+            if (onExited) onExited();
           }}
-          snapPoints={[0, 210, 360, 1]}
-          initialSnap={2}
-          onSnap={(index) => {
-            if (index === 0) {
-              setTimeout(() => {
-                if (sheetRef.current) sheetRef.current.snapTo(1);
-              }, 0);
-              setSnap('210px');
-            }
-            else if (index === 1) setSnap('210px');
-            else if (index === 2) setSnap('360px');
-            else if (index === 3) setSnap(1);
-          }}
+          headerContent={headerContent}
+          scrollRef={scrollContainerRef as React.MutableRefObject<any>}
         >
-          <Sheet.Container 
-            className="!rounded-t-[20px] !shadow-[0_-8px_30px_rgba(0,0,0,0.15)] !border-t !border-zinc-200 !bg-white"
-            style={{ zIndex: 45 }}
-          >
-            <div 
-              id="mobile-map-buttons-target-route" 
-              className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${
-                (snap === 1 || snap === '1') ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
-              }`} 
-            />
-            <Sheet.Header className="flex flex-col flex-shrink-0">
-              <div className="pt-3 pb-2 flex justify-center w-full">
-                <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
-              </div>
-              {headerContent}
-            </Sheet.Header>
-            <Sheet.Content 
-              scrollRef={scrollContainerRef as React.MutableRefObject<any>}
-              disableDrag={snap !== 1 && snap !== '1'}
-              className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar pb-20 relative bg-white"
-              style={{ maxHeight: contentMaxHeight }}
-            >
-              {listContent}
-            </Sheet.Content>
-          </Sheet.Container>
-        </Sheet>
+          <FloatingButtonsContainer />
+          <div className="flex flex-col relative w-full h-full pb-20 bg-white" style={{ minHeight: contentMaxHeight }}>
+            {listContent}
+          </div>
+        </CustomBottomSheet>
         {playbackBar}
       </>
     );

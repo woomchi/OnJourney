@@ -184,7 +184,7 @@ export default function MapArea() {
   useEffect(() => {
     if (isMobile) {
       const getTarget = () => {
-        if (focusedSegment) {
+        if (focusedSegment || alternativeSegment) {
           const routeTarget = document.getElementById('mobile-map-buttons-target-route');
           if (routeTarget) return routeTarget;
         }
@@ -205,7 +205,7 @@ export default function MapArea() {
     } else {
       setPortalTarget(null);
     }
-  }, [isMobile, focusedSegment, portalTarget]);
+  }, [isMobile, focusedSegment, alternativeSegment, portalTarget]);
 
   useEffect(() => {
     if (!isSearchMode) {

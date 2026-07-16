@@ -3,16 +3,55 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
+import { CustomBottomSheet, useBottomSheet } from '@/components/common/CustomBottomSheet';
+import { motion, useTransform } from 'framer-motion';
+import CreateJourneyModal from '@/components/CreateJourneyModal';
+import ActiveJourneySidebar from '@/components/sidebar/ActiveJourneySidebar';
+import JourneyListSidebar from '@/components/sidebar/JourneyListSidebar';
+import AuthModal from '@/components/AuthModal';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import { useQueryClient } from '@tanstack/react-query';
 import { sortJourneysByStoredOrder } from '@/lib/journeyUtils';
-import CreateJourneyModal from '@/components/CreateJourneyModal';
-import AuthModal from '@/components/AuthModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import ActiveJourneySidebar from '@/components/sidebar/ActiveJourneySidebar';
-import JourneyListSidebar from '@/components/sidebar/JourneyListSidebar';
-import { Sheet, SheetRef } from 'react-modal-sheet';
 import { Plus } from 'lucide-react';
+
+const FloatingButtonsContainer = () => {
+  const { y, maxHeight } = useBottomSheet();
+  const opacity = useTransform(y, [-360, -maxHeight + 100], [1, 0]);
+  const pointerEvents = useTransform(y, (latest: number) => latest < -400 ? 'none' : 'auto');
+  return (
+    <motion.div 
+      id="mobile-map-buttons-target"
+      className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] *:pointer-events-auto"
+      style={{ opacity, pointerEvents: pointerEvents as any }}
+    />
+  );
+};
+
+const CreateJourneyFloatingButton = ({ show, onClick, PlusIcon }: { show: boolean, onClick: () => void, PlusIcon: any }) => {
+  const { y, minHeight } = useBottomSheet();
+  const opacity = useTransform(y, [-minHeight - 20, -minHeight - 100], [0, 1]);
+  const translateY = useTransform(y, [-minHeight - 20, -minHeight - 100], [120, 0]);
+  const pointerEvents = useTransform(y, (latest: number) => latest > -minHeight - 50 ? 'none' : 'auto');
+
+  if (!show) return null;
+
+  return (
+    <motion.div 
+      className="fixed bottom-5 left-4 right-4 z-[101] md:hidden"
+      style={{ opacity, y: translateY, pointerEvents: pointerEvents as any }}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full py-4 bg-zinc-950/90 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-xl transition-all cursor-pointer flex justify-center items-center gap-2 backdrop-blur-md border border-white/10"
+      >
+        <PlusIcon className="w-4.5 h-4.5" strokeWidth={2.5} />
+        <span className="tracking-wide">새 여정 만들기</span>
+      </button>
+    </motion.div>
+  );
+};
 
 export default function JourneySidebar() {
   const { user, loading: authLoading, openAuthModal } = useAuth();
@@ -24,6 +63,7 @@ export default function JourneySidebar() {
     setDrawerMaximized,
     setDrawerSnapPoint,
     focusedSegment,
+    alternativeSegment,
     isEditMode,
     openCreateForm,
     journeys,
@@ -60,21 +100,7 @@ export default function JourneySidebar() {
     }
   }, [activeJourney, snap]);
 
-  const prevFocusedSegmentRef = useRef(focusedSegment);
 
-  // Adjust snap point automatically when a segment is focused (to show RouteGuidePanel without overlap)
-  useEffect(() => {
-    if (!isMobile) return;
-    const isCurrentlyFocused = !!focusedSegment;
-    const wasFocused = !!prevFocusedSegmentRef.current;
-
-    if (isCurrentlyFocused && !wasFocused) {
-      setSnap(activeJourney ? '136px' : '84px');
-    } else if (!isCurrentlyFocused && wasFocused) {
-      setSnap(activeJourney ? '370px' : '360px');
-    }
-    prevFocusedSegmentRef.current = focusedSegment;
-  }, [focusedSegment, isMobile, activeJourney]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -101,7 +127,6 @@ export default function JourneySidebar() {
 
   // 렌더링 후 화면 높이 계산을 위한 상태
   const [windowHeight, setWindowHeight] = useState(0);
-  const sheetRef = useRef<SheetRef>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -159,79 +184,7 @@ export default function JourneySidebar() {
   const minSnapPx = activeJourney ? 136 : 84;
   const defaultSnapPx = activeJourney ? 370 : 360;
 
-  let activeSnapIndex = 2; // defaultSnapPx (index 2)
-  if (snap === 1 || snap === '1') {
-    activeSnapIndex = 3; // 1 (Full screen)
-  } else if (snap === minSnapPx || snap === `${minSnapPx}px`) {
-    activeSnapIndex = 1; // minSnapPx
-  }
 
-  // 최하단 스냅 포인트 상태에서 아래로 쓸어내리는 드래그 제스처를 윈도우 포인터 캡처링 단계에서 원천 차단(Hard Lock)
-  useEffect(() => {
-    if (!isMobile) return;
-
-    let pointerStartY = 0;
-
-    const handlePointerDown = (e: Event) => {
-      const pe = e as PointerEvent;
-      const isInside = (pe.target as HTMLElement)?.closest('.journey-sheet');
-      if (isInside) {
-        pointerStartY = pe.clientY;
-      }
-    };
-
-    const handlePointerMove = (e: Event) => {
-      const pe = e as PointerEvent;
-      if (pe.buttons === 0) return;
-      
-      const isInside = (pe.target as HTMLElement)?.closest('.journey-sheet');
-      if (!isInside) return;
-
-      const pointerY = pe.clientY;
-      const deltaY = pointerY - pointerStartY;
-      const isMinSnap = snap === `${minSnapPx}px` || snap === minSnapPx;
-      
-      if (isMinSnap && deltaY > 0) {
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        if (e.cancelable) e.preventDefault();
-      }
-    };
-
-    window.addEventListener('pointerdown', handlePointerDown, true);
-    window.addEventListener('pointermove', handlePointerMove, { capture: true, passive: false });
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown, true);
-      window.removeEventListener('pointermove', handlePointerMove, { capture: true } as any);
-    };
-  }, [snap, minSnapPx, isMobile]);
-
-  const isFirstSnapRender = useRef(true);
-
-  // 외부에서 snap 값이 변경되었을 때 바텀 시트 반영
-  useEffect(() => {
-    if (isFirstSnapRender.current) {
-      isFirstSnapRender.current = false;
-      return;
-    }
-    if (isMobile && sheetRef.current) {
-      const sheet = sheetRef.current;
-      // react-modal-sheet의 내부 layout 계산이 완료되었고, 유효한 snapIndex일 때만 즉시 호출
-      if (sheet.snapPoints && sheet.snapPoints.length > activeSnapIndex) {
-        sheet.snapTo(activeSnapIndex);
-      } else {
-        // 아직 준비되지 않았다면, 브라우저가 레이아웃을 완료하고 snapPoints를 계산하도록 약간의 지연 후에 재시도
-        const timer = setTimeout(() => {
-          const currentSheet = sheetRef.current;
-          if (currentSheet && currentSheet.snapPoints && currentSheet.snapPoints.length > activeSnapIndex) {
-            currentSheet.snapTo(activeSnapIndex);
-          }
-        }, 80);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [activeSnapIndex, isMobile]);
 
   const content = activeJourney ? (
     <ActiveJourneySidebar activeJourney={activeJourney} />
@@ -283,89 +236,43 @@ export default function JourneySidebar() {
     const minSnapPx = activeJourney ? 136 : 84;
     const defaultSnapPx = activeJourney ? 370 : 360;
 
-    // react-modal-sheet v5 requires ascending order starting with 0 and ending with 1
-    const snapPoints = [0, minSnapPx, defaultSnapPx, 1];
+    let currentSnapType: 'min' | 'default' | 'max' = 'default';
+    if (snap === minSnapPx || snap === `${minSnapPx}px`) currentSnapType = 'min';
+    else if (snap === 1 || snap === '1') currentSnapType = 'max';
+
+    const showFloatingCreateButton = !activeJourney && journeys.length > 0 && !isEditMode;
+
+    const handleCreateClick = () => {
+      if (!user) {
+        openAuthModal();
+        return;
+      }
+      openCreateForm();
+    };
 
     return (
       <>
-        <Sheet
-          ref={sheetRef}
-          isOpen={true}
-          className="journey-sheet"
-          style={{ zIndex: 30 }}
-          dragVelocityThreshold={300}
-          dragCloseThreshold={0.2}
-          onClose={() => {
-            // 방어 코드: 사용자가 0으로 닫으려 할 때 닫히지 않고 최소 높이로 유지
-            setTimeout(() => {
-              if (sheetRef.current && sheetRef.current.snapPoints && sheetRef.current.snapPoints.length > 1) {
-                sheetRef.current.snapTo(1);
-              }
-            }, 0);
-          }}
-          snapPoints={snapPoints}
-          initialSnap={activeSnapIndex} // defaultSnapPx
-          onSnap={(snapIndex) => {
-            if (snapIndex === 0) {
-              setTimeout(() => {
-                if (sheetRef.current && sheetRef.current.snapPoints && sheetRef.current.snapPoints.length > 1) {
-                  sheetRef.current.snapTo(1);
-                }
-              }, 0);
-              setSnap(`${minSnapPx}px`);
-            }
-            else if (snapIndex === 1) setSnap(`${minSnapPx}px`);
-            else if (snapIndex === 2) setSnap(`${defaultSnapPx}px`);
-            else if (snapIndex === 3) setSnap(1);
+        <CustomBottomSheet
+          isOpen={!focusedSegment && !alternativeSegment}
+          minHeight={minSnapPx}
+          defaultHeight={defaultSnapPx}
+          maxHeight={windowHeight}
+          initialSnap={currentSnapType}
+          zIndex={30}
+          onSnap={(snapName) => {
+            if (snapName === 'min') setSnap(`${minSnapPx}px`);
+            else if (snapName === 'default') setSnap(`${defaultSnapPx}px`);
+            else if (snapName === 'max') setSnap(1);
           }}
         >
-          <Sheet.Container
-            className="!rounded-t-[20px] !shadow-[0_-8px_30px_rgba(0,0,0,0.15)] !border-t !border-zinc-200 !bg-white"
-            style={{ zIndex: 20 }}
-          >
-            {/* Portal Target for Map Buttons */}
-            <div
-              id="mobile-map-buttons-target"
-              className={`absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] transition-all duration-300 ${activeSnapIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-none *:pointer-events-auto'
-                }`}
-            />
-            {content}
-          </Sheet.Container>
-        </Sheet>
-        
-        {/* 모바일 조건부 플로팅 '새 여정 만들기' 버튼 */}
-        {(() => {
-          const isMinSnap = isMobile && (
-            drawerSnapPoint === minSnapPx ||
-            drawerSnapPoint === `${minSnapPx}px`
-          );
-          const showFloatingCreateButton = isMobile && !activeJourney && journeys.length > 0 && !isEditMode;
-
-          if (!showFloatingCreateButton) return null;
-
-          const handleCreateClick = () => {
-            if (!user) {
-              openAuthModal();
-              return;
-            }
-            openCreateForm();
-          };
-
-          return (
-            <div className={`fixed bottom-5 left-4 right-4 z-[101] md:hidden transition-all duration-300 ${
-              isMinSnap ? 'opacity-0 pointer-events-none translate-y-[120px]' : 'opacity-100 translate-y-0'
-            }`}>
-              <button
-                type="button"
-                onClick={handleCreateClick}
-                className="w-full py-4 bg-zinc-950/90 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-xl transition-all cursor-pointer flex justify-center items-center gap-2 backdrop-blur-md border border-white/10"
-              >
-                <Plus className="w-4.5 h-4.5" strokeWidth={2.5} />
-                <span className="tracking-wide">새 여정 만들기</span>
-              </button>
-            </div>
-          );
-        })()}
+          <FloatingButtonsContainer />
+          <CreateJourneyFloatingButton 
+            show={showFloatingCreateButton} 
+            onClick={handleCreateClick} 
+            PlusIcon={Plus}
+          />
+          {content}
+        </CustomBottomSheet>
         
         <CreateJourneyModal />
         <AuthModal />

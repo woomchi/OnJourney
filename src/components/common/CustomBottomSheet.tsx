@@ -1,0 +1,166 @@
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { motion, useDragControls, useMotionValue } from 'framer-motion';
+
+export interface CustomBottomSheetProps {
+  isOpen: boolean;
+  minHeight: number;       // e.g. 210
+  defaultHeight: number;   // e.g. 360
+  maxHeight: number;       // e.g. 800 (usually window.innerHeight)
+  initialSnap?: 'min' | 'default' | 'max';
+  onSnap?: (snap: 'min' | 'default' | 'max') => void;
+  onClose?: () => void;
+  headerContent?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  zIndex?: number;
+  scrollRef?: React.Ref<HTMLDivElement>;
+}
+
+export const BottomSheetContext = createContext<{
+  y: any; // MotionValue<number>
+  minHeight: number;
+  defaultHeight: number;
+  maxHeight: number;
+  dragControls: any;
+} | null>(null);
+
+export const useOptionalBottomSheet = () => {
+  return useContext(BottomSheetContext);
+};
+
+export const useBottomSheet = () => {
+  const context = useContext(BottomSheetContext);
+  if (!context) {
+    throw new Error('useBottomSheet must be used within a CustomBottomSheet');
+  }
+  return context;
+};
+
+export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
+  isOpen,
+  minHeight,
+  defaultHeight,
+  maxHeight,
+  initialSnap = 'default',
+  onSnap,
+  onClose,
+  headerContent,
+  children,
+  className = '',
+  zIndex = 1000,
+  scrollRef,
+}) => {
+  const dragControls = useDragControls();
+  const y = useMotionValue(0);
+
+  // Initial target translation (negative values representing pull-up height)
+  const getTargetY = (snapType: 'min' | 'default' | 'max') => {
+    switch (snapType) {
+      case 'min': return -minHeight;
+      case 'max': return -maxHeight;
+      case 'default':
+      default:
+        return -defaultHeight;
+    }
+  };
+
+  const [activeSnapY, setActiveSnapY] = useState(isOpen ? getTargetY(initialSnap) : 0);
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveSnapY(getTargetY(initialSnap));
+    } else {
+      setActiveSnapY(0);
+      if (onClose) onClose();
+    }
+  }, [isOpen, minHeight, defaultHeight, maxHeight, initialSnap]);
+
+  const handleDragEnd = (event: any, info: any) => {
+    const currentY = y.get(); // Current dynamic translation value (negative)
+    const velocityY = info.velocity.y; // Swipe velocity (positive down, negative up)
+
+    const snapPoints = [
+      { y: -minHeight, name: 'min' as const },
+      { y: -defaultHeight, name: 'default' as const },
+      { y: -maxHeight, name: 'max' as const }
+    ];
+
+    const VELOCITY_THRESHOLD = 500;
+    let targetSnap = snapPoints[1]; // default
+
+    if (velocityY > VELOCITY_THRESHOLD) {
+      // Swiping down -> Snap to a lower (less pulled up, larger value) snap point
+      const belowPoints = snapPoints.filter(p => p.y > currentY);
+      targetSnap = belowPoints.length > 0 ? belowPoints[0] : snapPoints[0];
+    } else if (velocityY < -VELOCITY_THRESHOLD) {
+      // Swiping up -> Snap to a higher (more pulled up, smaller value) snap point
+      const abovePoints = snapPoints.filter(p => p.y < currentY);
+      targetSnap = abovePoints.length > 0 ? abovePoints[abovePoints.length - 1] : snapPoints[snapPoints.length - 1];
+    } else {
+      // Slow drag -> Snap to closest point
+      targetSnap = snapPoints.reduce((prev, curr) =>
+        Math.abs(curr.y - currentY) < Math.abs(prev.y - currentY) ? curr : prev
+      );
+    }
+
+    setActiveSnapY(targetSnap.y);
+    if (onSnap) onSnap(targetSnap.name);
+  };
+
+  return (
+    <BottomSheetContext.Provider value={{ y, minHeight, defaultHeight, maxHeight, dragControls }}>
+      <motion.div
+        drag="y"
+        dragControls={dragControls}
+        dragListener={false} // Only drag when explicitly starting from a handler
+        dragElastic={{ top: 0.1, bottom: 0 }} // Elastic on top, rigid hard-lock at bottom
+        dragConstraints={{
+          top: -maxHeight,
+          bottom: isOpen ? -minHeight : 0 // Prevents dragging below minHeight when open
+        }}
+        animate={{ y: activeSnapY }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        style={{
+          y,
+          position: 'fixed',
+          bottom: -maxHeight, // Positioned off-screen, pulled up by translation Y
+          left: 0,
+          right: 0,
+          height: maxHeight,
+          zIndex,
+          borderTopLeftRadius: '24px',
+          borderTopRightRadius: '24px',
+          boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.08)',
+          overflow: 'hidden',
+        }}
+        className={`bg-white flex flex-col pointer-events-auto ${className}`}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Global Common Drag Handle */}
+        <div
+          onPointerDown={(e) => dragControls.start(e)}
+          className="w-full flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white"
+        >
+          <div className="w-12 h-1.5 bg-zinc-300 rounded-full pointer-events-none" />
+        </div>
+
+        {headerContent && (
+          <div
+            onPointerDown={(e) => dragControls.start(e)}
+            className="w-full flex flex-col items-center cursor-grab active:cursor-grabbing select-none flex-shrink-0 bg-white"
+            style={{ touchAction: 'none' }}
+          >
+            {headerContent}
+          </div>
+        )}
+
+        <div
+          ref={scrollRef}
+          className="flex-1 w-full flex flex-col min-h-0"
+        >
+          {children}
+        </div>
+      </motion.div>
+    </BottomSheetContext.Provider>
+  );
+};

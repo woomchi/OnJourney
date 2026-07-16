@@ -5,7 +5,8 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import ScrollContainer from 'react-indiana-drag-scroll';
-import { Sheet, SheetRef } from 'react-modal-sheet';
+import { CustomBottomSheet, useBottomSheet } from '@/components/common/CustomBottomSheet';
+import { motion, useTransform } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -19,6 +20,21 @@ interface AlternativeRoutePanelProps {
   isOpen?: boolean;
   onExited?: () => void;
 }
+
+const FloatingButtonsContainer = ({ altHeight }: { altHeight: number }) => {
+  const { y, maxHeight } = useBottomSheet();
+  const opacity = useTransform(y, [-altHeight, -maxHeight + 100], [1, 0]);
+  // Use a transform to dynamically disable pointer events when hidden
+  const pointerEvents = useTransform(y, (latest: number) => latest < -altHeight - 100 ? 'none' : 'auto');
+  
+  return (
+    <motion.div 
+      id="mobile-map-buttons-target-route"
+      className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] *:pointer-events-auto"
+      style={{ opacity, pointerEvents: pointerEvents as any }}
+    />
+  );
+};
 
 export default function AlternativeRoutePanel({
   originPlace,
@@ -38,7 +54,7 @@ export default function AlternativeRoutePanel({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   const isMobile = useMediaQuery('(max-width: 767px)');
-  const sheetRef = useRef<SheetRef>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const {
     activeJourney,
     selectSegmentRoute,
@@ -49,7 +65,7 @@ export default function AlternativeRoutePanel({
   } = useJourneyStore();
 
   const [snap, setSnap] = useState<number | string | null>('40vh');
-  const Scroller = isMobile ? Sheet.Content : 'div';
+  const Scroller = 'div';
 
   const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
 
@@ -64,46 +80,7 @@ export default function AlternativeRoutePanel({
     ? `${snapPx - 26 - headerHeight}px`
     : '100%';
 
-  // 최하단 스냅 포인트 상태에서 아래로 쓸어내리는 드래그 제스처를 윈도우 포인터 캡처링 단계에서 원천 차단(Hard Lock)
-  useEffect(() => {
-    if (!isMobile) return;
 
-    let pointerStartY = 0;
-
-    const handlePointerDown = (e: Event) => {
-      const pe = e as PointerEvent;
-      const isInside = (pe.target as HTMLElement)?.closest('.alternative-route-sheet');
-      if (isInside) {
-        pointerStartY = pe.clientY;
-      }
-    };
-
-    const handlePointerMove = (e: Event) => {
-      const pe = e as PointerEvent;
-      if (pe.buttons === 0) return;
-      
-      const isInside = (pe.target as HTMLElement)?.closest('.alternative-route-sheet');
-      if (!isInside) return;
-
-      const pointerY = pe.clientY;
-      const deltaY = pointerY - pointerStartY;
-      const isMinSnap = snap === '40vh' || snap === 0.4;
-      
-      if (isMinSnap && deltaY > 0) {
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        if (e.cancelable) e.preventDefault();
-      }
-    };
-
-    window.addEventListener('pointerdown', handlePointerDown, true);
-    window.addEventListener('pointermove', handlePointerMove, { capture: true, passive: false });
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown, true);
-      window.removeEventListener('pointermove', handlePointerMove, { capture: true } as any);
-    };
-  }, [snap, isMobile]);
 
   useEffect(() => {
     if (isOpen) {
@@ -526,7 +503,7 @@ export default function AlternativeRoutePanel({
     </>
   );
 
-  const listProps = isMobile ? { disableDrag: snap !== 1 && snap !== '1' } : {};
+  const listProps = {};
 
   const listContent = (
     <Scroller 
@@ -571,43 +548,35 @@ export default function AlternativeRoutePanel({
   );
 
   if (isMobile) {
+    let currentSnapType: 'min' | 'default' | 'max' = 'default';
+    if (snap === '40vh' || snap === 0.4) currentSnapType = 'default';
+    else if (snap === 1 || snap === '1') currentSnapType = 'max';
+
+    const altHeight = windowHeight * 0.4;
+
     return (
-      <Sheet
-        ref={sheetRef}
+      <CustomBottomSheet
         isOpen={isOpen}
-        className="alternative-route-sheet"
-        style={{ zIndex: 45 }}
+        minHeight={altHeight}
+        defaultHeight={altHeight}
+        maxHeight={windowHeight}
+        initialSnap={currentSnapType}
+        zIndex={45}
+        onSnap={(snapName) => {
+          if (snapName === 'min' || snapName === 'default') setSnap('40vh');
+          else if (snapName === 'max') setSnap(1);
+        }}
         onClose={() => {
-          setTimeout(() => {
-            if (sheetRef.current) sheetRef.current.snapTo(1);
-          }, 0);
+          onClose();
         }}
-        snapPoints={[0, 0.4, 1]}
-        initialSnap={1}
-        onSnap={(index) => {
-          if (index === 0) {
-            setTimeout(() => {
-              if (sheetRef.current) sheetRef.current.snapTo(1);
-            }, 0);
-            setSnap('40vh');
-          }
-          else if (index === 1) setSnap('40vh');
-          else if (index === 2) setSnap(1);
-        }}
+        headerContent={headerContent}
+        scrollRef={scrollContainerRef as React.MutableRefObject<any>}
       >
-        <Sheet.Container 
-          className="!rounded-t-[20px] !shadow-[0_-8px_30px_rgba(0,0,0,0.15)] !border-t !border-zinc-200 !bg-white"
-          style={{ zIndex: 45 }}
-        >
-          <Sheet.Header className="flex flex-col flex-shrink-0">
-            <div className="pt-3 pb-2 flex justify-center w-full">
-              <div className="w-12 h-1.5 rounded-full bg-zinc-300 pointer-events-none" />
-            </div>
-            {headerContent}
-          </Sheet.Header>
+        <FloatingButtonsContainer altHeight={altHeight} />
+        <div className="flex flex-col relative w-full h-full pb-20 bg-white" style={{ minHeight: contentMaxHeight }}>
           {listContent}
-        </Sheet.Container>
-      </Sheet>
+        </div>
+      </CustomBottomSheet>
     );
   }
 

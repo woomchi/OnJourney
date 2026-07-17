@@ -354,7 +354,7 @@ export default function PlaceList({
       onWheel={handleWheel}
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative bg-zinc-50"
-      style={{ paddingBottom: isMobile ? '5.5rem' : '1.5rem' }}
+      style={{ paddingBottom: isMobile ? '4.125rem' : '1.5rem' }}
     >
       <ul className="flex flex-col px-2">
         <DndContext

@@ -175,7 +175,6 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
           borderTopLeftRadius: '24px',
           borderTopRightRadius: '24px',
           boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.08)',
-          overflow: 'hidden',
         }}
         className={`bg-white flex flex-col pointer-events-auto ${className}`}
         onDragEnd={handleDragEnd}
@@ -183,7 +182,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         {/* Global Common Drag Handle */}
         <div
           onPointerDown={(e) => dragControls.start(e)}
-          className="w-full flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white"
+          className="w-full flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white rounded-t-[24px]"
         >
           <div className="w-12 h-1.5 bg-zinc-300 rounded-full pointer-events-none" />
         </div>

@@ -186,10 +186,10 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     ? `${snapPx - 26 - headerHeight}px`
     : '100%';
 
-  // 스크롤러 스타일 정의 (모바일일 때 하단 absolute 플로팅 바 영역 확보를 위해 padding-bottom을 5.5rem으로 확장)
+  // 스크롤러 스타일 정의 (모바일일 때 하단 absolute 플로팅 바 영역 확보를 위해 padding-bottom을 4.125rem으로 확장)
   const scrollerStyle = {
     maxHeight: contentMaxHeight,
-    paddingBottom: isMobile ? '5.5rem' : '1.5rem'
+    paddingBottom: isMobile ? '4.125rem' : '1.5rem'
   };
 
   // 제스처 감지용 Ref

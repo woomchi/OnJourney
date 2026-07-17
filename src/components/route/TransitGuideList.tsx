@@ -31,7 +31,7 @@ export default function TransitGuideList({
   };
 
   return (
-    <div className="relative pl-1 flex flex-col gap-6">
+    <div className="relative pl-1 flex flex-col gap-5">
       {/* 세로 연결선 */}
       <div className="absolute left-[24.5px] top-4 bottom-4 w-[3px] bg-zinc-100" />
 
@@ -144,93 +144,119 @@ export default function TransitGuideList({
                    displayEndName = idx === steps.length - 1 ? destPlace.place_name : (steps[idx + 1]?.startName || steps[idx + 1]?.name || '도착지');
                 }
 
+                const hasStations = step.passStopList && step.passStopList.stationList && step.passStopList.stationList.length > 0;
+                const isExpanded = expandedSteps.includes(idx);
+
                 return (
-                <div className="mt-1.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none" onClick={(e) => e.stopPropagation()}>
-                  {displayStartName && (
-                    <div
-                      onClick={(e) => handleZoomToPoint(idx, step, 'start', e)}
-                      className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
-                        isStartFocused
-                          ? 'bg-blue-100/70 ring-1 ring-blue-300 shadow-sm scale-[1.01]'
-                          : 'hover:bg-blue-50/70'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                        <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isStartFocused ? 'text-blue-600' : 'text-zinc-400'}`}>{startLabel}</span>
-                        <span className={`truncate transition-colors ${isStartFocused ? 'text-blue-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{displayStartName}</span>
+                  <div className="mt-1.5 p-1 rounded-2xl bg-zinc-50/50 border border-zinc-100 flex flex-col gap-0.5 select-none" onClick={(e) => e.stopPropagation()}>
+                    {/* 1. 승차 / 출발 */}
+                    {displayStartName && (
+                      <div
+                        onClick={(e) => handleZoomToPoint(idx, step, 'start', e)}
+                        className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
+                          isStartFocused
+                            ? 'bg-blue-100/70 ring-1 ring-blue-300 shadow-sm scale-[1.01]'
+                            : 'hover:bg-blue-50/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                          <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isStartFocused ? 'text-blue-600' : 'text-zinc-400'}`}>{startLabel}</span>
+                          <span className={`truncate transition-colors ${isStartFocused ? 'text-blue-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{displayStartName}</span>
+                        </div>
+                        <div className={`flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center ${isStartFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
+                          </svg>
+                        </div>
                       </div>
-                      <div className={`flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center ${isStartFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
-                        </svg>
+                    )}
+
+                    {/* 2. 중간 연결 영역 */}
+                    {hasStations ? (
+                      <>
+                        {/* 연결선 1 */}
+                        {displayStartName && (
+                          <div className="w-px h-2 bg-zinc-200 ml-[13px]" />
+                        )}
+                        
+                        {/* 정류장 이동 아코디언 */}
+                        <div className="flex flex-col select-none">
+                          <div className="flex items-center justify-between gap-1.5 px-2 py-1 text-xs text-zinc-500 font-semibold rounded-xl hover:bg-zinc-100/50 transition-all duration-200">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 flex-shrink-0 ml-[4px]" />
+                              <span className="truncate text-[11px] font-bold text-zinc-500">
+                                {step.passStopList?.stationList?.length}개 정류장 이동
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => toggleAccordion(idx, e)}
+                              className="p-1 rounded-md hover:bg-zinc-200 text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer flex-shrink-0"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="mt-1 mb-1 pl-4.5 border-l border-dashed border-zinc-200 flex flex-col gap-1.5 animate-in slide-in-from-top-1 fade-in duration-200 ml-[13px] mr-2">
+                              {step.passStopList?.stationList?.map((station: any, sIdx: number) => (
+                                <div key={sIdx} className="text-[10px] text-zinc-400 truncate">
+                                  {station.stationName}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 연결선 2 */}
+                        {displayEndName && (
+                          <div className="w-px h-2 bg-zinc-200 ml-[13px]" />
+                        )}
+                      </>
+                    ) : (
+                      /* 정거장 정보가 없으면 일반 솔리드 연결선만 적절한 높이로 노출하여 출발/도착 비율을 맞춤 */
+                      displayStartName && displayEndName && (
+                        <div className="w-px h-4.5 bg-zinc-200 ml-[13px] my-0.5" />
+                      )
+                    )}
+
+                    {/* 5. 하차 / 도착 */}
+                    {displayEndName && (
+                      <div
+                        onClick={(e) => handleZoomToPoint(idx, step, 'end', e)}
+                        className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
+                          isEndFocused
+                            ? 'bg-rose-100/70 ring-1 ring-rose-300 shadow-sm scale-[1.01]'
+                            : 'hover:bg-rose-50/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
+                          <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isEndFocused ? 'text-rose-600' : 'text-zinc-400'}`}>{endLabel}</span>
+                          <span className={`truncate transition-colors ${isEndFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{displayEndName}</span>
+                        </div>
+                        <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isEndFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
+                          </svg>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {displayStartName && displayEndName && (
-                    <div className="w-px h-2 bg-zinc-200 ml-[13px]" />
-                  )}
-                  {displayEndName && (
-                    <div
-                      onClick={(e) => handleZoomToPoint(idx, step, 'end', e)}
-                      className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
-                        isEndFocused
-                          ? 'bg-rose-100/70 ring-1 ring-rose-300 shadow-sm scale-[1.01]'
-                          : 'hover:bg-rose-50/70'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                        <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isEndFocused ? 'text-rose-600' : 'text-zinc-400'}`}>{endLabel}</span>
-                        <span className={`truncate transition-colors ${isEndFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-rose-700'}`}>{displayEndName}</span>
-                      </div>
-                      <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isEndFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
                 );
               })()}
-
-              {/* 경유 정류장 아코디언 UI */}
-              {step.passStopList && step.passStopList.stationList && step.passStopList.stationList.length > 0 && (
-                <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={(e) => toggleAccordion(idx, e)}
-                    className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 font-medium transition-colors"
-                  >
-                    <span>{step.passStopList.stationList.length}개 정류장 이동</span>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                        expandedSteps.includes(idx) ? 'rotate-180' : ''
-                      }`}
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </button>
-
-                  {expandedSteps.includes(idx) && (
-                    <div className="mt-2 pl-3 border-l-2 border-zinc-100 flex flex-col gap-1.5 animate-in slide-in-from-top-1 fade-in duration-200">
-                      {step.passStopList.stationList.map((station: any, sIdx: number) => (
-                        <div key={sIdx} className="text-[11px] text-zinc-400 truncate">
-                          {station.stationName}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* 예약 링크 추가 */}
               {(step.type === 'train' || step.type === 'expressbus') && (

@@ -201,6 +201,21 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     startedAtBottom: false
   });
 
+  const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    const target = scrollRef.current || e.currentTarget;
+    const maxScroll = target.scrollHeight - target.clientHeight;
+    const isScrollable = maxScroll > 5;
+
+    if (!isScrollable && bottomSheet) {
+      const isDragHandle = (e.target as HTMLElement).closest('.drag-handle');
+      const isButton = (e.target as HTMLElement).closest('button');
+      const isInput = (e.target as HTMLElement).closest('input, textarea, select');
+      if (!isDragHandle && !isButton && !isInput) {
+        bottomSheet.dragControls.start(e);
+      }
+    }
+  };
+
   const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
     const target = scrollRef.current || e.currentTarget;
     touchStartRef.current = {
@@ -235,7 +250,8 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
 
     if (didNotScroll) {
-      const minSnap = activeJourney ? '136px' : '84px';
+      const minSnap = activeJourney ? '133px' : '62px';
+      const defaultSnap = activeJourney ? '370px' : '360px';
 
       let currentSnap: 'min' | 'default' | 'max' = 'default';
       if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
@@ -244,8 +260,20 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
         currentSnap = 'max';
       }
 
-      // 최대/최소 높이 상태(벽)에서는 리스트 스크롤 제스처를 통한 크기 변경 비활성화
-      if (currentSnap !== 'default') {
+      if (currentSnap === 'max') {
+        if (isAtTopAtStart && deltaY > 20) {
+          // 최대 높이 상태에서 리스트 최상단일 때 아래로 스와이프하면 기본 높이로 축소
+          setDrawerSnapPoint(defaultSnap);
+        }
+        touchStartRef.current = null;
+        return;
+      }
+
+      if (currentSnap === 'min') {
+        if (deltaY < -20) {
+          // 최소 높이 상태에서 위로 스와이프하면 기본 높이로 확장
+          setDrawerSnapPoint(defaultSnap);
+        }
         touchStartRef.current = null;
         return;
       }
@@ -283,7 +311,8 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     }
     wheelAccumulator.current.lastTime = now;
 
-    const minSnap = activeJourney ? '136px' : '84px';
+    const minSnap = activeJourney ? '133px' : '62px';
+    const defaultSnap = activeJourney ? '370px' : '360px';
 
     let currentSnap: 'min' | 'default' | 'max' = 'default';
     if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
@@ -292,9 +321,29 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
       currentSnap = 'max';
     }
 
-    // 최대/최소 높이 상태(벽)에서는 리스트 스크롤 제스처를 통한 크기 변경 비활성화
-    if (currentSnap !== 'default') {
-      wheelAccumulator.current.delta = 0;
+    if (currentSnap === 'max') {
+      if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
+        wheelAccumulator.current.delta += e.deltaY;
+        if (wheelAccumulator.current.delta < -70) {
+          setDrawerSnapPoint(defaultSnap);
+          wheelAccumulator.current.delta = 0;
+        }
+      } else {
+        wheelAccumulator.current.delta = 0;
+      }
+      return;
+    }
+
+    if (currentSnap === 'min') {
+      if (e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
+        wheelAccumulator.current.delta += e.deltaY;
+        if (wheelAccumulator.current.delta > 70) {
+          setDrawerSnapPoint(defaultSnap);
+          wheelAccumulator.current.delta = 0;
+        }
+      } else {
+        wheelAccumulator.current.delta = 0;
+      }
       return;
     }
 
@@ -508,11 +557,12 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
       ) : journeys.length > 0 ? (
         <Scroller 
           {...scrollerProps}
+          onPointerDown={handlePointerDown}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onWheel={handleWheel}
-          className={`flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar scroll-pt-1.5 scroll-pb-6 overscroll-none ${
+          className={`flex-1 flex flex-col items-stretch gap-3 px-4 pt-1.5 pb-28 md:pb-6 bg-gradient-to-b from-transparent to-zinc-50/50 overflow-y-auto select-none scrollbar-sidebar scroll-pt-1.5 scroll-pb-28 md:scroll-pb-6 overscroll-none ${
             !isDrawerMaximized && !isMobile ? 'snap-y snap-mandatory' : ''
           }`}
           style={scrollerStyle}
@@ -545,6 +595,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
       ) : (
         <Scroller 
           {...scrollerProps}
+          onPointerDown={handlePointerDown}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}

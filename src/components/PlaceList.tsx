@@ -6,6 +6,7 @@ import PlaceCard from './places/PlaceCard';
 import { MapPin, Plus } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import React from 'react';
+import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import {
   DndContext,
   closestCenter,
@@ -55,6 +56,7 @@ export default function PlaceList({
   } = useJourneyStore();
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const bottomSheet = useOptionalBottomSheet();
 
   // 제스처 감지용 Ref
   const touchStartRef = React.useRef<{ y: number; scrollTop: number } | null>(null);
@@ -64,6 +66,21 @@ export default function PlaceList({
     startedAtTop: false,
     startedAtBottom: false
   });
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    const target = scrollRef.current || e.currentTarget;
+    const maxScroll = target.scrollHeight - target.clientHeight;
+    const isScrollable = maxScroll > 5;
+
+    if (!isScrollable && bottomSheet) {
+      const isDragHandle = (e.target as HTMLElement).closest('.drag-handle');
+      const isButton = (e.target as HTMLElement).closest('button');
+      const isInput = (e.target as HTMLElement).closest('input, textarea, select');
+      if (!isDragHandle && !isButton && !isInput) {
+        bottomSheet.dragControls.start(e);
+      }
+    }
+  };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
     const target = scrollRef.current || e.currentTarget;
@@ -100,7 +117,8 @@ export default function PlaceList({
     const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
 
     if (didNotScroll) {
-      const minSnap = activeJourney ? '136px' : '84px';
+      const minSnap = activeJourney ? '133px' : '62px';
+      const defaultSnap = activeJourney ? '370px' : '360px';
 
       let currentSnap: 'min' | 'default' | 'max' = 'default';
       if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
@@ -109,8 +127,20 @@ export default function PlaceList({
         currentSnap = 'max';
       }
 
-      // 최대/최소 높이 상태(벽)에서는 리스트 스크롤 제스처를 통한 크기 변경 비활성화
-      if (currentSnap !== 'default') {
+      if (currentSnap === 'max') {
+        if (isAtTopAtStart && deltaY > 20) {
+          // 최대 높이 상태에서 리스트 최상단일 때 아래로 스와이프하면 기본 높이로 축소
+          setDrawerSnapPoint(defaultSnap);
+        }
+        touchStartRef.current = null;
+        return;
+      }
+
+      if (currentSnap === 'min') {
+        if (deltaY < -20) {
+          // 최소 높이 상태에서 위로 스와이프하면 기본 높이로 확장
+          setDrawerSnapPoint(defaultSnap);
+        }
         touchStartRef.current = null;
         return;
       }
@@ -150,7 +180,8 @@ export default function PlaceList({
     }
     wheelAccumulator.current.lastTime = now;
 
-    const minSnap = activeJourney ? '136px' : '84px';
+    const minSnap = activeJourney ? '133px' : '62px';
+    const defaultSnap = activeJourney ? '370px' : '360px';
 
     let currentSnap: 'min' | 'default' | 'max' = 'default';
     if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
@@ -159,9 +190,29 @@ export default function PlaceList({
       currentSnap = 'max';
     }
 
-    // 최대/최소 높이 상태(벽)에서는 리스트 스크롤 제스처를 통한 크기 변경 비활성화
-    if (currentSnap !== 'default') {
-      wheelAccumulator.current.delta = 0;
+    if (currentSnap === 'max') {
+      if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
+        wheelAccumulator.current.delta += e.deltaY;
+        if (wheelAccumulator.current.delta < -70) {
+          setDrawerSnapPoint(defaultSnap);
+          wheelAccumulator.current.delta = 0;
+        }
+      } else {
+        wheelAccumulator.current.delta = 0;
+      }
+      return;
+    }
+
+    if (currentSnap === 'min') {
+      if (e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
+        wheelAccumulator.current.delta += e.deltaY;
+        if (wheelAccumulator.current.delta > 70) {
+          setDrawerSnapPoint(defaultSnap);
+          wheelAccumulator.current.delta = 0;
+        }
+      } else {
+        wheelAccumulator.current.delta = 0;
+      }
       return;
     }
 
@@ -204,6 +255,7 @@ export default function PlaceList({
   if (!activeJourney || activeJourney.places.length === 0) {
     return (
       <div
+        onPointerDown={handlePointerDown}
         className="flex flex-col items-center justify-center text-center py-12 px-6 flex-1 overflow-y-auto"
       >
         <div className="w-20 h-20 mb-5 rounded-3xl bg-blue-50 flex items-center justify-center shadow-inner">
@@ -240,6 +292,7 @@ export default function PlaceList({
   return (
     <div
       ref={scrollRef}
+      onPointerDown={handlePointerDown}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

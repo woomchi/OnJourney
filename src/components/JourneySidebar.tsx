@@ -31,15 +31,34 @@ const FloatingButtonsContainer = () => {
 const CreateJourneyFloatingButton = ({ show, onClick, PlusIcon }: { show: boolean, onClick: () => void, PlusIcon: any }) => {
   const { y, minHeight } = useBottomSheet();
   const opacity = useTransform(y, [-minHeight - 20, -minHeight - 100], [0, 1]);
-  const translateY = useTransform(y, [-minHeight - 20, -minHeight - 100], [120, 0]);
   const pointerEvents = useTransform(y, (latest: number) => latest > -minHeight - 50 ? 'none' : 'auto');
+
+  const buttonY = useTransform(y, (latest: number) => {
+    const visibleHeight = -latest;
+    const basePosition = visibleHeight - 76; // 56px height + 20px padding from the bottom
+
+    const animationRangeStart = -minHeight - 20;
+    const animationRangeEnd = -minHeight - 100;
+
+    let slideOffset = 0;
+    if (latest >= animationRangeStart) {
+      slideOffset = 120;
+    } else if (latest <= animationRangeEnd) {
+      slideOffset = 0;
+    } else {
+      const t = (latest - animationRangeStart) / (animationRangeEnd - animationRangeStart);
+      slideOffset = 120 * (1 - t);
+    }
+
+    return basePosition + slideOffset;
+  });
 
   if (!show) return null;
 
   return (
     <motion.div 
-      className="fixed bottom-5 left-4 right-4 z-[101] md:hidden"
-      style={{ opacity, y: translateY, pointerEvents: pointerEvents as any }}
+      className="absolute top-0 left-4 right-4 z-[101] md:hidden"
+      style={{ opacity, y: buttonY, pointerEvents: pointerEvents as any }}
     >
       <button
         type="button"
@@ -93,10 +112,10 @@ export default function JourneySidebar() {
   useEffect(() => {
     if (activeJourney) {
       if (snap === '360px') setSnap('370px');
-      else if (snap === '84px') setSnap('136px');
+      else if (snap === '62px') setSnap('133px');
     } else {
       if (snap === '370px') setSnap('360px');
-      else if (snap === '136px') setSnap('84px');
+      else if (snap === '133px') setSnap('62px');
     }
   }, [activeJourney, snap]);
 
@@ -181,7 +200,7 @@ export default function JourneySidebar() {
 
   const isLoading = authLoading || isJourneysLoading;
 
-  const minSnapPx = activeJourney ? 136 : 84;
+  const minSnapPx = activeJourney ? 133 : 62;
   const defaultSnapPx = activeJourney ? 370 : 360;
 
 
@@ -233,7 +252,7 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    const minSnapPx = activeJourney ? 136 : 84;
+    const minSnapPx = activeJourney ? 133 : 62;
     const defaultSnapPx = activeJourney ? 370 : 360;
 
     let currentSnapType: 'min' | 'default' | 'max' = 'default';
@@ -266,12 +285,12 @@ export default function JourneySidebar() {
           }}
         >
           <FloatingButtonsContainer />
+          {content}
           <CreateJourneyFloatingButton 
             show={showFloatingCreateButton} 
             onClick={handleCreateClick} 
             PlusIcon={Plus}
           />
-          {content}
         </CustomBottomSheet>
         
         <CreateJourneyModal />

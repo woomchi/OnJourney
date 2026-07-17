@@ -14,9 +14,10 @@ import SidebarBottomActions from './SidebarBottomActions';
 
 interface ActiveJourneySidebarProps {
   activeJourney: Journey;
+  scrollProgress?: any; // MotionValue<number>
 }
 
-export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySidebarProps) {
+export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: ActiveJourneySidebarProps) {
   const {
     reorderPlaces,
     isEditMode,
@@ -48,7 +49,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
   const headerHeight = isEditMode ? 76 : 126;
 
   const contentMaxHeight = isMobile && snapPx > 0
-    ? `${snapPx - 26 - headerHeight}px`
+    ? `${Math.max(0, snapPx - 26 - headerHeight)}px`
     : '100%';
 
   const { confirm, alert } = useDialog();
@@ -135,6 +136,7 @@ export default function ActiveJourneySidebar({ activeJourney }: ActiveJourneySid
           }}
           localPlaces={localPlaces}
           setLocalPlaces={setLocalPlaces}
+          scrollProgress={scrollProgress}
         >
           {!isSearchMode && (
             <SidebarBottomActions

@@ -202,6 +202,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
   });
 
   const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (isListEditMode) return;
     const target = scrollRef.current || e.currentTarget;
     const maxScroll = target.scrollHeight - target.clientHeight;
     const isScrollable = maxScroll > 5;
@@ -232,6 +233,10 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
+    if (isListEditMode) {
+      touchStartRef.current = null;
+      return;
+    }
     if (!touchStartRef.current) return;
 
     const target = scrollRef.current || e.currentTarget;
@@ -293,6 +298,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLElement>) => {
+    if (isListEditMode) return;
     const target = scrollRef.current || e.currentTarget;
     const now = Date.now();
 

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
 import { CustomBottomSheet, useBottomSheet } from '@/components/common/CustomBottomSheet';
-import { motion, useTransform } from 'framer-motion';
+import { motion, useTransform, useMotionValue } from 'framer-motion';
 import CreateJourneyModal from '@/components/CreateJourneyModal';
 import ActiveJourneySidebar from '@/components/sidebar/ActiveJourneySidebar';
 import JourneyListSidebar from '@/components/sidebar/JourneyListSidebar';
@@ -72,8 +72,77 @@ const CreateJourneyFloatingButton = ({ show, onClick, PlusIcon }: { show: boolea
   );
 };
 
+const AddPlaceFloatingButton = ({ show, scrollProgress, currentSnapType, onClick, PlusIcon }: { show: boolean, scrollProgress: any, currentSnapType: 'min' | 'default' | 'max', onClick: () => void, PlusIcon: any }) => {
+  const { y, minHeight } = useBottomSheet();
+  const opacity = useTransform(y, [-minHeight - 20, -minHeight - 100], [0, 1]);
+  const pointerEvents = useTransform(y, (latest: number) => latest > -minHeight - 50 ? 'none' : 'auto');
+
+  const buttonY = useTransform(y, (latest: number) => {
+    const visibleHeight = -latest;
+    const basePosition = visibleHeight - 76; // 56px height + 20px padding from the bottom
+
+    const animationRangeStart = -minHeight - 20;
+    const animationRangeEnd = -minHeight - 100;
+
+    let slideOffset = 0;
+    if (latest >= animationRangeStart) {
+      slideOffset = 120;
+    } else if (latest <= animationRangeEnd) {
+      slideOffset = 0;
+    } else {
+      const t = (latest - animationRangeStart) / (animationRangeEnd - animationRangeStart);
+      slideOffset = 120 * (1 - t);
+    }
+
+    return basePosition + slideOffset;
+  });
+
+  // scrollProgress (MotionValue) 로부터 실시간 투명도 및 Y좌표 계산
+  // - default: 스크롤 진행도 (scrollProgress)
+  // - max: 항상 1 (완전 노출)
+  // - min: 항상 0 (완전 숨김)
+  const scrollOpacity = useTransform(scrollProgress, (latest: number) => {
+    if (currentSnapType === 'max') return 1;
+    if (currentSnapType === 'min') return 0;
+    return latest;
+  });
+
+  const scrollTranslateY = useTransform(scrollProgress, (latest: number) => {
+    if (currentSnapType === 'max') return 0;
+    if (currentSnapType === 'min') return 120;
+    return 120 * (1 - latest);
+  });
+
+  if (!show) return null;
+
+  return (
+    <motion.div 
+      className="absolute top-0 left-4 right-4 z-[101] md:hidden"
+      style={{ opacity, y: buttonY, pointerEvents: pointerEvents as any }}
+    >
+      <motion.div
+        style={{
+          opacity: scrollOpacity,
+          y: scrollTranslateY,
+        }}
+        className="w-full h-full"
+      >
+        <button
+          type="button"
+          onClick={onClick}
+          className="w-full py-4 bg-zinc-950/90 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-xl transition-all cursor-pointer flex justify-center items-center gap-2 backdrop-blur-md border border-white/10"
+        >
+          <PlusIcon className="w-4.5 h-4.5" strokeWidth={2.5} />
+          <span className="tracking-wide">장소 추가</span>
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 export default function JourneySidebar() {
   const { user, loading: authLoading, openAuthModal } = useAuth();
+  const scrollProgress = useMotionValue(1); // 1: 최하단, 0: 최하단 아님 (React 리렌더링 병목 제거용 MotionValue)
   const {
     setJourneys,
     activeJourney,
@@ -86,6 +155,12 @@ export default function JourneySidebar() {
     isEditMode,
     openCreateForm,
     journeys,
+    isSearchMode,
+    openSearchMode,
+    setFocusedStep,
+    setFocusedSegment,
+    setAlternativeSegment,
+    setFocusBounds,
   } = useJourneyStore();
   const [mounted, setMounted] = useState(false);
   const isMobile = useMediaQuery('(max-width: 767px)');
@@ -206,7 +281,7 @@ export default function JourneySidebar() {
 
 
   const content = activeJourney ? (
-    <ActiveJourneySidebar activeJourney={activeJourney} />
+    <ActiveJourneySidebar activeJourney={activeJourney} scrollProgress={scrollProgress} />
   ) : (
     <JourneyListSidebar isLoading={isLoading} />
   );
@@ -260,6 +335,8 @@ export default function JourneySidebar() {
     else if (snap === 1 || snap === '1') currentSnapType = 'max';
 
     const showFloatingCreateButton = !activeJourney && journeys.length > 0 && !isEditMode;
+    const showFloatingAddPlaceButton = !!activeJourney && !isEditMode && !isSearchMode;
+    const isDefaultSnap = snap === defaultSnapPx || snap === `${defaultSnapPx}px`;
 
     const handleCreateClick = () => {
       if (!user) {
@@ -267,6 +344,14 @@ export default function JourneySidebar() {
         return;
       }
       openCreateForm();
+    };
+
+    const handleAddPlaceClick = () => {
+      setFocusedStep(null);
+      setFocusedSegment(null);
+      setAlternativeSegment(null);
+      setFocusBounds(null);
+      openSearchMode();
     };
 
     return (
@@ -289,6 +374,13 @@ export default function JourneySidebar() {
           <CreateJourneyFloatingButton 
             show={showFloatingCreateButton} 
             onClick={handleCreateClick} 
+            PlusIcon={Plus}
+          />
+          <AddPlaceFloatingButton
+            show={showFloatingAddPlaceButton}
+            scrollProgress={scrollProgress}
+            currentSnapType={currentSnapType}
+            onClick={handleAddPlaceClick}
             PlusIcon={Plus}
           />
         </CustomBottomSheet>

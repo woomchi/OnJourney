@@ -5,7 +5,7 @@ import type { Place } from '@/types/journey';
 import PlaceCard from './places/PlaceCard';
 import { MapPin, Plus } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import {
   DndContext,
@@ -32,6 +32,7 @@ interface PlaceListProps {
   localPlaces: Place[];
   setLocalPlaces: React.Dispatch<React.SetStateAction<Place[]>>;
   children?: React.ReactNode;
+  scrollProgress?: any; // MotionValue<number>
 }
 
 export default function PlaceList({
@@ -41,6 +42,7 @@ export default function PlaceList({
   localPlaces,
   setLocalPlaces,
   children,
+  scrollProgress,
 }: PlaceListProps) {
   const {
     activeJourney,
@@ -52,11 +54,64 @@ export default function PlaceList({
     setFocusedSegment,
     setAlternativeSegment,
     setFocusBounds,
-    setDrawerSnapPoint
+    setDrawerSnapPoint,
   } = useJourneyStore();
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const bottomSheet = useOptionalBottomSheet();
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!scrollProgress) return;
+    const target = e.currentTarget;
+    const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+    let progress = 0;
+    if (target.scrollHeight <= target.clientHeight) {
+      progress = 1;
+    } else if (remaining <= 0) {
+      progress = 1;
+    } else if (remaining >= 40) {
+      progress = 0;
+    } else {
+      progress = (40 - remaining) / 40;
+    }
+
+    const nextProgress = Math.round(progress * 100) / 100;
+    if (scrollProgress.get() !== nextProgress) {
+      scrollProgress.set(nextProgress);
+    }
+  };
+
+  useEffect(() => {
+    const checkScroll = () => {
+      if (scrollRef.current && scrollProgress) {
+        const target = scrollRef.current;
+        const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+        let progress = 0;
+        if (target.scrollHeight <= target.clientHeight) {
+          progress = 1;
+        } else if (remaining <= 0) {
+          progress = 1;
+        } else if (remaining >= 40) {
+          progress = 0;
+        } else {
+          progress = (40 - remaining) / 40;
+        }
+
+        const nextProgress = Math.round(progress * 100) / 100;
+        scrollProgress.set(nextProgress);
+      }
+    };
+
+    checkScroll();
+    
+    const timer = setTimeout(checkScroll, 100);
+
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [localPlaces, drawerSnapPoint, scrollProgress]);
 
   // 제스처 감지용 Ref
   const touchStartRef = React.useRef<{ y: number; scrollTop: number } | null>(null);
@@ -297,8 +352,9 @@ export default function PlaceList({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onWheel={handleWheel}
+      onScroll={handleScroll}
       className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative bg-zinc-50"
-      style={{ paddingBottom: '0.5rem' }}
+      style={{ paddingBottom: isMobile ? '5.5rem' : '1.5rem' }}
     >
       <ul className="flex flex-col px-2">
         <DndContext
@@ -327,31 +383,28 @@ export default function PlaceList({
           </SortableContext>
         </DndContext>
 
-        {/* 장소 추가 버튼 (이동 카드 위치에 렌더링) */}
-        {!editMode && !isSearchMode && (
-          <li className="relative pl-11 pr-2 py-3 flex items-center group/add">
-            {/* 이전 장소에서 이어지는 타임라인 연결선 */}
-            <div className="absolute left-[1.375rem] top-0 bottom-1/2 w-0.5 bg-gradient-to-b from-zinc-200 to-transparent -translate-x-1/2" />
-
-            {/* 기존의 까만색 장소 추가 버튼 디자인 */}
-            <button
-              type="button"
-              onClick={() => {
-                setFocusedStep?.(null);
-                setFocusedSegment?.(null);
-                setAlternativeSegment?.(null);
-                setFocusBounds?.(null);
-                openSearchMode();
-              }}
-              className="relative group w-full py-4 bg-zinc-900 rounded-2xl text-white font-bold text-[15px] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex justify-center items-center gap-2 overflow-hidden shadow-sm"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <Plus className="w-4 h-4 relative z-10 transition-transform group-hover:rotate-90 duration-300" strokeWidth={2.5} />
-              <span className="relative z-10 tracking-wide">장소 추가</span>
-            </button>
-          </li>
-        )}
       </ul>
+
+      {/* 장소 추가 버튼 (데스크톱 전용) */}
+      {!editMode && !isSearchMode && (
+        <div className="hidden md:block px-6 py-4 flex-shrink-0 bg-transparent">
+          <button
+            type="button"
+            onClick={() => {
+              setFocusedStep?.(null);
+              setFocusedSegment?.(null);
+              setAlternativeSegment?.(null);
+              setFocusBounds?.(null);
+              openSearchMode();
+            }}
+            className="w-full py-4 bg-zinc-950/90 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-xl transition-all cursor-pointer flex justify-center items-center gap-2 backdrop-blur-md border border-white/10"
+          >
+            <Plus className="w-4.5 h-4.5" strokeWidth={2.5} />
+            <span className="tracking-wide">장소 추가</span>
+          </button>
+        </div>
+      )}
+
       {children}
     </div>
   );

@@ -22,7 +22,6 @@
 | `react-indiana-drag-scroll` | - | 마우스 드래그 스크롤 |
 | `react-naver-maps` | 0.2 | 네이버 지도 React 래퍼 |
 | `use-debounce` | - | 검색 디바운스 |
-| `vaul` | 1.1 | 모바일 바텀 드로어 |
 | `zustand` | 5 | 클라이언트 전역 상태 관리 |
 | `zustand/react/shallow` | - | 렌더 최적화 |
 
@@ -42,9 +41,9 @@
 | `handleClickOutside` | `@uidotdev/usehooks` `useClickAway` | `MapHeaderOverlay` |
 | `confirm()` / `alert()` | `DialogProvider` + Radix Dialog | `useDialog()` 훅으로 전역 대체 |
 | 날짜 포맷 | `date-fns` | `formatJourneyDate` 적용 |
-| `usePanelDrag` + `useOverscrollDrawer` | `vaul` | 커스텀 훅 제거, `Drawer` 컴포넌트로 통합 |
+| `usePanelDrag` + `useOverscrollDrawer` | `framer-motion` (Custom) | 커스텀 훅 제거, `CustomBottomSheet` 컴포넌트로 통합 |
 
-### `vaul` 통합 대체 상세 (2026-07-13 완료)
+### `CustomBottomSheet` 통합 대체 상세 (2026-07-13 완료)
 
 **수정 파일:**
 - [`src/components/JourneySidebar.tsx`](../src/components/JourneySidebar.tsx)
@@ -58,11 +57,16 @@
 - `src/hooks/useOverscrollDrawer.ts`
 
 ```tsx
-import { Drawer } from 'vaul';
+import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
 
-<Drawer.Root snapPoints={['126px', '360px', 1]} activeSnapPoint={snap}>
-  <Drawer.Content>...</Drawer.Content>
-</Drawer.Root>
+<CustomBottomSheet
+  isOpen={isOpen}
+  minHeight={minHeight}
+  defaultHeight={defaultHeight}
+  maxHeight={maxHeight}
+>
+  {/* Content */}
+</CustomBottomSheet>
 ```
 
 ### `confirm/alert` 대체 상세 (2026-07-13 완료)
@@ -113,6 +117,6 @@ await alert('여정 삭제에 실패했습니다.');
 | ✅ 완료 | 클릭 외부 감지 | `useClickAway` |
 | ✅ 완료 | `confirm/alert` | `DialogProvider` + Radix Dialog |
 | ✅ 완료 | 날짜 포맷 | `date-fns` 도입 |
-| ✅ 완료 | `usePanelDrag` + `useOverscrollDrawer` | `vaul` 통합 |
+| ✅ 완료 | `usePanelDrag` + `useOverscrollDrawer` | `CustomBottomSheet` 통합 |
 
 > 모든 리팩토링 작업이 완료되었습니다. 향후 신규 기능 추가 시 이 문서를 기준으로 기존 생태계를 재활용하세요.

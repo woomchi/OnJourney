@@ -130,7 +130,7 @@
 
 ### 4.3 Backend & Infrastructure
 * **백엔드 & 데이터베이스:** Supabase (PostgreSQL 및 내장 Auth 활용)
-* **PWA (Progressive Web App):** 미구현 (향후 도입 검토)
+* **PWA (Progressive Web App):** ✅ 구현 완료 (PWA Manifest `manifest.ts` 연동 및 `CustomBottomSheet` 모바일 바텀시트 적용)
 
 ### 4.4 외부 APIs 연동 현황
 * **대중교통 경로 탐색:** ✅ ODsay 대중교통 경로탐색 API 연동 완료 (`/api/directions` 라우트)
@@ -152,8 +152,7 @@
 ---
 
 ## 5. Future Expansions (Phase 2 - 심화 단계)
-- 각 여정을 복수 선택하여 여정 후기로 남길 수 있는 기능
-- 여정 캘린더
-- 여정 후기 페이지
-- 여정 공유
-- PWA 도입 (모바일 네이티브 앱 경험)
+- 이동 수단 다변화 및 세그먼트 기반 개별 선택 구현 ([transport_segment.md](file:///c:/Users/hitsz/Desktop/OnJourney/docs/web/transport_segment.md))
+- URL 및 라우팅 기반 상태 관리 적용 ([pending_routing_ux.md](file:///c:/Users/hitsz/Desktop/OnJourney/docs/web/pending_routing_ux.md))
+- 각 여정을 복수 선택하여 여정 후기로 남길 수 있는 기능 및 후기 페이지
+- 여정 캘린더 및 여정 공유

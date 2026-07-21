@@ -107,10 +107,16 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 - [x] `src/app/page.tsx` — 메인 레이아웃 (사이드바 + 지도 영역)
 - [x] `src/app/layout.tsx` — 루트 레이아웃 (AuthProvider, QueryClientProvider)
 - [x] `.env.local` — Supabase URL/KEY, 네이버 클라이언트 ID, ODsay API KEY, 서울시 지하철 API KEY, TAGO 실시간 버스 API KEY, 경기도 버스 API KEY 등 환경변수
-- [x] `docs/OnJourney.md` — 프로젝트 컨텍스트 문서
-- [x] `docs/datatable.md` — DB 스키마 및 데이터 구조 정의서
+- [x] `docs/web/OnJourney.md` — 프로젝트 컨텍스트 문서
+- [x] `docs/web/datatable.md` — DB 스키마 및 데이터 구조 정의서
 
-### 최근 업데이트 (2026-07-01 ~ 2026-07-05)
+### 최근 업데이트 (2026-07-21)
+**모바일 PWA 및 바텀시트 인터랙션 최적화**
+- [x] PWA 도입 완료: PWA Manifest(`manifest.ts`) 적용 및 모바일 HTTPS 로컬 테스트 가이드 구축 완료
+- [x] 바텀시트 통합: 기존 개별 커스텀 드래그 훅을 제거하고, `framer-motion` 기반의 통합 `CustomBottomSheet`로 단일화 및 최적화 완료
+- [x] 바텀시트 UX 개선: 진입 Bouncy 애니메이션(`damping: 28`) 구현 및 하단 200px 가림막(Skirt) 설계로 빈틈 노출 해결 (TIER 0~4 개선안 반영 완료)
+
+### 이전 업데이트 (2026-07-01 ~ 2026-07-05)
 **아키텍처 및 상태 관리 리팩토링**
 - [x] 상태 관리 구조 개선: `journey-store`를 슬라이스 패턴(`mapSlice`, `journeyDataSlice`, `uiSlice`)으로 분리하여 관심사 분리 및 컴포넌트 리렌더링 최적화
 - [x] 대형 단일 컴포넌트 모듈화: `JourneySidebar` 등 UI 의존성이 높은 모놀리식 코드를 `SearchOverlay`, `JourneyListSidebar` 등으로 분할하여 코드베이스 유지보수성 향상
@@ -162,7 +168,6 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 
 | 기능 | 상태 | 비고 |
 |------|------|------|
-| PWA (Progressive Web App) | ❌ 미구현 | 모바일 네이티브 앱 경험 제공을 위한 PWA 도입 검토 |
 | 여정 후기 기능 | ❌ 미구현 | 여정 복수 선택 → 후기 작성 기능 |
 | 여정 캘린더 | ❌ 미구현 | 캘린더 뷰에서 여정 일정 확인 |
 | 여정 공유 | ❌ 미구현 | 다른 사용자와 여정 공유 기능 |
@@ -181,6 +186,9 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `fast-xml-parser` | ✅ | 공공 API XML 응답 파싱 (버스/지하철) |
 | `xlsx` | ✅ | 철도 운행거리 데이터 처리 |
 | `@tanstack/react-query` | ✅ | 데이터 페칭 및 캐싱 최적화 등을 위해 도입 완료 |
+| `lucide-react` | ✅ | 아이콘 리소스 통일 완료 |
+| `date-fns` | ✅ | 날짜 포맷팅 유틸 도입 완료 |
+| `use-debounce` | ✅ | 장소 검색 최적화용 디바운스 훅 도입 완료 |
 | `@atlaskit/pragmatic-drag-and-drop` | ❌ | 불필요 (HTML5 Native DnD로 대체 구현) |
 | `shadcn/ui` | ✅ | UI 요소 체계화 및 디자인 개선을 위해 도입 완료 |
 
@@ -188,6 +196,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 
 ## 🗺️ 다음 단계 제안
 
-1. **PWA 도입** — 모바일 환경에서 네이티브 앱처럼 동작하도록 PWA 세팅 검토
-2. **여정 후기/공유** — Phase 2 기능으로 여정 후기 작성 및 공유 기능 구현
-3. **여정 캘린더** — 캘린더 뷰에서 여정 일정 시각화
+1. **이동 수단 다변화 및 세그먼트 기반 개별 선택** — 대중교통/택시/자차 3대 수단 개편 및 구간 선택 기능 개발 ([transport_segment.md](file:///c:/Users/hitsz/Desktop/OnJourney/docs/web/transport_segment.md) 참조)
+2. **URL 및 라우팅 기반 상태 관리 적용** — 모바일 뒤로가기 대응 및 공유/딥링크 지원을 위한 라우팅 연동 ([pending_routing_ux.md](file:///c:/Users/hitsz/Desktop/OnJourney/docs/web/pending_routing_ux.md) 참조)
+3. **여정 후기/공유** — Phase 2 기능으로 여정 후기 작성 및 공유 기능 구현
+4. **여정 캘린더** — 캘린더 뷰에서 여정 일정 시각화

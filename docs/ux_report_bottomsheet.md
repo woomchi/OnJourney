@@ -4,7 +4,7 @@
 ---
 
 > [!IMPORTANT]
-> 이 보고서는 실제 [`CustomBottomSheet.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/common/CustomBottomSheet.tsx) 코드와 [`bottomsheet_review.md`](file:///c:/Users/hitsz/Desktop/OnJourney/docs/bottomsheet_review.md)의 진단 결과를 기반으로 작성된 **실행 가능한 개선안**입니다. 현재 코드의 `dragElastic={0}`, `damping: 25 / stiffness: 200` 등의 수치가 직접 분석 대상입니다.
+> 이 보고서는 실제 [`CustomBottomSheet.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/common/CustomBottomSheet.tsx) 코드의 진단 결과를 기반으로 작성된 **실행 가능한 개선안**입니다. 현재 코드의 `dragElastic={0}`, `damping: 25 / stiffness: 200` 등의 수치가 직접 분석 대상입니다.
 
 > [!WARNING]
 > **프로젝트 핵심 제약 — "콘크리트 벽" 요구사항** ([`bottom_sheet_requirements.md §2`](file:///c:/Users/hitsz/Desktop/OnJourney/docs/bottom_sheet_requirements.md) 참조)  

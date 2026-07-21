@@ -114,3 +114,5 @@ await alert('여정 삭제에 실패했습니다.');
 | ✅ 완료 | `confirm/alert` | `DialogProvider` + Radix Dialog |
 | ✅ 완료 | 날짜 포맷 | `date-fns` 도입 |
 | ✅ 완료 | `usePanelDrag` + `useOverscrollDrawer` | `vaul` 통합 |
+
+> 모든 리팩토링 작업이 완료되었습니다. 향후 신규 기능 추가 시 이 문서를 기준으로 기존 생태계를 재활용하세요.

@@ -6,6 +6,10 @@
 > [!IMPORTANT]
 > 이 보고서는 실제 [`CustomBottomSheet.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/common/CustomBottomSheet.tsx) 코드와 [`bottomsheet_review.md`](file:///c:/Users/hitsz/Desktop/OnJourney/docs/bottomsheet_review.md)의 진단 결과를 기반으로 작성된 **실행 가능한 개선안**입니다. 현재 코드의 `dragElastic={0}`, `damping: 25 / stiffness: 200` 등의 수치가 직접 분석 대상입니다.
 
+> [!WARNING]
+> **프로젝트 핵심 제약 — "콘크리트 벽" 요구사항** ([`bottom_sheet_requirements.md §2`](file:///c:/Users/hitsz/Desktop/OnJourney/docs/bottom_sheet_requirements.md) 참조)  
+> 바텀시트는 최소 높이 아래로 **단 1픽셀도 내려가지 않아야 합니다.** `dragElastic`의 `bottom` 값은 반드시 `0`으로 유지해야 하며, 아래 방향 bounce는 허용되지 않습니다.
+
 ---
 
 ## Part 1. 🔍 UX Insights — 퀄리티를 확 달라지게 할 핵심 3가지
@@ -428,28 +432,37 @@ const panToMarker = (
 
 ---
 
-## Part 6. ✅ 즉시 적용 가능한 Quick Wins (우선순위 순)
+## Part 6. ✅ 실행 우선순위 — 4단계 TIER 분류
 
-| 우선순위 | 적용 내용 | 예상 효과 | 난이도 |
-|---------|-----------|-----------|--------|
-| ⭐⭐⭐ | 스프링 수치 변경 (stiffness 320, damping 30) | 뚝뚝 끊김 → 부드러운 물성감 | 🟢 낮음 |
-| ⭐⭐⭐ | `dragElastic={{ top: 0.08, bottom: 0 }}` 적용 | iOS 고무줄 효과 즉시 구현 | 🟢 낮음 |
-| ⭐⭐⭐ | `getTargetY` → `useCallback` 리팩토링 (BUG-1) | 스냅 무한루프 버그 수정 | 🟢 낮음 |
-| ⭐⭐ | 레이어드 그림자 적용 | 프리미엄 깊이감 | 🟢 낮음 |
-| ⭐⭐ | 드래그 핸들 터치 타겟 확장 (`py-4`) | 터치 미스 감소 | 🟢 낮음 |
-| ⭐⭐ | `useTransform`으로 플로팅 버튼 연동 | 지도-시트 유기적 연결 | 🟡 중간 |
-| ⭐⭐ | History API 통합 (ISSUE-9) | 안드로이드 백버튼 처리 | 🟡 중간 |
-| ⭐ | 마커 탭 → 지도 패닝 연동 | 네이티브 앱 수준의 UX | 🔴 높음 |
-| ⭐ | Shared Element Transition (썸네일 → 헤더 확장) | WOW 효과 | 🔴 높음 |
+> [!IMPORTANT]
+> 아래 TIER 순서대로 진행하세요. **TIER 0(Critical 버그)** 을 먼저 처리하지 않으면
+> TIER 1 이후의 UX 개선이 버그와 충돌할 수 있습니다.
 
 ---
 
-## 참고: 현재 코드 기반 최소 수정 예시
+### 🔥 TIER 0: Critical 버그 (UX 개선 전 반드시 선처리)
 
-[`CustomBottomSheet.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/common/CustomBottomSheet.tsx) 에서 **3줄만 바꿔도** 즉시 체감 개선:
+> [`bottomsheet_review.md`](file:///c:/Users/hitsz/Desktop/OnJourney/docs/bottomsheet_review.md) 진단 결과 중 이 보고서에 **누락된** 재현 가능한 기능 버그입니다.
+
+| 버그 | 파일 | 증상 | 수정 방향 |
+|------|------|------|-----------|
+| BUG-2 닫히는 도중 드래그 시 시트 사라짐 | [`CustomBottomSheet.tsx L163`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/common/CustomBottomSheet.tsx#L163-L166) | `isOpen=false` 중 아래로 드래그 시 `y > 0`이 되어 시트가 화면 밖으로 이탈 | `dragConstraints.bottom`을 `-minHeight`로 고정 + `pointerEvents: 'none'` |
+| BUG-3 snap 타입 혼용으로 스냅 오분류 | [`JourneySidebar.tsx L333`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/JourneySidebar.tsx#L333-L335), [`PlaceList.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/PlaceList.tsx) | `setSnap(1)` (숫자)과 `setSnap('1')` (문자열) 혼재로 비교 실패 → 스냅 타입 오분류 | snap 상태를 `'min' / 'default' / 'max'` 열거형으로 통일 |
+| ISSUE-5 SSR에서 `windowHeight=0` | [`RouteGuidePanel.tsx L53`](file:///c:/Users/hitsz/Desktop/OnJourney/src/features/route/RouteGuidePanel.tsx#L53-L62) | 첫 렌더 시 `maxHeight=-16`, `mounted` 가드가 `RouteGuidePanel`에는 없음 | `useState(() => typeof window !== 'undefined' ? window.innerHeight : 812)` 안전한 초기값 적용 |
+
+---
+
+### 🔴 TIER 1: 즉시 적용 — 코드 10줄 이내, 즉시 체감 개선 (~30분)
+
+| # | 적용 내용 | 연관 항목 | 예상 효과 | 난이도 |
+|---|-----------|-----------|-----------|--------|
+| 1 | **스프링 수치 교체** `stiffness: 320, damping: 30, mass: 0.8` | INSIGHT-2 | "뚝뚝 끊김" → 자연스러운 물성감 | 🟢 낮음 |
+| 2 | **`dragElastic={{ top: 0.08, bottom: 0 }}`** 적용 | ISSUE-1 | iOS 고무줄 효과 — 아래 "콘크리트 벽"은 유지 | 🟢 낮음 |
+| 3 | **`getTargetY` → `useCallback` 리팩토링** | BUG-1 (review) | 스냅 무한루프 버그 근본 수정 | 🟢 낮음 |
+| 4 | **레이어드 그림자** (boxShadow 3단 레이어) | Part 3-2 | 시트의 "부유감" 즉시 향상 | 🟢 낮음 |
 
 ```tsx
-// Line 75-80: 스프링 수치 교체
+// ① 스프링 수치 교체 (CustomBottomSheet.tsx L75-80)
 animate(y, activeSnapY, {
   type: 'spring',
 - damping: 25,
@@ -460,15 +473,66 @@ animate(y, activeSnapY, {
   velocity: initialVelocity
 });
 
-// Line 161: dragElastic 탄성 부여
+// ② dragElastic 탄성 부여 (L161) — bottom: 0으로 "콘크리트 벽" 제약 준수
 - dragElastic={0}
 + dragElastic={{ top: 0.08, bottom: 0 }}
 
-// Line 177: 레이어드 그림자
+// ③ 레이어드 그림자 (L177)
 - boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.08)',
 + boxShadow: '0 -1px 0 rgba(0,0,0,0.04), 0 -4px 12px rgba(0,0,0,0.06), 0 -20px 60px rgba(0,0,0,0.10)',
 ```
 
 ---
 
-*보고서 작성 기준: 2026-07-20 | OnJourney PWA Bottom Sheet v1.x | Framer Motion 최적화 기준*
+### 🟠 TIER 2: 단기 적용 — UX 완성도, 요구사항 §4 실현 (2~4시간)
+
+| # | 적용 내용 | 연관 항목 | 예상 효과 | 난이도 |
+|---|-----------|-----------|-----------|--------|
+| 5 | **드래그 핸들 터치 타겟 `py-4` 확장** | INSIGHT-3, Part 3-1 | 터치 미스 감소, Apple HIG 44px 준수 | 🟢 낮음 |
+| 6 | **`useTransform`으로 플로팅 버튼 실시간 연동** | Part 4-4, 요구사항 §4 | 시트↔버튼 "한 몸" 실시간 반응 | 🟡 중간 |
+| 7 | **`useTransform`으로 그림자 강도 동적 변화** | Part 3-2 | 시트 높이에 따라 그림자 깊이 변화 | 🟡 중간 |
+| 8 | **velocity 기반 동적 스프링** (flick 판정) | Part 4-1 | 빠른 스와이프 시 탁 안착 | 🟡 중간 |
+| 9 | **History API 통합 (백버튼 처리)** | ISSUE-9 (review) | Android 물리 백버튼 → 시트 닫기 | 🟡 중간 |
+| 10 | **Safe Area Inset 처리** `env(safe-area-inset-bottom)` | ISSUE-7 (review) | iPhone 홈 인디케이터 겹침 방지 | 🟢 낮음 |
+
+---
+
+### 🟡 TIER 3: 중기 적용 — 지도 연동 차별화 UX (1~2일)
+
+> 프로젝트 성격상 **가장 차별화되는 부분**이지만, 카카오맵 API 연동이 수반됩니다.
+
+| # | 적용 내용 | 연관 항목 | 예상 효과 | 난이도 |
+|---|-----------|-----------|-----------|--------|
+| 11 | **마커 탭 → 지도 카메라 패닝** (황금비 40% 오프셋) | Part 5-2, INSIGHT-1 | "네이버 지도 수준" 연동 UX | 🔴 높음 |
+| 12 | **시트 높이 → 지도 `padding-bottom` 실시간 연동** | Part 5-1, INSIGHT-1 | 마커가 시트에 가리지 않음 | 🔴 높음 |
+| 13 | **콘텐츠 페이드인** (스냅 상태별 `variants` 전환) | Part 4-5 | MIN→DEFAULT 상세 정보 자연스럽게 등장 | 🟡 중간 |
+| 14 | **Interaction Flow 전체 타이밍 구현** (0ms→300ms 시퀀스) | Part 2 전체 | "네이티브 앱처럼 느껴짐"의 완성 | 🔴 높음 |
+
+---
+
+### ⚪ TIER 4: 장기/선택 — WOW 효과 (별도 스프린트)
+
+| # | 적용 내용 | 비고 | 난이도 |
+|---|-----------|------|--------|
+| 15 | **Shared Element Transition** (썸네일 → 헤더 확장) | React/Framer Motion에서 별도 아키텍처 필요 | 🔴 높음 |
+| 16 | **MAX 상태 미니맵 전환** | 카카오맵 별도 인스턴스 또는 오버레이 구현 필요 | 🔴 높음 |
+| 17 | **진입 애니메이션 Bouncy 버전** (`damping: 28`) | 취향 차이, A/B 테스트 영역 | 🟢 낮음 |
+
+---
+
+## 적합성 종합
+
+```
+보고서 전체 제안 17개 중:
+  ✅ 완전 적합    : 14개 (82%)
+  ⚠️ 조건부 채택  :  2개 (12%) — dragElastic bottom: 0 고정, bounce 방향 주의
+  ❌ 미적합        :  0개
+```
+
+> **가장 빠른 체감 개선**: TIER 0 버그 수정 → TIER 1 (4개 항목) 순서로 진행.  
+> **가장 임팩트 큰 단일 항목**: #6 플로팅 버튼 실시간 연동 — 요구사항 §4 핵심, 현재 미구현.
+
+---
+
+*보고서 작성 기준: 2026-07-20, 우선순위 진단 반영: 2026-07-21 | OnJourney PWA Bottom Sheet v1.x | Framer Motion 최적화 기준*
+

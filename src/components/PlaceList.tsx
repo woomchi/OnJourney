@@ -7,6 +7,7 @@ import { MapPin, Plus } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import React, { useEffect } from 'react';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
 import {
   DndContext,
   closestCenter,
@@ -113,183 +114,21 @@ export default function PlaceList({
     };
   }, [localPlaces, drawerSnapPoint, scrollProgress]);
 
-  // 제스처 감지용 Ref
-  const touchStartRef = React.useRef<{ y: number; scrollTop: number } | null>(null);
-  const wheelAccumulator = React.useRef({
-    lastTime: 0,
-    delta: 0,
-    startedAtTop: false,
-    startedAtBottom: false
+  // 모바일 터치/휠 제스처 핸들러: 리스트 스크롤과 바텀시트 드래그 제스처 분리 및 스냅 제어
+  const {
+    handlePointerDown,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    handleWheel
+  } = useSnapScrollBridge({
+    scrollRef,
+    drawerSnapPoint,
+    isDrawerMaximized,
+    setDrawerSnapPoint,
+    activeJourney,
+    disabled: false
   });
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
-    const target = scrollRef.current || e.currentTarget;
-    const maxScroll = target.scrollHeight - target.clientHeight;
-    const isScrollable = maxScroll > 5;
-
-    if (!isScrollable && bottomSheet) {
-      const isDragHandle = (e.target as HTMLElement).closest('.drag-handle');
-      const isButton = (e.target as HTMLElement).closest('button');
-      const isInput = (e.target as HTMLElement).closest('input, textarea, select');
-      if (!isDragHandle && !isButton && !isInput) {
-        bottomSheet.dragControls.start(e);
-      }
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
-    const target = scrollRef.current || e.currentTarget;
-    touchStartRef.current = {
-      y: e.touches[0].clientY,
-      scrollTop: target.scrollTop
-    };
-    // 터치 이벤트가 바텀 시트로 넘어가서 의도치 않은 드래그가 시작되는 것을 방지하기 위해 상위 전파 항상 차단
-    e.stopPropagation();
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
-    // 스크롤 중 터치 이동 이벤트가 바텀 시트로 전파되어 시트가 움직이는 것 항상 차단
-    e.stopPropagation();
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
-    if (!touchStartRef.current) return;
-
-    const target = scrollRef.current || e.currentTarget;
-    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
-    const { scrollTop: startScrollTop } = touchStartRef.current;
-    const currentScrollTop = target.scrollTop;
-
-    const maxScroll = target.scrollHeight - target.clientHeight;
-    const isScrollable = maxScroll > 5;
-
-    const isAtTopAtStart = startScrollTop <= 2;
-    const isAtBottomAtStart = isScrollable
-      ? (startScrollTop > 2 && maxScroll - startScrollTop < 3)
-      : true;
-
-    // 리스트 컨텐츠가 스크롤되었는지 여부 확인 (스크롤이 발생했다면 오버스크롤 무시)
-    const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
-
-    if (didNotScroll) {
-      const minSnap = activeJourney ? '133px' : '62px';
-      const defaultSnap = activeJourney ? '370px' : '360px';
-
-      let currentSnap: 'min' | 'default' | 'max' = 'default';
-      if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
-        currentSnap = 'min';
-      } else if (drawerSnapPoint === 1 || drawerSnapPoint === '1' || isDrawerMaximized) {
-        currentSnap = 'max';
-      }
-
-      if (currentSnap === 'max') {
-        if (isAtTopAtStart && deltaY > 20) {
-          // 최대 높이 상태에서 리스트 최상단일 때 아래로 스와이프하면 기본 높이로 축소
-          setDrawerSnapPoint(defaultSnap);
-        }
-        touchStartRef.current = null;
-        return;
-      }
-
-      if (currentSnap === 'min') {
-        if (deltaY < -20) {
-          // 최소 높이 상태에서 위로 스와이프하면 기본 높이로 확장
-          setDrawerSnapPoint(defaultSnap);
-        }
-        touchStartRef.current = null;
-        return;
-      }
-
-      // 민감도를 다른 영역과 통일하기 위해 임계값을 20px로 변경
-      if (isAtTopAtStart && deltaY > 20) {
-        // 아래로 스와이프 (축소 방향)
-        setDrawerSnapPoint(minSnap);
-      }
-      else if (isAtBottomAtStart && deltaY < -20) {
-        // 위로 스와이프 (확대 방향)
-        setDrawerSnapPoint(1);
-      }
-    }
-
-    touchStartRef.current = null;
-  };
-
-  const handleWheel = (e: React.WheelEvent<HTMLElement>) => {
-    const target = scrollRef.current || e.currentTarget;
-    const now = Date.now();
-
-    const maxScroll = target.scrollHeight - target.clientHeight;
-    const isScrollable = maxScroll > 5;
-
-    const isAtTop = target.scrollTop <= 2;
-    const isAtBottom = isScrollable
-      ? (target.scrollTop > 2 && maxScroll - target.scrollTop < 3)
-      : true;
-
-    // 0.2초 이상 휠 입력이 없었다면 새로운 스크롤 세션으로 간주
-    if (now - wheelAccumulator.current.lastTime > 200) {
-      wheelAccumulator.current.delta = 0;
-      // 스크롤 세션을 시작할 때 어떤 경계선에 있었는지 각각 독립적으로 기록
-      wheelAccumulator.current.startedAtTop = isAtTop;
-      wheelAccumulator.current.startedAtBottom = isAtBottom;
-    }
-    wheelAccumulator.current.lastTime = now;
-
-    const minSnap = activeJourney ? '133px' : '62px';
-    const defaultSnap = activeJourney ? '370px' : '360px';
-
-    let currentSnap: 'min' | 'default' | 'max' = 'default';
-    if (drawerSnapPoint === minSnap || drawerSnapPoint === parseInt(minSnap, 10)) {
-      currentSnap = 'min';
-    } else if (drawerSnapPoint === 1 || drawerSnapPoint === '1' || isDrawerMaximized) {
-      currentSnap = 'max';
-    }
-
-    if (currentSnap === 'max') {
-      if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
-        wheelAccumulator.current.delta += e.deltaY;
-        if (wheelAccumulator.current.delta < -70) {
-          setDrawerSnapPoint(defaultSnap);
-          wheelAccumulator.current.delta = 0;
-        }
-      } else {
-        wheelAccumulator.current.delta = 0;
-      }
-      return;
-    }
-
-    if (currentSnap === 'min') {
-      if (e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
-        wheelAccumulator.current.delta += e.deltaY;
-        if (wheelAccumulator.current.delta > 70) {
-          setDrawerSnapPoint(defaultSnap);
-          wheelAccumulator.current.delta = 0;
-        }
-      } else {
-        wheelAccumulator.current.delta = 0;
-      }
-      return;
-    }
-
-    // 최상단에서 시작한 세션은 축소(위로 스크롤)만, 최하단에서 시작한 세션은 팽창(아래로 스크롤)만 허용하여
-    // 한 번에 강하게 스크롤했을 때 반대편 경계선에서 오버스크롤이 터지는 것을 완벽 차단(Lock)
-    if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
-      wheelAccumulator.current.delta += e.deltaY;
-      if (wheelAccumulator.current.delta < -70) {
-        setDrawerSnapPoint(minSnap);
-        wheelAccumulator.current.delta = 0;
-      }
-    }
-    else if (isAtBottom && e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
-      wheelAccumulator.current.delta += e.deltaY;
-      if (wheelAccumulator.current.delta > 70) {
-        setDrawerSnapPoint(1);
-        wheelAccumulator.current.delta = 0;
-      }
-    } else {
-      wheelAccumulator.current.delta = 0;
-    }
-  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

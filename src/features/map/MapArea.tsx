@@ -522,7 +522,9 @@ export default function MapArea() {
           }
         }
       } else if (effectiveSnapPoint !== 1) {
-        if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
+        if (typeof effectiveSnapPoint === 'number') {
+          bottomPadding = effectiveSnapPoint + 40;
+        } else if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
           bottomPadding = parseInt(effectiveSnapPoint, 10) + 40; // 스냅 포인트 높이 + 마커 여백 고려
         } else {
           bottomPadding = 310;

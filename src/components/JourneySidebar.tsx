@@ -140,6 +140,13 @@ const AddPlaceFloatingButton = ({ show, scrollProgress, currentSnapType, onClick
   );
 };
 
+const parseSnapVal = (s: any): number => {
+  if (s === 1 || s === '1') return 1;
+  if (typeof s === 'number') return s;
+  if (typeof s === 'string') return parseInt(s, 10) || 0;
+  return 0;
+};
+
 export default function JourneySidebar() {
   const { user, loading: authLoading, openAuthModal } = useAuth();
   const scrollProgress = useMotionValue(1); // 1: 최하단, 0: 최하단 아님 (React 리렌더링 병목 제거용 MotionValue)
@@ -174,23 +181,24 @@ export default function JourneySidebar() {
   // Initialize snap point on mount based on existing store state or activeJourney
   useEffect(() => {
     if (activeJourney !== wasActiveJourneyRef.current) {
-      setSnap(activeJourney ? '370px' : '360px');
+      setSnap(activeJourney ? 370 : 360);
       wasActiveJourneyRef.current = activeJourney;
     } else if (snap === null) {
       // Use existing drawerSnapPoint if available (from persistence), otherwise fallback
       const storeSnap = useJourneyStore.getState().drawerSnapPoint;
-      setSnap(storeSnap !== null && storeSnap !== undefined ? storeSnap : (activeJourney ? '370px' : '360px'));
+      setSnap(storeSnap !== null && storeSnap !== undefined ? storeSnap : (activeJourney ? 370 : 360));
     }
   }, [activeJourney, snap]);
 
   // Adjust snap point automatically when activeJourney changes
   useEffect(() => {
+    const parsed = parseSnapVal(snap);
     if (activeJourney) {
-      if (snap === '360px') setSnap('370px');
-      else if (snap === '62px') setSnap('133px');
+      if (parsed === 360) setSnap(370);
+      else if (parsed === 62) setSnap(133);
     } else {
-      if (snap === '370px') setSnap('360px');
-      else if (snap === '133px') setSnap('62px');
+      if (parsed === 370) setSnap(360);
+      else if (parsed === 133) setSnap(62);
     }
   }, [activeJourney, snap]);
 
@@ -330,9 +338,10 @@ export default function JourneySidebar() {
     const minSnapPx = activeJourney ? 133 : 62;
     const defaultSnapPx = activeJourney ? 370 : 360;
 
+    const parsedSnap = parseSnapVal(snap);
     let currentSnapType: 'min' | 'default' | 'max' = 'default';
-    if (snap === minSnapPx || snap === `${minSnapPx}px`) currentSnapType = 'min';
-    else if (snap === 1 || snap === '1') currentSnapType = 'max';
+    if (parsedSnap === minSnapPx) currentSnapType = 'min';
+    else if (parsedSnap === 1) currentSnapType = 'max';
 
     const showFloatingCreateButton = !activeJourney && journeys.length > 0 && !isEditMode;
     const showFloatingAddPlaceButton = !!activeJourney && !isEditMode && !isSearchMode;
@@ -364,8 +373,8 @@ export default function JourneySidebar() {
           initialSnap={currentSnapType}
           zIndex={30}
           onSnap={(snapName) => {
-            if (snapName === 'min') setSnap(`${minSnapPx}px`);
-            else if (snapName === 'default') setSnap(`${defaultSnapPx}px`);
+            if (snapName === 'min') setSnap(minSnapPx);
+            else if (snapName === 'default') setSnap(defaultSnapPx);
             else if (snapName === 'max') setSnap(1);
           }}
         >

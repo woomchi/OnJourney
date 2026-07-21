@@ -1,5 +1,21 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
+
+const SPRING_SNAP = {
+  type: 'spring' as const,
+  stiffness: 320,
+  damping: 30,
+  mass: 0.8,
+  restDelta: 0.5,
+  restSpeed: 2,
+};
+
+const SPRING_SNAP_FAST = {
+  type: 'spring' as const,
+  stiffness: 500,
+  damping: 40,
+  mass: 0.6,
+};
 
 export interface CustomBottomSheetProps {
   isOpen: boolean;
@@ -54,7 +70,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const y = useMotionValue(0);
 
   // Initial target translation (negative values representing pull-up height)
-  const getTargetY = (snapType: 'min' | 'default' | 'max') => {
+  const getTargetY = useCallback((snapType: 'min' | 'default' | 'max') => {
     switch (snapType) {
       case 'min': return -minHeight;
       case 'max': return -maxHeight;
@@ -62,7 +78,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       default:
         return -defaultHeight;
     }
-  };
+  }, [minHeight, defaultHeight, maxHeight]);
 
   const [activeSnapY, setActiveSnapY] = useState(isOpen ? getTargetY(initialSnap) : 0);
   const dragVelocityRef = useRef(0);
@@ -72,10 +88,11 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
     const initialVelocity = dragVelocityRef.current;
     dragVelocityRef.current = 0; // 사용 후 리셋
 
+    const isFlick = Math.abs(initialVelocity) > 500;
+    const springConfig = isFlick ? SPRING_SNAP_FAST : SPRING_SNAP;
+
     const controls = animate(y, activeSnapY, {
-      type: 'spring',
-      damping: 25,
-      stiffness: 200,
+      ...springConfig,
       velocity: initialVelocity
     });
     return () => controls.stop();
@@ -86,9 +103,9 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       setActiveSnapY(getTargetY(initialSnap));
     } else {
       setActiveSnapY(0);
-      if (onClose) onClose();
+      onClose?.();
     }
-  }, [isOpen, minHeight, defaultHeight, maxHeight, initialSnap]);
+  }, [isOpen, getTargetY, initialSnap, onClose]);
 
   const handleDragEnd = (event: any, info: any) => {
     const currentY = y.get(); // Current dynamic translation value (negative)
@@ -135,12 +152,13 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       }
     }
 
+    const isFlick = Math.abs(velocityY) > 500;
+    const springConfig = isFlick ? SPRING_SNAP_FAST : SPRING_SNAP;
+
     if (activeSnapY === targetSnap.y) {
       // 동일한 스냅 포인트 구역 내에서 미세 조작 후 놓았을 때 제자리로 복귀하도록 명시적 애니메이션 수행
       animate(y, targetSnap.y, {
-        type: 'spring',
-        damping: 25,
-        stiffness: 200,
+        ...springConfig,
         velocity: velocityY
       });
     } else {
@@ -158,11 +176,11 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         drag="y"
         dragControls={dragControls}
         dragListener={false} // Only drag when explicitly starting from a handler
-        dragElastic={0} // Disable elasticity (rigid/no bounce) at boundaries
+        dragElastic={{ top: 0.08, bottom: 0 }} // Elastic on top, rigid (concrete wall) on bottom
         dragMomentum={false} // 가속도에 의한 관성 밀림 현상 원천 차단
         dragConstraints={{
           top: -maxHeight,
-          bottom: isOpen ? -minHeight : 0 // Prevents dragging below minHeight when open
+          bottom: -minHeight
         }}
         style={{
           y,
@@ -174,7 +192,8 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
           zIndex,
           borderTopLeftRadius: '24px',
           borderTopRightRadius: '24px',
-          boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 -1px 0 rgba(0,0,0,0.04), 0 -4px 12px rgba(0,0,0,0.06), 0 -20px 60px rgba(0,0,0,0.10)',
+          pointerEvents: isOpen ? 'auto' : 'none',
         }}
         className={`bg-white flex flex-col pointer-events-auto ${className}`}
         onDragEnd={handleDragEnd}

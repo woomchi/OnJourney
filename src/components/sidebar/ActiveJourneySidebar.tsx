@@ -7,7 +7,8 @@ import PlaceList from '@/components/PlaceList';
 import EditJourneyModal from '@/components/EditJourneyModal';
 import type { Journey, Place } from '@/types/journey';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { motion } from 'framer-motion';
+import { motion, useTransform } from 'framer-motion';
+import { useBottomSheet } from '@/components/common/CustomBottomSheet';
 
 import JourneyPlayerHeader from './JourneyPlayerHeader';
 import SearchOverlay from './SearchOverlay';
@@ -40,23 +41,28 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const snapPx = drawerSnapPoint === 1 || drawerSnapPoint === '1'
-    ? windowHeight - 16
-    : typeof drawerSnapPoint === 'number'
-      ? drawerSnapPoint
-      : parseInt(String(drawerSnapPoint), 10) || 0;
-
-  let currentSnapType: 'min' | 'default' | 'max' = 'default';
-  const minSnapPx = activeJourney ? 133 : 62;
-  if (snapPx === minSnapPx) currentSnapType = 'min';
-  else if (snapPx === windowHeight - 16) currentSnapType = 'max';
-
   // Use 76px header height for Edit Mode, 126px for Normal Player Mode (due to media controls overlay)
   const headerHeight = isEditMode ? 76 : 126;
 
-  const contentMaxHeight = isMobile && snapPx > 0
-    ? `${Math.max(0, snapPx - 26 - headerHeight)}px`
-    : '100%';
+  const { y, minHeight, defaultHeight } = useBottomSheet();
+
+  const contentHeight = useTransform(y, (latest: number) => {
+    if (!isMobile) return '100%';
+    return `${Math.max(0, -latest - 26 - headerHeight)}px`;
+  });
+
+  const contentOpacity = useTransform(y, (latest: number) => {
+    if (!isMobile) return 1;
+    const range = -minHeight - -defaultHeight;
+    if (range <= 0) return 1;
+    const progress = (-latest - minHeight) / range;
+    return Math.min(1, Math.max(0, progress));
+  });
+
+  const pointerEvents = useTransform(y, (latest: number) => {
+    if (!isMobile) return 'auto';
+    return latest > -minHeight - 10 ? 'none' : 'auto';
+  });
 
   const { confirm, alert } = useDialog();
 
@@ -128,18 +134,14 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
         handleDoneEdit={handleDoneEdit}
       />
 
-      <div
-        className="flex-1 flex flex-col min-h-0 relative"
-        style={{ maxHeight: contentMaxHeight }}
-      >
+      <div className="flex-1 flex flex-col min-h-0 relative">
         <motion.div
-          variants={{
-            min: { opacity: 0, y: 15, pointerEvents: 'none' as const, transition: { duration: 0.2, ease: 'easeOut' } },
-            default: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
-            max: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
-          }}
-          animate={currentSnapType}
           className="flex-1 flex flex-col min-h-0 w-full h-full"
+          style={{
+            height: contentHeight,
+            opacity: contentOpacity,
+            pointerEvents: pointerEvents as any
+          }}
         >
           <PlaceList
             editMode={isEditMode}

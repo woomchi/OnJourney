@@ -106,7 +106,7 @@ export default function RouteGuidePanel({
     if (isOpen) {
       if (snap === 1 || snap === '1') {
         setGuidePanelState('expanded');
-      } else if (snap === '210px') {
+      } else if (snap === 210 || snap === '210px') {
         setGuidePanelState('minimized');
       } else {
         setGuidePanelState('default');

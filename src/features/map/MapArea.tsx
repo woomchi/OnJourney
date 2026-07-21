@@ -575,36 +575,7 @@ export default function MapArea() {
     map.setOptions({ padding: currentMapPadding });
   }, [map, currentMapPadding]);
 
-  // 바텀시트가 열려 있을 때 실시간으로 Y 축 스크롤 높이를 반영하여 지도 하단 패딩(padding-bottom)을 동적 동기화
-  useEffect(() => {
-    if (!map || !bottomSheetY) return;
 
-    const unsubscribe = bottomSheetY.on("change", (latestY: number) => {
-      const pulledUpHeight = -latestY;
-      
-      let paddingBottom = pulledUpHeight + 40; // 스냅 높이 + 마커 표시 여백
-      let topPadding = currentMapPadding.top || 0;
-
-      // 최소 150px의 지도 표시 영역을 보장하도록 안전 제약 적용
-      const maxAllowedVerticalPadding = Math.max(0, windowHeight - 150);
-      const currentTotalVerticalPadding = topPadding + paddingBottom;
-
-      if (currentTotalVerticalPadding > maxAllowedVerticalPadding) {
-        topPadding = Math.min(topPadding, maxAllowedVerticalPadding * 0.3);
-        paddingBottom = maxAllowedVerticalPadding - topPadding;
-      }
-
-      map.setOptions({
-        padding: {
-          ...currentMapPadding,
-          bottom: paddingBottom,
-          top: topPadding
-        }
-      });
-    });
-
-    return () => unsubscribe();
-  }, [map, bottomSheetY, currentMapPadding, windowHeight]);
 
   const panToWithOffset = useCallback((naverMap: naver.maps.Map, coord: { lat: number; lng: number }) => {
     const projection = naverMap.getProjection();

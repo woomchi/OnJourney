@@ -245,158 +245,89 @@ const handleDragEnd = (event: any, info: any) => {
 
 ---
 
-### 4-2. 마커 탭 시 시트 등장 애니메이션
+### 4-2. 마커 탭 시 시트 등장 애�## Part 6. ✅ 실행 우선순위 — 4단계 TIER 분류
 
-```tsx
-// 시트가 화면 밖(y=0)에서 MIN 스냅으로 올라오는 첫 진입
-const SPRING_ENTRY = {
-  type: 'spring' as const,
-  stiffness: 400,    // 강하게 — 빠른 반응감
-  damping: 35,       // 오버슈트 없는 깔끔한 진입
-  mass: 1.0,
-};
-
-// 또는 더 드라마틱하게 (살짝 튀는 느낌):
-const SPRING_ENTRY_BOUNCY = {
-  type: 'spring' as const,
-  stiffness: 380,
-  damping: 28,       // 살짝 낮춰 오버슈트 허용
-  mass: 0.9,
-};
-```
+> [!IMPORTANT]
+> 아래 TIER 순서대로 진행하세요. **TIER 0(Critical 버그)** 을 먼저 처리하지 않으면
+> TIER 1 이후의 UX 개선이 버그와 충돌할 수 있습니다.
 
 ---
 
-### 4-3. 경계 탄성 (Rubber-band Effect)
+### ✅ TIER 0: Critical 버그 — **완료** (2026-07-21)
 
-현재 `dragElastic={0}`이어서 최대 높이 도달 시 벽에 막히는 느낌입니다.
+> [`bottomsheet_review.md`](file:///c:/Users/hitsz/Desktop/OnJourney/docs/bottomsheet_review.md) 진단 결과 중 이 보고서에 **누락된** 재현 가능한 기능 버그입니다.
 
-```tsx
-// 개선안 — 위쪽 경계에서만 약한 고무줄 효과
-dragElastic={{ 
-  top: 0.08,    // 최대 높이 초과 시 8% 탄성 (40px 당기면 3px 추가)
-  bottom: 0     // 최소 높이 아래로는 절대 이동 불가 (단단한 벽)
-}}
-```
-
-**직접 구현 (더 정교한 제어)**:
-
-```tsx
-// 드래그 중 y가 -maxHeight를 넘어설 때 저항감 적용
-const onDrag = (event: any, info: any) => {
-  const currentY = y.get();
-  const RUBBER_BAND_LIMIT = -maxHeight;
-  
-  if (currentY < RUBBER_BAND_LIMIT) {
-    // 경계를 넘어선 거리
-    const overDrag = currentY - RUBBER_BAND_LIMIT;
-    // 지수적으로 저항 증가 (로그 스케일)
-    const resistance = Math.sign(overDrag) * Math.pow(Math.abs(overDrag), 0.6);
-    y.set(RUBBER_BAND_LIMIT + resistance);
-  }
-};
-```
+| 버그 | 파일 | 수정 방향 | 상태 |
+|------|------|-----------|------|
+| BUG-2 닫히는 도중 드래그 시 시트 사라짐 | [`CustomBottomSheet.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/common/CustomBottomSheet.tsx) | `dragConstraints.bottom`을 `-minHeight`로 고정 + `pointerEvents: isOpen ? 'auto' : 'none'` | ✅ 완료 |
+| BUG-3 snap 타입 혼용으로 스냅 오분류 | [`JourneySidebar.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/components/JourneySidebar.tsx), [`useSnapScrollBridge.ts`](file:///c:/Users/hitsz/Desktop/OnJourney/src/hooks/ui/useSnapScrollBridge.ts), [`RouteGuidePanel.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/features/route/RouteGuidePanel.tsx) | `parseSnapVal` 헬퍼 + snap 값을 `number` 타입으로 통일 | ✅ 완료 |
+| ISSUE-5 SSR에서 `windowHeight=0` | [`RouteGuidePanel.tsx`](file:///c:/Users/hitsz/Desktop/OnJourney/src/features/route/RouteGuidePanel.tsx) | `useState(() => typeof window !== 'undefined' ? window.innerHeight : 812)` | ✅ 완료 |
 
 ---
 
-### 4-4. 지도 연동 — useTransform 설계
+### ✅ TIER 1: 즉시 적용 — **완료** (2026-07-21)
 
-```tsx
-// CustomBottomSheet에서 y를 외부로 노출
-// 사용처 (JourneySidebar.tsx)에서:
-
-const { y } = useOptionalBottomSheet() ?? {};
-
-// 플로팅 버튼 위치 — 시트가 올라올수록 같이 올라감
-const floatingButtonsY = useTransform(
-  y,
-  [-minHeight, -defaultHeight],
-  [0, -(defaultHeight - minHeight)] // 시트 상단을 따라 이동
-);
-
-// 플로팅 버튼 불투명도 — 시트가 default를 넘으면 서서히 사라짐
-const floatingButtonsOpacity = useTransform(
-  y,
-  [-defaultHeight, -maxHeight * 0.7],
-  [1, 0]
-);
-
-// 지도 padding — 시트 높이에 따라 실시간 업데이트
-// (Kakao Map 인스턴스에 직접 전달)
-useMotionValueEvent(y, 'change', (latestY) => {
-  const sheetHeight = Math.abs(latestY);
-  kakaoMapInstance?.relayout();
-  // 또는 CSS custom property로:
-  document.documentElement.style.setProperty(
-    '--map-bottom-padding', 
-    `${sheetHeight}px`
-  );
-});
-```
+| # | 적용 내용 | 상태 |
+|---|-----------|------|
+| 1 | **스프링 수치 교체** `SPRING_SNAP { stiffness: 320, damping: 30, mass: 0.8 }` + velocity 분기 | ✅ 완료 |
+| 2 | **`dragElastic={{ top: 0.08, bottom: 0 }}`** 적용 | ✅ 완료 |
+| 3 | **`getTargetY` → `useCallback` 리팩토링** + `onClose` 의존성 수정 | ✅ 완료 |
+| 4 | **레이어드 그림자** (boxShadow 3단 레이어) | ✅ 완료 |
 
 ---
 
-### 4-5. 콘텐츠 페이드인 — 스냅 상태에 따른 정보 전환
+### 🟠 TIER 2: 단기 적용 — UX 완성도, 요구사항 §4 실현 (2~4시간)
 
-```tsx
-// MIN → DEFAULT로 이동 시 상세 콘텐츠 페이드인
-const detailContentVariants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: {
-      duration: 0.2,
-      ease: [0.25, 0.46, 0.45, 0.94], // easeOutQuart
-      delay: 0.05 // 시트 안착 후 약간의 딜레이
-    }
-  }
-};
-
-// 사용:
-<motion.div
-  variants={detailContentVariants}
-  animate={currentSnap === 'min' ? 'hidden' : 'visible'}
->
-  {/* 영업시간, 메뉴, 리뷰 등 상세 정보 */}
-</motion.div>
-```
+| # | 적용 내용 | 연관 항목 | 예상 효과 | 난이도 | 상태 |
+|---|-----------|-----------|-----------|--------|------|
+| 5 | **드래그 핸들 터치 타겟 `py-4` 확장** | INSIGHT-3, Part 3-1 | 터치 미스 감소, Apple HIG 44px 준수 | 🟢 낮음 | ✅ 완료 |
+| 6 | **`useTransform`으로 플로팅 버튼 실시간 연동** | Part 4-4, 요구사항 §4 | 시트↔버튼 "한 몸" 실시간 반응 | 🟡 중간 | ✅ 완료 |
+| 7 | **`useTransform`으로 그림자 강도 동적 변화** | Part 3-2 | 시트 높이에 따라 그림자 깊이 변화 | 🟡 중간 | ✅ 완료 |
+| 8 | **velocity 기반 동적 스프링** (flick 판정) | Part 4-1 | 빠른 스와이프 시 탁 안착 | 🟡 중간 | ✅ TIER 1에서 선완료 |
+| 9 | **History API 통합 (백버튼 처리)** | ISSUE-9 (review) | Android 물리 백버튼 → 시트 닫기 | 🟡 중간 | ✅ 완료 |
+| 10 | **Safe Area Inset 처리** `env(safe-area-inset-bottom)` | ISSUE-7 (review) | iPhone 홈 인디케이터 겹침 방지 | 🟢 낮음 | ✅ 완료 |
 
 ---
 
-### 4-6. 전체 스프링 수치 요약표
+### 🟡 TIER 3: 중기 적용 — 지도 연동 차별화 UX (1~2일)
 
-| 상황 | stiffness | damping | mass | 효과 |
-|------|-----------|---------|------|------|
-| 일반 스냅 (느린 드래그) | 320 | 30 | 0.8 | 자연스럽게 안착, 미세 오버슈트 |
-| 빠른 플릭 스냅 | 500 | 40 | 0.6 | 빠르게 탁 안착 |
-| 시트 첫 진입 (마커 탭) | 400 | 35 | 1.0 | 힘있게 등장 |
-| 시트 닫기 | 300 | 35 | 1.0 | 부드럽게 퇴장 |
-| 콘텐츠 페이드인 | — | — | — | `duration: 0.2, easeOutQuart` |
+> 프로젝트 성격상 **가장 차별화되는 부분**이지만, 카카오맵 API 연동이 수반됩니다.
+
+| # | 적용 내용 | 연관 항목 | 예상 효과 | 난이도 | 상태 |
+|---|-----------|-----------|-----------|--------|------|
+| 11 | **마커 탭 → 지도 카메라 패닝** (황금비 40% 오프셋) | Part 5-2, INSIGHT-1 | "네이버 지도 수준" 연동 UX | 🔴 높음 | 🔲 미완료 |
+| 12 | **시트 높이 → 지도 `padding-bottom` 실시간 연동** | Part 5-1, INSIGHT-1 | 마커가 시트에 가리지 않음 | 🔴 높음 | 🔲 미완료 |
+| 13 | **콘텐츠 페이드인** (스냅 상태별 `variants` 전환) | Part 4-5 | MIN→DEFAULT 상세 정보 자연스럽게 등장 | 🟡 중간 | 🔲 미완료 |
+| 14 | **Interaction Flow 전체 타이밍 구현** (0ms→300ms 시퀀스) | Part 2 전체 | "네이티브 앱처럼 느껴짐"의 완성 | 🔴 높음 | 🔲 미완료 |
 
 ---
 
-## Part 5. 🗺️ 지도-시트 유기적 상호작용 상세 설계
+### ⚪ TIER 4: 장기/선택 — WOW 효과 (별도 스프린트)
 
-### 5-1. 시트 높이 → 지도 카메라 오프셋 연동
+| # | 적용 내용 | 비고 | 난이도 | 상태 |
+|---|-----------|------|--------|------|
+| 15 | **Shared Element Transition** (썸네일 → 헤더 확장) | React/Framer Motion에서 별도 아키텍처 필요 | 🔴 높음 | 🔲 미완료 |
+| 16 | **MAX 상태 미니맵 전환** | 카카오맵 별도 인스턴스 또는 오버레이 구현 필요 | 🔴 높음 | 🔲 미완료 |
+| 17 | **진입 애니메이션 Bouncy 버전** (`damping: 28`) | 취향 차이, A/B 테스트 영역 | 🟢 낮음 | 🔲 미완료 |
+
+---
+
+## 진행 현황 요약
 
 ```
-시트 상태별 지도 가시 영역:
+TIER 0 (Critical 버그)  : 3/3 ✅ 완료
+TIER 1 (즉시 체감 개선) : 4/4 ✅ 완료 (+TIER 2 #8 선완료)
+TIER 2 (단기 UX 완성도) : 6/6 완료 (#5, #6, #7, #8, #9, #10 완료)
+TIER 3 (지도 연동 UX)   : 0/4
+TIER 4 (WOW 효과)        : 0/3
+```
 
-MIN 상태 (minHeight: ~210px):
-┌─────────────────────┐
-│                     │
-│   지도 가시 영역    │ ← 화면 전체 - 210px
-│   (전체의 ~70%)     │
-│                     │
-├─────────────────────┤ ← 시트 상단
-│   MIN 시트 (210px)  │
-│   [장소명][별점]    │
-└─────────────────────┘
+> **다음 작업 대상**: TIER 3 — #11 마커 탭 → 지도 패닝 연동 순서로 진행.
 
-DEFAULT 상태 (defaultHeight: ~360px):
-┌─────────────────────┐
-│   지도 가시 영역    │ ← 화면 전체 - 360px
+---
+
+*보고서 작성 기준: 2026-07-20, 우선순위 진단 반영: 2026-07-21 | OnJourney PWA Bottom Sheet v1.x | Framer Motion 최적화 기준*
+   지도 가시 영역    │ ← 화면 전체 - 360px
 │   (전체의 ~50%)     │ ← 마커가 이 영역 중앙에 위치하도록 패닝
 ├─────────────────────┤
 │  DEFAULT 시트       │

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
+import { motion, useDragControls, useMotionValue, animate, useTransform } from 'framer-motion';
 
 const SPRING_SNAP = {
   type: 'spring' as const,
@@ -30,6 +30,7 @@ export interface CustomBottomSheetProps {
   className?: string;
   zIndex?: number;
   scrollRef?: React.Ref<HTMLDivElement>;
+  y?: any;
 }
 
 export const BottomSheetContext = createContext<{
@@ -65,9 +66,26 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   className = '',
   zIndex = 1000,
   scrollRef,
+  y: propY,
 }) => {
   const dragControls = useDragControls();
-  const y = useMotionValue(0);
+  const internalY = useMotionValue(0);
+  const y = propY || internalY;
+
+  // #7. useTransform으로 그림자 강도 동적 변화
+  const shadowOpacity = useTransform(y, [-minHeight, -maxHeight], [0.06, 0.20]);
+  const shadowBlur = useTransform(y, [-minHeight, -maxHeight], [12, 40]);
+  const shadowSpread = useTransform(y, [-minHeight, -maxHeight], [60, 100]);
+
+  const dynamicBoxShadow = useTransform(
+    [shadowOpacity, shadowBlur, shadowSpread],
+    ([opacityVal, blurVal, spreadVal]) => {
+      const op = opacityVal as number;
+      const bl = blurVal as number;
+      const sp = spreadVal as number;
+      return `0 -1px 0 rgba(0,0,0,0.04), 0 -4px ${bl}px rgba(0,0,0,${op}), 0 -20px ${sp}px rgba(0,0,0,${op * 1.5})`;
+    }
+  );
 
   // Initial target translation (negative values representing pull-up height)
   const getTargetY = useCallback((snapType: 'min' | 'default' | 'max') => {
@@ -106,6 +124,32 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       onClose?.();
     }
   }, [isOpen, getTargetY, initialSnap, onClose]);
+
+  // #9. History API 통합 (백버튼 처리)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isOpen) return;
+
+    const stateKey = `bottomsheet-${Date.now()}`;
+    
+    if (!window.history.state?.bottomSheet) {
+      window.history.pushState({ bottomSheet: stateKey }, '');
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (isOpen) {
+        onClose?.();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (window.history.state?.bottomSheet === stateKey) {
+        window.history.back();
+      }
+    };
+  }, [isOpen, onClose]);
 
   const handleDragEnd = (event: any, info: any) => {
     const currentY = y.get(); // Current dynamic translation value (negative)
@@ -192,7 +236,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
           zIndex,
           borderTopLeftRadius: '24px',
           borderTopRightRadius: '24px',
-          boxShadow: '0 -1px 0 rgba(0,0,0,0.04), 0 -4px 12px rgba(0,0,0,0.06), 0 -20px 60px rgba(0,0,0,0.10)',
+          boxShadow: dynamicBoxShadow,
           pointerEvents: isOpen ? 'auto' : 'none',
         }}
         className={`bg-white flex flex-col pointer-events-auto ${className}`}
@@ -201,7 +245,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         {/* Global Common Drag Handle */}
         <div
           onPointerDown={(e) => dragControls.start(e)}
-          className="w-full flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white rounded-t-[24px]"
+          className="w-full flex justify-center py-4 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white rounded-t-[24px]"
         >
           <div className="w-12 h-1.5 bg-zinc-300 rounded-full pointer-events-none" />
         </div>
@@ -219,6 +263,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         <div
           ref={scrollRef}
           className="flex-1 w-full flex flex-col min-h-0"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}
         >
           {children}
         </div>

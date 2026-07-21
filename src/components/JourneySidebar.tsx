@@ -28,37 +28,18 @@ const FloatingButtonsContainer = () => {
   );
 };
 
-const CreateJourneyFloatingButton = ({ show, onClick, PlusIcon }: { show: boolean, onClick: () => void, PlusIcon: any }) => {
-  const { y, minHeight } = useBottomSheet();
+const CreateJourneyFloatingButton = ({ show, onClick, PlusIcon, y, minHeight }: { show: boolean, onClick: () => void, PlusIcon: any, y: any, minHeight: number }) => {
   const opacity = useTransform(y, [-minHeight - 20, -minHeight - 100], [0, 1]);
   const pointerEvents = useTransform(y, (latest: number) => latest > -minHeight - 50 ? 'none' : 'auto');
 
-  const buttonY = useTransform(y, (latest: number) => {
-    const visibleHeight = -latest;
-    const basePosition = visibleHeight - 76; // 56px height + 20px padding from the bottom
-
-    const animationRangeStart = -minHeight - 20;
-    const animationRangeEnd = -minHeight - 100;
-
-    let slideOffset = 0;
-    if (latest >= animationRangeStart) {
-      slideOffset = 120;
-    } else if (latest <= animationRangeEnd) {
-      slideOffset = 0;
-    } else {
-      const t = (latest - animationRangeStart) / (animationRangeEnd - animationRangeStart);
-      slideOffset = 120 * (1 - t);
-    }
-
-    return basePosition + slideOffset;
-  });
+  const translateY = useTransform(y, [-minHeight, 0], [0, 120], { clamp: true });
 
   if (!show) return null;
 
   return (
     <motion.div 
-      className="absolute top-0 left-4 right-4 z-[101] md:hidden"
-      style={{ opacity, y: buttonY, pointerEvents: pointerEvents as any }}
+      className="fixed bottom-[20px] left-4 right-4 z-[101] md:hidden"
+      style={{ opacity, y: translateY, pointerEvents: pointerEvents as any }}
     >
       <button
         type="button"
@@ -72,30 +53,11 @@ const CreateJourneyFloatingButton = ({ show, onClick, PlusIcon }: { show: boolea
   );
 };
 
-const AddPlaceFloatingButton = ({ show, scrollProgress, currentSnapType, onClick, PlusIcon }: { show: boolean, scrollProgress: any, currentSnapType: 'min' | 'default' | 'max', onClick: () => void, PlusIcon: any }) => {
-  const { y, minHeight } = useBottomSheet();
+const AddPlaceFloatingButton = ({ show, scrollProgress, currentSnapType, onClick, PlusIcon, y, minHeight }: { show: boolean, scrollProgress: any, currentSnapType: 'min' | 'default' | 'max', onClick: () => void, PlusIcon: any, y: any, minHeight: number }) => {
   const opacity = useTransform(y, [-minHeight - 20, -minHeight - 100], [0, 1]);
   const pointerEvents = useTransform(y, (latest: number) => latest > -minHeight - 50 ? 'none' : 'auto');
 
-  const buttonY = useTransform(y, (latest: number) => {
-    const visibleHeight = -latest;
-    const basePosition = visibleHeight - 76; // 56px height + 20px padding from the bottom
-
-    const animationRangeStart = -minHeight - 20;
-    const animationRangeEnd = -minHeight - 100;
-
-    let slideOffset = 0;
-    if (latest >= animationRangeStart) {
-      slideOffset = 120;
-    } else if (latest <= animationRangeEnd) {
-      slideOffset = 0;
-    } else {
-      const t = (latest - animationRangeStart) / (animationRangeEnd - animationRangeStart);
-      slideOffset = 120 * (1 - t);
-    }
-
-    return basePosition + slideOffset;
-  });
+  const translateY = useTransform(y, [-minHeight, 0], [0, 120], { clamp: true });
 
   // scrollProgress (MotionValue) 로부터 실시간 투명도 및 Y좌표 계산
   // - default: 스크롤 진행도 (scrollProgress)
@@ -117,8 +79,8 @@ const AddPlaceFloatingButton = ({ show, scrollProgress, currentSnapType, onClick
 
   return (
     <motion.div 
-      className="absolute top-0 left-4 right-4 z-[101] md:hidden"
-      style={{ opacity, y: buttonY, pointerEvents: pointerEvents as any }}
+      className="fixed bottom-[20px] left-4 right-4 z-[101] md:hidden"
+      style={{ opacity, y: translateY, pointerEvents: pointerEvents as any }}
     >
       <motion.div
         style={{
@@ -149,6 +111,7 @@ const parseSnapVal = (s: any): number => {
 
 export default function JourneySidebar() {
   const { user, loading: authLoading, openAuthModal } = useAuth();
+  const y = useMotionValue(0);
   const scrollProgress = useMotionValue(1); // 1: 최하단, 0: 최하단 아님 (React 리렌더링 병목 제거용 MotionValue)
   const {
     setJourneys,
@@ -372,6 +335,7 @@ export default function JourneySidebar() {
           maxHeight={windowHeight - 16}
           initialSnap={currentSnapType}
           zIndex={30}
+          y={y}
           onSnap={(snapName) => {
             if (snapName === 'min') setSnap(minSnapPx);
             else if (snapName === 'default') setSnap(defaultSnapPx);
@@ -380,19 +344,24 @@ export default function JourneySidebar() {
         >
           <FloatingButtonsContainer />
           {content}
-          <CreateJourneyFloatingButton 
-            show={showFloatingCreateButton} 
-            onClick={handleCreateClick} 
-            PlusIcon={Plus}
-          />
-          <AddPlaceFloatingButton
-            show={showFloatingAddPlaceButton}
-            scrollProgress={scrollProgress}
-            currentSnapType={currentSnapType}
-            onClick={handleAddPlaceClick}
-            PlusIcon={Plus}
-          />
         </CustomBottomSheet>
+        
+        <CreateJourneyFloatingButton 
+          show={showFloatingCreateButton} 
+          onClick={handleCreateClick} 
+          PlusIcon={Plus}
+          y={y}
+          minHeight={minSnapPx}
+        />
+        <AddPlaceFloatingButton
+          show={showFloatingAddPlaceButton}
+          scrollProgress={scrollProgress}
+          currentSnapType={currentSnapType}
+          onClick={handleAddPlaceClick}
+          PlusIcon={Plus}
+          y={y}
+          minHeight={minSnapPx}
+        />
         
         <CreateJourneyModal />
         <AuthModal />

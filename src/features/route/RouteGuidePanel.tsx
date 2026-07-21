@@ -568,8 +568,14 @@ export default function RouteGuidePanel({
           scrollRef={scrollContainerRef as React.MutableRefObject<any>}
         >
           <FloatingButtonsContainer />
-          <div 
+          <motion.div 
             ref={scrollContainerRef}
+            variants={{
+              min: { opacity: 0, y: 15, pointerEvents: 'none' as const, transition: { duration: 0.2, ease: 'easeOut' } },
+              default: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
+              max: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
+            }}
+            animate={currentSnapType}
             className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar relative w-full px-5 pt-4 bg-white snap-y snap-mandatory" 
             style={{ height: contentMaxHeight }}
             onTouchStart={handleTouchStart}
@@ -579,7 +585,7 @@ export default function RouteGuidePanel({
             {listContent}
             {/* 하단 재생바 등에 의해 가려지지 않도록 여백 배치 */}
             <div className="h-28 w-full flex-shrink-0 pointer-events-none" />
-          </div>
+          </motion.div>
         </CustomBottomSheet>
         {playbackBar}
       </>

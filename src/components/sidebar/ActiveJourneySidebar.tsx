@@ -7,6 +7,7 @@ import PlaceList from '@/components/PlaceList';
 import EditJourneyModal from '@/components/EditJourneyModal';
 import type { Journey, Place } from '@/types/journey';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { motion } from 'framer-motion';
 
 import JourneyPlayerHeader from './JourneyPlayerHeader';
 import SearchOverlay from './SearchOverlay';
@@ -44,6 +45,11 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
     : typeof drawerSnapPoint === 'number'
       ? drawerSnapPoint
       : parseInt(String(drawerSnapPoint), 10) || 0;
+
+  let currentSnapType: 'min' | 'default' | 'max' = 'default';
+  const minSnapPx = activeJourney ? 133 : 62;
+  if (snapPx === minSnapPx) currentSnapType = 'min';
+  else if (snapPx === windowHeight - 16) currentSnapType = 'max';
 
   // Use 76px header height for Edit Mode, 126px for Normal Player Mode (due to media controls overlay)
   const headerHeight = isEditMode ? 76 : 126;
@@ -126,26 +132,36 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
         className="flex-1 flex flex-col min-h-0 relative"
         style={{ maxHeight: contentMaxHeight }}
       >
-        <PlaceList
-          editMode={isEditMode}
-          selectedIds={selectedPlaceIds}
-          onToggleSelect={(id) => {
-            setSelectedPlaceIds((prev) =>
-              prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-            );
+        <motion.div
+          variants={{
+            min: { opacity: 0, y: 15, pointerEvents: 'none' as const, transition: { duration: 0.2, ease: 'easeOut' } },
+            default: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
+            max: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
           }}
-          localPlaces={localPlaces}
-          setLocalPlaces={setLocalPlaces}
-          scrollProgress={scrollProgress}
+          animate={currentSnapType}
+          className="flex-1 flex flex-col min-h-0 w-full h-full"
         >
-          {!isSearchMode && (
-            <SidebarBottomActions
-              isEditMode={isEditMode}
-              selectedPlaceIds={selectedPlaceIds}
-              handleDeleteSelectedPlaces={handleDeleteSelectedPlaces}
-            />
-          )}
-        </PlaceList>
+          <PlaceList
+            editMode={isEditMode}
+            selectedIds={selectedPlaceIds}
+            onToggleSelect={(id) => {
+              setSelectedPlaceIds((prev) =>
+                prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+              );
+            }}
+            localPlaces={localPlaces}
+            setLocalPlaces={setLocalPlaces}
+            scrollProgress={scrollProgress}
+          >
+            {!isSearchMode && (
+              <SidebarBottomActions
+                isEditMode={isEditMode}
+                selectedPlaceIds={selectedPlaceIds}
+                handleDeleteSelectedPlaces={handleDeleteSelectedPlaces}
+              />
+            )}
+          </PlaceList>
+        </motion.div>
 
         <SearchOverlay activeJourney={activeJourney} />
       </div>

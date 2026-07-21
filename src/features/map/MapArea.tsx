@@ -151,7 +151,8 @@ export default function MapArea() {
     forceLoad, setForceLoad,
     mapCenter, setMapCenter,
     zoomLevel, setZoomLevel,
-    mapBounds, setMapBounds
+    mapBounds, setMapBounds,
+    bottomSheetY
   } = useMapUIStore();
   const lastKnownLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const gpsModeRef = useRef(gpsMode);
@@ -168,6 +169,17 @@ export default function MapArea() {
   }, [deviceHeading]);
 
   const watchIdRef = useRef<number | null>(null);
+
+  const panTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const stateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 마운트 해제 시 활성화된 타이머들 제거하여 메모리 누수 및 오동작 방지
+  useEffect(() => {
+    return () => {
+      if (panTimeoutRef.current) clearTimeout(panTimeoutRef.current);
+      if (stateTimeoutRef.current) clearTimeout(stateTimeoutRef.current);
+    };
+  }, []);
 
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
@@ -229,12 +241,7 @@ export default function MapArea() {
     etc: '📍'
   }), []);
 
-  const handleRecommendedMarkerClick = (recPlace: PlaceResult) => {
-    setActiveRecommendedPlace(recPlace);
-    if (map) {
-      map.panTo(new window.naver.maps.LatLng(recPlace.lat, recPlace.lng));
-    }
-  };
+
 
   const handleAddRecommendedPlace = async (item: PlaceResult) => {
     if (!activeJourney) return;
@@ -568,52 +575,140 @@ export default function MapArea() {
     map.setOptions({ padding: currentMapPadding });
   }, [map, currentMapPadding]);
 
+  // 바텀시트가 열려 있을 때 실시간으로 Y 축 스크롤 높이를 반영하여 지도 하단 패딩(padding-bottom)을 동적 동기화
+  useEffect(() => {
+    if (!map || !bottomSheetY) return;
+
+    const unsubscribe = bottomSheetY.on("change", (latestY: number) => {
+      const pulledUpHeight = -latestY;
+      
+      let paddingBottom = pulledUpHeight + 40; // 스냅 높이 + 마커 표시 여백
+      let topPadding = currentMapPadding.top || 0;
+
+      // 최소 150px의 지도 표시 영역을 보장하도록 안전 제약 적용
+      const maxAllowedVerticalPadding = Math.max(0, windowHeight - 150);
+      const currentTotalVerticalPadding = topPadding + paddingBottom;
+
+      if (currentTotalVerticalPadding > maxAllowedVerticalPadding) {
+        topPadding = Math.min(topPadding, maxAllowedVerticalPadding * 0.3);
+        paddingBottom = maxAllowedVerticalPadding - topPadding;
+      }
+
+      map.setOptions({
+        padding: {
+          ...currentMapPadding,
+          bottom: paddingBottom,
+          top: topPadding
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, [map, bottomSheetY, currentMapPadding, windowHeight]);
+
+  const panToWithOffset = useCallback((naverMap: naver.maps.Map, coord: { lat: number; lng: number }) => {
+    const projection = naverMap.getProjection();
+    if (!projection) {
+      naverMap.panTo(new window.naver.maps.LatLng(coord.lat, coord.lng));
+      return;
+    }
+
+    const latLng = new window.naver.maps.LatLng(coord.lat, coord.lng);
+    const pixelPoint = projection.fromCoordToOffset(latLng);
+
+    const topPadding = currentMapPadding.top || 0;
+    const bottomPadding = currentMapPadding.bottom || 0;
+    const visibleHeight = windowHeight - topPadding - bottomPadding;
+
+    if (visibleHeight > 0) {
+      // 50% (중심) - 40% (목표 지점) = 10% 오프셋 (아래 방향으로 +Y 이동)
+      const offsetPixels = visibleHeight * 0.1;
+      const targetPixel = new window.naver.maps.Point(pixelPoint.x, pixelPoint.y + offsetPixels);
+      const targetLatLng = projection.fromOffsetToCoord(targetPixel);
+      naverMap.panTo(targetLatLng);
+    } else {
+      naverMap.panTo(latLng);
+    }
+  }, [currentMapPadding, windowHeight]);
+
+  const handleRecommendedMarkerClick = (recPlace: PlaceResult) => {
+    // 0ms: 즉시 햅틱 피드백 및 선택 마커 강조
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+    setActiveRecommendedPlace(recPlace);
+
+    // 광클 방지: 이전의 예약된 패닝 및 상태 지연 취소
+    if (panTimeoutRef.current) clearTimeout(panTimeoutRef.current);
+    if (stateTimeoutRef.current) clearTimeout(stateTimeoutRef.current);
+
+    // 50ms: 지도 카메라 패닝 시작
+    if (map) {
+      panTimeoutRef.current = setTimeout(() => {
+        panToWithOffset(map, { lat: recPlace.lat, lng: recPlace.lng });
+      }, 50);
+    }
+  };
 
   const handleMarkerClick = (place: SelectedPlace & { id: string }, idx: number) => {
-    // 1. 지도 중심 이동
+    // 0ms: 즉시 햅틱 피드백 실행
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+
+    // 광클 방지: 이전 예약 지연 지우기
+    if (panTimeoutRef.current) clearTimeout(panTimeoutRef.current);
+    if (stateTimeoutRef.current) clearTimeout(stateTimeoutRef.current);
+
+    const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
+
+    // 50ms: 지도 카메라 패닝 시작
     if (map) {
       map.setOptions({ padding: currentMapPadding });
-      const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
       setMapCenter(coord);
-      map.panTo(coord);
+      panTimeoutRef.current = setTimeout(() => {
+        panToWithOffset(map, coord);
+      }, 50);
     }
 
-    // 2. 이동 경로 하이라이트 인터랙션 적용
-    if (places.length < 2) return;
+    // 80ms: 하이라이트 경로 로드 및 바텀시트 마운트 실행
+    stateTimeoutRef.current = setTimeout(() => {
+      if (places.length < 2) return;
 
-    let originPlace: any;
-    let destPlace: any;
+      let originPlace: any;
+      let destPlace: any;
 
-    if (idx === places.length - 1) {
-      // 맨 마지막 마커 클릭 시: 마지막 이전 장소에서 마지막 장소로의 경로 하이라이트 (places[N-2] -> places[N-1])
-      originPlace = places[places.length - 2];
-      destPlace = places[places.length - 1];
-    } else {
-      // 일반적인 K번 마커 클릭 시: K번 장소에서 K+1번 장소로의 경로 하이라이트 (places[idx] -> places[idx+1])
-      originPlace = places[idx];
-      destPlace = places[idx + 1];
-    }
+      if (idx === places.length - 1) {
+        // 맨 마지막 마커 클릭 시: 마지막 이전 장소에서 마지막 장소로의 경로 하이라이트 (places[N-2] -> places[N-1])
+        originPlace = places[places.length - 2];
+        destPlace = places[places.length - 1];
+      } else {
+        // 일반적인 K번 마커 클릭 시: K번 장소에서 K+1번 장소로의 경로 하이라이트 (places[idx] -> places[idx+1])
+        originPlace = places[idx];
+        destPlace = places[idx + 1];
+      }
 
-    if (!originPlace || !destPlace) return;
+      if (!originPlace || !destPlace) return;
 
-    // 세그먼트 데이터 및 경로 가져오기
-    const cacheKey = `${originPlace.id}-${destPlace.id}`;
-    const segmentData = directionsCache[cacheKey];
-    const transportType = activeJourney?.transport_type || 'public';
-    const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+      // 세그먼트 데이터 및 경로 가져오기
+      const cacheKey = `${originPlace.id}-${destPlace.id}`;
+      const segmentData = directionsCache[cacheKey];
+      const transportType = activeJourney?.transport_type || 'public';
+      const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 
-    const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+      const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
 
-    // 이미 해당 세그먼트가 선택(하이라이트)되어 있는 경우 클릭 시 전체 여정으로 돌아가지 않고, 해당 구간을 다시 핏팅 (세부 스텝 포커스 해제)
-    if (focusedSegment && focusedSegment.originId === originPlace.id && focusedSegment.destId === destPlace.id) {
-      setFocusBounds({ ...bounds });
-      setFocusedStep(null);
-    } else {
-      // 신규 하이라이트 적용
-      setFocusBounds(bounds);
-      setFocusedSegment({ originId: originPlace.id, destId: destPlace.id });
-      setFocusedStep(null);
-    }
+      // 이미 해당 세그먼트가 선택(하이라이트)되어 있는 경우 클릭 시 전체 여정으로 돌아가지 않고, 해당 구간을 다시 핏팅 (세부 스텝 포커스 해제)
+      if (focusedSegment && focusedSegment.originId === originPlace.id && focusedSegment.destId === destPlace.id) {
+        setFocusBounds({ ...bounds });
+        setFocusedStep(null);
+      } else {
+        // 신규 하이라이트 적용
+        setFocusBounds(bounds);
+        setFocusedSegment({ originId: originPlace.id, destId: destPlace.id });
+        setFocusedStep(null);
+      }
+    }, 80);
   };
 
 

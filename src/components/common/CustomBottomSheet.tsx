@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { motion, useDragControls, useMotionValue, animate, useTransform } from 'framer-motion';
+import { useMapUIStore } from '@/stores/map-store';
 
 const SPRING_SNAP = {
   type: 'spring' as const,
@@ -72,6 +73,17 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const internalY = useMotionValue(0);
   const y = propY || internalY;
 
+  const { setBottomSheetY } = useMapUIStore();
+
+  useEffect(() => {
+    if (isOpen) {
+      setBottomSheetY(y);
+      return () => {
+        setBottomSheetY((currentY: any) => currentY === y ? null : currentY);
+      };
+    }
+  }, [isOpen, y, setBottomSheetY]);
+
   // #7. useTransform으로 그림자 강도 동적 변화
   const shadowOpacity = useTransform(y, [-minHeight, -maxHeight], [0.06, 0.20]);
   const shadowBlur = useTransform(y, [-minHeight, -maxHeight], [12, 40]);
@@ -101,20 +113,34 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const [activeSnapY, setActiveSnapY] = useState(isOpen ? getTargetY(initialSnap) : 0);
   const dragVelocityRef = useRef(0);
 
+  // 대상 스냅 포인트와 제스처 속도에 따라 적절한 스프링 구성을 반환하는 헬퍼 함수
+  const getSpringConfig = useCallback((targetY: number, velocity: number) => {
+    const isFlick = Math.abs(velocity) > 500;
+    if (isFlick) {
+      return SPRING_SNAP_FAST;
+    }
+    
+    // 최소 높이(-minHeight)로 안착할 때는 바운스 현상 원천 차단을 위해 높은 감쇠(35)를 적용
+    const isMovingToMin = targetY === -minHeight;
+    return {
+      ...SPRING_SNAP,
+      damping: isMovingToMin ? 35 : 28, // 그 외(default, max)로 가거나 들어올 때는 Bouncy 버전(28) 적용
+    };
+  }, [minHeight]);
+
   // activeSnapY가 변경될 때 모션 밸류 y를 직접 애니메이션 제어
   useEffect(() => {
     const initialVelocity = dragVelocityRef.current;
     dragVelocityRef.current = 0; // 사용 후 리셋
 
-    const isFlick = Math.abs(initialVelocity) > 500;
-    const springConfig = isFlick ? SPRING_SNAP_FAST : SPRING_SNAP;
+    const springConfig = getSpringConfig(activeSnapY, initialVelocity);
 
     const controls = animate(y, activeSnapY, {
       ...springConfig,
       velocity: initialVelocity
     });
     return () => controls.stop();
-  }, [activeSnapY, y]);
+  }, [activeSnapY, y, getSpringConfig]);
 
   useEffect(() => {
     if (isOpen) {
@@ -196,8 +222,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       }
     }
 
-    const isFlick = Math.abs(velocityY) > 500;
-    const springConfig = isFlick ? SPRING_SNAP_FAST : SPRING_SNAP;
+    const springConfig = getSpringConfig(targetSnap.y, velocityY);
 
     if (activeSnapY === targetSnap.y) {
       // 동일한 스냅 포인트 구역 내에서 미세 조작 후 놓았을 때 제자리로 복귀하도록 명시적 애니메이션 수행
@@ -267,6 +292,21 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         >
           {children}
         </div>
+
+        {/* 바텀 시트 위쪽 탄성 동작 시 하단의 빈 공간(땜빵)이 노출되는 현상을 방지하는 절대 위치 가림막(Skirt) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '99%', // 서브픽셀 렌더링 틈새 방지를 위해 경계에서 약간 위에서 시작
+            left: 0,
+            right: 0,
+            height: '200px',
+            backgroundColor: 'inherit', // 부모(motion.div)의 배경색(bg-white 등)을 그대로 상속
+            borderBottomLeftRadius: 'inherit',
+            borderBottomRightRadius: 'inherit',
+            pointerEvents: 'none', // 포인터 이벤트 통과
+          }}
+        />
       </motion.div>
     </BottomSheetContext.Provider>
   );

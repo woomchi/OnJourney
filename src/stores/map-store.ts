@@ -43,6 +43,10 @@ interface MapUIState {
   // Loading
   forceLoad: boolean;
   setForceLoad: (force: boolean) => void;
+
+  // Bottom Sheet Motion Value Sharing
+  bottomSheetY: any;
+  setBottomSheetY: (y: any) => void;
 }
 
 export const useMapUIStore = create<MapUIState>((set) => ({
@@ -81,4 +85,12 @@ export const useMapUIStore = create<MapUIState>((set) => ({
 
   forceLoad: false,
   setForceLoad: (force) => set({ forceLoad: force }),
+
+  bottomSheetY: null,
+  setBottomSheetY: (y) => set((state) => {
+    if (typeof y === 'function') {
+      return { bottomSheetY: y(state.bottomSheetY) };
+    }
+    return { bottomSheetY: y };
+  }),
 }));

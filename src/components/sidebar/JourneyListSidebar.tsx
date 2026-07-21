@@ -12,6 +12,7 @@ import type { Journey } from '@/types/journey';
 import React from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
+import { motion } from 'framer-motion';
 import { Loader2, GripVertical, Pencil, Check, Trash2, Plus } from 'lucide-react';
 import {
   DndContext,
@@ -164,8 +165,6 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
   const [localJourneys, setLocalJourneys] = useState<Journey[]>(journeys);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const isMobile = useMediaQuery('(max-width: 767px)');
-  const Scroller = 'div';
-  const scrollerProps = { ref: scrollRef };
 
   const [windowHeight, setWindowHeight] = useState(0);
   useEffect(() => {
@@ -181,6 +180,22 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     : typeof drawerSnapPoint === 'number'
       ? drawerSnapPoint
       : parseInt(String(drawerSnapPoint), 10) || 0;
+
+  const minSnapPx = activeJourney ? 133 : 62;
+  const isMinSnap = isMobile && snapPx === minSnapPx;
+  const currentSnapType = isMinSnap ? 'min' : 'default';
+
+  const Scroller = (isMobile ? motion.div : 'div') as any;
+  const scrollerProps = (isMobile ? {
+    ref: scrollRef,
+    variants: {
+      min: { opacity: 0, y: 15, pointerEvents: 'none' as const, transition: { duration: 0.2, ease: 'easeOut' } },
+      default: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
+    },
+    animate: currentSnapType
+  } : {
+    ref: scrollRef
+  }) as any;
 
   const headerHeight = 66; // 여정 목록 상단 헤더 높이
   const contentMaxHeight = isMobile && snapPx > 0

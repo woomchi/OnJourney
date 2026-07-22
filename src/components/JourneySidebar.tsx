@@ -303,18 +303,6 @@ export default function JourneySidebar() {
       openSearchMode();
     };
 
-    const handleDoneEdit = async () => {
-      if (activeJourney) {
-        try {
-          await reorderPlaces(activeJourney.places);
-        } catch (err) {
-          console.error('순서 변경 저장 실패:', err);
-          await alert('순서 변경 저장에 실패했습니다.');
-        }
-      }
-      setEditMode(false);
-    };
-
     if (activeJourney) {
       return (
         <>
@@ -323,7 +311,6 @@ export default function JourneySidebar() {
             <FixedJourneyTimelineSheet
               activeJourney={activeJourney}
               setIsEditModalOpen={setIsEditModalOpen}
-              handleDoneEdit={handleDoneEdit}
             />
           )}
 

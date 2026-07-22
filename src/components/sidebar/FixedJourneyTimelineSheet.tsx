@@ -14,13 +14,11 @@ import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 interface FixedJourneyTimelineSheetProps {
   activeJourney: Journey;
   setIsEditModalOpen: (isOpen: boolean) => void;
-  handleDoneEdit: () => void;
 }
 
 export default function FixedJourneyTimelineSheet({
   activeJourney,
   setIsEditModalOpen,
-  handleDoneEdit,
 }: FixedJourneyTimelineSheetProps) {
   const queryClient = useQueryClient();
   const {
@@ -371,14 +369,10 @@ export default function FixedJourneyTimelineSheet({
 
           <button
             type="button"
-            onClick={
-              isEditMode
-                ? handleDoneEdit
-                : () => {
-                  setEditMode(true);
-                  setDrawerSnapPoint(1);
-                }
-            }
+            onClick={() => {
+              setEditMode(!isEditMode);
+              if (!isEditMode) setDrawerSnapPoint(1);
+            }}
             className={`flex items-center gap-0.5 text-xs font-semibold transition-colors px-1 py-0.5 rounded-md cursor-pointer ${isEditMode ? 'text-blue-600 font-bold' : 'text-zinc-500 hover:text-zinc-800'
               }`}
           >

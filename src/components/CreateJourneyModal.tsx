@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { useQueryClient } from '@tanstack/react-query';
 
 const TRANSPORT_OPTIONS = [
   { value: 'public' as const, label: '대중교통', icon: '🚌' },
@@ -18,6 +19,7 @@ const TRANSPORT_OPTIONS = [
 ];
 
 export default function CreateJourneyModal() {
+  const queryClient = useQueryClient();
   const { isCreateFormOpen, closeCreateForm, createJourney, isLoading } =
     useJourneyStore();
 
@@ -48,6 +50,7 @@ export default function CreateJourneyModal() {
         transport_type: transportType,
         journey_date: journeyDate,
       });
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
 
       setTitle('');
       setTransportType('public');

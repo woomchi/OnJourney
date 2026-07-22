@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { useQueryClient } from '@tanstack/react-query';
 
 const TRANSPORT_OPTIONS = [
   { value: 'public' as const, label: '대중교통', icon: '🚌' },
@@ -24,6 +25,7 @@ interface EditJourneyModalProps {
 }
 
 export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourneyModalProps) {
+  const queryClient = useQueryClient();
   const { updateJourneyInfo, isLoading } = useJourneyStore();
 
   const [title, setTitle] = useState('');
@@ -58,6 +60,7 @@ export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourn
 
     try {
       await updateJourneyInfo(title, journeyDate, transportType);
+      queryClient.invalidateQueries({ queryKey: ['journeys'] });
       onClose();
     } catch (err) {
       setError(

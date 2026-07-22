@@ -7,7 +7,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { deleteJourneys } from '@/lib/journeys';
-import { formatJourneyDate } from '@/lib/journeyUtils';
+import { formatJourneyDate, removeJourneysFromStoredOrder } from '@/lib/journeyUtils';
 import type { Journey } from '@/types/journey';
 import React from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -267,6 +267,12 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     }
     try {
       await deleteJourneys(selectedIds);
+      if (user) {
+        removeJourneysFromStoredOrder(user.id, selectedIds);
+      }
+      if (activeJourney && selectedIds.includes(activeJourney.id)) {
+        clearJourney();
+      }
       queryClient.invalidateQueries({ queryKey: ['journeys'] });
       setSelectedIds([]);
       setIsListEditMode(false);

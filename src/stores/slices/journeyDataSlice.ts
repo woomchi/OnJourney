@@ -32,7 +32,17 @@ export const createJourneyDataSlice: StateCreator<
   isLoading: false,
   isSyncing: false,
 
-  setJourneys: (journeys) => set({ journeys }),
+  setJourneys: (journeys) =>
+    set((state) => {
+      if (!state.activeJourney) {
+        return { journeys };
+      }
+      const updatedActive = journeys.find((j) => j.id === state.activeJourney?.id);
+      return {
+        journeys,
+        activeJourney: updatedActive ? updatedActive : state.activeJourney,
+      };
+    }),
 
   createJourney: async (input) => {
     set({ isLoading: true });

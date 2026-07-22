@@ -41,6 +41,20 @@ export function sortJourneysByStoredOrder(journeys: Journey[], userId: string): 
   }
 }
 
+export function removeJourneysFromStoredOrder(userId: string, deletedIds: string[]): void {
+  if (typeof window === 'undefined' || !deletedIds.length) return;
+  const key = `journey_order_${userId}`;
+  const orderStr = localStorage.getItem(key);
+  if (!orderStr) return;
+  try {
+    const orderIds = JSON.parse(orderStr) as string[];
+    const filtered = orderIds.filter((id) => !deletedIds.includes(id));
+    localStorage.setItem(key, JSON.stringify(filtered));
+  } catch (e) {
+    console.error('Failed to update stored journey order:', e);
+  }
+}
+
 export function formatDistance(meters: number) {
   if (meters < 10) return '';
   if (meters < 1000) return `${meters}m`;

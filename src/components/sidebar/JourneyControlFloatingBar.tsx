@@ -125,19 +125,19 @@ export default function JourneyControlFloatingBar({
           </button>
 
           {/* 중앙: 여정 제목 */}
-          <button
-            type="button"
-            onClick={() => setIsEditModalOpen(true)}
-            className="flex-1 flex items-center justify-center min-w-0 group cursor-pointer text-center px-1"
-            title="여정 정보 수정"
-          >
-            <h2 className="text-xs sm:text-sm font-bold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
-              {activeJourney.title}
-            </h2>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3 text-blue-500 opacity-0 group-hover:opacity-100 transition-all ml-1 shrink-0">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-            </svg>
-          </button>
+          <div className="flex-1 flex items-center justify-center min-w-0 px-1">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-lg hover:bg-zinc-100/90 active:bg-zinc-200/80 transition-all cursor-pointer group shrink border border-transparent hover:border-zinc-200/80"
+              title="여정 정보 수정"
+            >
+              <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors shrink-0" strokeWidth={2} />
+              <h2 className="text-xs sm:text-sm font-bold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
+                {activeJourney.title}
+              </h2>
+            </button>
+          </div>
 
           {/* 우측: 편집 / 플레이어 컨트롤 */}
           <div className="flex items-center gap-1.5 shrink-0">
@@ -178,7 +178,7 @@ export default function JourneyControlFloatingBar({
             </button>
 
             {/* 플레이어 재생/정지 버튼 */}
-            {!isEditMode && activeJourney.places.length >= 2 && (
+            {!isEditMode && (
               <div className="flex items-center gap-1 pl-1 border-l border-zinc-200">
                 <button
                   type="button"
@@ -192,26 +192,35 @@ export default function JourneyControlFloatingBar({
                       setActiveJourney(prevJourney);
                     }
                   }}
-                  className="w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-900 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 disabled:opacity-30 disabled:pointer-events-none transition-colors shrink-0"
                   title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
                 >
-                  <SkipBackIcon className="w-3.5 h-3.5" />
+                  <SkipBackIcon className="w-5 h-5" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handlePlayToggle}
-                  className={`relative w-5 h-5 rounded-full flex items-center justify-center transition-all active:scale-95 shrink-0 ${
-                    isPlaying ? 'bg-white text-zinc-950 shadow-sm border border-zinc-200' : 'bg-blue-600 text-white shadow-sm'
-                  }`}
-                  title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
-                >
-                  {isPlaying ? (
-                    <PauseBarsIcon className="w-2.5 h-2.5" />
-                  ) : (
-                    <PlayTriangleIcon className="w-2.5 h-2.5 ml-0.5" />
-                  )}
-                </button>
+                {activeJourney.places.length >= 2 ? (
+                  <button
+                    type="button"
+                    onClick={handlePlayToggle}
+                    className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-95 shrink-0 ${
+                      isPlaying ? 'bg-white text-zinc-950 shadow-sm border border-zinc-200' : 'bg-blue-600 text-white shadow-sm'
+                    }`}
+                    title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
+                  >
+                    {isPlaying ? (
+                      <PauseBarsIcon className="w-5 h-5" />
+                    ) : (
+                      <PlayTriangleIcon className="w-5 h-5 ml-0.5" />
+                    )}
+                  </button>
+                ) : (
+                  <div
+                    className="w-11 h-11 rounded-full flex items-center justify-center bg-zinc-100 border border-zinc-200/60 text-zinc-300 shrink-0 cursor-not-allowed"
+                    title="장소를 2개 이상 등록해주세요"
+                  >
+                    <PlayTriangleIcon className="w-5 h-5 ml-0.5 text-zinc-300" />
+                  </div>
+                )}
 
                 <button
                   type="button"
@@ -225,10 +234,10 @@ export default function JourneyControlFloatingBar({
                       setActiveJourney(nextJourney);
                     }
                   }}
-                  className="w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-900 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 disabled:opacity-30 disabled:pointer-events-none transition-colors shrink-0"
                   title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
                 >
-                  <SkipForwardIcon className="w-3.5 h-3.5" />
+                  <SkipForwardIcon className="w-5 h-5" />
                 </button>
               </div>
             )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -7,6 +8,8 @@ import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey, Place } from '@/types/journey';
 import { MapPin, ArrowRight, Footprints, Car, Bus, Train } from 'lucide-react';
+
+import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 
 interface HorizontalJourneyTimelineBarProps {
   activeJourney: Journey;
@@ -24,6 +27,33 @@ export default function HorizontalJourneyTimelineBar({
     setAlternativeSegment,
   } = useJourneyStore();
 
+  const timelineContainerRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  const scrollToElement = (key: string) => {
+    requestAnimationFrame(() => {
+      const container = timelineContainerRef.current;
+      const targetEl = cardRefs.current.get(key);
+      if (container && targetEl) {
+        const containerLeft = container.getBoundingClientRect().left;
+        const targetLeft = targetEl.getBoundingClientRect().left;
+        const relativeLeft = targetLeft - containerLeft;
+        const newScrollLeft = container.scrollLeft + relativeLeft - 16;
+        container.scrollTo({
+          left: Math.max(0, newScrollLeft),
+          behavior: 'smooth',
+        });
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (focusedSegment) {
+      const key = `segment-${focusedSegment.originId}-${focusedSegment.destId}`;
+      scrollToElement(key);
+    }
+  }, [focusedSegment]);
+
   const places = activeJourney?.places || [];
   if (places.length === 0) return null;
 
@@ -37,6 +67,7 @@ export default function HorizontalJourneyTimelineBar({
       sw: { lat: place.lat - 0.003, lng: place.lng - 0.003 },
       ne: { lat: place.lat + 0.003, lng: place.lng + 0.003 },
     });
+    scrollToElement(`place-${place.id}`);
   };
 
   const handleSegmentClick = (origin: Place, dest: Place, route: any) => {
@@ -47,9 +78,10 @@ export default function HorizontalJourneyTimelineBar({
       const bounds = calculateSegmentBounds(origin, dest, route);
       setFocusBounds(bounds);
     }
+    scrollToElement(`segment-${origin.id}-${dest.id}`);
   };
 
-  const renderSegmentBadge = (origin: Place, dest: Place) => {
+  const renderSegmentBadge = (origin: Place, dest: Place, sIdx: number) => {
     let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
 
     if (!route) {
@@ -98,35 +130,34 @@ export default function HorizontalJourneyTimelineBar({
       transferLabel = '도보';
     }
 
-    const isFocused = focusedSegment?.originId === origin.id && focusedSegment?.destId === dest.id;
+    const theme = getSegmentTheme(sIdx);
 
     return (
       <button
+        ref={(el) => {
+          const key = `segment-${origin.id}-${dest.id}`;
+          if (el) cardRefs.current.set(key, el);
+          else cardRefs.current.delete(key);
+        }}
         type="button"
         onClick={() => handleSegmentClick(origin, dest, route)}
-        className={`w-[150px] h-[68px] flex flex-col justify-between p-2.5 rounded-2xl border text-xs transition-all shrink-0 cursor-pointer text-left ${
-          isFocused
-            ? 'bg-blue-600 text-white border-blue-500 shadow-md scale-[1.02]'
-            : 'bg-zinc-100/90 hover:bg-zinc-200/90 text-zinc-700 border-zinc-200/70 hover:border-zinc-300'
-        }`}
+        className={`w-[168px] h-[76px] flex flex-col justify-between p-3 rounded-2xl text-xs transition-all shrink-0 cursor-pointer text-left ${theme.cardUnfocused}`}
         title={`${origin.place_name} → ${dest.place_name} 구간 (${duration || '이동정보'})`}
       >
         {/* 상단: 수단 아이콘 + 이동시간 + 환승 태그 */}
         <div className="flex items-center justify-between gap-1 w-full">
           <div className="flex items-center gap-1.5 min-w-0 truncate">
             {type === 'car' ? (
-              <Car className={`w-4 h-4 shrink-0 ${isFocused ? 'text-white' : 'text-blue-500'}`} />
+              <Car className={`w-4.5 h-4.5 shrink-0 ${theme.iconUnfocused}`} />
             ) : type === 'walk' ? (
-              <Footprints className={`w-4 h-4 shrink-0 ${isFocused ? 'text-white' : 'text-emerald-500'}`} />
+              <Footprints className={`w-4.5 h-4.5 shrink-0 ${theme.iconUnfocused}`} />
             ) : (
-              <Bus className={`w-4 h-4 shrink-0 ${isFocused ? 'text-white' : 'text-indigo-500'}`} />
+              <Bus className={`w-4.5 h-4.5 shrink-0 ${theme.iconUnfocused}`} />
             )}
-            <span className="font-extrabold text-xs truncate">{duration || '이동'}</span>
+            <span className="font-extrabold text-[13.5px] truncate">{duration || '이동'}</span>
           </div>
           {transferLabel && (
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-              isFocused ? 'bg-white/20 text-white' : 'bg-zinc-200/90 text-zinc-700'
-            }`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${theme.badgeUnfocused}`}>
               {transferLabel}
             </span>
           )}
@@ -139,9 +170,7 @@ export default function HorizontalJourneyTimelineBar({
               {stepBadges.slice(0, 2).map((badge, bIdx) => (
                 <span
                   key={bIdx}
-                  className={`text-[9px] px-1 py-0.5 rounded font-semibold truncate max-w-[65px] ${
-                    isFocused ? 'bg-white/25 text-white' : 'bg-zinc-200 text-zinc-700'
-                  }`}
+                  className={`text-[10px] px-1 py-0.5 rounded font-semibold truncate max-w-[72px] ${theme.badgeUnfocused}`}
                 >
                   {badge}
                 </span>
@@ -149,9 +178,7 @@ export default function HorizontalJourneyTimelineBar({
             </div>
           ) : null}
 
-          <div className={`text-[10px] font-medium truncate flex items-center gap-1 ${
-            isFocused ? 'text-blue-100' : 'text-zinc-500'
-          }`}>
+          <div className={`text-[11px] font-medium truncate flex items-center gap-1 ${theme.subtextUnfocused}`}>
             {formattedDistance && <span>{formattedDistance}</span>}
             {formattedDistance && formattedFare && <span>·</span>}
             {formattedFare && <span>{formattedFare}</span>}
@@ -164,46 +191,50 @@ export default function HorizontalJourneyTimelineBar({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[100] md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-      <div className="w-full px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex items-center gap-2.5 overflow-x-auto scrollbar-none">
+      <div ref={timelineContainerRef} className="w-full px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex items-center gap-2.5 overflow-x-auto scrollbar-none">
         {places.map((place, idx) => {
           const categoryLabel = place.category ? (place.category.split(' > ').pop() || place.category) : '';
           const shortAddress = place.address ? place.address.split(' ').slice(0, 2).join(' ') : '';
-          const isRelatedToFocusedSegment = focusedSegment?.originId === place.id || focusedSegment?.destId === place.id;
+          const placeTheme = getSequenceTheme(idx, places.length);
 
           return (
             <div key={place.id} className="flex items-center gap-2.5 shrink-0">
-              {/* 장소 노드 카드 (통일된 크기: w-[150px] h-[68px]) */}
+              {/* 장소 노드 카드 (통일된 크기: w-[168px] h-[76px]) - 흰색 배경 & 지도 핀 테마 매칭 */}
               <button
+                ref={(el) => {
+                  const key = `place-${place.id}`;
+                  if (el) cardRefs.current.set(key, el);
+                  else cardRefs.current.delete(key);
+                }}
                 type="button"
                 onClick={() => handlePlaceClick(place)}
-                className={`w-[150px] h-[68px] flex flex-col justify-between p-2.5 rounded-2xl bg-zinc-900 text-white font-bold shadow-sm hover:bg-zinc-850 transition-all shrink-0 cursor-pointer text-left border ${
-                  isRelatedToFocusedSegment
-                    ? 'border-blue-500 ring-2 ring-blue-500/40 shadow-blue-900/30'
-                    : 'border-zinc-800'
-                }`}
+                className="w-[168px] h-[76px] flex flex-col justify-between p-3 rounded-2xl bg-white text-zinc-900 font-bold shadow-sm hover:bg-zinc-50 transition-all shrink-0 cursor-pointer text-left border border-zinc-200/90 hover:border-zinc-300"
                 title={`${place.place_name} (${place.address || ''})`}
               >
                 {/* 상단: 핀 번호 & 카테고리/주소 */}
                 <div className="flex items-center justify-between gap-1 w-full">
-                  <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[11px] font-black flex items-center justify-center shrink-0">
+                  <span
+                    className="w-5.5 h-5.5 rounded-full text-white text-xs font-black flex items-center justify-center shrink-0 shadow-xs"
+                    style={{ backgroundColor: placeTheme.color }}
+                  >
                     {idx + 1}
                   </span>
-                  <span className="text-[10px] text-zinc-400 font-medium truncate text-right flex-1 min-w-0 ml-1">
+                  <span className="text-[11px] text-zinc-500 font-medium truncate text-right flex-1 min-w-0 ml-1">
                     {categoryLabel || shortAddress || '장소'}
                   </span>
                 </div>
 
                 {/* 하단: 장소 이름 및 상세 주소 */}
                 <div className="flex flex-col min-w-0 w-full">
-                  <span className="truncate text-xs font-bold text-white tracking-tight">{place.place_name}</span>
+                  <span className="truncate text-[13.5px] font-bold text-zinc-900 tracking-tight">{place.place_name}</span>
                   {shortAddress ? (
-                    <span className="truncate text-[10px] text-zinc-400 font-normal">{shortAddress}</span>
+                    <span className="truncate text-[11px] text-zinc-500 font-normal">{shortAddress}</span>
                   ) : null}
                 </div>
               </button>
 
               {/* 다음 장소와의 구간 이동 칩 */}
-              {idx < places.length - 1 && renderSegmentBadge(place, places[idx + 1])}
+              {idx < places.length - 1 && renderSegmentBadge(place, places[idx + 1], idx)}
             </div>
           );
         })}
@@ -211,4 +242,5 @@ export default function HorizontalJourneyTimelineBar({
     </div>
   );
 }
+
 

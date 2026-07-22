@@ -69,6 +69,98 @@ export function getSequenceTheme(idx: number, totalPlaces: number): SequenceThem
   }
 }
 
+export interface SegmentCardTheme {
+  hex: string;
+  cardUnfocused: string;
+  cardFocused: string;
+  iconUnfocused: string;
+  iconFocused: string;
+  badgeUnfocused: string;
+  badgeFocused: string;
+  subtextUnfocused: string;
+  subtextFocused: string;
+}
+
+export const SEGMENT_CARD_THEMES: SegmentCardTheme[] = [
+  // 0번째 구간: Indigo (#4F46E5)
+  {
+    hex: '#4F46E5',
+    cardUnfocused: 'bg-white text-zinc-900 border-2 border-indigo-400 hover:border-indigo-600 shadow-xs',
+    cardFocused: 'bg-indigo-50/50 text-zinc-900 border-2 border-indigo-600 ring-2 ring-indigo-500/30 shadow-sm scale-[1.01]',
+    iconUnfocused: 'text-indigo-600',
+    iconFocused: 'text-indigo-600',
+    badgeUnfocused: 'bg-indigo-50 text-indigo-700 border border-indigo-200/80',
+    badgeFocused: 'bg-indigo-100 text-indigo-800 border border-indigo-300',
+    subtextUnfocused: 'text-zinc-500',
+    subtextFocused: 'text-indigo-900 font-semibold',
+  },
+  // 1번째 구간: Pink (#EC4899)
+  {
+    hex: '#EC4899',
+    cardUnfocused: 'bg-white text-zinc-900 border-2 border-pink-400 hover:border-pink-600 shadow-xs',
+    cardFocused: 'bg-pink-50/50 text-zinc-900 border-2 border-pink-600 ring-2 ring-pink-500/30 shadow-sm scale-[1.01]',
+    iconUnfocused: 'text-pink-600',
+    iconFocused: 'text-pink-600',
+    badgeUnfocused: 'bg-pink-50 text-pink-700 border border-pink-200/80',
+    badgeFocused: 'bg-pink-100 text-pink-800 border border-pink-300',
+    subtextUnfocused: 'text-zinc-500',
+    subtextFocused: 'text-pink-900 font-semibold',
+  },
+  // 2번째 구간: Teal (#0D9488)
+  {
+    hex: '#0D9488',
+    cardUnfocused: 'bg-white text-zinc-900 border-2 border-teal-400 hover:border-teal-600 shadow-xs',
+    cardFocused: 'bg-teal-50/50 text-zinc-900 border-2 border-teal-600 ring-2 ring-teal-500/30 shadow-sm scale-[1.01]',
+    iconUnfocused: 'text-teal-600',
+    iconFocused: 'text-teal-600',
+    badgeUnfocused: 'bg-teal-50 text-teal-700 border border-teal-200/80',
+    badgeFocused: 'bg-teal-100 text-teal-800 border border-teal-300',
+    subtextUnfocused: 'text-zinc-500',
+    subtextFocused: 'text-teal-900 font-semibold',
+  },
+  // 3번째 구간: Amber (#D97706)
+  {
+    hex: '#D97706',
+    cardUnfocused: 'bg-white text-zinc-900 border-2 border-amber-400 hover:border-amber-600 shadow-xs',
+    cardFocused: 'bg-amber-50/50 text-zinc-900 border-2 border-amber-600 ring-2 ring-amber-500/30 shadow-sm scale-[1.01]',
+    iconUnfocused: 'text-amber-600',
+    iconFocused: 'text-amber-600',
+    badgeUnfocused: 'bg-amber-50 text-amber-800 border border-amber-200/80',
+    badgeFocused: 'bg-amber-100 text-amber-800 border border-amber-300',
+    subtextUnfocused: 'text-zinc-500',
+    subtextFocused: 'text-amber-900 font-semibold',
+  },
+  // 4번째 구간: Purple (#6D28D9)
+  {
+    hex: '#6D28D9',
+    cardUnfocused: 'bg-white text-zinc-900 border-2 border-purple-400 hover:border-purple-600 shadow-xs',
+    cardFocused: 'bg-purple-50/50 text-zinc-900 border-2 border-purple-600 ring-2 ring-purple-500/30 shadow-sm scale-[1.01]',
+    iconUnfocused: 'text-purple-600',
+    iconFocused: 'text-purple-600',
+    badgeUnfocused: 'bg-purple-50 text-purple-700 border border-purple-200/80',
+    badgeFocused: 'bg-purple-100 text-purple-800 border border-purple-300',
+    subtextUnfocused: 'text-zinc-500',
+    subtextFocused: 'text-purple-900 font-semibold',
+  },
+  // 5번째 구간: Red (#DC2626)
+  {
+    hex: '#DC2626',
+    cardUnfocused: 'bg-white text-zinc-900 border-2 border-red-400 hover:border-red-600 shadow-xs',
+    cardFocused: 'bg-red-50/50 text-zinc-900 border-2 border-red-600 ring-2 ring-red-500/30 shadow-sm scale-[1.01]',
+    iconUnfocused: 'text-red-600',
+    iconFocused: 'text-red-600',
+    badgeUnfocused: 'bg-red-50 text-red-700 border border-red-200/80',
+    badgeFocused: 'bg-red-100 text-red-800 border border-red-300',
+    subtextUnfocused: 'text-zinc-500',
+    subtextFocused: 'text-red-900 font-semibold',
+  },
+];
+
+export function getSegmentTheme(sIdx: number): SegmentCardTheme {
+  return SEGMENT_CARD_THEMES[sIdx % SEGMENT_CARD_THEMES.length];
+}
+
+
 // 지하철 호선별 색상 매핑
 export const SUBWAY_COLORS: Record<string, string> = {
   '1호선': '#0052A4',

@@ -72,7 +72,7 @@ export default function PlaybackBar({
           type="button"
           onClick={handlePrevStep}
           disabled={isPrevDisabled}
-          className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
+          className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-700 transition-colors"
           aria-label="이전 단계"
         >
           <PlayTriangleIcon className="w-5 h-5 rotate-180" />
@@ -100,7 +100,7 @@ export default function PlaybackBar({
           type="button"
           onClick={handleNextStep}
           disabled={isNextDisabled}
-          className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-500 transition-colors"
+          className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 disabled:opacity-30 disabled:cursor-default disabled:hover:text-zinc-700 transition-colors"
           aria-label="다음 단계"
         >
           <PlayTriangleIcon className="w-5 h-5" />

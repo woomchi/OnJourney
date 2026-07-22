@@ -203,7 +203,7 @@ export default function JourneyPlayerHeader({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-[11px] font-semibold rounded-md px-1 py-0.5"
+            className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold rounded-md px-1 py-0.5"
           >
             {isEditMode ? (
               <div className="w-3.5 h-3.5" />
@@ -234,7 +234,7 @@ export default function JourneyPlayerHeader({
                   }
             }
             onPointerDown={(e) => e.stopPropagation()}
-            className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-0.5 ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'
+            className={`flex items-center gap-0.5 text-xs font-semibold transition-colors px-1 py-0.5 ${isEditMode ? 'text-blue-600 font-bold' : 'text-zinc-400 hover:text-zinc-700'
               }`}
           >
             {isEditMode ? (
@@ -252,31 +252,25 @@ export default function JourneyPlayerHeader({
         </div>
       )}
 
-      {/* 중앙 바: 여정 정보 (버튼 사이에 위치) */}
-      <div className="w-full flex justify-center px-14 pt-0.5">
+      {/* 중앙 바: 여정 정보 수정 영역 (제목, 날짜, 이동수단 정보 전체 포함 수정 영역) */}
+      <div className="w-full flex justify-center px-14 pt-0.5 min-w-0">
         <button
           type="button"
           onClick={() => setIsEditModalOpen(true)}
           onPointerDown={(e) => e.stopPropagation()}
-          className="flex-1 flex flex-col items-center justify-center min-w-0 rounded-xl transition-all duration-300 hover:bg-zinc-50/80 cursor-pointer px-1 py-0.5 group border border-transparent hover:border-zinc-200/50"
+          className="inline-flex flex-col items-center max-w-full px-2.5 py-1 rounded-xl hover:bg-zinc-100/90 active:bg-zinc-200/80 transition-all cursor-pointer group border border-transparent hover:border-zinc-200/80 shrink"
           title="여정 정보 수정"
         >
-          {/* 노래 제목 느낌 */}
-          <div className="flex items-center justify-center max-w-full px-1">
-            {/* 가운데 정렬 보정을 위한 빈 공간 (우측 연필 아이콘과 동일한 너비) */}
-            <div className="w-3 h-3 mr-0.5 shrink-0" />
-
+          {/* 1행: [Pencil 아이콘] 여정 제목 */}
+          <div className="flex items-center gap-1.5 max-w-full">
+            <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors shrink-0" strokeWidth={2} />
             <h2 className="text-xs font-bold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
               {activeJourney.title}
             </h2>
-
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3 text-blue-500 opacity-0 group-hover:opacity-100 transition-all ml-0.5 shrink-0">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-            </svg>
           </div>
 
-          {/* 작사/작곡가 느낌 (생성 날짜 & 테마 & 전체 여정 정보 요약) */}
-          <p className="text-[9px] font-medium text-zinc-400/80 mt-0 flex items-center gap-1 group-hover:text-zinc-500 transition-colors truncate max-w-full">
+          {/* 2행: 요약 정보 (날짜, 대표 이동수단 등) */}
+          <p className="text-[9px] font-medium text-zinc-400/80 group-hover:text-zinc-600 mt-0.5 flex items-center gap-1 truncate max-w-full transition-colors">
             <span className="truncate">{formatJourneyDate(activeJourney.journey_date)}</span>
             <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
             <span className="shrink-0">{activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}</span>
@@ -315,10 +309,10 @@ export default function JourneyPlayerHeader({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
             title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
           >
-            <SkipBackIcon className="w-4.5 h-4.5" />
+            <SkipBackIcon className="w-5 h-5" />
           </button>
 
           {/* 여정 재생/정지 */}
@@ -359,7 +353,7 @@ export default function JourneyPlayerHeader({
                 }
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 group overflow-hidden ${isPlaying
+              className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 group overflow-hidden ${isPlaying
                 ? 'bg-white border border-zinc-200 hover:border-transparent text-zinc-950 shadow-sm'
                 : 'bg-zinc-950 border border-zinc-800 hover:border-transparent text-white shadow-md'
                 }`}
@@ -367,14 +361,14 @@ export default function JourneyPlayerHeader({
             >
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               {isPlaying ? (
-                <PauseBarsIcon className="w-3 h-3 relative z-10 group-hover:text-white transition-colors duration-300" />
+                <PauseBarsIcon className="w-5 h-5 relative z-10 group-hover:text-white transition-colors duration-300" />
               ) : (
-                <PlayTriangleIcon className="w-3 h-3 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
+                <PlayTriangleIcon className="w-5 h-5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
               )}
             </button>
           ) : (
-            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-zinc-100 flex-shrink-0">
-              <PlayTriangleIcon className="w-3 h-3 ml-0.5 text-zinc-300" />
+            <div className="w-11 h-11 rounded-full flex items-center justify-center bg-zinc-100 flex-shrink-0">
+              <PlayTriangleIcon className="w-5 h-5 ml-0.5 text-zinc-300" />
             </div>
           )}
 
@@ -392,10 +386,10 @@ export default function JourneyPlayerHeader({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
             title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
           >
-            <SkipForwardIcon className="w-4.5 h-4.5" />
+            <SkipForwardIcon className="w-5 h-5" />
           </button>
         </div>
       )}

@@ -1366,7 +1366,7 @@ export default function MapArea() {
       {(() => {
         const buttons = (
           <>
-            {places.length > 0 && !isSearchMode && (
+            {(!!activeJourney || places.length > 0) && !isSearchMode && (
               <button
                 type="button"
                 onClick={handleResetBounds}
@@ -1380,7 +1380,7 @@ export default function MapArea() {
                   transition-all duration-200 ease-out
                   cursor-pointer select-none
                 "
-                title={focusedSegment ? "해당 이동 구간 보기" : "전체 경로 보기"}
+                title={focusedSegment ? "해당 이동 구간 보기" : "전체 여정 보기"}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

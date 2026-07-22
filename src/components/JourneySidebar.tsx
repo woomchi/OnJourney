@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
-import { CustomBottomSheet, useBottomSheet } from '@/components/common/CustomBottomSheet';
+import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { motion, useTransform, useMotionValue } from 'framer-motion';
 import { useDialog } from '@/providers/DialogProvider';
 import HorizontalJourneyTimelineBar from '@/components/sidebar/HorizontalJourneyTimelineBar';
@@ -21,11 +21,14 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Plus } from 'lucide-react';
 
 const FloatingButtonsContainer = () => {
-  const { y, maxHeight } = useBottomSheet();
+  const bottomSheet = useOptionalBottomSheet();
+  const fallbackY = useMotionValue(0);
+  const y = bottomSheet?.y || fallbackY;
+  const maxHeight = bottomSheet?.maxHeight ?? 800;
   const opacity = useTransform(y, [-360, -maxHeight + 100], [1, 0]);
   const pointerEvents = useTransform(y, (latest: number) => latest < -400 ? 'none' : 'auto');
   return (
-    <motion.div 
+    <motion.div
       id="mobile-map-buttons-target"
       className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] *:pointer-events-auto"
       style={{ opacity, pointerEvents: pointerEvents as any }}
@@ -42,7 +45,7 @@ const CreateJourneyFloatingButton = ({ show, onClick, PlusIcon, y, minHeight }: 
   if (!show) return null;
 
   return (
-    <motion.div 
+    <motion.div
       className="fixed bottom-[20px] left-4 right-4 z-[101] md:hidden"
       style={{ opacity, y: translateY, pointerEvents: pointerEvents as any }}
     >
@@ -52,7 +55,7 @@ const CreateJourneyFloatingButton = ({ show, onClick, PlusIcon, y, minHeight }: 
         className="w-full py-4 bg-zinc-950/90 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-xl transition-all cursor-pointer flex justify-center items-center gap-2 backdrop-blur-md border border-white/10"
       >
         <PlusIcon className="w-4.5 h-4.5" strokeWidth={2.5} />
-        <span className="tracking-wide">새 여정 만들기</span>
+        <span className="tracking-wide">여정 추가</span>
       </button>
     </motion.div>
   );
@@ -165,7 +168,7 @@ export default function JourneySidebar() {
   }, [drawerSnapPoint, isMobile]);
 
   const queryClient = useQueryClient();
-  const { data: fetchedJourneys, isLoading: isJourneysLoading } = useJourneys();
+  const { data: fetchedJourneys, isLoading: isJourneysLoading } = useJourneys(user?.id);
 
   // 렌더링 후 화면 높이 계산을 위한 상태
   const [windowHeight, setWindowHeight] = useState(0);
@@ -185,6 +188,8 @@ export default function JourneySidebar() {
 
   // React Query 데이터가 로드되면 Zustand 스토어(UI)와 동기화
   useEffect(() => {
+    if (authLoading) return;
+
     if (!user) {
       clearJourney();
       setJourneys([]);
@@ -195,7 +200,7 @@ export default function JourneySidebar() {
       const sorted = sortJourneysByStoredOrder(fetchedJourneys, user.id);
       setJourneys(sorted);
     }
-  }, [user, fetchedJourneys, clearJourney, setJourneys]);
+  }, [user, authLoading, fetchedJourneys, clearJourney, setJourneys]);
 
   // DB 동기화 완료 시 React Query 캐시를 최신화하여 스토어 덮어쓰기 방지
   const prevSyncingRef = useRef(isSyncing);
@@ -221,7 +226,7 @@ export default function JourneySidebar() {
     };
   }, [isSyncing]);
 
-  const isLoading = authLoading || isJourneysLoading;
+  const isLoading = authLoading || (!!user && isJourneysLoading);
 
   const minSnapPx = activeJourney ? 133 : 62;
   const defaultSnapPx = activeJourney ? 370 : 360;
@@ -365,15 +370,15 @@ export default function JourneySidebar() {
           <FloatingButtonsContainer />
           {content}
         </CustomBottomSheet>
-        
-        <CreateJourneyFloatingButton 
-          show={showFloatingCreateButton} 
-          onClick={handleCreateClick} 
+
+        <CreateJourneyFloatingButton
+          show={showFloatingCreateButton}
+          onClick={handleCreateClick}
           PlusIcon={Plus}
           y={y}
           minHeight={minSnapPx}
         />
-        
+
         <CreateJourneyModal />
         <AuthModal />
       </>

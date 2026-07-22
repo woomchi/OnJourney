@@ -1,8 +1,65 @@
 import type { DirectionResult, DirectionStep, DirectionsApiResponse } from '@/types/journey';
 import { unstable_cache } from 'next/cache';
 import { externalFetch } from '@/lib/utils/externalFetch';
+import { chunkAsync } from '@/lib/utils/odsayThrottle';
 import { SUBWAY_COLORS, BUS_COLORS, ODSAY_BUS_TYPES } from '@/constants/colors';
 import { WALK_LIMITS } from '@/constants/transit';
+import { odsayRateLimiter } from '@/lib/infrastructure/rateLimiter';
+import { odsayCircuitBreaker } from '@/lib/infrastructure/circuitBreaker';
+import { OdsayAdapter, AppError } from '@/lib/infrastructure/odsayAdapter';
+
+type OdsayApiCacheResult =
+  | { ok: true; data: any }
+  | { ok: false; error: string; code: string };
+
+// ODsay 대중교통 경로 조회를 위한 top-level 캐시 함수
+// - Circuit Breaker 패턴 도입: 맹목적인 300ms/600ms 동기 딜레이 대기 로직을 제거하고,
+//   연속 실패 시 Circuit Breaker가 즉시 OPEN되어 딜레이 없이 Fail-Fast로 Fallback을 반환함.
+const getCachedOdsayDirections = unstable_cache(
+  async (rsx: string, rsy: string, rex: string, rey: string, apiKey: string) => {
+    return odsayCircuitBreaker.execute<OdsayApiCacheResult>(
+      async () => {
+        const data = await OdsayAdapter.fetchPublicTransit(rsx, rsy, rex, rey, apiKey);
+        return { ok: true as const, data };
+      },
+      (err: any) => {
+        // 어댑터가 이미 domain-specific standard error를 던짐
+        const isRetryable = err?.isRetryable === true || err?.message?.includes('Circuit breaker is OPEN');
+
+        if (!isRetryable) {
+          // 영구 에러 (예: TransitRouteNotFoundError): 결과 객체로 반환하여 캐시에 저장
+          return { ok: false as const, error: err?.message || 'API Error', code: err?.code || 'API_ERROR' };
+        }
+
+        // 일시 에러: throw하여 캐시 저장 방지 (즉시 Fallback 반환 유도)
+        throw err;
+      }
+    );
+  },
+  ['odsay-directions-pubtrans'],
+  { revalidate: 3600 }
+);
+
+// ODsay loadLane 조회를 위한 top-level 캐시 함수 (Circuit Breaker 적용)
+const getCachedOdsayLoadLane = unstable_cache(
+  async (mapObjectParam: string, apiKey: string) => {
+    return odsayCircuitBreaker.execute<OdsayApiCacheResult>(
+      async () => {
+        const data = await OdsayAdapter.fetchLoadLane(mapObjectParam, apiKey);
+        return { ok: true as const, data };
+      },
+      (err: any) => {
+        const isRetryable = err?.isRetryable === true || err?.message?.includes('Circuit breaker is OPEN');
+        if (!isRetryable) {
+          return { ok: false as const, error: err?.message || 'LoadLane Error', code: err?.code || 'LOADLANE_ERROR' };
+        }
+        throw err;
+      }
+    );
+  },
+  ['odsay-loadlane'],
+  { revalidate: 3600 }
+);
 
 // 두 좌표 간 직선 거리 계산 (Haversine 공식)
 export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -58,46 +115,17 @@ export async function fetchPublicTransitOptions(
     throw new Error('ODsay API Key가 설정되지 않았습니다.');
   }
 
-  const url = `https://api.odsay.com/v1/api/searchPubTransPathT?apiKey=${encodeURIComponent(apiKey)}&SX=${sx}&SY=${sy}&EX=${ex}&EY=${ey}`;
+  const rsx = sx.toFixed(4);
+  const rsy = sy.toFixed(4);
+  const rex = ex.toFixed(4);
+  const rey = ey.toFixed(4);
   
-  let data: any;
-  const attempts = 3;
-  let delayTime = 200;
-
-  const getCachedDirections = unstable_cache(
-    async () => {
-      const res = await externalFetch(url, { cache: 'no-store' });
-      return await res.json();
-    },
-    [
-      'odsay-directions-pubtrans',
-      sx.toFixed(3),
-      sy.toFixed(3),
-      ex.toFixed(3),
-      ey.toFixed(3)
-    ],
-    { revalidate: 3600 }
-  );
-
-  for (let i = 0; i < attempts; i++) {
-    try {
-      data = await getCachedDirections();
-      break;
-    } catch (err: any) {
-      const isRateLimit = err.status === 429 || err.code === '429' || err.message?.includes('Requests');
-      const isTimeout = err.status === 408 || err.message?.includes('timeout');
-      
-      if (isRateLimit || isTimeout) {
-        if (i < attempts - 1) {
-          console.warn(`[directions] ODsay API retry. (${isRateLimit ? '429' : 'timeout'}) Retrying in ${delayTime}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delayTime));
-          delayTime *= 2;
-          continue;
-        }
-      }
-      throw err;
-    }
+  // 재시도 로직은 getCachedOdsayDirections 내부에서 처리됨
+  const res = await getCachedOdsayDirections(rsx, rsy, rex, rey, apiKey);
+  if (!res.ok) {
+    throw new AppError(`[API 내부 에러] ${res.error}`, res.code, 500, false);
   }
+  const data = res.data;
 
   if (!data.result || !data.result.path || data.result.path.length === 0) {
     const err = new Error('대중교통 경로를 찾을 수 없습니다.');
@@ -150,8 +178,8 @@ export async function fetchPublicTransitOptions(
     throw new Error('도보 검색 제한 반경을 초과하여 적절한 대중교통 경로가 없습니다.');
   }
 
-  // 모든 경로를 파싱하여 DirectionResult[] 구성
-  const promises = validPaths.map(async (path: any, pathIdx: number) => {
+  // 동시 폭주 방지를 위해 validPaths를 chunkAsync로 2개씩 순차 조절 실행
+  return chunkAsync(validPaths, async (path: any, pathIdx: number) => {
     const info = path.info;
     const subPaths = path.subPath;
 
@@ -161,19 +189,15 @@ export async function fetchPublicTransitOptions(
     if (info.mapObj) {
       try {
         const mapObjectParam = `0:0@${info.mapObj}`;
-        const laneUrl = `https://api.odsay.com/v1/api/loadLane?apiKey=${encodeURIComponent(apiKey)}&mapObject=${encodeURIComponent(mapObjectParam)}`;
-        
-        const getCachedLoadLane = unstable_cache(
-          async () => {
-            const laneRes = await externalFetch(laneUrl, { cache: 'no-store' });
-            return await laneRes.json();
-          },
-          ['odsay-loadlane', mapObjectParam],
-          { revalidate: 3600 }
-        );
 
-        const laneData = await getCachedLoadLane();
-        if (laneData.result && laneData.result.lane) {
+        // 재시도 로직은 getCachedOdsayLoadLane 내부에서 처리됨
+        let laneData: any = null;
+        const laneRes = await getCachedOdsayLoadLane(mapObjectParam, apiKey);
+        if (laneRes.ok) {
+          laneData = laneRes.data;
+        }
+
+        if (laneData && laneData.result && laneData.result.lane) {
           laneList = laneData.result.lane;
           const transitCount = subPaths.filter((sp: any) => [1,2,4,5,6].includes(sp.trafficType)).length;
           if (laneList.length === transitCount) {
@@ -439,9 +463,7 @@ export async function fetchPublicTransitOptions(
       steps,
       pathPoints,
     };
-  });
-
-  return Promise.all(promises);
+  }, 2, 150);
 }
 
 // 2. 네이버 자동차 경로 호출 함수 (NCP Directions 5)
@@ -458,7 +480,12 @@ export async function fetchCarRoute(
     throw new Error('Naver Directions API ID/Secret이 설정되지 않았습니다.');
   }
 
-  const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${sx},${sy}&goal=${ex},${ey}&option=trafast:traoptimal:traavoidtoll`;
+  const rsx = sx.toFixed(4);
+  const rsy = sy.toFixed(4);
+  const rex = ex.toFixed(4);
+  const rey = ey.toFixed(4);
+
+  const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${rsx},${rsy}&goal=${rex},${rey}&option=trafast:traoptimal:traavoidtoll`;
 
   let res;
   try {
@@ -559,6 +586,7 @@ export function calculateCarFallback(
     fare: 0,
     taxiFare,
     distance: estimatedRoadDistance,
+    isEstimated: true, // Fallback 식별 플래그 추가
     steps: [
       {
         type: 'car',
@@ -593,32 +621,31 @@ export async function fetchPublicDirections(params: DirectionsQueryType): Promis
     const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey);
     return { public: publicResults };
   } catch (error: any) {
-    if (error.name === 'NoRouteFound' || error.message?.includes('찾을 수 없습니다')) {
-      const distanceKm = haversineDistance(sy, sx, ey, ex);
-      if (distanceKm > 2.0) {
-        const carFallback = calculateCarFallback(sx, sy, ex, ey);
-        const fallbackPath = [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
-        return {
-          public: [{
-            id: 'public-0',
-            type: 'public',
+    // API 실패 (경로 없음, 네트웍 장애, 서킷 오픈 등 모든 에러) 시 Fallback 반환
+    const distanceKm = haversineDistance(sy, sx, ey, ex);
+    if (distanceKm > 2.0) {
+      const carFallback = calculateCarFallback(sx, sy, ex, ey);
+      const fallbackPath = [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
+      return {
+        public: [{
+          id: 'public-0',
+          type: 'public',
+          name: '대중교통(예상)',
+          duration: Math.round(carFallback.duration * 1.3),
+          fare: 1500,
+          isEstimated: true, // Fallback 식별 플래그 추가
+          steps: [{
+            type: 'bus',
             name: '대중교통(예상)',
             duration: Math.round(carFallback.duration * 1.3),
-            fare: 1500,
-            steps: [{
-              type: 'bus',
-              name: '대중교통(예상)',
-              duration: Math.round(carFallback.duration * 1.3),
-              color: '#0068b7',
-              pathPoints: fallbackPath,
-            }],
-            pathPoints: fallbackPath
-          }]
-        };
-      }
-      return { public: [] };
+            color: '#0068b7',
+            pathPoints: fallbackPath,
+          }],
+          pathPoints: fallbackPath
+        }]
+      };
     }
-    throw error;
+    return { public: [] };
   }
 }
 
@@ -653,13 +680,11 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     const carResults = await fetchCarRoute(sx, sy, ex, ey);
     return { car: carResults, walk: walkResults };
   } catch (error: any) {
-    if (error.name === 'NoRouteFound' || error.message?.includes('찾을 수 없습니다')) {
-      return {
-        car: [calculateCarFallback(sx, sy, ex, ey)],
-        walk: walkResults
-      };
-    }
-    throw error;
+    // 모든 차량 탐색 실패 시 Fallback 반환
+    return {
+      car: [calculateCarFallback(sx, sy, ex, ey)],
+      walk: walkResults
+    };
   }
 }
 

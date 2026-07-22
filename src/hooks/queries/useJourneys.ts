@@ -8,10 +8,11 @@ export const journeyKeys = {
   detail: (id: string) => [...journeyKeys.all, 'detail', id] as const,
 };
 
-export function useJourneys() {
+export function useJourneys(userId: string | undefined) {
   return useQuery({
-    queryKey: journeyKeys.lists(),
+    queryKey: [...journeyKeys.lists(), userId ?? ''],
     queryFn: fetchJourneys,
+    enabled: !!userId,
   });
 }
 

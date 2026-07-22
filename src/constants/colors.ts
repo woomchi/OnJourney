@@ -71,6 +71,8 @@ export function getSequenceTheme(idx: number, totalPlaces: number): SequenceThem
 
 export interface SegmentCardTheme {
   hex: string;
+  gradientStart: string;
+  gradientEnd: string;
   cardUnfocused: string;
   cardFocused: string;
   iconUnfocused: string;
@@ -85,8 +87,10 @@ export const SEGMENT_CARD_THEMES: SegmentCardTheme[] = [
   // 0번째 구간: Indigo (#4F46E5)
   {
     hex: '#4F46E5',
-    cardUnfocused: 'bg-white text-zinc-900 border-2 border-indigo-400 hover:border-indigo-600 shadow-xs',
-    cardFocused: 'bg-indigo-50/50 text-zinc-900 border-2 border-indigo-600 ring-2 ring-indigo-500/30 shadow-sm scale-[1.01]',
+    gradientStart: '#818CF8',
+    gradientEnd: '#4338CA',
+    cardUnfocused: 'bg-white text-zinc-900 border border-zinc-200/90 hover:border-zinc-300 hover:bg-zinc-50 shadow-xs',
+    cardFocused: 'bg-indigo-50/30 text-zinc-900 border border-indigo-300 ring-2 ring-indigo-500/20 shadow-sm scale-[1.01]',
     iconUnfocused: 'text-indigo-600',
     iconFocused: 'text-indigo-600',
     badgeUnfocused: 'bg-indigo-50 text-indigo-700 border border-indigo-200/80',
@@ -97,8 +101,10 @@ export const SEGMENT_CARD_THEMES: SegmentCardTheme[] = [
   // 1번째 구간: Pink (#EC4899)
   {
     hex: '#EC4899',
-    cardUnfocused: 'bg-white text-zinc-900 border-2 border-pink-400 hover:border-pink-600 shadow-xs',
-    cardFocused: 'bg-pink-50/50 text-zinc-900 border-2 border-pink-600 ring-2 ring-pink-500/30 shadow-sm scale-[1.01]',
+    gradientStart: '#F472B6',
+    gradientEnd: '#BE185D',
+    cardUnfocused: 'bg-white text-zinc-900 border border-zinc-200/90 hover:border-zinc-300 hover:bg-zinc-50 shadow-xs',
+    cardFocused: 'bg-pink-50/30 text-zinc-900 border border-pink-300 ring-2 ring-pink-500/20 shadow-sm scale-[1.01]',
     iconUnfocused: 'text-pink-600',
     iconFocused: 'text-pink-600',
     badgeUnfocused: 'bg-pink-50 text-pink-700 border border-pink-200/80',
@@ -109,8 +115,10 @@ export const SEGMENT_CARD_THEMES: SegmentCardTheme[] = [
   // 2번째 구간: Teal (#0D9488)
   {
     hex: '#0D9488',
-    cardUnfocused: 'bg-white text-zinc-900 border-2 border-teal-400 hover:border-teal-600 shadow-xs',
-    cardFocused: 'bg-teal-50/50 text-zinc-900 border-2 border-teal-600 ring-2 ring-teal-500/30 shadow-sm scale-[1.01]',
+    gradientStart: '#2DD4BF',
+    gradientEnd: '#0F766E',
+    cardUnfocused: 'bg-white text-zinc-900 border border-zinc-200/90 hover:border-zinc-300 hover:bg-zinc-50 shadow-xs',
+    cardFocused: 'bg-teal-50/30 text-zinc-900 border border-teal-300 ring-2 ring-teal-500/20 shadow-sm scale-[1.01]',
     iconUnfocused: 'text-teal-600',
     iconFocused: 'text-teal-600',
     badgeUnfocused: 'bg-teal-50 text-teal-700 border border-teal-200/80',
@@ -121,8 +129,10 @@ export const SEGMENT_CARD_THEMES: SegmentCardTheme[] = [
   // 3번째 구간: Amber (#D97706)
   {
     hex: '#D97706',
-    cardUnfocused: 'bg-white text-zinc-900 border-2 border-amber-400 hover:border-amber-600 shadow-xs',
-    cardFocused: 'bg-amber-50/50 text-zinc-900 border-2 border-amber-600 ring-2 ring-amber-500/30 shadow-sm scale-[1.01]',
+    gradientStart: '#FBBF24',
+    gradientEnd: '#B45309',
+    cardUnfocused: 'bg-white text-zinc-900 border border-zinc-200/90 hover:border-zinc-300 hover:bg-zinc-50 shadow-xs',
+    cardFocused: 'bg-amber-50/30 text-zinc-900 border border-amber-300 ring-2 ring-amber-500/20 shadow-sm scale-[1.01]',
     iconUnfocused: 'text-amber-600',
     iconFocused: 'text-amber-600',
     badgeUnfocused: 'bg-amber-50 text-amber-800 border border-amber-200/80',
@@ -133,8 +143,10 @@ export const SEGMENT_CARD_THEMES: SegmentCardTheme[] = [
   // 4번째 구간: Purple (#6D28D9)
   {
     hex: '#6D28D9',
-    cardUnfocused: 'bg-white text-zinc-900 border-2 border-purple-400 hover:border-purple-600 shadow-xs',
-    cardFocused: 'bg-purple-50/50 text-zinc-900 border-2 border-purple-600 ring-2 ring-purple-500/30 shadow-sm scale-[1.01]',
+    gradientStart: '#8B5CF6',
+    gradientEnd: '#5B21B6',
+    cardUnfocused: 'bg-white text-zinc-900 border border-zinc-200/90 hover:border-zinc-300 hover:bg-zinc-50 shadow-xs',
+    cardFocused: 'bg-purple-50/30 text-zinc-900 border border-purple-300 ring-2 ring-purple-500/20 shadow-sm scale-[1.01]',
     iconUnfocused: 'text-purple-600',
     iconFocused: 'text-purple-600',
     badgeUnfocused: 'bg-purple-50 text-purple-700 border border-purple-200/80',
@@ -145,8 +157,10 @@ export const SEGMENT_CARD_THEMES: SegmentCardTheme[] = [
   // 5번째 구간: Red (#DC2626)
   {
     hex: '#DC2626',
-    cardUnfocused: 'bg-white text-zinc-900 border-2 border-red-400 hover:border-red-600 shadow-xs',
-    cardFocused: 'bg-red-50/50 text-zinc-900 border-2 border-red-600 ring-2 ring-red-500/30 shadow-sm scale-[1.01]',
+    gradientStart: '#F87171',
+    gradientEnd: '#B91C1C',
+    cardUnfocused: 'bg-white text-zinc-900 border border-zinc-200/90 hover:border-zinc-300 hover:bg-zinc-50 shadow-xs',
+    cardFocused: 'bg-red-50/30 text-zinc-900 border border-red-300 ring-2 ring-red-500/20 shadow-sm scale-[1.01]',
     iconUnfocused: 'text-red-600',
     iconFocused: 'text-red-600',
     badgeUnfocused: 'bg-red-50 text-red-700 border border-red-200/80',

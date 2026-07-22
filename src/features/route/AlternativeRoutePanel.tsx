@@ -5,8 +5,8 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import ScrollContainer from 'react-indiana-drag-scroll';
-import { CustomBottomSheet, useBottomSheet } from '@/components/common/CustomBottomSheet';
-import { motion, useTransform } from 'framer-motion';
+import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { motion, useTransform, useMotionValue } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
@@ -23,7 +23,10 @@ interface AlternativeRoutePanelProps {
 }
 
 const FloatingButtonsContainer = ({ altHeight }: { altHeight: number }) => {
-  const { y, maxHeight } = useBottomSheet();
+  const bottomSheet = useOptionalBottomSheet();
+  const fallbackY = useMotionValue(0);
+  const y = bottomSheet?.y || fallbackY;
+  const maxHeight = bottomSheet?.maxHeight ?? 800;
   const opacity = useTransform(y, [-altHeight, -maxHeight + 100], [1, 0]);
   // Use a transform to dynamically disable pointer events when hidden
   const pointerEvents = useTransform(y, (latest: number) => latest < -altHeight - 100 ? 'none' : 'auto');
@@ -524,6 +527,14 @@ export default function AlternativeRoutePanel({
       onTouchMove={isMobile ? handleTouchMove : undefined}
       onTouchEnd={isMobile ? handleTouchEnd : undefined}
     >
+      {previewRoute?.isEstimated && (
+        <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-amber-800 text-xs font-semibold">
+          <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>네트워크 지연으로 인한 예상 경로입니다.</span>
+        </div>
+      )}
       {loading ? (
         <div className="animate-pulse flex flex-col gap-3 mt-2">
           {[...Array(4)].map((_, i) => (

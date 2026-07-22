@@ -7,8 +7,8 @@ import PlaceList from '@/components/PlaceList';
 import EditJourneyModal from '@/components/EditJourneyModal';
 import type { Journey, Place } from '@/types/journey';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { motion, useTransform } from 'framer-motion';
-import { useBottomSheet } from '@/components/common/CustomBottomSheet';
+import { motion, useTransform, useMotionValue } from 'framer-motion';
+import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 
 import JourneyPlayerHeader from './JourneyPlayerHeader';
 import SearchOverlay from './SearchOverlay';
@@ -44,14 +44,18 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
   // On Mobile, header is a 32px button bar inside bottom sheet ([< 목록] & [편집])
   const headerHeight = isMobile ? 32 : (isEditMode ? 48 : 72);
 
-  const { y, minHeight, defaultHeight } = useBottomSheet();
+  const bottomSheet = useOptionalBottomSheet();
+  const fallbackY = useMotionValue(0);
+  const activeY = bottomSheet?.y || fallbackY;
+  const minHeight = bottomSheet?.minHeight ?? 133;
+  const defaultHeight = bottomSheet?.defaultHeight ?? 370;
 
-  const contentHeight = useTransform(y, (latest: number) => {
+  const contentHeight = useTransform(activeY, (latest: number) => {
     if (!isMobile) return '100%';
     return `${Math.max(0, -latest - 13 - headerHeight)}px`;
   });
 
-  const contentOpacity = useTransform(y, (latest: number) => {
+  const contentOpacity = useTransform(activeY, (latest: number) => {
     if (!isMobile) return 1;
     const range = -minHeight - -defaultHeight;
     if (range <= 0) return 1;
@@ -59,7 +63,7 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
     return Math.min(1, Math.max(0, progress));
   });
 
-  const pointerEvents = useTransform(y, (latest: number) => {
+  const pointerEvents = useTransform(activeY, (latest: number) => {
     if (!isMobile) return 'auto';
     return latest > -minHeight - 10 ? 'none' : 'auto';
   });

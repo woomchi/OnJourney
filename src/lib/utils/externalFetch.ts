@@ -1,5 +1,10 @@
 export class ExternalApiError extends Error {
-  constructor(message: string, public status: number = 500, public code: string = 'EXTERNAL_API_ERROR') {
+  constructor(
+    message: string,
+    public status: number = 500,
+    public code: string = 'EXTERNAL_API_ERROR',
+    public isRetryable: boolean = false
+  ) {
     super(message);
     this.name = 'ExternalApiError';
   }
@@ -21,7 +26,8 @@ export async function externalFetch(url: string, options: RequestInit = {}): Pro
 
     // 1. 일반적인 HTTP 상태 코드 에러 처리
     if (!res.ok) {
-      throw new ExternalApiError(`외부 API HTTP 오류: 상태 코드 ${res.status}`, res.status);
+      const isRetryable = [408, 429, 502, 503, 504].includes(res.status);
+      throw new ExternalApiError(`외부 API HTTP 오류: 상태 코드 ${res.status}`, res.status, `HTTP_${res.status}`, isRetryable);
     }
 
     // 2. 가짜 200 OK (본문에 error 필드가 있는 경우) 차단 로직
@@ -34,7 +40,16 @@ export async function externalFetch(url: string, options: RequestInit = {}): Pro
       if (data && data.error) {
         const errorDetail = Array.isArray(data.error) ? data.error[0] : data.error;
         const errorMsg = errorDetail.message || JSON.stringify(data.error);
-        throw new ExternalApiError(`[API 내부 에러] ${errorMsg}`, 500, errorDetail.code || 'API_ERROR_BODY');
+        const errorCode = errorDetail.code || 'API_ERROR_BODY';
+
+        // ODsay 서버 순간 과부하 시 ApiKeyAuthFailed나 Requests 관련 에러가 일시적으로 발생할 수 있으므로 retryable로 처리함
+        const isRetryable =
+          errorCode === 'ApiKeyAuthFailed' ||
+          errorCode === 'TooManyRequests' ||
+          String(errorCode).includes('Requests') ||
+          String(errorMsg).includes('ApiKeyAuthFailed');
+
+        throw new ExternalApiError(`[API 내부 에러] ${errorMsg}`, 500, errorCode, isRetryable);
       }
     } catch (parseError) {
       // JSON 파싱 에러는 무시 (응답이 JSON이 아닐 수도 있으므로 통과)
@@ -47,7 +62,7 @@ export async function externalFetch(url: string, options: RequestInit = {}): Pro
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      throw new ExternalApiError('외부 API 요청 시간 초과 (Timeout)', 408, 'TIMEOUT');
+      throw new ExternalApiError('외부 API 요청 시간 초과 (Timeout)', 408, 'TIMEOUT', true);
     }
     throw error;
   }

@@ -240,6 +240,7 @@ export default function FixedJourneyTimelineSheet({
     }
 
     const theme = getSegmentTheme(sIdx);
+    const isFocused = focusedSegment?.originId === origin.id && focusedSegment?.destId === dest.id;
 
     return (
       <button
@@ -250,7 +251,9 @@ export default function FixedJourneyTimelineSheet({
         }}
         type="button"
         onClick={() => handleSegmentClick(origin, dest, route)}
-        className={`w-[156px] h-[62px] flex flex-col justify-between p-2.5 rounded-xl text-xs transition-all shrink-0 cursor-pointer text-left ${theme.cardUnfocused}`}
+        className={`w-[156px] h-[62px] flex flex-col justify-between p-2.5 rounded-xl text-xs transition-all shrink-0 cursor-pointer text-left relative overflow-hidden ${
+          isFocused ? theme.cardFocused : theme.cardUnfocused
+        }`}
         title={`${origin.place_name} → ${dest.place_name} 구간 (${duration || '이동정보'})`}
       >
         <div className="flex items-center justify-between gap-1 w-full">
@@ -292,6 +295,14 @@ export default function FixedJourneyTimelineSheet({
             {!formattedDistance && !formattedFare && <span className="opacity-75">상세 경로</span>}
           </div>
         </div>
+
+        {/* 하단 Polyline 패턴 그라데이션 적용 */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none transition-all"
+          style={{
+            background: `linear-gradient(to right, ${theme.gradientStart}, ${theme.gradientEnd})`,
+          }}
+        />
       </button>
     );
   };

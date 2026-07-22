@@ -73,9 +73,6 @@ export function useJourneyDirections() {
 
         if (promises.length > 0) {
           await Promise.allSettled(promises);
-          if (i < places.length - 2) {
-            await new Promise((resolve) => setTimeout(resolve, 150));
-          }
         }
       } catch (error) {
         console.error('[useJourneyDirections] Error fetching segment:', error);

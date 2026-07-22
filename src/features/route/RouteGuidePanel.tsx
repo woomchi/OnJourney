@@ -4,8 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
-import { CustomBottomSheet, useBottomSheet } from '@/components/common/CustomBottomSheet';
-import { motion, useTransform, AnimatePresence } from 'framer-motion';
+import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { motion, useTransform, AnimatePresence, useMotionValue } from 'framer-motion';
 import PlaybackBar from '@/components/route/PlaybackBar';
 import TransitGuideList from '@/components/route/TransitGuideList';
 import CarGuideList from '@/components/route/CarGuideList';
@@ -13,7 +13,10 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 
 const FloatingButtonsContainer = () => {
-  const { y, maxHeight } = useBottomSheet();
+  const bottomSheet = useOptionalBottomSheet();
+  const fallbackY = useMotionValue(0);
+  const y = bottomSheet?.y || fallbackY;
+  const maxHeight = bottomSheet?.maxHeight ?? 800;
   const opacity = useTransform(y, [-360, -maxHeight + 100], [1, 0]);
   // Use a transform to dynamically disable pointer events when hidden
   const pointerEvents = useTransform(y, (latest: number) => latest < -400 ? 'none' : 'auto');
@@ -508,6 +511,14 @@ export default function RouteGuidePanel({
           </div>
         </div>
       </div>
+      {route.isEstimated && (
+        <div className="mx-5 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800 text-xs font-semibold">
+          <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>네트워크 지연으로 인한 예상 경로입니다.</span>
+        </div>
+      )}
     </div>
   );
 

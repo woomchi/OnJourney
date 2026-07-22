@@ -7,6 +7,7 @@ export interface SelectedRoute {
   fare: number;        // 요금 (원)
   taxiFare?: number;   // 택시 요금 (원)
   distance?: number;   // 주행 거리 (km)
+  isEstimated?: boolean;     // Fallback 추산 여부 식별 플래그
   isFareEstimated?: boolean; // 요금 추정 여부
   isIntercity?: boolean;     // 기차/시외 구간 포함 여부
   steps: DirectionStep[];
@@ -81,6 +82,7 @@ export interface DirectionResult {
   fare: number;
   taxiFare?: number;   // 택시 요금 (원)
   distance?: number; // 주행 거리 (km)
+  isEstimated?: boolean;     // Fallback 추산 여부 식별 플래그
   isFareEstimated?: boolean; // 요금 추정 여부
   isIntercity?: boolean;     // 기차/시외 구간 포함 여부
   steps: DirectionStep[];

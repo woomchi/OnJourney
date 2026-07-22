@@ -131,6 +131,7 @@ export default function HorizontalJourneyTimelineBar({
     }
 
     const theme = getSegmentTheme(sIdx);
+    const isFocused = focusedSegment?.originId === origin.id && focusedSegment?.destId === dest.id;
 
     return (
       <button
@@ -141,7 +142,9 @@ export default function HorizontalJourneyTimelineBar({
         }}
         type="button"
         onClick={() => handleSegmentClick(origin, dest, route)}
-        className={`w-[168px] h-[76px] flex flex-col justify-between p-3 rounded-2xl text-xs transition-all shrink-0 cursor-pointer text-left ${theme.cardUnfocused}`}
+        className={`w-[168px] h-[76px] flex flex-col justify-between p-3 rounded-2xl text-xs transition-all shrink-0 cursor-pointer text-left relative overflow-hidden ${
+          isFocused ? theme.cardFocused : theme.cardUnfocused
+        }`}
         title={`${origin.place_name} → ${dest.place_name} 구간 (${duration || '이동정보'})`}
       >
         {/* 상단: 수단 아이콘 + 이동시간 + 환승 태그 */}
@@ -185,6 +188,14 @@ export default function HorizontalJourneyTimelineBar({
             {!formattedDistance && !formattedFare && <span className="opacity-75">상세 경로 보기</span>}
           </div>
         </div>
+
+        {/* 하단 Polyline 패턴 그라데이션 적용 */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-[3.5px] pointer-events-none transition-all"
+          style={{
+            background: `linear-gradient(to right, ${theme.gradientStart}, ${theme.gradientEnd})`,
+          }}
+        />
       </button>
     );
   };

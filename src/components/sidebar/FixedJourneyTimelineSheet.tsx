@@ -10,6 +10,7 @@ import type { Journey, Place } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Clock, Coins } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
+import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
 
 interface FixedJourneyTimelineSheetProps {
   activeJourney: Journey;
@@ -37,6 +38,74 @@ export default function FixedJourneyTimelineSheet({
     setDrawerSnapPoint,
     openSearchMode,
   } = useJourneyStore();
+
+  const dragControls = useDragControls();
+  const y = useMotionValue(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const addPlaceRef = useRef<HTMLDivElement>(null);
+  
+  const [fullHeight, setFullHeight] = useState(0);
+  const [addButtonHeight, setAddButtonHeight] = useState(86);
+  const [activeSnap, setActiveSnap] = useState<'full' | 'reduced'>('full');
+
+  useEffect(() => {
+    setActiveSnap('full');
+  }, [activeJourney?.id]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const addPlace = addPlaceRef.current;
+    if (!container || !addPlace) return;
+
+    const observer = new ResizeObserver(() => {
+      setFullHeight(container.offsetHeight);
+      setAddButtonHeight(addPlace.offsetHeight);
+    });
+
+    observer.observe(container);
+    observer.observe(addPlace);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const targetY = activeSnap === 'full' ? 0 : addButtonHeight;
+    const controls = animate(y, targetY, {
+      type: 'spring',
+      stiffness: 300,
+      damping: 30,
+    });
+    return () => controls.stop();
+  }, [activeSnap, addButtonHeight, y]);
+
+  useEffect(() => {
+    if (fullHeight > 0) {
+      const currentHeight = activeSnap === 'full' ? fullHeight : (fullHeight - addButtonHeight);
+      setDrawerSnapPoint(currentHeight);
+    }
+  }, [activeSnap, fullHeight, addButtonHeight, setDrawerSnapPoint]);
+
+  const handleDragEnd = (event: any, info: any) => {
+    const currentY = y.get();
+    const velocityY = info.velocity.y;
+    const VELOCITY_THRESHOLD = 200;
+    const DRAG_THRESHOLD = addButtonHeight / 2;
+
+    let nextSnap: 'full' | 'reduced' = 'full';
+
+    if (velocityY > VELOCITY_THRESHOLD) {
+      nextSnap = 'reduced';
+    } else if (velocityY < -VELOCITY_THRESHOLD) {
+      nextSnap = 'full';
+    } else {
+      if (currentY > DRAG_THRESHOLD) {
+        nextSnap = 'reduced';
+      } else {
+        nextSnap = 'full';
+      }
+    }
+    setActiveSnap(nextSnap);
+  };
 
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
@@ -225,11 +294,8 @@ export default function FixedJourneyTimelineSheet({
     if (type === 'public' && route?.steps) {
       const transitSteps = route.steps.filter((s: any) => s.type !== 'walk');
       const transitStepsCount = transitSteps.length;
-      if (transitStepsCount <= 1) {
-        transferLabel = '무환승';
-      } else {
-        transferLabel = `환승 ${transitStepsCount - 1}회`;
-      }
+      const transferCount = Math.max(0, transitStepsCount - 1);
+      transferLabel = `환승 ${transferCount}회`;
       stepBadges = transitSteps
         .filter((s: any) => s.name)
         .map((s: any) => s.name.replace(/지하철\s*/, ''));
@@ -258,13 +324,20 @@ export default function FixedJourneyTimelineSheet({
       >
         <div className="flex items-center justify-between gap-1 w-full">
           <div className="flex items-center gap-1.5 min-w-0 truncate">
-            {type === 'car' ? (
-              <Car className={`w-4 h-4 shrink-0 ${theme.iconUnfocused}`} />
-            ) : type === 'walk' ? (
-              <Footprints className={`w-4 h-4 shrink-0 ${theme.iconUnfocused}`} />
-            ) : (
-              <Bus className={`w-4 h-4 shrink-0 ${theme.iconUnfocused}`} />
-            )}
+            <div
+              className="w-4.5 h-4.5 rounded-full text-white flex items-center justify-center shrink-0 shadow-xs"
+              style={{
+                background: `linear-gradient(135deg, ${theme.gradientStart}, ${theme.gradientEnd})`,
+              }}
+            >
+              {type === 'car' ? (
+                <Car className="w-3 h-3" />
+              ) : type === 'walk' ? (
+                <Footprints className="w-3 h-3" />
+              ) : (
+                <Bus className="w-3 h-3" />
+              )}
+            </div>
             <span className="font-extrabold text-[12.5px] truncate">{duration || '이동'}</span>
           </div>
           {transferLabel && (
@@ -296,27 +369,56 @@ export default function FixedJourneyTimelineSheet({
           </div>
         </div>
 
-        {/* 하단 Polyline 패턴 그라데이션 적용 */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none transition-all"
-          style={{
-            background: `linear-gradient(to right, ${theme.gradientStart}, ${theme.gradientEnd})`,
-          }}
-        />
       </button>
     );
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/90 shadow-[0_-4px_24px_rgba(0,0,0,0.12)] rounded-t-2xl flex flex-col transition-all">
+    <motion.div
+      ref={containerRef}
+      drag="y"
+      dragControls={dragControls}
+      dragListener={false}
+      dragElastic={{ top: 0.05, bottom: 0.05 }}
+      dragConstraints={{
+        top: 0,
+        bottom: addButtonHeight
+      }}
+      onDragEnd={handleDragEnd}
+      style={{
+        y,
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        borderTopLeftRadius: '24px',
+        borderTopRightRadius: '24px',
+      }}
+      className="md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/90 shadow-[0_-4px_24px_rgba(0,0,0,0.12)] flex flex-col"
+    >
       {/* 플로팅 버튼 타겟 (바텀시트 상단 바로 위에 위치) */}
       <div
         id="mobile-map-buttons-target"
         className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] pointer-events-none *:pointer-events-auto"
       />
 
+      {/* 드래그 핸들바 영역 */}
+      <div
+        onPointerDown={(e) => dragControls.start(e)}
+        className="w-full flex justify-center pt-2.5 pb-1 bg-transparent cursor-grab active:cursor-grabbing touch-none shrink-0 select-none rounded-t-[24px]"
+      >
+        <div className="w-12 h-1 bg-zinc-300 rounded-full pointer-events-none" />
+      </div>
+
       {/* 1. 슬림 상단 컨트롤 헤더 (여정 제목 + 날짜 & 이동 수단 설정 정보) */}
-      <div className="w-full px-4 pt-2.5 pb-1 flex items-center justify-between gap-2 shrink-0">
+      <div
+        onPointerDown={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          dragControls.start(e);
+        }}
+        className="w-full px-4 pt-1 pb-1 flex items-center justify-between gap-2 shrink-0 select-none touch-none"
+      >
         {/* 좌측: 목록/취소 버튼 */}
         <button
           type="button"
@@ -403,7 +505,13 @@ export default function FixedJourneyTimelineSheet({
       </div>
 
       {/* 2. 가로 연결형 타임라인 바로 위에 붙은 재생 플레이어 & 요약 정보 헤더 바 */}
-      <div className="w-full px-4 pt-1.5 pb-1 flex items-center justify-between gap-2 shrink-0 border-t border-zinc-100/60">
+      <div
+        onPointerDown={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          dragControls.start(e);
+        }}
+        className="w-full px-4 pt-1.5 pb-1 flex items-center justify-between gap-2 shrink-0 border-t border-zinc-100/60 select-none touch-none"
+      >
         {/* 좌측: 소요 시간 & 비용 (목록 폰트 크기 text-xs/text-sm로 확대) */}
         <div className="flex-1 flex flex-col items-start justify-center min-w-0 leading-tight">
           <span className="font-extrabold text-sm text-zinc-900 truncate">
@@ -534,7 +642,10 @@ export default function FixedJourneyTimelineSheet({
       </div>
 
       {/* 3. 최하단 장소 추가 버튼 */}
-      <div className="w-full px-4 pt-1.5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shrink-0">
+      <div
+        ref={addPlaceRef}
+        className="w-full px-4 pt-1.5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shrink-0"
+      >
         <button
           type="button"
           onClick={handleAddPlaceClick}
@@ -544,6 +655,19 @@ export default function FixedJourneyTimelineSheet({
           <span className="tracking-wide">장소 추가</span>
         </button>
       </div>
-    </div>
+
+      {/* 바텀 시트 위쪽 탄성 동작 시 하단의 빈 공간이 노출되는 현상을 방지하는 절대 위치 가림막 (Skirt) */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '99%',
+          left: 0,
+          right: 0,
+          height: '200px',
+          backgroundColor: 'inherit',
+          pointerEvents: 'none',
+        }}
+      />
+    </motion.div>
   );
 }

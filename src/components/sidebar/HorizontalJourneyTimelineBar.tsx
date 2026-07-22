@@ -109,18 +109,15 @@ export default function HorizontalJourneyTimelineBar({
     const formattedFare = fareVal
       ? (route?.taxiFare && !route?.fare ? `택시 ${fareVal.toLocaleString()}원` : `${fareVal.toLocaleString()}원`)
       : '';
-    
+
     // 환승 및 대중교통 노선 정보 계산
     let transferLabel = '';
     let stepBadges: string[] = [];
     if (type === 'public' && route?.steps) {
       const transitSteps = route.steps.filter((s: any) => s.type !== 'walk');
       const transitStepsCount = transitSteps.length;
-      if (transitStepsCount <= 1) {
-        transferLabel = '무환승';
-      } else {
-        transferLabel = `환승 ${transitStepsCount - 1}회`;
-      }
+      const transferCount = Math.max(0, transitStepsCount - 1);
+      transferLabel = `환승 ${transferCount}회`;
       stepBadges = transitSteps
         .filter((s: any) => s.name)
         .map((s: any) => s.name.replace(/지하철\s*/, ''));
@@ -142,21 +139,27 @@ export default function HorizontalJourneyTimelineBar({
         }}
         type="button"
         onClick={() => handleSegmentClick(origin, dest, route)}
-        className={`w-[168px] h-[76px] flex flex-col justify-between p-3 rounded-2xl text-xs transition-all shrink-0 cursor-pointer text-left relative overflow-hidden ${
-          isFocused ? theme.cardFocused : theme.cardUnfocused
-        }`}
+        className={`w-[168px] h-[76px] flex flex-col justify-between p-3 rounded-2xl text-xs transition-all shrink-0 cursor-pointer text-left relative overflow-hidden ${isFocused ? theme.cardFocused : theme.cardUnfocused
+          }`}
         title={`${origin.place_name} → ${dest.place_name} 구간 (${duration || '이동정보'})`}
       >
         {/* 상단: 수단 아이콘 + 이동시간 + 환승 태그 */}
         <div className="flex items-center justify-between gap-1 w-full">
           <div className="flex items-center gap-1.5 min-w-0 truncate">
-            {type === 'car' ? (
-              <Car className={`w-4.5 h-4.5 shrink-0 ${theme.iconUnfocused}`} />
-            ) : type === 'walk' ? (
-              <Footprints className={`w-4.5 h-4.5 shrink-0 ${theme.iconUnfocused}`} />
-            ) : (
-              <Bus className={`w-4.5 h-4.5 shrink-0 ${theme.iconUnfocused}`} />
-            )}
+            <div
+              className="w-5.5 h-5.5 rounded-full text-white flex items-center justify-center shrink-0 shadow-xs"
+              style={{
+                background: `linear-gradient(135deg, ${theme.gradientStart}, ${theme.gradientEnd})`,
+              }}
+            >
+              {type === 'car' ? (
+                <Car className="w-3.5 h-3.5" />
+              ) : type === 'walk' ? (
+                <Footprints className="w-3.5 h-3.5" />
+              ) : (
+                <Bus className="w-3.5 h-3.5" />
+              )}
+            </div>
             <span className="font-extrabold text-[13.5px] truncate">{duration || '이동'}</span>
           </div>
           {transferLabel && (
@@ -189,13 +192,6 @@ export default function HorizontalJourneyTimelineBar({
           </div>
         </div>
 
-        {/* 하단 Polyline 패턴 그라데이션 적용 */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-[3.5px] pointer-events-none transition-all"
-          style={{
-            background: `linear-gradient(to right, ${theme.gradientStart}, ${theme.gradientEnd})`,
-          }}
-        />
       </button>
     );
   };

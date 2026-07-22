@@ -61,18 +61,68 @@ export default function JourneyPlayerHeader({
   const isMobile = useMediaQuery('(max-width: 767px)');
   const HeaderComponent = 'header';
 
-  return (
-    <HeaderComponent 
-      onPointerDown={(e: any) => {
-        if (isMobile && bottomSheet?.dragControls) {
-          bottomSheet.dragControls.start(e);
+  let totalDistanceKm = 0;
+  let totalDurationMin = 0;
+  let hasRouteStats = false;
+
+  if (activeJourney?.places && activeJourney.places.length > 1) {
+    const transportType = activeJourney.transport_type || 'public';
+    for (let i = 0; i < activeJourney.places.length - 1; i++) {
+      const origin = activeJourney.places[i];
+      const dest = activeJourney.places[i + 1];
+      if (!origin || !dest) continue;
+
+      if (origin.selected_route && origin.selected_route.destId === dest.id) {
+        if (typeof origin.selected_route.distance === 'number') {
+          totalDistanceKm += origin.selected_route.distance;
+          hasRouteStats = true;
         }
-      }}
-      className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-2' : 'pt-2'}`}
-    >
-      {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
-      {!isSearchMode && (
-        <div className={`absolute top-1.5 left-2 z-20`}>
+        if (typeof origin.selected_route.duration === 'number') {
+          totalDurationMin += origin.selected_route.duration;
+          hasRouteStats = true;
+        }
+      } else {
+        const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
+        const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+        const segmentData = {
+          public: publicData?.public || [],
+          car: carData?.car || [],
+          walk: carData?.walk || []
+        };
+        const route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk');
+        if (route) {
+          if (typeof route.distance === 'number') {
+            totalDistanceKm += route.distance;
+            hasRouteStats = true;
+          }
+          if (typeof route.duration === 'number') {
+            totalDurationMin += route.duration;
+            hasRouteStats = true;
+          }
+        }
+      }
+    }
+  }
+
+  const formatTotalDuration = (mins: number) => {
+    if (mins < 60) return `${mins}분`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}시간 ${m}분` : `${h}시간`;
+  };
+
+  if (isMobile) {
+    return (
+      <HeaderComponent
+        onPointerDown={(e: any) => {
+          if (bottomSheet?.dragControls) {
+            bottomSheet.dragControls.start(e);
+          }
+        }}
+        className="w-full h-8 flex items-center justify-between px-3 border-b border-zinc-100/80 bg-white flex-shrink-0 relative drawer-drag-area cursor-grab active:cursor-grabbing touch-none"
+      >
+        {/* 왼쪽: 목록 / 취소 */}
+        {!isSearchMode && (
           <button
             type="button"
             onClick={() => {
@@ -83,7 +133,77 @@ export default function JourneyPlayerHeader({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 text-zinc-400 hover:text-zinc-700 transition-colors text-[11px] font-semibold rounded-md px-1 py-1"
+            className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-[11px] font-semibold rounded-md px-1.5 py-0.5"
+          >
+            {!isEditMode && <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />}
+            {isEditMode ? '취소' : '목록'}
+          </button>
+        )}
+
+        {/* 우측: 편집 및 동기화 */}
+        {!isSearchMode && (
+          <div className="flex items-center gap-1.5">
+            {isSyncing && (
+              <div className="flex items-center" title="클라우드 동기화 중">
+                <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={
+                isEditMode
+                  ? handleDoneEdit
+                  : () => {
+                      setEditMode(true);
+                      setDrawerSnapPoint(1);
+                    }
+              }
+              onPointerDown={(e) => e.stopPropagation()}
+              className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1.5 py-0.5 ${
+                isEditMode ? 'text-blue-600' : 'text-zinc-500 hover:text-zinc-800'
+              }`}
+            >
+              {isEditMode ? (
+                <>
+                  <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  완료
+                </>
+              ) : (
+                <>
+                  <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
+                  편집
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </HeaderComponent>
+    );
+  }
+
+  return (
+    <HeaderComponent 
+      onPointerDown={(e: any) => {
+        if (isMobile && bottomSheet?.dragControls) {
+          bottomSheet.dragControls.start(e);
+        }
+      }}
+      className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-1' : 'pt-1'}`}
+    >
+      {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
+      {!isSearchMode && (
+        <div className={`absolute top-1 left-2 z-20`}>
+          <button
+            type="button"
+            onClick={() => {
+              if (isEditMode) {
+                setEditMode(false);
+              } else {
+                clearJourney();
+              }
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-[11px] font-semibold rounded-md px-1 py-0.5"
           >
             {isEditMode ? (
               <div className="w-3.5 h-3.5" />
@@ -97,7 +217,7 @@ export default function JourneyPlayerHeader({
 
       {/* 오른쪽 상단 모서리: 편집 및 동기화 */}
       {!isSearchMode && (
-        <div className={`absolute top-1.5 right-2 z-20 flex justify-end items-center gap-1`}>
+        <div className={`absolute top-1 right-2 z-20 flex justify-end items-center gap-1`}>
           {isSyncing && (
             <div className="flex items-center" title="클라우드 동기화 중">
               <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
@@ -114,7 +234,7 @@ export default function JourneyPlayerHeader({
                   }
             }
             onPointerDown={(e) => e.stopPropagation()}
-            className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-1 ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'
+            className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1 py-0.5 ${isEditMode ? 'text-blue-600' : 'text-zinc-400 hover:text-zinc-700'
               }`}
           >
             {isEditMode ? (
@@ -133,12 +253,12 @@ export default function JourneyPlayerHeader({
       )}
 
       {/* 중앙 바: 여정 정보 (버튼 사이에 위치) */}
-      <div className="w-full flex justify-center px-16 pt-1">
+      <div className="w-full flex justify-center px-14 pt-0.5">
         <button
           type="button"
           onClick={() => setIsEditModalOpen(true)}
           onPointerDown={(e) => e.stopPropagation()}
-          className="flex-1 flex flex-col items-center justify-center min-w-0 rounded-xl transition-all duration-300 hover:bg-zinc-50/80 cursor-pointer px-1 py-1 group border border-transparent hover:border-zinc-200/50"
+          className="flex-1 flex flex-col items-center justify-center min-w-0 rounded-xl transition-all duration-300 hover:bg-zinc-50/80 cursor-pointer px-1 py-0.5 group border border-transparent hover:border-zinc-200/50"
           title="여정 정보 수정"
         >
           {/* 노래 제목 느낌 */}
@@ -146,7 +266,7 @@ export default function JourneyPlayerHeader({
             {/* 가운데 정렬 보정을 위한 빈 공간 (우측 연필 아이콘과 동일한 너비) */}
             <div className="w-3 h-3 mr-0.5 shrink-0" />
 
-            <h2 className="text-sm font-black tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
+            <h2 className="text-xs font-bold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
               {activeJourney.title}
             </h2>
 
@@ -155,18 +275,32 @@ export default function JourneyPlayerHeader({
             </svg>
           </div>
 
-          {/* 작사/작곡가 느낌 (생성 날짜 & 테마) */}
-          <p className="text-[9px] font-medium text-zinc-400/80 mt-0.5 flex items-center gap-1 group-hover:text-zinc-500 transition-colors truncate max-w-full">
+          {/* 작사/작곡가 느낌 (생성 날짜 & 테마 & 전체 여정 정보 요약) */}
+          <p className="text-[9px] font-medium text-zinc-400/80 mt-0 flex items-center gap-1 group-hover:text-zinc-500 transition-colors truncate max-w-full">
             <span className="truncate">{formatJourneyDate(activeJourney.journey_date)}</span>
             <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
             <span className="shrink-0">{activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}</span>
+            <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
+            <span className="shrink-0 text-zinc-600 font-semibold">장소 {activeJourney.places?.length || 0}개</span>
+            {hasRouteStats && totalDistanceKm > 0 && (
+              <>
+                <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
+                <span className="shrink-0">{totalDistanceKm.toFixed(1)}km</span>
+              </>
+            )}
+            {hasRouteStats && totalDurationMin > 0 && (
+              <>
+                <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
+                <span className="shrink-0">{formatTotalDuration(totalDurationMin)}</span>
+              </>
+            )}
           </p>
         </button>
       </div>
 
       {/* 하단: 여정 이동 및 재생 조절 컨트롤 */}
       {!isEditMode && (
-        <div className="flex items-center justify-center gap-6 pb-2.5 w-full">
+        <div className="flex items-center justify-center gap-4 pt-0.5 pb-1.5 w-full">
           {/* 이전 여정 (<<) */}
           <button
             type="button"
@@ -181,10 +315,10 @@ export default function JourneyPlayerHeader({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
             title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
           >
-            <SkipBackIcon className="w-6 h-6" />
+            <SkipBackIcon className="w-4.5 h-4.5" />
           </button>
 
           {/* 여정 재생/정지 */}
@@ -225,7 +359,7 @@ export default function JourneyPlayerHeader({
                 }
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 group overflow-hidden ${isPlaying
+              className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 group overflow-hidden ${isPlaying
                 ? 'bg-white border border-zinc-200 hover:border-transparent text-zinc-950 shadow-sm'
                 : 'bg-zinc-950 border border-zinc-800 hover:border-transparent text-white shadow-md'
                 }`}
@@ -233,14 +367,14 @@ export default function JourneyPlayerHeader({
             >
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               {isPlaying ? (
-                <PauseBarsIcon className="w-3.5 h-3.5 relative z-10 group-hover:text-white transition-colors duration-300" />
+                <PauseBarsIcon className="w-3 h-3 relative z-10 group-hover:text-white transition-colors duration-300" />
               ) : (
-                <PlayTriangleIcon className="w-3.5 h-3.5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
+                <PlayTriangleIcon className="w-3 h-3 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
               )}
             </button>
           ) : (
-            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 flex-shrink-0">
-              <PlayTriangleIcon className="w-3.5 h-3.5 ml-0.5 text-zinc-300" />
+            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-zinc-100 flex-shrink-0">
+              <PlayTriangleIcon className="w-3 h-3 ml-0.5 text-zinc-300" />
             </div>
           )}
 
@@ -258,10 +392,10 @@ export default function JourneyPlayerHeader({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-800 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
             title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
           >
-            <SkipForwardIcon className="w-6 h-6" />
+            <SkipForwardIcon className="w-4.5 h-4.5" />
           </button>
         </div>
       )}

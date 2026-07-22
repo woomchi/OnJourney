@@ -270,9 +270,9 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         {/* Global Common Drag Handle */}
         <div
           onPointerDown={(e) => dragControls.start(e)}
-          className="w-full flex justify-center py-4 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white rounded-t-[24px]"
+          className="w-full flex justify-center pt-1.5 pb-1 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white rounded-t-[20px]"
         >
-          <div className="w-12 h-1.5 bg-zinc-300 rounded-full pointer-events-none" />
+          <div className="w-12 h-1 bg-zinc-300 rounded-full pointer-events-none" />
         </div>
 
         {headerContent && (

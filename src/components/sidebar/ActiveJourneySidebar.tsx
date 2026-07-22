@@ -41,14 +41,14 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Use 76px header height for Edit Mode, 126px for Normal Player Mode (due to media controls overlay)
-  const headerHeight = isEditMode ? 76 : 126;
+  // On Mobile, header is a 32px button bar inside bottom sheet ([< 목록] & [편집])
+  const headerHeight = isMobile ? 32 : (isEditMode ? 48 : 72);
 
   const { y, minHeight, defaultHeight } = useBottomSheet();
 
   const contentHeight = useTransform(y, (latest: number) => {
     if (!isMobile) return '100%';
-    return `${Math.max(0, -latest - 26 - headerHeight)}px`;
+    return `${Math.max(0, -latest - 13 - headerHeight)}px`;
   });
 
   const contentOpacity = useTransform(y, (latest: number) => {

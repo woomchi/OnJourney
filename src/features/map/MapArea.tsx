@@ -1312,7 +1312,7 @@ export default function MapArea() {
 
       {/* ── 내 위치 오버레이 카드 ── */}
       {showLocationCard && userLocation && (
-        <div className={`absolute bottom-[160px] md:bottom-24 left-4 md:left-6 z-[120] w-[calc(100%-32px)] md:w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4 transition-all ${
+        <div className={`absolute bottom-[224px] md:bottom-24 left-4 md:left-6 z-[120] w-[calc(100%-32px)] md:w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4 transition-all ${
           isDrawerMaximized ? 'opacity-0 pointer-events-none translate-y-4' : 'opacity-100'
         }`}>
           <div className="flex justify-between items-start gap-3">
@@ -1450,7 +1450,7 @@ export default function MapArea() {
         }
 
         return (
-          <div className="absolute bottom-[160px] md:bottom-8 right-4 md:right-6 z-[2000] flex flex-col gap-3">
+          <div className="absolute bottom-[224px] md:bottom-8 right-4 md:right-6 z-[2000] flex flex-col gap-3">
             {buttons}
           </div>
         );

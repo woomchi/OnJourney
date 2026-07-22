@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useClickAway } from '@uidotdev/usehooks';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDialog } from '@/providers/DialogProvider';
-import { useJourneyStore } from '@/stores/journey-store';
 import PlaceSearchBar from '@/features/places/PlaceSearchBar';
 import { User, Settings, LogOut } from 'lucide-react';
 
@@ -13,6 +12,7 @@ export default function MapHeaderOverlay() {
   const { alert } = useDialog();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   const menuRef = useClickAway<HTMLDivElement>(() => {
     setIsMenuOpen(false);
   });

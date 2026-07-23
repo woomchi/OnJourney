@@ -94,7 +94,11 @@ export default function TransitGuideList({
                  handleStepClick(idx, step);
                }
             }}
-            className="relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none snap-start snap-always bg-transparent border-transparent hover:bg-zinc-50/50 hover:border-zinc-100"
+            className={`relative flex gap-4 pl-12 pr-3 py-1.5 rounded-xl border transition-all duration-300 cursor-pointer select-none snap-start snap-always scroll-mt-[5px] ${
+              isThisStepFocused 
+                ? 'bg-blue-50/40 border-blue-100/80 shadow-[0_2px_8px_rgba(59,130,246,0.04)]' 
+                : 'bg-transparent border-transparent hover:bg-zinc-50/50 hover:border-zinc-100'
+            }`}
           >
             {/* 타임라인 노드 아이콘 */}
             <div
@@ -144,15 +148,20 @@ export default function TransitGuideList({
                     {/* 1. 승차 / 출발 */}
                     {displayStartName && (
                       <div
+                        id={`step-${originPlace.id}-${destPlace.id}-${idx}-start`}
                         onClick={(e) => handleZoomToPoint(idx, step, 'start', e)}
-                        className="flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub hover:bg-blue-50/70"
+                        className={`flex items-center justify-between gap-1.5 text-xs cursor-pointer p-2 rounded-xl border transition-all duration-200 group/sub scroll-mt-0.5 ${
+                          isStartFocused
+                            ? 'bg-blue-50/70 border-blue-100 text-blue-700 font-bold shadow-sm'
+                            : 'bg-transparent border-transparent text-zinc-600 font-semibold hover:bg-blue-50/70'
+                        }`}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                          <span className="flex-shrink-0 whitespace-nowrap font-bold text-zinc-400">{startLabel}</span>
-                          <span className="truncate transition-colors text-zinc-700 group-hover/sub:text-blue-700">{displayStartName}</span>
+                          <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isStartFocused ? 'text-blue-500' : 'text-zinc-400'}`}>{startLabel}</span>
+                          <span className={`truncate transition-colors ${isStartFocused ? 'text-blue-700 font-bold' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{displayStartName}</span>
                         </div>
-                        <div className="flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center opacity-0 group-hover/sub:opacity-100">
+                        <div className={`flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center ${isStartFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
                           </svg>
@@ -223,15 +232,20 @@ export default function TransitGuideList({
                     {/* 5. 하차 / 도착 */}
                     {displayEndName && (
                       <div
+                        id={`step-${originPlace.id}-${destPlace.id}-${idx}-end`}
                         onClick={(e) => handleZoomToPoint(idx, step, 'end', e)}
-                        className="flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub hover:bg-rose-50/70"
+                        className={`flex items-center justify-between gap-1.5 text-xs cursor-pointer p-2 rounded-xl border transition-all duration-200 group/sub scroll-mt-0.5 ${
+                          isEndFocused
+                            ? 'bg-rose-50/70 border-rose-100 text-rose-700 font-bold shadow-sm'
+                            : 'bg-transparent border-transparent text-zinc-600 font-semibold hover:bg-rose-50/70'
+                        }`}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                          <span className="flex-shrink-0 whitespace-nowrap font-bold text-zinc-400">{endLabel}</span>
-                          <span className="truncate transition-colors text-zinc-700 group-hover/sub:text-blue-700">{displayEndName}</span>
+                          <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isEndFocused ? 'text-rose-500' : 'text-zinc-400'}`}>{endLabel}</span>
+                          <span className={`truncate transition-colors ${isEndFocused ? 'text-rose-700 font-bold' : 'text-zinc-700 group-hover/sub:text-rose-700'}`}>{displayEndName}</span>
                         </div>
-                        <div className="flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center opacity-0 group-hover/sub:opacity-100">
+                        <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isEndFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
                           </svg>

@@ -171,8 +171,14 @@ export function RoutePanels() {
               const lastIdx = prevRoute.steps.length - 1;
               const lastStep = prevRoute.steps[lastIdx];
               let subType: 'start' | 'end' | 'dest' | undefined = undefined;
-              if (lastStep.type !== 'walk' && lastStep.endName) {
+              if (lastStep.type === 'car' || lastStep.type === 'taxi') {
+                subType = 'dest';
+              } else if (lastStep.type === 'walk' || (!lastStep.startName && !lastStep.endName)) {
                 subType = 'end';
+              } else if (lastStep.endName) {
+                subType = 'end';
+              } else if (lastStep.startName) {
+                subType = 'start';
               }
 
               setFocusedStep({

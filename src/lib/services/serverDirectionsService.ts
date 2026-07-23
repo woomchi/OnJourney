@@ -649,10 +649,12 @@ export async function fetchPublicDirections(params: DirectionsQueryType): Promis
   }
 }
 
-export async function fetchCarWalkDirections(params: DirectionsQueryType): Promise<{ car: DirectionResult[], walk: DirectionResult[] }> {
-  const { sx, sy, ex, ey } = params;
-  const roundCoord = (val: number) => Math.round(val * 10000) / 10000;
-  const cacheParams = { rsx: roundCoord(sx), rsy: roundCoord(sy), rex: roundCoord(ex), rey: roundCoord(ey) };
+export function buildWalkFallbackResults(
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number
+): DirectionResult[] {
   const distanceKm = haversineDistance(sy, sx, ey, ex);
   const fallbackPath = [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
 
@@ -661,20 +663,220 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   const kickboardDuration = Math.round((distanceKm / 18) * 60);
   const kickboardFare = 1000 + Math.round(kickboardDuration * 150);
 
-  const walkResults: DirectionResult[] = [
+  return [
     {
-      id: 'walk', type: 'walk', name: '도보', duration: walkDuration, fare: 0,
+      id: 'walk', type: 'walk', name: '도보', duration: walkDuration, fare: 0, distance: distanceKm,
       steps: [{ type: 'walk', name: '도보', duration: walkDuration, color: '#E4E4E7', pathPoints: fallbackPath }], pathPoints: fallbackPath
     },
     {
-      id: 'bicycle', type: 'bicycle', name: '자전거', duration: bicycleDuration, fare: 0,
+      id: 'bicycle', type: 'bicycle', name: '자전거', duration: bicycleDuration, fare: 0, distance: distanceKm,
       steps: [{ type: 'walk', name: '자전거', duration: bicycleDuration, color: '#10B981', pathPoints: fallbackPath }], pathPoints: fallbackPath
     },
     {
-      id: 'kickboard', type: 'kickboard', name: '공유 킥보드', duration: kickboardDuration, fare: kickboardFare,
+      id: 'kickboard', type: 'kickboard', name: '공유 킥보드', duration: kickboardDuration, fare: kickboardFare, distance: distanceKm,
       steps: [{ type: 'walk', name: '공유 킥보드', duration: kickboardDuration, color: '#8B5CF6', pathPoints: fallbackPath }], pathPoints: fallbackPath
     }
   ];
+}
+
+const getCachedTMapWalkingRoute = unstable_cache(
+  async (sx: number, sy: number, ex: number, ey: number, apiKey: string) => {
+    const url = 'https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1';
+    const body = {
+      startX: sx,
+      startY: sy,
+      endX: ex,
+      endY: ey,
+      reqCoordType: 'WGS84GEO',
+      resCoordType: 'WGS84GEO',
+      startName: '출발지',
+      endName: '목적지'
+    };
+
+    const res = await externalFetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'appKey': apiKey,
+      },
+      body: JSON.stringify(body),
+    });
+
+    return res.json();
+  },
+  ['tmap-walking-route-cache'],
+  { revalidate: 3600 }
+);
+
+function parseTMapResponse(
+  data: any,
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number
+): DirectionResult[] {
+  if (!data || !data.features || data.features.length === 0) {
+    throw new Error('TMap API Response has no features');
+  }
+
+  const pathPoints: { lat: number; lng: number }[] = [];
+  for (const feature of data.features) {
+    if (feature.geometry?.type === 'LineString') {
+      const coords = feature.geometry.coordinates;
+      if (Array.isArray(coords)) {
+        for (const coord of coords) {
+          if (Array.isArray(coord) && coord.length >= 2) {
+            pathPoints.push({ lat: coord[1], lng: coord[0] });
+          }
+        }
+      }
+    }
+  }
+
+  const cleanPathPoints: { lat: number; lng: number }[] = [];
+  for (const pt of pathPoints) {
+    if (cleanPathPoints.length === 0) {
+      cleanPathPoints.push(pt);
+    } else {
+      const last = cleanPathPoints[cleanPathPoints.length - 1];
+      if (last.lat !== pt.lat || last.lng !== pt.lng) {
+        cleanPathPoints.push(pt);
+      }
+    }
+  }
+
+  const finalPathPoints = cleanPathPoints.length > 0 
+    ? cleanPathPoints 
+    : [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
+
+  const firstProps = data.features[0]?.properties || {};
+  const totalDistanceMeters = firstProps.totalDistance ?? 0;
+  const totalTimeSeconds = firstProps.totalTime ?? 0;
+
+  const distanceKm = totalDistanceMeters > 0 
+    ? totalDistanceMeters / 1000 
+    : haversineDistance(sy, sx, ey, ex);
+
+  const walkDuration = totalTimeSeconds > 0 
+    ? Math.max(1, Math.round(totalTimeSeconds / 60)) 
+    : Math.max(1, Math.round((distanceKm / 4.5) * 60));
+
+  const guide: any[] = [];
+  for (const feature of data.features) {
+    if (feature.geometry?.type === 'Point' && feature.properties?.description) {
+      const props = feature.properties;
+      const coords = feature.geometry.coordinates;
+      if (Array.isArray(coords) && coords.length >= 2) {
+        guide.push({
+          instructions: props.description,
+          distance: props.distance ?? 0,
+          duration: (props.time ?? 0) * 1000,
+          startLat: coords[1],
+          startLng: coords[0]
+        });
+      }
+    }
+  }
+
+  const bicycleDuration = Math.max(1, Math.round((distanceKm / 15) * 60));
+  const kickboardDuration = Math.max(1, Math.round((distanceKm / 18) * 60));
+  const kickboardFare = 1000 + Math.round(kickboardDuration * 150);
+
+  return [
+    {
+      id: 'walk',
+      type: 'walk' as const,
+      name: '도보',
+      duration: walkDuration,
+      fare: 0,
+      distance: distanceKm,
+      steps: [
+        {
+          type: 'walk' as const,
+          name: '도보',
+          duration: walkDuration,
+          color: '#E4E4E7',
+          pathPoints: finalPathPoints,
+          startLat: sy,
+          startLng: sx,
+          endLat: ey,
+          endLng: ex,
+        }
+      ],
+      pathPoints: finalPathPoints,
+      guide: guide.length > 0 ? guide : undefined
+    },
+    {
+      id: 'bicycle',
+      type: 'bicycle' as const,
+      name: '자전거',
+      duration: bicycleDuration,
+      fare: 0,
+      distance: distanceKm,
+      steps: [
+        {
+          type: 'walk' as const,
+          name: '자전거',
+          duration: bicycleDuration,
+          color: '#10B981',
+          pathPoints: finalPathPoints,
+          startLat: sy,
+          startLng: sx,
+          endLat: ey,
+          endLng: ex,
+        }
+      ],
+      pathPoints: finalPathPoints
+    },
+    {
+      id: 'kickboard',
+      type: 'kickboard' as const,
+      name: '공유 킥보드',
+      duration: kickboardDuration,
+      fare: kickboardFare,
+      distance: distanceKm,
+      steps: [
+        {
+          type: 'walk' as const,
+          name: '공유 킥보드',
+          duration: kickboardDuration,
+          color: '#8B5CF6',
+          pathPoints: finalPathPoints,
+          startLat: sy,
+          startLng: sx,
+          endLat: ey,
+          endLng: ex,
+        }
+      ],
+      pathPoints: finalPathPoints
+    }
+  ];
+}
+
+export async function fetchCarWalkDirections(params: DirectionsQueryType): Promise<{ car: DirectionResult[], walk: DirectionResult[] }> {
+  const { sx, sy, ex, ey } = params;
+  const roundCoord = (val: number) => Math.round(val * 10000) / 10000;
+  
+  const rsx = roundCoord(sx);
+  const rsy = roundCoord(sy);
+  const rex = roundCoord(ex);
+  const rey = roundCoord(ey);
+
+  let walkResults: DirectionResult[];
+
+  const apiKey = process.env.TMAP_API_KEY;
+  if (!apiKey) {
+    console.warn('[serverDirectionsService] TMAP_API_KEY is not defined. Using fallback straight line calculations.');
+    walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
+  } else {
+    try {
+      const tmapData = await getCachedTMapWalkingRoute(rsx, rsy, rex, rey, apiKey);
+      walkResults = parseTMapResponse(tmapData, sx, sy, ex, ey);
+    } catch (error) {
+      console.warn('[serverDirectionsService] TMap Walking API failed, using fallback.', error);
+      walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
+    }
+  }
 
   try {
     const carResults = await fetchCarRoute(sx, sy, ex, ey);

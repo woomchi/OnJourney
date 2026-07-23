@@ -9,6 +9,7 @@ export interface PanelScrollBridgeOptions {
   defaultSnap: number;
   maxSnap?: number; // 보통 1
   disabled?: boolean;
+  bottomThreshold?: number; // 하단 오버스크롤 감지 마진 임계값
 }
 
 export function useScrollDragBridge({
@@ -18,7 +19,8 @@ export function useScrollDragBridge({
   minSnap,
   defaultSnap,
   maxSnap = 1,
-  disabled = false
+  disabled = false,
+  bottomThreshold
 }: PanelScrollBridgeOptions) {
   const bottomSheet = useOptionalBottomSheet();
   const touchStartRef = useRef<{ y: number; scrollTop: number } | null>(null);
@@ -118,9 +120,10 @@ export function useScrollDragBridge({
     const isScrollable = maxScroll > 5;
 
     const isAtTopAtEnd = currentScrollTop <= 5;
+    const threshold = bottomThreshold ?? 20;
     // 리스트가 스크롤 불가능하더라도 최상단에 머물러 있는 상태라면 최하단 상태로 보지 않습니다.
     const isAtBottomAtEnd = isScrollable
-      ? (maxScroll - currentScrollTop < 5)
+      ? (maxScroll - currentScrollTop < threshold)
       : false;
 
     // 스크롤이 거의 발생하지 않았다는 것은 스크롤의 끝(최상단/최하단) 상태에서 드래그 제스처가 발생했음을 의미
@@ -176,8 +179,9 @@ export function useScrollDragBridge({
     const isScrollable = maxScroll > 5;
 
     const isAtTop = target.scrollTop <= 2;
+    const threshold = bottomThreshold ?? 20;
     const isAtBottom = isScrollable
-      ? (target.scrollTop > 2 && maxScroll - target.scrollTop < 3)
+      ? (target.scrollTop > 2 && maxScroll - target.scrollTop < threshold)
       : true;
 
     if (now - wheelAccumulator.current.lastTime > 250) {

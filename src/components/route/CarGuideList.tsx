@@ -65,7 +65,12 @@ export default function CarGuideList({ route, originPlace, destPlace, handleStep
         return (
           <div 
             key={idx} 
-            className="relative flex gap-4 pl-8 pr-3 py-2 items-start group cursor-pointer transition-all duration-200 rounded-xl select-none snap-start snap-always bg-transparent border border-transparent hover:bg-zinc-50"
+            id={`step-${originPlace.id}-${destPlace.id}-${idx}`}
+            className={`relative flex gap-4 pl-8 pr-3 py-1.5 items-start group cursor-pointer transition-all duration-300 rounded-lg select-none snap-start snap-always border scroll-mt-[5px] ${
+              isThisStepFocused
+                ? 'bg-blue-50/40 border-blue-100/80 shadow-[0_2px_8px_rgba(59,130,246,0.04)]'
+                : 'bg-transparent border-transparent hover:bg-zinc-50'
+            }`}
             onClick={() => handleStepClick(idx, step)}
           >
             {/* 타임라인 노드 아이콘 */}

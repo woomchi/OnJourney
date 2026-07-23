@@ -124,12 +124,12 @@ export default function JourneySidebar() {
   // Initialize snap point on mount based on existing store state or activeJourney
   useEffect(() => {
     if (activeJourney !== wasActiveJourneyRef.current) {
-      setSnap(activeJourney ? 350 : 360);
+      setSnap(activeJourney ? 370 : 360);
       wasActiveJourneyRef.current = activeJourney;
     } else if (snap === null) {
       // Use existing drawerSnapPoint if available (from persistence), otherwise fallback
       const storeSnap = useJourneyStore.getState().drawerSnapPoint;
-      setSnap(storeSnap !== null && storeSnap !== undefined ? storeSnap : (activeJourney ? 350 : 360));
+      setSnap(storeSnap !== null && storeSnap !== undefined ? storeSnap : (activeJourney ? 370 : 360));
     }
   }, [activeJourney, snap]);
 
@@ -137,10 +137,10 @@ export default function JourneySidebar() {
   useEffect(() => {
     const parsed = parseSnapVal(snap);
     if (activeJourney) {
-      if (parsed === 360) setSnap(350);
+      if (parsed === 360) setSnap(370);
       else if (parsed === 62) setSnap(133);
     } else {
-      if (parsed === 350) setSnap(360);
+      if (parsed === 370) setSnap(360);
       else if (parsed === 133) setSnap(62);
     }
   }, [activeJourney, snap]);
@@ -281,7 +281,7 @@ export default function JourneySidebar() {
 
   if (isMobile) {
     const minSnapPx = activeJourney ? 133 : 62;
-    const defaultSnapPx = activeJourney ? 350 : 360;
+    const defaultSnapPx = activeJourney ? 370 : 360;
 
     const parsedSnap = parseSnapVal(snap);
     let currentSnapType: 'min' | 'default' | 'max' = 'default';

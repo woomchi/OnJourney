@@ -517,7 +517,7 @@ export default function MapArea() {
     
     // 바텀시트가 최대화되었을 때는 지도가 가려지므로 이전 높이(최소 또는 기본) 기준으로 패딩을 고정하여 지도가 튀는 현상(Shift)을 방지
     const effectiveSnapPoint = isDrawerMaximized 
-      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '360px' : '350px')) 
+      ? (lastNonMaximizedSnapPointRef.current || (activeJourney ? '370px' : '360px')) 
       : drawerSnapPoint;
 
     if (isMobile) {
@@ -533,7 +533,7 @@ export default function MapArea() {
           if (guidePanelState === 'minimized') {
             bottomPadding = 240; // 이동 상세 패널 최소화 시 180px + 60px 여백 (마커 라벨 등 고려)
           } else {
-            bottomPadding = 390; // 이동 상세 패널 기본 높이 (330px + 60px 여백)
+            bottomPadding = 410; // 이동 상세 패널 기본 높이 (350px + 60px 여백)
           }
         }
       } else if (effectiveSnapPoint !== 1) {

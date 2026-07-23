@@ -127,7 +127,7 @@ export default function PlaceList({
     isDrawerMaximized,
     setDrawerSnapPoint,
     activeJourney,
-    disabled: false
+    disabled: editMode
   });
 
   const sensors = useSensors(

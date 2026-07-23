@@ -53,6 +53,7 @@ export function useSnapScrollBridge({
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    if (disabled) return;
     const target = scrollRef.current || e.currentTarget;
     touchStartRef.current = {
       y: e.touches[0].clientY,
@@ -63,6 +64,7 @@ export function useSnapScrollBridge({
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
+    if (disabled) return;
     // 스크롤 중 터치 이동 이벤트가 바텀 시트로 전파되어 시트가 움직이는 것 항상 차단
     e.stopPropagation();
   };

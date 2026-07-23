@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useDialog } from '@/providers/DialogProvider';
 import PlaceList from '@/components/PlaceList';
@@ -72,18 +72,22 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
-  const [localPlaces, setLocalPlaces] = useState<Place[]>([]);
+  const [localPlaces, setLocalPlaces] = useState<Place[]>(activeJourney?.places || []);
+  const prevJourneyIdRef = useRef(activeJourney?.id);
 
-  // Reset isEditMode and selectedPlaceIds when activeJourney changes
+  // Reset isEditMode and selectedPlaceIds ONLY when activeJourney.id changes to a different journey
   useEffect(() => {
-    setEditMode(false);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelectedPlaceIds([]);
+    if (prevJourneyIdRef.current !== activeJourney?.id) {
+      prevJourneyIdRef.current = activeJourney?.id;
+      setEditMode(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedPlaceIds([]);
+    }
   }, [activeJourney?.id, setEditMode]);
 
-  // Sync localPlaces with activeJourney.places when not in edit mode
+  // Sync localPlaces with activeJourney.places whenever activeJourney.places or isEditMode changes
   useEffect(() => {
-    if (!isEditMode && activeJourney?.places) {
+    if (activeJourney?.places) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalPlaces(activeJourney.places);
     }

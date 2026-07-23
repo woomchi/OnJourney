@@ -79,7 +79,12 @@ export class OdsayAdapter {
     
     let res: Response;
     try {
-      res = await externalFetch(url, { cache: 'no-store' });
+      res = await externalFetch(url, {
+        cache: 'no-store',
+        headers: {
+          Referer: process.env.DOMAIN || 'http://localhost:3000',
+        },
+      });
     } catch (err: any) {
       throw this.convertNetworkError(err);
     }
@@ -97,7 +102,12 @@ export class OdsayAdapter {
 
     let res: Response;
     try {
-      res = await externalFetch(laneUrl, { cache: 'no-store' });
+      res = await externalFetch(laneUrl, {
+        cache: 'no-store',
+        headers: {
+          Referer: process.env.DOMAIN || 'http://localhost:3000',
+        },
+      });
     } catch (err: any) {
       throw this.convertNetworkError(err);
     }

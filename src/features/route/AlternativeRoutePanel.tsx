@@ -22,6 +22,21 @@ interface AlternativeRoutePanelProps {
   onExited?: () => void;
 }
 
+const parseSnapVal = (s: any): number => {
+  if (s === 1 || s === '1') return 1;
+  if (typeof s === 'number') return s;
+  if (typeof s === 'string') {
+    if (s.endsWith('vh')) {
+      if (typeof window !== 'undefined') {
+        const vh = parseFloat(s) || 0;
+        return window.innerHeight * (vh / 100);
+      }
+    }
+    return parseInt(s, 10) || 0;
+  }
+  return 0;
+};
+
 const FloatingButtonsContainer = ({ altHeight }: { altHeight: number }) => {
   const bottomSheet = useOptionalBottomSheet();
   const fallbackY = useMotionValue(0);
@@ -73,19 +88,25 @@ export default function AlternativeRoutePanel({
 
   const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
 
-  const snapPx = snap === 1 || snap === '1'
-    ? windowHeight - 16
-    : typeof snap === 'number'
-      ? snap
-      : parseInt(String(snap), 10) || 0;
-
-  const headerHeight = 118; // 대안 경로 헤더 높이
-  const contentMaxHeight = isMobile && snapPx > 0
-    ? `${snapPx - 26 - headerHeight}px`
-    : '100%';
 
   // 모바일 터치 제스처 핸들러: 리스트 스크롤과 바텀시트 드래그 제스처 분리
-  const { handleTouchStart, handleTouchMove, handleTouchEnd } = useScrollDragBridge(scrollContainerRef);
+  const { handlePointerDown, handleTouchStart, handleTouchMove, handleTouchEnd, handleWheel } = useScrollDragBridge({
+    scrollRef: scrollContainerRef,
+    snap,
+    setSnap,
+    minSnap: (windowHeight || 812) * 0.4,
+    defaultSnap: (windowHeight || 812) * 0.4,
+    maxSnap: 1
+  });
+
+  const parsedSnap = parseSnapVal(snap);
+  const snapPx = parsedSnap === 1
+    ? windowHeight - 16
+    : (typeof snap === 'string' && snap.endsWith('vh') ? windowHeight * (parseFloat(snap) / 100) : parsedSnap);
+
+  const contentMaxHeight = isMobile && snapPx > 0
+    ? `${snapPx - 120}px`
+    : '100%';
 
 
 
@@ -516,16 +537,13 @@ export default function AlternativeRoutePanel({
     <Scroller 
       {...listProps}
       ref={scrollContainerRef}
-      className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar relative bg-white px-5 pt-1"
+      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative bg-white px-5 pt-1"
       style={{ paddingBottom: '2.5rem', maxHeight: contentMaxHeight }}
-      onPointerDown={(e: React.PointerEvent) => {
-        if (isMobile) {
-          e.stopPropagation();
-        }
-      }}
+      onPointerDown={isMobile ? handlePointerDown : undefined}
       onTouchStart={isMobile ? handleTouchStart : undefined}
       onTouchMove={isMobile ? handleTouchMove : undefined}
       onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      onWheel={isMobile ? handleWheel : undefined}
     >
       {previewRoute?.isEstimated && (
         <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-amber-800 text-xs font-semibold">
@@ -589,10 +607,9 @@ export default function AlternativeRoutePanel({
           onClose();
         }}
         headerContent={headerContent}
-        scrollRef={scrollContainerRef as React.MutableRefObject<any>}
       >
         <FloatingButtonsContainer altHeight={altHeight} />
-        <div className="flex flex-col relative w-full h-full pb-[60px] bg-white" style={{ minHeight: contentMaxHeight }}>
+        <div className="flex flex-col relative w-full h-full min-h-0 pb-[60px] bg-white">
           {listContent}
         </div>
       </CustomBottomSheet>

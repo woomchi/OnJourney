@@ -454,6 +454,14 @@ export default function MapArea() {
 
   const [map, setMap] = useState<naver.maps.Map | null>(null);
 
+  const handleMapRef = useCallback((mapInstance: naver.maps.Map | null) => {
+    if (!mapInstance) return;
+    setMap((prev) => {
+      if (prev === mapInstance) return prev;
+      return mapInstance;
+    });
+  }, []);
+
   // 여정에 등록된 장소가 없을 경우 사용자의 실시간 GPS 위치를 지도의 기본 중심지로 설정
   useEffect(() => {
     if (places.length === 0 && typeof window !== 'undefined' && navigator.geolocation) {
@@ -523,9 +531,9 @@ export default function MapArea() {
           }
         } else {
           if (guidePanelState === 'minimized') {
-            bottomPadding = 270; // 이동 상세 패널 최소화 시 210px + 60px 여백 (마커 라벨 등 고려)
+            bottomPadding = 240; // 이동 상세 패널 최소화 시 180px + 60px 여백 (마커 라벨 등 고려)
           } else {
-            bottomPadding = 420; // 이동 상세 패널 기본 높이 (360px + 60px 여백)
+            bottomPadding = 390; // 이동 상세 패널 기본 높이 (330px + 60px 여백)
           }
         }
       } else if (effectiveSnapPoint !== 1) {
@@ -1071,7 +1079,7 @@ export default function MapArea() {
           <NaverMap
             defaultCenter={mapCenter}
             defaultZoom={15}
-            ref={setMap}
+            ref={handleMapRef}
             onClick={(e: any) => {
               if (!isSearchMode) return;
               const lat = e.coord.y;

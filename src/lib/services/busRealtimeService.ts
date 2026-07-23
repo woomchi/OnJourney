@@ -23,10 +23,9 @@ const getCachedStationData = unstable_cache(
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     try {
-      const headers: Record<string, string> = {};
-      if (referer) {
-        headers['Referer'] = referer;
-      }
+      const headers: Record<string, string> = {
+        Referer: referer || process.env.DOMAIN || 'http://localhost:3000',
+      };
       const res = await fetch(url, { signal: controller.signal, cache: 'no-store', headers });
       if (!res.ok) throw new Error('ODsay fetch status not ok');
       const data = await res.json();

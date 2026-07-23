@@ -130,6 +130,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
 
   // activeSnapY가 변경될 때 모션 밸류 y를 직접 애니메이션 제어
   useEffect(() => {
+    console.log('CustomBottomSheet activeSnapY useEffect animate to:', activeSnapY);
     const initialVelocity = dragVelocityRef.current;
     dragVelocityRef.current = 0; // 사용 후 리셋
 
@@ -143,6 +144,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   }, [activeSnapY, y, getSpringConfig]);
 
   useEffect(() => {
+    console.log('CustomBottomSheet initialSnap useEffect:', { initialSnap, isOpen });
     if (isOpen) {
       setActiveSnapY(getTargetY(initialSnap));
     } else {

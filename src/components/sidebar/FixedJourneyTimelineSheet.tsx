@@ -31,6 +31,7 @@ export default function FixedJourneyTimelineSheet({
     setFocusedSegment,
     setFocusBounds,
     isSyncing,
+    alternativeSegment,
     setAlternativeSegment,
     setActiveJourney,
     isEditMode,
@@ -69,14 +70,18 @@ export default function FixedJourneyTimelineSheet({
   }, []);
 
   useEffect(() => {
-    const targetY = activeSnap === 'full' ? 0 : addButtonHeight;
+    const isHidden = !!(focusedSegment || alternativeSegment);
+    const targetY = isHidden
+      ? (fullHeight > 0 ? fullHeight + 50 : 500)
+      : (activeSnap === 'full' ? 0 : addButtonHeight);
+
     const controls = animate(y, targetY, {
       type: 'spring',
       stiffness: 300,
       damping: 30,
     });
     return () => controls.stop();
-  }, [activeSnap, addButtonHeight, y]);
+  }, [activeSnap, addButtonHeight, y, focusedSegment, alternativeSegment, fullHeight]);
 
   useEffect(() => {
     if (fullHeight > 0) {
@@ -394,6 +399,7 @@ export default function FixedJourneyTimelineSheet({
         zIndex: 100,
         borderTopLeftRadius: '24px',
         borderTopRightRadius: '24px',
+        pointerEvents: (focusedSegment || alternativeSegment) ? 'none' : 'auto',
       }}
       className="md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/90 shadow-[0_-4px_24px_rgba(0,0,0,0.12)] flex flex-col"
     >

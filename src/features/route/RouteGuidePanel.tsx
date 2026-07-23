@@ -89,27 +89,29 @@ export default function RouteGuidePanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
-  const [snap, setSnap] = useState<number | string | null>(370);
-  const collapse = () => setSnap(210); // minimize when stepping
+  const [snap, setSnap] = useState<number | string | null>(330);
+  
+  const parsedSnapForLog = parseSnapVal(snap);
+  let currentSnapTypeForLog: 'min' | 'default' | 'max' = 'default';
+  if (parsedSnapForLog === 180) currentSnapTypeForLog = 'min';
+  else if (parsedSnapForLog === 1) currentSnapTypeForLog = 'max';
+  console.log('RouteGuidePanel render:', { snap, currentSnapType: currentSnapTypeForLog });
+
+  const collapse = () => {
+    const parsedSnap = parseSnapVal(snap);
+    if (parsedSnap !== 330) {
+      setSnap(330);
+    }
+  };
 
   const { setGuidePanelState } = useJourneyStore();
 
-  const snapPx = snap === 1 || snap === '1'
-    ? windowHeight - 16
-    : typeof snap === 'number'
-      ? snap
-      : parseInt(String(snap), 10) || 0;
-
-  const headerHeight = 82; // 상세 경로 헤더 높이
-  const contentMaxHeight = isMobile && snapPx > 0
-    ? `${snapPx - 26 - headerHeight}px`
-    : '100%';
 
   useEffect(() => {
     if (isOpen) {
       if (snap === 1 || snap === '1') {
         setGuidePanelState('expanded');
-      } else if (snap === 210 || snap === '210px') {
+      } else if (snap === 180 || snap === '180px') {
         setGuidePanelState('minimized');
       } else {
         setGuidePanelState('default');
@@ -140,40 +142,16 @@ export default function RouteGuidePanel({
   const skipNextScrollIntoView = useRef(false);
 
   // 모바일 터치 제스처 핸들러: 리스트 스크롤과 바텀시트 드래그 제스처 분리
-  const { handleTouchStart, handleTouchMove, handleTouchEnd } = useScrollDragBridge(scrollContainerRef);
+  const { handlePointerDown, handleTouchStart, handleTouchMove, handleTouchEnd, handleWheel } = useScrollDragBridge({
+    scrollRef: scrollContainerRef,
+    snap,
+    setSnap,
+    minSnap: 180,
+    defaultSnap: 330,
+    maxSnap: 1
+  });
 
-  useEffect(() => {
-    if (
-      animate &&
-      focusedStep &&
-      focusedStep.originId === originPlace.id &&
-      focusedStep.destId === destPlace.id
-    ) {
-      if (skipNextScrollIntoView.current) {
-        skipNextScrollIntoView.current = false;
-        return;
-      }
-      
-      const element = document.getElementById(`step-${originPlace.id}-${destPlace.id}-${focusedStep.stepIndex}`);
-      if (element) {
-        isAutoScrolling.current = true;
-        if (autoScrollTimeout.current) clearTimeout(autoScrollTimeout.current);
-        
-        setTimeout(() => {
-          const container = scrollContainerRef.current;
-          if (container) {
-            const containerRect = container.getBoundingClientRect();
-            const elementRect = element.getBoundingClientRect();
-            const offset = elementRect.top - containerRect.top + container.scrollTop - (containerRect.height / 2) + (elementRect.height / 2);
-            container.scrollTo({ top: offset, behavior: 'smooth' });
-          }
-          autoScrollTimeout.current = setTimeout(() => {
-            isAutoScrolling.current = false;
-          }, 800);
-        }, 100);
-      }
-    }
-  }, [focusedStep, originPlace.id, destPlace.id, animate]);
+  // 여정 재생 시 특정 세부 이동 정보가 자동으로 스크롤 중앙에 오도록 조절하는 기능 비활성화
 
   const steps = route.steps || [];
   const hasGuide = (route.guide || []).length > 0;
@@ -196,43 +174,7 @@ export default function RouteGuidePanel({
     return arr;
   };
 
-  useEffect(() => {
-    if (!scrollContainerRef.current || !isOpen || !animate) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (isAutoScrolling.current) return;
-        
-        const visibleEntry = entries.find(entry => entry.isIntersecting);
-        if (visibleEntry && focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id) {
-          const id = visibleEntry.target.id;
-          const parts = id.split('-');
-          if (parts.length === 4) {
-            const idx = parseInt(parts[3], 10);
-            
-            if (focusedStep.stepIndex !== idx) {
-              const pages = getPages();
-              const page = pages.find(p => p.idx === idx && (p.subType === 'start' || !p.subType)) || pages.find(p => p.idx === idx);
-              
-              if (page) {
-                skipNextScrollIntoView.current = true;
-                handleStepClick(page.idx, page.step, page.subType);
-              }
-            }
-          }
-        }
-      },
-      {
-        root: scrollContainerRef.current,
-        threshold: 0.5,
-      }
-    );
-
-    const stepElements = document.querySelectorAll(`[id^="step-${originPlace.id}-${destPlace.id}-"]`);
-    stepElements.forEach(el => observer.observe(el));
-
-    return () => observer.disconnect();
-  }, [isOpen, animate, focusedStep, originPlace.id, destPlace.id, route]);
+  // 스크롤 시 화면 중앙의 세부 이동 정보를 자동으로 감지해서 focusedStep을 변경하는 기능 비활성화
 
   function handleStepClick(idx: number, step: any, subType?: 'start' | 'end' | 'dest') {
     collapse();
@@ -555,43 +497,52 @@ export default function RouteGuidePanel({
   if (isMobile) {
     const parsedSnap = parseSnapVal(snap);
     let currentSnapType: 'min' | 'default' | 'max' = 'default';
-    if (parsedSnap === 210) currentSnapType = 'min';
+    if (parsedSnap === 180) currentSnapType = 'min';
     else if (parsedSnap === 1) currentSnapType = 'max';
+
+    const snapPx = parsedSnap === 1
+      ? windowHeight - 16
+      : parsedSnap;
+
+    const contentMaxHeight = snapPx > 0
+      ? `${snapPx - 110}px`
+      : '100%';
 
     return (
       <>
         <CustomBottomSheet
           isOpen={isOpen}
-          minHeight={210}
-          defaultHeight={370}
+          minHeight={180}
+          defaultHeight={330}
           maxHeight={windowHeight - 16}
           initialSnap={currentSnapType}
           zIndex={45}
           onSnap={(snapName) => {
-            if (snapName === 'min') setSnap(210);
-            else if (snapName === 'default') setSnap(370);
+            if (snapName === 'min') setSnap(180);
+            else if (snapName === 'default') setSnap(330);
             else if (snapName === 'max') setSnap(1);
           }}
           onClose={() => {
             if (onExited) onExited();
           }}
           headerContent={headerContent}
-          scrollRef={scrollContainerRef as React.MutableRefObject<any>}
         >
           <FloatingButtonsContainer />
           <motion.div 
             ref={scrollContainerRef}
             variants={{
-              min: { opacity: 0, y: 15, pointerEvents: 'none' as const, transition: { duration: 0.2, ease: 'easeOut' } },
+              min: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.2, ease: 'easeOut' } },
               default: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
               max: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
             }}
             animate={currentSnapType}
-            className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar relative w-full px-5 pt-4 bg-white snap-y snap-mandatory" 
-            style={{ height: contentMaxHeight }}
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative w-full px-5 pt-4 bg-white" 
+            style={{ maxHeight: contentMaxHeight }}
+            onPointerDown={handlePointerDown}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onWheel={handleWheel}
           >
             {listContent}
             {/* 하단 재생바 등에 의해 가려지지 않도록 여백 배치 */}

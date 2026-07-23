@@ -94,19 +94,11 @@ export default function TransitGuideList({
                  handleStepClick(idx, step);
                }
             }}
-            className={`relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none snap-start snap-always ${
-              isThisStepFocused
-                ? 'bg-blue-50/60 border-blue-200 shadow-sm scale-[1.01]'
-                : isAnyStepFocused
-                ? 'bg-transparent border-transparent opacity-40 hover:opacity-100 hover:bg-zinc-50/50'
-                : 'bg-transparent border-transparent hover:bg-zinc-50/50 hover:border-zinc-100'
-            }`}
+            className="relative flex gap-4 pl-12 pr-3 py-2 rounded-2xl border transition-all duration-200 cursor-pointer select-none snap-start snap-always bg-transparent border-transparent hover:bg-zinc-50/50 hover:border-zinc-100"
           >
             {/* 타임라인 노드 아이콘 */}
             <div
-              className={`absolute left-2.5 top-2.5 w-6 h-6 rounded-full border flex items-center justify-center font-bold z-10 transition-all duration-200 group-hover:scale-110 shadow-sm ${iconColor} ${
-                isThisStepFocused ? 'ring-2 ring-blue-500/30' : ''
-              }`}
+              className={`absolute left-2.5 top-2.5 w-6 h-6 rounded-full border flex items-center justify-center font-bold z-10 transition-all duration-200 group-hover:scale-110 shadow-sm ${iconColor}`}
               style={{
                 backgroundColor: step.type === 'walk' ? '#F4F4F5' : stepColor,
                 borderColor: step.type === 'walk' ? '#E4E4E7' : 'transparent',
@@ -153,19 +145,15 @@ export default function TransitGuideList({
                     {displayStartName && (
                       <div
                         onClick={(e) => handleZoomToPoint(idx, step, 'start', e)}
-                        className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
-                          isStartFocused
-                            ? 'bg-blue-100/70 ring-1 ring-blue-300 shadow-sm scale-[1.01]'
-                            : 'hover:bg-blue-50/70'
-                        }`}
+                        className="flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub hover:bg-blue-50/70"
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                          <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isStartFocused ? 'text-blue-600' : 'text-zinc-400'}`}>{startLabel}</span>
-                          <span className={`truncate transition-colors ${isStartFocused ? 'text-blue-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{displayStartName}</span>
+                          <span className="flex-shrink-0 whitespace-nowrap font-bold text-zinc-400">{startLabel}</span>
+                          <span className="truncate transition-colors text-zinc-700 group-hover/sub:text-blue-700">{displayStartName}</span>
                         </div>
-                        <div className={`flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center ${isStartFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
+                        <div className="flex-shrink-0 transition-opacity duration-200 text-blue-500 flex items-center justify-center opacity-0 group-hover/sub:opacity-100">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
                           </svg>
                         </div>
@@ -236,19 +224,15 @@ export default function TransitGuideList({
                     {displayEndName && (
                       <div
                         onClick={(e) => handleZoomToPoint(idx, step, 'end', e)}
-                        className={`flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub ${
-                          isEndFocused
-                            ? 'bg-rose-100/70 ring-1 ring-rose-300 shadow-sm scale-[1.01]'
-                            : 'hover:bg-rose-50/70'
-                        }`}
+                        className="flex items-center justify-between gap-1.5 text-xs text-zinc-600 font-semibold cursor-pointer p-2 rounded-xl transition-all duration-200 group/sub hover:bg-rose-50/70"
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                          <span className={`flex-shrink-0 whitespace-nowrap font-bold ${isEndFocused ? 'text-rose-600' : 'text-zinc-400'}`}>{endLabel}</span>
-                          <span className={`truncate transition-colors ${isEndFocused ? 'text-rose-800' : 'text-zinc-700 group-hover/sub:text-blue-700'}`}>{displayEndName}</span>
+                          <span className="flex-shrink-0 whitespace-nowrap font-bold text-zinc-400">{endLabel}</span>
+                          <span className="truncate transition-colors text-zinc-700 group-hover/sub:text-blue-700">{displayEndName}</span>
                         </div>
-                        <div className={`flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center ${isEndFocused ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100'}`}>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 animate-pulse">
+                        <div className="flex-shrink-0 transition-opacity duration-200 text-rose-500 flex items-center justify-center opacity-0 group-hover/sub:opacity-100">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
                           </svg>
                         </div>

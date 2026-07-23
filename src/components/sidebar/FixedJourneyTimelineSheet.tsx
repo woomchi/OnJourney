@@ -7,7 +7,7 @@ import { directionKeys } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey, Place } from '@/types/journey';
-import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Clock, Coins } from 'lucide-react';
+import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
@@ -314,67 +314,100 @@ export default function FixedJourneyTimelineSheet({
     const isFocused = focusedSegment?.originId === origin.id && focusedSegment?.destId === dest.id;
 
     return (
-      <button
-        ref={(el) => {
-          const key = `segment-${origin.id}-${dest.id}`;
-          if (el) cardRefs.current.set(key, el);
-          else cardRefs.current.delete(key);
-        }}
-        type="button"
-        onClick={() => handleSegmentClick(origin, dest, route)}
-        className={`w-[156px] h-[62px] flex flex-col justify-between p-2.5 rounded-xl text-xs transition-all shrink-0 cursor-pointer text-left relative overflow-hidden ${
-          isFocused ? theme.cardFocused : theme.cardUnfocused
-        }`}
-        title={`${origin.place_name} → ${dest.place_name} 구간 (${duration || '이동정보'})`}
+      <div
+        key={`segment-wrap-${origin.id}-${dest.id}`}
+        className="relative flex flex-col items-center justify-between w-[148px] shrink-0 h-[104px] px-1 select-none"
       >
-        <div className="flex items-center justify-between gap-1 w-full">
-          <div className="flex items-center gap-1.5 min-w-0 truncate">
+        {/* 1. 바 위 (Top): 이동 요약 칩 */}
+        <div className="flex items-center justify-center h-[34px] w-full z-10">
+          <button
+            ref={(el) => {
+              const key = `segment-${origin.id}-${dest.id}`;
+              if (el) cardRefs.current.set(key, el);
+              else cardRefs.current.delete(key);
+            }}
+            type="button"
+            onClick={() => handleSegmentClick(origin, dest, route)}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border text-nowrap max-w-[140px] truncate ${
+              isFocused
+                ? 'bg-zinc-950 text-white border-zinc-950 shadow-md scale-105'
+                : 'bg-white/95 text-zinc-800 border-zinc-200/90 hover:border-zinc-400 hover:bg-zinc-50'
+            }`}
+            title={`${origin.place_name} → ${dest.place_name} 이동정보 (${duration || '상세보기'})`}
+          >
             <div
-              className="w-4.5 h-4.5 rounded-full text-white flex items-center justify-center shrink-0 shadow-xs"
-              style={{
-                background: `linear-gradient(135deg, ${theme.gradientStart}, ${theme.gradientEnd})`,
-              }}
+              className={`h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center gap-0.5 shrink-0 ${
+                isFocused ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-700'
+              }`}
             >
-              {type === 'car' ? (
-                <Car className="w-3 h-3" />
-              ) : type === 'walk' ? (
-                <Footprints className="w-3 h-3" />
-              ) : (
-                <Bus className="w-3 h-3" />
-              )}
+              {(() => {
+                if (type === 'car') return <Car className="w-2.5 h-2.5" />;
+                if (type === 'walk') return <Footprints className="w-2.5 h-2.5" />;
+
+                const steps = route?.steps || [];
+                const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
+                const hasBus = steps.some((s: any) => s.type === 'bus' || s.type === 'expressbus');
+
+                if (hasSubway && hasBus) {
+                  return (
+                    <>
+                      <Bus className="w-2.5 h-2.5" />
+                      <Train className="w-2.5 h-2.5" />
+                    </>
+                  );
+                }
+                if (hasSubway) return <Train className="w-2.5 h-2.5" />;
+                if (hasBus) return <Bus className="w-2.5 h-2.5" />;
+                return <Bus className="w-2.5 h-2.5" />;
+              })()}
             </div>
-            <span className="font-extrabold text-[12.5px] truncate">{duration || '이동'}</span>
-          </div>
-          {transferLabel && (
-            <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${theme.badgeUnfocused}`}>
-              {transferLabel}
+            <span className="font-extrabold tracking-tight text-[11.5px] truncate">
+              {duration || '이동'}
             </span>
+            {formattedDistance && (
+              <span className={`text-[10px] font-medium opacity-80 border-l pl-1 truncate ${isFocused ? 'border-white/30' : 'border-zinc-200'}`}>
+                {formattedDistance}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* 2. 중앙 (Center): 연속 트랙 노선선 */}
+        <div className="relative w-full flex items-center justify-center h-[28px]">
+          {/* 기본 트랙 라인 */}
+          <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 rounded-full z-0" />
+          {/* 포커스 시 활성화되는 테마 글로우 선 */}
+          {isFocused && (
+            <div
+              className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3.5px] rounded-full z-0 transition-all duration-300"
+              style={{
+                backgroundColor: theme.hex,
+                boxShadow: `0 0 10px ${theme.hex}a0`,
+              }}
+            />
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-1 w-full min-w-0">
+        {/* 3. 바 아래 (Bottom): 추가 노선 태그 / 수단 정보 */}
+        <div className="flex items-center justify-center h-[34px] w-full z-10">
           {stepBadges.length > 0 ? (
-            <div className="flex items-center gap-0.5 overflow-hidden min-w-0">
+            <div className="flex items-center gap-1 max-w-[130px] overflow-hidden">
               {stepBadges.slice(0, 1).map((badge, bIdx) => (
                 <span
                   key={bIdx}
-                  className={`text-[9.5px] px-1.5 py-0.5 rounded font-semibold truncate max-w-[70px] ${theme.badgeUnfocused}`}
+                  className="text-[9.5px] px-1.5 py-0.5 rounded bg-zinc-100/90 text-zinc-600 font-semibold border border-zinc-200/60 truncate max-w-[120px]"
                 >
                   {badge}
                 </span>
               ))}
             </div>
+          ) : transferLabel ? (
+            <span className="text-[10px] text-zinc-400 font-medium tracking-tight">
+              {transferLabel}
+            </span>
           ) : null}
-
-          <div className={`text-[10.5px] font-medium truncate flex items-center gap-1 ml-auto ${theme.subtextUnfocused}`}>
-            {formattedDistance && <span>{formattedDistance}</span>}
-            {formattedDistance && formattedFare && <span>·</span>}
-            {formattedFare && <span>{formattedFare}</span>}
-            {!formattedDistance && !formattedFare && <span className="opacity-75">상세 경로</span>}
-          </div>
         </div>
-
-      </button>
+      </div>
     );
   };
 
@@ -602,45 +635,67 @@ export default function FixedJourneyTimelineSheet({
         </div>
       </div>
 
-      {/* 2. 중단 컴팩트 가로 연결형 타임라인 */}
-      <div ref={timelineContainerRef} className="w-full px-4 py-2.5 flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0">
+      {/* 2. 중단 컴팩트 노선 타임라인 바 */}
+      <div
+        ref={timelineContainerRef}
+        className="w-full px-5 py-2 flex items-center overflow-x-auto scrollbar-none shrink-0"
+      >
         {places.map((place, idx) => {
           const categoryLabel = place.category ? (place.category.split(' > ').pop() || place.category) : '';
           const shortAddress = place.address ? place.address.split(' ').slice(0, 2).join(' ') : '';
           const placeTheme = getSequenceTheme(idx, places.length);
 
           return (
-            <div key={place.id} className="flex items-center gap-2 shrink-0">
-              {/* 컴팩트 장소 노드 카드 (w-[156px] h-[62px]) - 흰색 배경 & 지도 핀 테마 매칭 */}
-              <button
-                ref={(el) => {
-                  const key = `place-${place.id}`;
-                  if (el) cardRefs.current.set(key, el);
-                  else cardRefs.current.delete(key);
-                }}
-                type="button"
-                onClick={() => handlePlaceClick(place)}
-                className="w-[156px] h-[62px] flex flex-col justify-between p-2.5 rounded-xl bg-white text-zinc-900 font-bold shadow-xs hover:bg-zinc-50 transition-all shrink-0 cursor-pointer text-left border border-zinc-200/90 hover:border-zinc-300"
-                title={`${place.place_name} (${place.address || ''})`}
-              >
-                <div className="flex items-center justify-between gap-1 w-full">
-                  <span
-                    className="w-4.5 h-4.5 rounded-full text-white text-[11px] font-black flex items-center justify-center shrink-0 shadow-xs"
+            <div key={place.id} className="flex items-center shrink-0">
+              {/* 장소 노드 항목 (수직 정렬: 상단 스페이서, 중앙 핀 노드, 하단 장소명 & 태그) */}
+              <div className="flex flex-col items-center justify-between w-[96px] shrink-0 h-[100px] relative">
+                {/* 상단 핀 위 영역 (상단 트랙 칩 수평 맞춤용) */}
+                <div className="h-[32px] w-full" />
+
+                {/* 중앙: 노선선과 결합된 원형 핀 노드 (컬러스킴 적용) */}
+                <div className="relative w-full flex items-center justify-center h-[26px]">
+                  {/* 노선 트랙 연결선 (첫 장소가 아닌 경우 좌측 잇기) */}
+                  {idx > 0 && (
+                    <div className="absolute left-0 w-1/2 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 z-0" />
+                  )}
+                  {/* 노선 트랙 연결선 (마지막 장소가 아닌 경우 우측 잇기) */}
+                  {idx < places.length - 1 && (
+                    <div className="absolute right-0 w-1/2 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 z-0" />
+                  )}
+
+                  {/* 핀 버튼 (노드 테마 컬러스킴 적용) */}
+                  <button
+                    ref={(el) => {
+                      const key = `place-${place.id}`;
+                      if (el) cardRefs.current.set(key, el);
+                      else cardRefs.current.delete(key);
+                    }}
+                    type="button"
+                    onClick={() => handlePlaceClick(place)}
+                    className="relative z-10 w-7 h-7 rounded-full text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
                     style={{ backgroundColor: placeTheme.color }}
+                    title={`${place.place_name} (${place.address || ''})`}
                   >
-                    {idx + 1}
+                    <span className="text-[11px] font-black leading-none">{idx + 1}</span>
+                  </button>
+                </div>
+
+                {/* 하단: 장소 이름 및 아래 배치된 장소 태그/카테고리 */}
+                <button
+                  type="button"
+                  onClick={() => handlePlaceClick(place)}
+                  className="flex flex-col items-center justify-start h-[36px] w-full text-center px-0.5 cursor-pointer group"
+                >
+                  <span className="truncate text-[12px] font-bold text-zinc-900 group-hover:text-blue-600 transition-colors leading-tight max-w-full">
+                    {place.place_name}
                   </span>
-                  <span className="text-[10.5px] text-zinc-500 font-medium truncate text-right flex-1 min-w-0 ml-1">
+                  <span className="truncate text-[9.5px] text-zinc-400 font-medium leading-tight max-w-full mt-0.5">
                     {categoryLabel || shortAddress || '장소'}
                   </span>
-                </div>
+                </button>
+              </div>
 
-                <div className="flex flex-col min-w-0 w-full">
-                  <span className="truncate text-[12.5px] font-bold text-zinc-900 tracking-tight leading-tight">{place.place_name}</span>
-                </div>
-              </button>
-
-              {/* 구간 이동 칩 (Polyline 패턴 연동) */}
+              {/* 다음 장소와의 구간 이동 트랙 & 상단 칩 */}
               {idx < places.length - 1 && renderSegmentBadge(place, places[idx + 1], idx)}
             </div>
           );

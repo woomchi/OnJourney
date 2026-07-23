@@ -255,7 +255,7 @@ export default function PlaceCard({
 
       {!editMode && !isLast && (() => {
         return (
-          <div className="pl-16 mt-1 flex flex-col gap-1 relative">
+          <div className="pl-16 mt-1 pr-6 relative">
             <div
               role="button"
               tabIndex={0}
@@ -301,76 +301,6 @@ export default function PlaceCard({
                 placeId={place.id}
                 destId={nextPlace?.id}
               />
-            </div>
-
-            <div className="absolute top-2 right-6 z-10">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const isCurrentlyOpen = alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id;
-                  
-                  if (!isCurrentlyOpen && nextPlace) {
-                    const wasFocused = focusedSegment?.originId === place.id && focusedSegment?.destId === nextPlace.id;
-                    setIsAlternativeFromFocus(wasFocused);
-                    setAlternativeSegment({ originId: place.id, destId: nextPlace.id });
-                    setFocusedSegment(null);
-                    setFocusedStep(null);
-                    if (activeRoute) {
-                      const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
-                      setFocusBounds(bounds);
-                    }
-                    if (!segmentData) {
-                      Promise.allSettled([
-                        queryClient.fetchQuery({
-                          queryKey: directionKeys.segmentPublic(place.id, nextPlace.id),
-                          queryFn: () => fetchPublicDirectionsApi(place, nextPlace)
-                        }),
-                        queryClient.fetchQuery({
-                          queryKey: directionKeys.segmentCar(place.id, nextPlace.id),
-                          queryFn: () => fetchCarWalkDirectionsApi(place, nextPlace)
-                        })
-                      ]).catch(console.error);
-                    }
-                  } else {
-                    setAlternativeSegment(null);
-                    if (isAlternativeFromFocus && nextPlace) {
-                      setFocusedSegment({ originId: place.id, destId: nextPlace.id });
-                      if (activeRoute) {
-                        const bounds = calculateSegmentBounds(place, nextPlace, activeRoute);
-                        setFocusBounds(bounds);
-                      }
-                    } else {
-                      setFocusBounds(null);
-                    }
-                  }
-                }}
-                className={`
-                  group flex items-center justify-center w-8 h-8 rounded-full
-                  transition-all duration-500 ease-out shadow-sm border backdrop-blur-md
-                  ${alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id
-                    ? 'bg-indigo-50 border-indigo-200'
-                    : 'bg-white/90 border-zinc-200 hover:border-blue-300 hover:shadow-md'
-                  }
-                `}
-                aria-label="대안 경로 탐색"
-                title="대안 경로 탐색"
-              >
-                <div 
-                  className={`
-                    flex items-center justify-center w-6 h-6 rounded-full transition-all duration-500
-                    ${alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
-                      : 'bg-transparent text-zinc-500 group-hover:bg-blue-50 group-hover:text-blue-600'
-                    }
-                  `}
-                >
-                  <AlternativeRouteIcon 
-                    isActive={alternativeSegment?.originId === place.id && alternativeSegment?.destId === nextPlace?.id}
-                    className="w-3.5 h-3.5"
-                  />
-                </div>
-              </button>
             </div>
           </div>
         );

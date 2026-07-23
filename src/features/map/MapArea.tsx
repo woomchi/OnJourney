@@ -34,6 +34,9 @@ interface SelectedPlace {
   lng: number;
 }
 
+const NAVER_MAP_SUBMODULES = ['geocoder'];
+const INITIAL_CENTER = { lat: 37.5665, lng: 126.9780 };
+
 export default function MapArea() {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
   const {
@@ -461,6 +464,61 @@ export default function MapArea() {
       return mapInstance;
     });
   }, []);
+
+  const handleMapClick = useCallback((e: any) => {
+    if (!isSearchMode) return;
+    const lat = e.coord.y;
+    const lng = e.coord.x;
+
+    const navermapsObj = typeof window !== 'undefined' ? window.naver?.maps : null;
+    if (navermapsObj && navermapsObj.Service && navermapsObj.Service.reverseGeocode) {
+      navermapsObj.Service.reverseGeocode(
+        {
+          coords: e.coord,
+        },
+        (status: any, response: any) => {
+          if (status === navermapsObj.Service.Status.OK) {
+            const v2 = response.v2;
+            const address = v2.address ? (v2.address.roadAddress || v2.address.jibunAddress) : '지도에서 선택한 위치';
+            setMapClickedPlace({
+              lat,
+              lng,
+              address: address || '지도에서 선택한 위치',
+              place_name: '지도에서 선택한 장소',
+            });
+          }
+        }
+      );
+    } else {
+      setMapClickedPlace({
+        lat,
+        lng,
+        address: '위치 정보 확인 불가',
+        place_name: '지도에서 선택한 장소',
+      });
+    }
+  }, [isSearchMode, setMapClickedPlace]);
+
+  const logoControlOptions = useMemo(() => {
+    const navermapsObj = typeof window !== 'undefined' && window.naver?.maps;
+    return {
+      position: navermapsObj ? navermapsObj.Position.BOTTOM_RIGHT : 12,
+    };
+  }, [map]);
+
+  const scaleControlOptions = useMemo(() => {
+    const navermapsObj = typeof window !== 'undefined' && window.naver?.maps;
+    return {
+      position: navermapsObj ? navermapsObj.Position.BOTTOM_RIGHT : 12,
+    };
+  }, [map]);
+
+  const mapDataControlOptions = useMemo(() => {
+    const navermapsObj = typeof window !== 'undefined' && window.naver?.maps;
+    return {
+      position: navermapsObj ? navermapsObj.Position.BOTTOM_LEFT : 10,
+    };
+  }, [map]);
 
   // 여정에 등록된 장소가 없을 경우 사용자의 실시간 GPS 위치를 지도의 기본 중심지로 설정
   useEffect(() => {
@@ -1074,54 +1132,16 @@ export default function MapArea() {
         </div>
       )}
 
-      <NavermapsProvider ncpKeyId={clientId} submodules={['geocoder']}>
+      <NavermapsProvider ncpKeyId={clientId} submodules={NAVER_MAP_SUBMODULES}>
         <MapDiv style={{ width: '100%', height: '100%' }}>
           <NaverMap
-            defaultCenter={mapCenter}
+            defaultCenter={INITIAL_CENTER}
             defaultZoom={15}
             ref={handleMapRef}
-            onClick={(e: any) => {
-              if (!isSearchMode) return;
-              const lat = e.coord.y;
-              const lng = e.coord.x;
-
-              const navermaps = typeof window !== 'undefined' ? window.naver?.maps : null;
-              if (navermaps && navermaps.Service && navermaps.Service.reverseGeocode) {
-                navermaps.Service.reverseGeocode(
-                  {
-                    coords: e.coord,
-                  },
-                  (status: any, response: any) => {
-                    if (status === navermaps.Service.Status.OK) {
-                      const v2 = response.v2;
-                      const address = v2.address ? (v2.address.roadAddress || v2.address.jibunAddress) : '지도에서 선택한 위치';
-                      setMapClickedPlace({
-                        lat,
-                        lng,
-                        address: address || '지도에서 선택한 위치',
-                        place_name: '지도에서 선택한 장소',
-                      });
-                    }
-                  }
-                );
-              } else {
-                setMapClickedPlace({
-                  lat,
-                  lng,
-                  address: '위치 정보 확인 불가',
-                  place_name: '지도에서 선택한 장소',
-                });
-              }
-            }}
-            logoControlOptions={{
-              position: navermaps ? navermaps.Position.BOTTOM_RIGHT : 12,
-            }}
-            scaleControlOptions={{
-              position: navermaps ? navermaps.Position.BOTTOM_RIGHT : 12,
-            }}
-            mapDataControlOptions={{
-              position: navermaps ? navermaps.Position.BOTTOM_LEFT : 10,
-            }}
+            onClick={handleMapClick}
+            logoControlOptions={logoControlOptions}
+            scaleControlOptions={scaleControlOptions}
+            mapDataControlOptions={mapDataControlOptions}
           >
                         <MapRoutes
               isAllInitialRoutesLoaded={isAllInitialRoutesLoaded}

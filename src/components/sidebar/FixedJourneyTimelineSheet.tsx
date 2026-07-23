@@ -8,7 +8,7 @@ import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey, Place } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins } from 'lucide-react';
-import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
+import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon, AlternativeRouteIcon } from '@/components/ui/icons';
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
 
@@ -33,6 +33,8 @@ export default function FixedJourneyTimelineSheet({
     isSyncing,
     alternativeSegment,
     setAlternativeSegment,
+    isAlternativeFromFocus,
+    setIsAlternativeFromFocus,
     setActiveJourney,
     isEditMode,
     setEditMode,
@@ -290,25 +292,6 @@ export default function FixedJourneyTimelineSheet({
       : '';
 
     const fareVal = route?.fare || route?.taxiFare;
-    const formattedFare = fareVal
-      ? (route?.taxiFare && !route?.fare ? `택시 ${fareVal.toLocaleString()}원` : `${fareVal.toLocaleString()}원`)
-      : '';
-
-    let transferLabel = '';
-    let stepBadges: string[] = [];
-    if (type === 'public' && route?.steps) {
-      const transitSteps = route.steps.filter((s: any) => s.type !== 'walk');
-      const transitStepsCount = transitSteps.length;
-      const transferCount = Math.max(0, transitStepsCount - 1);
-      transferLabel = `환승 ${transferCount}회`;
-      stepBadges = transitSteps
-        .filter((s: any) => s.name)
-        .map((s: any) => s.name.replace(/지하철\s*/, ''));
-    } else if (type === 'car') {
-      transferLabel = '차량';
-    } else if (type === 'walk') {
-      transferLabel = '도보';
-    }
 
     const theme = getSegmentTheme(sIdx);
     const isFocused = focusedSegment?.originId === origin.id && focusedSegment?.destId === dest.id;
@@ -316,65 +299,14 @@ export default function FixedJourneyTimelineSheet({
     return (
       <div
         key={`segment-wrap-${origin.id}-${dest.id}`}
-        className="relative flex flex-col items-center justify-between w-[148px] shrink-0 h-[104px] px-1 select-none"
+        className="relative flex flex-col justify-between w-[128px] shrink-0 h-[100px] px-1 select-none"
       >
-        {/* 1. 바 위 (Top): 이동 요약 칩 */}
-        <div className="flex items-center justify-center h-[34px] w-full z-10">
-          <button
-            ref={(el) => {
-              const key = `segment-${origin.id}-${dest.id}`;
-              if (el) cardRefs.current.set(key, el);
-              else cardRefs.current.delete(key);
-            }}
-            type="button"
-            onClick={() => handleSegmentClick(origin, dest, route)}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border text-nowrap max-w-[140px] truncate ${
-              isFocused
-                ? 'bg-zinc-950 text-white border-zinc-950 shadow-md scale-105'
-                : 'bg-white/95 text-zinc-800 border-zinc-200/90 hover:border-zinc-400 hover:bg-zinc-50'
-            }`}
-            title={`${origin.place_name} → ${dest.place_name} 이동정보 (${duration || '상세보기'})`}
-          >
-            <div
-              className={`h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center gap-0.5 shrink-0 ${
-                isFocused ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-700'
-              }`}
-            >
-              {(() => {
-                if (type === 'car') return <Car className="w-2.5 h-2.5" />;
-                if (type === 'walk') return <Footprints className="w-2.5 h-2.5" />;
+        {/* 1. 상단 스페이서 (32px) */}
+        <div className="h-[32px] w-full shrink-0" />
 
-                const steps = route?.steps || [];
-                const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
-                const hasBus = steps.some((s: any) => s.type === 'bus' || s.type === 'expressbus');
-
-                if (hasSubway && hasBus) {
-                  return (
-                    <>
-                      <Bus className="w-2.5 h-2.5" />
-                      <Train className="w-2.5 h-2.5" />
-                    </>
-                  );
-                }
-                if (hasSubway) return <Train className="w-2.5 h-2.5" />;
-                if (hasBus) return <Bus className="w-2.5 h-2.5" />;
-                return <Bus className="w-2.5 h-2.5" />;
-              })()}
-            </div>
-            <span className="font-extrabold tracking-tight text-[11.5px] truncate">
-              {duration || '이동'}
-            </span>
-            {formattedDistance && (
-              <span className={`text-[10px] font-medium opacity-80 border-l pl-1 truncate ${isFocused ? 'border-white/30' : 'border-zinc-200'}`}>
-                {formattedDistance}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* 2. 중앙 (Center): 연속 트랙 노선선 */}
-        <div className="relative w-full flex items-center justify-center h-[28px]">
-          {/* 기본 트랙 라인 */}
+        {/* 2. 중앙 노선선 및 요약 카드 영역 (26px) */}
+        <div className="relative w-full flex items-center justify-center h-[26px] shrink-0">
+          {/* 배경 트랙 라인 */}
           <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 rounded-full z-0" />
           {/* 포커스 시 활성화되는 테마 글로우 선 */}
           {isFocused && (
@@ -386,27 +318,132 @@ export default function FixedJourneyTimelineSheet({
               }}
             />
           )}
+
+          {/* 요약 카드 컨테이너 (부모 h-[26px]에 맞춰 수평 정렬, 내부 요약 카드는 overflow 노출) */}
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex justify-center">
+            <div
+              ref={(el) => {
+                const key = `segment-${origin.id}-${dest.id}`;
+                if (el) cardRefs.current.set(key, el as any);
+                else cardRefs.current.delete(key);
+              }}
+              onClick={() => handleSegmentClick(origin, dest, route)}
+              className={`relative z-10 px-2 py-1.5 rounded-xl flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-xs border w-[118px] h-[80px] ${
+                isFocused
+                  ? 'bg-zinc-950 text-white border-zinc-950 shadow-md scale-105'
+                  : 'bg-white text-zinc-800 border-zinc-200 hover:border-zinc-350 hover:bg-zinc-50'
+              }`}
+              title={`${origin.place_name} → ${dest.place_name} 이동정보`}
+            >
+              {/* 좌측 정보 영역 (수직으로 쌓음) */}
+              <div className="flex flex-col items-start justify-center min-w-0 flex-1 leading-tight gap-0.5">
+                {/* 1행: 수단 아이콘 + 소요 시간 */}
+                <div className="flex items-center gap-1 font-extrabold text-[11px] w-full">
+                  <span 
+                    style={{ color: isFocused ? '#FFFFFF' : theme.hex }}
+                    className="shrink-0"
+                  >
+                    {(() => {
+                      if (type === 'car') return <Car className="w-3.5 h-3.5" />;
+                      if (type === 'walk') return <Footprints className="w-3.5 h-3.5" />;
+
+                      const steps = route?.steps || [];
+                      const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
+                      const hasBus = steps.some((s: any) => s.type === 'bus' || s.type === 'expressbus');
+
+                      if (hasSubway && hasBus) {
+                        return (
+                          <div className="flex items-center gap-0.5">
+                            <Bus className="w-3 h-3" />
+                            <Train className="w-3 h-3" />
+                          </div>
+                        );
+                      }
+                      if (hasSubway) return <Train className="w-3.5 h-3.5" />;
+                      if (hasBus) return <Bus className="w-3.5 h-3.5" />;
+                      return <Bus className="w-3.5 h-3.5" />;
+                    })()}
+                  </span>
+                  <span className="truncate">{duration || '이동'}</span>
+                </div>
+                
+                {/* 2행: 환승 정보 */}
+                <span className={`text-[8.5px] font-extrabold leading-none truncate max-w-full ${isFocused ? 'text-white/70' : 'text-zinc-500'}`}>
+                  {type === 'public' ? (
+                    route?.steps ? `환승 ${Math.max(0, route.steps.filter((s: any) => s.type !== 'walk').length - 1)}회` : '대중교통'
+                  ) : type === 'car' ? (
+                    '차량'
+                  ) : (
+                    '도보'
+                  )}
+                </span>
+
+                {/* 3행: 요금 정보 */}
+                <span className={`text-[8.5px] font-bold leading-none truncate max-w-full ${isFocused ? 'text-white/60' : 'text-zinc-400'}`}>
+                  {type === 'car' ? (
+                    route?.taxiFare ? `택시 ${Math.round(route.taxiFare / 1000)}k` : '비용 미정'
+                  ) : type === 'walk' ? (
+                    '무료'
+                  ) : fareVal ? (
+                    `${fareVal.toLocaleString()}원`
+                  ) : (
+                    '요금 미정'
+                  )}
+                </span>
+              </div>
+
+              {/* 우측 대안 수단 버튼 (크기 확대) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const isCurrentlyOpen = alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id;
+                  
+                  if (!isCurrentlyOpen) {
+                    const wasFocused = focusedSegment?.originId === origin.id && focusedSegment?.destId === dest.id;
+                    setIsAlternativeFromFocus(wasFocused);
+                    setAlternativeSegment({ originId: origin.id, destId: dest.id });
+                    setFocusedSegment(null);
+                    setFocusedStep(null);
+                    if (route) {
+                      const bounds = calculateSegmentBounds(origin, dest, route);
+                      setFocusBounds(bounds);
+                    }
+                  } else {
+                    setAlternativeSegment(null);
+                    if (isAlternativeFromFocus) {
+                      setFocusedSegment({ originId: origin.id, destId: dest.id });
+                      if (route) {
+                        const bounds = calculateSegmentBounds(origin, dest, route);
+                        setFocusBounds(bounds);
+                      }
+                    } else {
+                      setFocusBounds(null);
+                    }
+                  }
+                }}
+                className={`
+                  flex items-center justify-center w-7.5 h-7.5 rounded-lg border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
+                  ${alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                    : isFocused
+                      ? 'bg-white/15 border-white/20 text-white hover:bg-white/30'
+                      : 'bg-zinc-50 border-zinc-200 hover:border-blue-300 text-zinc-500 hover:text-blue-600'
+                  }
+                `}
+                title="대안 경로 탐색"
+              >
+                <AlternativeRouteIcon 
+                  isActive={alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id}
+                  className="w-4 h-4"
+                />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* 3. 바 아래 (Bottom): 추가 노선 태그 / 수단 정보 */}
-        <div className="flex items-center justify-center h-[34px] w-full z-10">
-          {stepBadges.length > 0 ? (
-            <div className="flex items-center gap-1 max-w-[130px] overflow-hidden">
-              {stepBadges.slice(0, 1).map((badge, bIdx) => (
-                <span
-                  key={bIdx}
-                  className="text-[9.5px] px-1.5 py-0.5 rounded bg-zinc-100/90 text-zinc-600 font-semibold border border-zinc-200/60 truncate max-w-[120px]"
-                >
-                  {badge}
-                </span>
-              ))}
-            </div>
-          ) : transferLabel ? (
-            <span className="text-[10px] text-zinc-400 font-medium tracking-tight">
-              {transferLabel}
-            </span>
-          ) : null}
-        </div>
+        {/* 3. 하단 스페이서 (36px) */}
+        <div className="h-[36px] w-full shrink-0" />
       </div>
     );
   };

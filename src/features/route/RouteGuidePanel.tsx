@@ -87,6 +87,7 @@ export default function RouteGuidePanel({
   }, [activeTooltip]);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const bottomSpacerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
   const [snap, setSnap] = useState<number | string | null>(370);
@@ -154,6 +155,9 @@ export default function RouteGuidePanel({
   // 여정 재생 시 특정 세부 이동 정보가 자동으로 스크롤 중앙에 오도록 조절하는 기능 활성화
   useEffect(() => {
     if (!focusedStep || focusedStep.originId !== originPlace.id || focusedStep.destId !== destPlace.id) {
+      if (bottomSpacerRef.current) {
+        bottomSpacerRef.current.style.height = '112px'; // 기본값 (h-28 = 112px)
+      }
       return;
     }
 
@@ -165,6 +169,15 @@ export default function RouteGuidePanel({
       if (element && container) {
         const containerRect = container.getBoundingClientRect();
         const elementRect = element.getBoundingClientRect();
+        
+        // 동적 하단 여백 계산: (컨테이너 내부 실질적 높이) - 5px - (선택된 카드의 높이)
+        const containerHeight = container.clientHeight;
+        const cardHeight = element.clientHeight;
+        const paddingNeeded = Math.max(112, containerHeight - 5 - cardHeight);
+        
+        if (bottomSpacerRef.current) {
+          bottomSpacerRef.current.style.height = `${paddingNeeded}px`;
+        }
         
         // 상단 스냅을 정렬하기 위해 offsetTop을 계산해 직접 scrollTo 처리합니다.
         // elementRect.top - containerRect.top은 컨테이너 내부 뷰포트 기준 상대 y좌표입니다.
@@ -564,7 +577,7 @@ export default function RouteGuidePanel({
               max: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
             }}
             animate={currentSnapType}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative w-full px-5 pt-1 bg-white snap-y snap-mandatory scroll-pt-[5px] scroll-pb-4" 
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative w-full px-5 pt-[9px] bg-white snap-y snap-mandatory scroll-pt-[5px] scroll-pb-4" 
             style={{ maxHeight: contentMaxHeight }}
             onPointerDown={handlePointerDown}
             onTouchStart={handleTouchStart}
@@ -574,7 +587,7 @@ export default function RouteGuidePanel({
           >
             {listContent}
             {/* 하단 재생바 등에 의해 가려지지 않도록 여백 배치 */}
-            <div className="h-28 w-full flex-shrink-0 pointer-events-none" />
+            <div ref={bottomSpacerRef} className="h-28 w-full flex-shrink-0 pointer-events-none" />
           </motion.div>
         </CustomBottomSheet>
         {playbackBar}
@@ -608,9 +621,10 @@ export default function RouteGuidePanel({
           {headerContent}
           <div 
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar px-5 pt-1 pb-[60px] relative bg-white snap-y snap-mandatory scroll-pt-[5px] scroll-pb-4"
+            className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar px-5 pt-[9px] relative bg-white snap-y snap-mandatory scroll-pt-[5px] scroll-pb-4"
           >
             {listContent}
+            <div ref={bottomSpacerRef} className="h-28 w-full flex-shrink-0 pointer-events-none" />
           </div>
         </div>
       </div>

@@ -94,7 +94,9 @@ export default function TransitGuideList({
                  handleStepClick(idx, step);
                }
             }}
-            className={`relative flex gap-4 pl-12 pr-3 py-1.5 rounded-xl border transition-all duration-300 cursor-pointer select-none snap-start snap-always scroll-mt-[5px] ${
+            className={`relative flex gap-4 pl-12 pr-3 pt-1.5 ${
+              step.type === 'walk' ? 'pb-7' : 'pb-1.5'
+            } rounded-xl border transition-all duration-300 cursor-pointer select-none snap-start snap-always scroll-mt-[5px] ${
               isThisStepFocused 
                 ? 'bg-blue-50/40 border-blue-100/80 shadow-[0_2px_8px_rgba(59,130,246,0.04)]' 
                 : 'bg-transparent border-transparent hover:bg-zinc-50/50 hover:border-zinc-100'

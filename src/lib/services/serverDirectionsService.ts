@@ -745,21 +745,50 @@ function parseTMapResponse(
     }
   }
 
-  const finalPathPoints = cleanPathPoints.length > 0 
-    ? cleanPathPoints 
-    : [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
+  // 도어투도어 직선거리 보정 연산
+  let extraDistanceKm = 0;
+  let extraTimeSeconds = 0;
+  const finalPathPoints = [...cleanPathPoints];
+
+  let startLinkDistance = 0;
+  let endLinkDistance = 0;
+
+  if (cleanPathPoints.length > 0) {
+    const tmapFirst = cleanPathPoints[0];
+    const tmapLast = cleanPathPoints[cleanPathPoints.length - 1];
+    
+    startLinkDistance = haversineDistance(sy, sx, tmapFirst.lat, tmapFirst.lng);
+    endLinkDistance = haversineDistance(tmapLast.lat, tmapLast.lng, ey, ex);
+
+    // 위치가 완전히 일치하지 않는 경우(10cm 초과 차이) 도어투도어 직선거리 보정 대상으로 판정
+    if (startLinkDistance > 0.0001) {
+      finalPathPoints.unshift({ lat: sy, lng: sx });
+      extraDistanceKm += startLinkDistance;
+      extraTimeSeconds += (startLinkDistance / 4.5) * 3600;
+    }
+    if (endLinkDistance > 0.0001) {
+      finalPathPoints.push({ lat: ey, lng: ex });
+      extraDistanceKm += endLinkDistance;
+      extraTimeSeconds += (endLinkDistance / 4.5) * 3600;
+    }
+  } else {
+    finalPathPoints.push({ lat: sy, lng: sx }, { lat: ey, lng: ex });
+  }
 
   const firstProps = data.features[0]?.properties || {};
   const totalDistanceMeters = firstProps.totalDistance ?? 0;
   const totalTimeSeconds = firstProps.totalTime ?? 0;
 
-  const distanceKm = totalDistanceMeters > 0 
+  const baseDistanceKm = totalDistanceMeters > 0 
     ? totalDistanceMeters / 1000 
     : haversineDistance(sy, sx, ey, ex);
 
-  const walkDuration = totalTimeSeconds > 0 
-    ? Math.max(1, Math.round(totalTimeSeconds / 60)) 
-    : Math.max(1, Math.round((distanceKm / 4.5) * 60));
+  const baseTimeSeconds = totalTimeSeconds > 0 
+    ? totalTimeSeconds 
+    : (baseDistanceKm / 4.5) * 3600;
+
+  const distanceKm = baseDistanceKm + extraDistanceKm;
+  const walkDuration = Math.max(1, Math.round((baseTimeSeconds + extraTimeSeconds) / 60));
 
   const guide: any[] = [];
   for (const feature of data.features) {
@@ -774,6 +803,36 @@ function parseTMapResponse(
           startLat: coords[1],
           startLng: coords[0]
         });
+      }
+    }
+  }
+
+  // 도어투도어 턴바이턴 가이드 노드 추가
+  if (cleanPathPoints.length > 0) {
+    if (startLinkDistance > 0.0001) {
+      guide.unshift({
+        instructions: '출발지에서 도로(출입구)까지 이동',
+        distance: Math.round(startLinkDistance * 1000),
+        duration: Math.round((startLinkDistance / 4.5) * 3600 * 1000),
+        startLat: sy,
+        startLng: sx
+      });
+    }
+
+    if (endLinkDistance > 0.0001) {
+      const arrivalIdx = guide.findIndex(g => g.instructions.includes('도착'));
+      const endGuideNode = {
+        instructions: '도로(출입구)에서 목적지까지 이동',
+        distance: Math.round(endLinkDistance * 1000),
+        duration: Math.round((endLinkDistance / 4.5) * 3600 * 1000),
+        startLat: cleanPathPoints[cleanPathPoints.length - 1].lat,
+        startLng: cleanPathPoints[cleanPathPoints.length - 1].lng
+      };
+
+      if (arrivalIdx !== -1) {
+        guide.splice(arrivalIdx, 0, endGuideNode);
+      } else {
+        guide.push(endGuideNode);
       }
     }
   }
@@ -855,12 +914,20 @@ function parseTMapResponse(
 
 export async function fetchCarWalkDirections(params: DirectionsQueryType): Promise<{ car: DirectionResult[], walk: DirectionResult[] }> {
   const { sx, sy, ex, ey } = params;
-  const roundCoord = (val: number) => Math.round(val * 10000) / 10000;
   
-  const rsx = roundCoord(sx);
-  const rsy = roundCoord(sy);
-  const rex = roundCoord(ex);
-  const rey = roundCoord(ey);
+  // 도보는 정밀도가 중요하므로 소수점 8자리(약 1.1mm 초정밀 오차범위)로 반올림하여 TMap API에 전송 및 캐싱
+  const roundCoordWalk = (val: number) => Math.round(val * 100000000) / 100000000;
+  const roundCoordCar = (val: number) => Math.round(val * 10000) / 10000;
+  
+  const wsx = roundCoordWalk(sx);
+  const wsy = roundCoordWalk(sy);
+  const wex = roundCoordWalk(ex);
+  const wey = roundCoordWalk(ey);
+
+  const csx = roundCoordCar(sx);
+  const csy = roundCoordCar(sy);
+  const cex = roundCoordCar(ex);
+  const cey = roundCoordCar(ey);
 
   let walkResults: DirectionResult[];
 
@@ -870,7 +937,7 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
   } else {
     try {
-      const tmapData = await getCachedTMapWalkingRoute(rsx, rsy, rex, rey, apiKey);
+      const tmapData = await getCachedTMapWalkingRoute(wsx, wsy, wex, wey, apiKey);
       walkResults = parseTMapResponse(tmapData, sx, sy, ex, ey);
     } catch (error) {
       console.warn('[serverDirectionsService] TMap Walking API failed, using fallback.', error);
@@ -879,7 +946,7 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   }
 
   try {
-    const carResults = await fetchCarRoute(sx, sy, ex, ey);
+    const carResults = await fetchCarRoute(csx, csy, cex, cey);
     return { car: carResults, walk: walkResults };
   } catch (error: any) {
     // 모든 차량 탐색 실패 시 Fallback 반환

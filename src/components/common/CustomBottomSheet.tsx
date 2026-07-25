@@ -26,6 +26,7 @@ export interface CustomBottomSheetProps {
   initialSnap?: 'min' | 'default' | 'max';
   onSnap?: (snap: 'min' | 'default' | 'max') => void;
   onClose?: () => void;
+  onExited?: () => void;
   headerContent?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -62,6 +63,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   initialSnap = 'default',
   onSnap,
   onClose,
+  onExited,
   headerContent,
   children,
   className = '',
@@ -72,6 +74,17 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const dragControls = useDragControls();
   const internalY = useMotionValue(0);
   const y = propY || internalY;
+
+  const onCloseRef = useRef(onClose);
+  const onExitedRef = useRef(onExited);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    onExitedRef.current = onExited;
+  }, [onExited]);
 
   const { setBottomSheetY } = useMapUIStore();
 
@@ -138,7 +151,12 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
 
     const controls = animate(y, activeSnapY, {
       ...springConfig,
-      velocity: initialVelocity
+      velocity: initialVelocity,
+      onComplete: () => {
+        if (activeSnapY === 0) {
+          onExitedRef.current?.();
+        }
+      }
     });
     return () => controls.stop();
   }, [activeSnapY, y, getSpringConfig]);
@@ -149,9 +167,8 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       setActiveSnapY(getTargetY(initialSnap));
     } else {
       setActiveSnapY(0);
-      onClose?.();
     }
-  }, [isOpen, getTargetY, initialSnap, onClose]);
+  }, [isOpen, getTargetY, initialSnap]);
 
   // #9. History API 통합 (백버튼 처리)
   useEffect(() => {
@@ -165,7 +182,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
 
     const handlePopState = (event: PopStateEvent) => {
       if (isOpen) {
-        onClose?.();
+        onCloseRef.current?.();
       }
     };
 
@@ -177,7 +194,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         window.history.back();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   const handleDragEnd = (event: any, info: any) => {
     const currentY = y.get(); // Current dynamic translation value (negative)

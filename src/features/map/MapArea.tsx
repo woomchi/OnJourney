@@ -3,7 +3,6 @@
 import { useRef, useState, useEffect, useMemo, Fragment, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  NavermapsProvider,
   NaverMap,
   Container as MapDiv,
   Marker,
@@ -19,7 +18,8 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useMapState } from '@/features/map/useMapState';
 import { useMapUIStore } from '@/stores/map-store';
 import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
-import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
+import { useMapCamera } from './useMapCamera';
+import { NaverMapRouteRenderer, calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { SEQUENCE_COLORS, getSequenceTheme } from '@/constants/colors';
 import { getCategoryTheme } from '@/lib/categoryUtils';
@@ -207,20 +207,22 @@ export default function MapArea() {
       };
 
       const target = getTarget();
-      if (target && target !== portalTarget) setPortalTarget(target);
+      if (target) {
+        setPortalTarget(prev => prev !== target ? target : prev);
+      }
 
       const observer = new MutationObserver(() => {
         const el = getTarget();
-        if (el && el !== portalTarget) {
-          setPortalTarget(el);
+        if (el) {
+          setPortalTarget(prev => prev !== el ? el : prev);
         }
       });
       observer.observe(document.body, { childList: true, subtree: true });
       return () => observer.disconnect();
     } else {
-      setPortalTarget(null);
+      setPortalTarget(prev => prev !== null ? null : prev);
     }
-  }, [isMobile, focusedSegment, alternativeSegment, portalTarget]);
+  }, [isMobile, focusedSegment, alternativeSegment]);
 
   useEffect(() => {
     if (!isSearchMode) {
@@ -504,21 +506,21 @@ export default function MapArea() {
     return {
       position: navermapsObj ? navermapsObj.Position.BOTTOM_RIGHT : 12,
     };
-  }, [map]);
+  }, []);
 
   const scaleControlOptions = useMemo(() => {
     const navermapsObj = typeof window !== 'undefined' && window.naver?.maps;
     return {
       position: navermapsObj ? navermapsObj.Position.BOTTOM_RIGHT : 12,
     };
-  }, [map]);
+  }, []);
 
   const mapDataControlOptions = useMemo(() => {
     const navermapsObj = typeof window !== 'undefined' && window.naver?.maps;
     return {
       position: navermapsObj ? navermapsObj.Position.BOTTOM_LEFT : 10,
     };
-  }, [map]);
+  }, []);
 
   // 여정에 등록된 장소가 없을 경우 사용자의 실시간 GPS 위치를 지도의 기본 중심지로 설정
   useEffect(() => {
@@ -635,38 +637,25 @@ export default function MapArea() {
     };
   }, [focusedSegment, alternativeSegment, windowWidth, windowHeight, isMobile, drawerSnapPoint, isDrawerMaximized, guidePanelState]);
 
+  const currentMapPaddingRef = useRef(currentMapPadding);
+  useEffect(() => {
+    currentMapPaddingRef.current = currentMapPadding;
+  }, [currentMapPadding]);
+
   // 지도 패딩을 동적으로 동기화하여 panTo, fitBounds 등이 항상 정확한 오프셋 영역 중심을 기준으로 동작하도록 보장
   useEffect(() => {
     if (!map) return;
     map.setOptions({ padding: currentMapPadding });
   }, [map, currentMapPadding]);
 
-
-
-  const panToWithOffset = useCallback((naverMap: naver.maps.Map, coord: { lat: number; lng: number }) => {
-    const projection = naverMap.getProjection();
-    if (!projection) {
-      naverMap.panTo(new window.naver.maps.LatLng(coord.lat, coord.lng));
-      return;
-    }
-
-    const latLng = new window.naver.maps.LatLng(coord.lat, coord.lng);
-    const pixelPoint = projection.fromCoordToOffset(latLng);
-
-    const topPadding = currentMapPadding.top || 0;
-    const bottomPadding = currentMapPadding.bottom || 0;
-    const visibleHeight = windowHeight - topPadding - bottomPadding;
-
-    if (visibleHeight > 0) {
-      // 50% (중심) - 40% (목표 지점) = 10% 오프셋 (아래 방향으로 +Y 이동)
-      const offsetPixels = visibleHeight * 0.1;
-      const targetPixel = new window.naver.maps.Point(pixelPoint.x, pixelPoint.y + offsetPixels);
-      const targetLatLng = projection.fromOffsetToCoord(targetPixel);
-      naverMap.panTo(targetLatLng);
-    } else {
-      naverMap.panTo(latLng);
-    }
-  }, [currentMapPadding, windowHeight]);
+  const { panToWithOffset, handleResetBounds } = useMapCamera({
+    map,
+    currentMapPadding,
+    directionsCache,
+    loadedSegmentsCount,
+    isMobile,
+    windowHeight,
+  });
 
   const handleRecommendedMarkerClick = (recPlace: PlaceResult) => {
     // 0ms: 즉시 햅틱 피드백 및 선택 마커 강조
@@ -750,56 +739,7 @@ export default function MapArea() {
 
 
 
-  const handleResetBounds = () => {
-    // 상세 바텀 시트 (focusedSegment) 가 열려있을 때는, 현재 세그먼트를 기준으로 다시 fitBounds를 수행함 (전체 여정으로 돌아가지 않음)
-    if (focusedSegment) {
-      const originPlace = places.find(p => p.id === focusedSegment.originId);
-      const destPlace = places.find(p => p.id === focusedSegment.destId);
-      if (originPlace && destPlace) {
-        const cacheKey = `${originPlace.id}-${destPlace.id}`;
-        const segmentData = directionsCache[cacheKey];
-        const transportType = activeJourney?.transport_type || 'public';
-        const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-        const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
-        
-        lastFittedFocusBoundsRef.current = ''; // 강제로 업데이트를 유발하기 위해 캐시 초기화
-        setFocusBounds({ ...bounds }); // trigger re-fit by spreading to create a new reference
-        setFocusedStep(null);
-        return;
-      }
-    }
 
-    // 만약 이미 전체 화면 상태라면, 패딩 재적용 및 수동 핏팅 수행 (사용자 조작 복구용)
-    if (!focusBounds) {
-      if (!map || places.length === 0) return;
-      map.setOptions({ padding: currentMapPadding });
-
-      const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-      if (!navermaps) return;
-
-      if (places.length === 1) {
-        const first = places[0];
-        const latOffset = 0.0015;
-        const lngOffset = 0.0015;
-        const bounds = new navermaps.LatLngBounds(
-          new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
-          new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
-        );
-        map.fitBounds(bounds, { maxZoom: 16 });
-        map.setCenter(bounds.getCenter());
-      } else {
-        const renderer = new NaverMapRouteRenderer(map);
-        renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
-      }
-      return;
-    }
-
-    // 포커스 상태를 클리어하면 useEffect에 의해 자동으로 최적의 unpadded 뷰포트로 핏팅됨
-    setFocusBounds(null);
-    setFocusedSegment(null);
-    setFocusedStep(null);
-    setAlternativeSegment(null);
-  };
 
 
 
@@ -831,125 +771,7 @@ export default function MapArea() {
     }
   }, [places, fetchSequentialDirections, isCacheRestored]);
 
-  const lastFittedDataStringRef = useRef<string>('');
-  const lastFocusStateRef = useRef<boolean>(false);
-  const isInitialFitRef = useRef<boolean>(true);
 
-  // places 또는 map 인스턴스 또는 로드된 세그먼트 수가 변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
-  // 검색 결과가 지워진 경우에도 원래 전체 경로로 줌을 되돌리도록 recommendedPlaces 상태를 연동합니다.
-  useEffect(() => {
-    if (!map || places.length === 0) return;
-
-    // 검색 모드 중이라면 이 효과를 스킵합니다 (사용자의 줌/팬 조작을 방해하지 않음)
-    if (isSearchMode) return;
-    
-    // 바텀 시트가 최대화된 상태에서는 지도 조작을 방지합니다.
-    if (isDrawerMaximized) return;
-
-    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-    if (!navermaps) return;
-
-    // 데이터나 바텀시트 상태가 변경되었는지 확인하여 fitBounds 실행 (바텀시트 조절 시 남은 영역에 맞게 줌 조절)
-    const currentDataString = JSON.stringify({
-      places: places.map(p => p.id),
-      loadedSegmentsCount,
-      transport_type: activeJourney?.transport_type,
-      recommendedPlaces: recommendedPlaces?.map(p => p.id),
-      isMobile,
-      drawerSnapPoint,
-    });
-
-    const wasFocused = lastFocusStateRef.current;
-    
-    // 만약 사용자가 이미 개별 세그먼트에 포커스(focusBounds가 활성 상태) 중이라면 자동 전체 fitBounds 무시
-    if (focusBounds) {
-      lastFocusStateRef.current = true;
-      return;
-    }
-
-    if (!wasFocused && lastFittedDataStringRef.current === currentDataString) return;
-    lastFocusStateRef.current = false;
-    lastFittedFocusBoundsRef.current = '';
-
-    map.setOptions({ padding: currentMapPadding });
-
-    const doFit = () => {
-      if (places.length === 1) {
-        const first = places[0];
-        const latOffset = 0.0015;
-        const lngOffset = 0.0015;
-        const bounds = new navermaps.LatLngBounds(
-          new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
-          new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
-        );
-        map.fitBounds(bounds, { maxZoom: 16 });
-      } else {
-        const renderer = new NaverMapRouteRenderer(map);
-        renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', currentMapPadding);
-      }
-    };
-
-    if (isInitialFitRef.current) {
-      isInitialFitRef.current = false;
-      setTimeout(doFit, 100); // 초기 로딩 시 지도 랜더링 지연에 대응하기 위한 타협점
-    } else {
-      doFit();
-    }
-
-    lastFittedDataStringRef.current = currentDataString;
-  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, currentMapPadding, recommendedPlaces, isDrawerMaximized, isSearchMode, isMobile]);
-
-  const lastFittedFocusBoundsRef = useRef<string>('');
-
-  // focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
-  useEffect(() => {
-    if (!map || !focusBounds) return;
-    
-    // 바텀 시트가 최대화된 상태에서는 지도 조작을 방지합니다.
-    if (isDrawerMaximized) return;
-
-    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-    if (!navermaps) return;
-
-    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${JSON.stringify(currentMapPadding)}`;
-    if (lastFittedFocusBoundsRef.current === currentFocusString) return;
-
-    map.setOptions({ padding: currentMapPadding });
-
-    const expanded = expandBounds(focusBounds, 0.01); // 1% 확장하여 여백 최소화 (전체 여정 핏팅과 동일하게 맞춤)
-    const bounds = new navermaps.LatLngBounds(
-      new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
-      new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
-    );
-
-    map.fitBounds(bounds, { maxZoom: 18 });
-
-    lastFittedFocusBoundsRef.current = currentFocusString;
-  }, [focusBounds, map, currentMapPadding, isDrawerMaximized, isMobile]);
-
-
-
-  // 장소 검색 카드 클릭 시 해당 장소로 줌 인
-  useEffect(() => {
-    if (!map || !activeSearchPlace) return;
-
-    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-    if (!navermaps) return;
-
-    const currentCenter = map.getCenter();
-    const currentZoom = map.getZoom();
-
-    const latDiff = Math.abs(currentCenter.y - activeSearchPlace.lat);
-    const lngDiff = Math.abs(currentCenter.x - activeSearchPlace.lng);
-
-    if (latDiff < 0.0001 && lngDiff < 0.0001 && currentZoom === 15) {
-      return;
-    }
-
-    const targetLatLng = new navermaps.LatLng(activeSearchPlace.lat, activeSearchPlace.lng);
-    map.setCenter(targetLatLng);
-    map.setZoom(15);
-  }, [activeSearchPlace, map]);
 
   // 지도 줌 레벨 및 뷰포트 바운드 변경 감지 리스너
   const animatedSegmentsRef = useRef<Set<string>>(new Set());
@@ -963,20 +785,6 @@ export default function MapArea() {
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
-
-    setZoomLevel(map.getZoom());
-    const initialBounds = map.getBounds() as naver.maps.LatLngBounds;
-    setMapBounds(initialBounds);
-    if (initialBounds) {
-      const sw = initialBounds.getSW();
-      const ne = initialBounds.getNE();
-      setGlobalMapBounds({
-        minLat: sw.lat(),
-        maxLat: ne.lat(),
-        minLng: sw.lng(),
-        maxLng: ne.lng()
-      });
-    }
 
     // 드래그나 줌 조작이 완전히 멈춘 유휴(idle) 상태일 때만 바운드와 줌 레벨을 갱신하여 렌더링 부하 최소화
     const idleListener = navermaps.Event.addListener(map, 'idle', () => {
@@ -1132,82 +940,80 @@ export default function MapArea() {
         </div>
       )}
 
-      <NavermapsProvider ncpKeyId={clientId} submodules={NAVER_MAP_SUBMODULES}>
-        <MapDiv style={{ width: '100%', height: '100%' }}>
-          <NaverMap
-            defaultCenter={INITIAL_CENTER}
-            defaultZoom={15}
-            ref={handleMapRef}
-            onClick={handleMapClick}
-            logoControlOptions={logoControlOptions}
-            scaleControlOptions={scaleControlOptions}
-            mapDataControlOptions={mapDataControlOptions}
-          >
-                        <MapRoutes
-              isAllInitialRoutesLoaded={isAllInitialRoutesLoaded}
+      <MapDiv style={{ width: '100%', height: '100%' }}>
+        <NaverMap
+          defaultCenter={INITIAL_CENTER}
+          defaultZoom={15}
+          ref={handleMapRef}
+          onClick={handleMapClick}
+          logoControlOptions={logoControlOptions}
+          scaleControlOptions={scaleControlOptions}
+          mapDataControlOptions={mapDataControlOptions}
+        >
+                      <MapRoutes
+            isAllInitialRoutesLoaded={isAllInitialRoutesLoaded}
+            places={places}
+            activeJourney={activeJourney}
+            directionsCache={directionsCache}
+            alternativeSegment={alternativeSegment}
+            hoveredAlternativeRoute={hoveredAlternativeRoute}
+            focusedSegment={focusedSegment}
+            setFocusBounds={setFocusBounds}
+            setFocusedStep={setFocusedStep}
+            setFocusedSegment={setFocusedSegment}
+            delays={delays}
+            focusedStep={focusedStep}
+            isSearchMode={isSearchMode}
+            animationVersion={animationVersion}
+            animatedSegmentsRef={animatedSegmentsRef}
+          />
+
+          {/* 정적 방향 스트라이프 패턴 마커 렌더링 */}
+          {navermaps && !isSearchMode && (
+            <DirectionalStripes
               places={places}
-              activeJourney={activeJourney}
               directionsCache={directionsCache}
-              alternativeSegment={alternativeSegment}
-              hoveredAlternativeRoute={hoveredAlternativeRoute}
-              focusedSegment={focusedSegment}
-              setFocusBounds={setFocusBounds}
-              setFocusedStep={setFocusedStep}
-              setFocusedSegment={setFocusedSegment}
-              delays={delays}
+              activeJourney={activeJourney}
+              focusedSegment={activeSegment}
               focusedStep={focusedStep}
-              isSearchMode={isSearchMode}
-              animationVersion={animationVersion}
-              animatedSegmentsRef={animatedSegmentsRef}
-            />
-
-            {/* 정적 방향 스트라이프 패턴 마커 렌더링 */}
-            {navermaps && !isSearchMode && (
-              <DirectionalStripes
-                places={places}
-                directionsCache={directionsCache}
-                activeJourney={activeJourney}
-                focusedSegment={activeSegment}
-                focusedStep={focusedStep}
-                navermaps={navermaps}
-                zoomLevel={zoomLevel}
-                mapBounds={mapBounds}
-                hoveredAlternativeRoute={hoveredAlternativeRoute}
-                alternativeSegment={alternativeSegment}
-              />
-            )}
-
-            {/* 환승 안내 마커 렌더링 */}
-            {navermaps && !isSearchMode && (
-              <TransferMarkers
-                places={places}
-                directionsCache={directionsCache}
-                activeJourney={activeJourney}
-                focusedSegment={activeSegment}
-                navermaps={navermaps}
-                hoveredAlternativeRoute={hoveredAlternativeRoute}
-                alternativeSegment={alternativeSegment}
-              />
-            )}
-
-            <MapMarkers
-              places={places}
-              recommendedPlaces={recommendedPlaces}
-              activeSearchPlace={activeSearchPlace}
-              mapClickedPlace={mapClickedPlace}
-              userLocation={userLocation}
-              gpsMode={gpsMode}
-              isSearchMode={isSearchMode}
-              activeSegment={activeSegment}
-              delays={delays}
               navermaps={navermaps}
-              handleMarkerClick={handleMarkerClick}
-              handleRecommendedMarkerClick={handleRecommendedMarkerClick}
-              deviceHeading={deviceHeading}
+              zoomLevel={zoomLevel}
+              mapBounds={mapBounds}
+              hoveredAlternativeRoute={hoveredAlternativeRoute}
+              alternativeSegment={alternativeSegment}
             />
-          </NaverMap>
-        </MapDiv>
-      </NavermapsProvider>
+          )}
+
+          {/* 환승 안내 마커 렌더링 */}
+          {navermaps && !isSearchMode && (
+            <TransferMarkers
+              places={places}
+              directionsCache={directionsCache}
+              activeJourney={activeJourney}
+              focusedSegment={activeSegment}
+              navermaps={navermaps}
+              hoveredAlternativeRoute={hoveredAlternativeRoute}
+              alternativeSegment={alternativeSegment}
+            />
+          )}
+
+          <MapMarkers
+            places={places}
+            recommendedPlaces={recommendedPlaces}
+            activeSearchPlace={activeSearchPlace}
+            mapClickedPlace={mapClickedPlace}
+            userLocation={userLocation}
+            gpsMode={gpsMode}
+            isSearchMode={isSearchMode}
+            activeSegment={activeSegment}
+            delays={delays}
+            navermaps={navermaps}
+            handleMarkerClick={handleMarkerClick}
+            handleRecommendedMarkerClick={handleRecommendedMarkerClick}
+            deviceHeading={deviceHeading}
+          />
+        </NaverMap>
+      </MapDiv>
 
       {/* ── 추천 장소 상세 오버레이 카드 (Quick Add 지원) ── */}
       {activeRecommendedPlace && (

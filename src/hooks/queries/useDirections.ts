@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import type { Place, DirectionsApiResponse, DirectionResult } from '@/types/journey';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 
 export const directionKeys = {
   all: ['directions'] as const,
@@ -87,16 +87,30 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
   const queryClient = useQueryClient();
   const [directionsCache, setDirectionsCache] = useState<Record<string, DirectionsApiResponse>>({});
 
+  const placesRef = useRef(places);
   useEffect(() => {
-    if (!places || places.length < 2) {
+    placesRef.current = places;
+  }, [places]);
+
+  const placesKey = useMemo(() => {
+    if (!places) return '';
+    return places.map(p => `${p.id}-${p.selected_route?.destId || ''}`).join(',');
+  }, [places]);
+
+  useEffect(() => {
+    const currentPlaces = placesRef.current;
+    if (!currentPlaces || currentPlaces.length < 2) {
       setTimeout(() => setDirectionsCache({}), 0);
       return;
     }
 
     const updateCache = () => {
+      const activePlaces = placesRef.current;
+      if (!activePlaces || activePlaces.length < 2) return;
+
       const newCache: Record<string, DirectionsApiResponse> = {};
-      places.slice(0, -1).forEach((origin, i) => {
-        const dest = places[i + 1];
+      activePlaces.slice(0, -1).forEach((origin, i) => {
+        const dest = activePlaces[i + 1];
         const cacheKey = `${origin.id}-${dest.id}`;
         const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id));
         const carData = queryClient.getQueryData<{ car: DirectionResult[], walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id));
@@ -141,7 +155,7 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
     return () => {
       unsubscribe();
     };
-  }, [places, queryClient]);
+  }, [placesKey, queryClient]);
 
   return directionsCache;
 }

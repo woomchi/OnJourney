@@ -563,9 +563,8 @@ export default function RouteGuidePanel({
             else if (snapName === 'default') setSnap(370);
             else if (snapName === 'max') setSnap(1);
           }}
-          onClose={() => {
-            if (onExited) onExited();
-          }}
+          onClose={onClose}
+          onExited={onExited}
           headerContent={headerContent}
         >
           <FloatingButtonsContainer />

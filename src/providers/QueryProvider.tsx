@@ -6,8 +6,10 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { get, set, del } from 'idb-keyval';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState, useEffect } from 'react';
+import { NavermapsProvider } from 'react-naver-maps';
 
 export default function QueryProvider({ children }: { children: React.ReactNode }) {
+  const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -55,7 +57,9 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <NavermapsProvider ncpKeyId={clientId || ''} submodules={['geocoder']}>
+        {children}
+      </NavermapsProvider>
       {/* 
         process.env.NODE_ENV === 'development' && (
           <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-right" />

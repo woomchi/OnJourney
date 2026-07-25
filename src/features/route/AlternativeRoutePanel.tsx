@@ -63,7 +63,9 @@ export default function AlternativeRoutePanel({
   onExited,
 }: AlternativeRoutePanelProps) {
   const [animate, setAnimate] = useState(false);
-  const [windowHeight, setWindowHeight] = useState(0);
+  const [windowHeight, setWindowHeight] = useState(
+    () => typeof window !== 'undefined' ? window.innerHeight : 812
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -130,17 +132,22 @@ export default function AlternativeRoutePanel({
   const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(publicKey);
   const carData = queryClient.getQueryData<{ car: DirectionResult[], walk: DirectionResult[] }>(carKey);
   
-  const segmentData = (publicData || carData) ? {
-    public: publicData?.public || [],
-    car: carData?.car || [],
-    walk: carData?.walk || []
-  } : undefined;
+  const segmentData = useMemo(() => {
+    if (!publicData && !carData) return undefined;
+    return {
+      public: publicData?.public || [],
+      car: carData?.car || [],
+      walk: carData?.walk || []
+    };
+  }, [publicData, carData]);
 
   const publicLoading = queryClient.getQueryState(publicKey)?.status === 'pending';
   const carLoading = queryClient.getQueryState(carKey)?.status === 'pending';
   const transportType = activeJourney?.transport_type || 'public';
 
-  const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType);
+  const activeRoute = useMemo(() => {
+    return getDefaultRoute(originPlace, destPlace, segmentData, transportType);
+  }, [originPlace, destPlace, segmentData, transportType]);
 
   const [activeTab, setActiveTab] = useState<'public' | 'car' | 'walk'>(
     activeRoute?.type === 'public' || activeRoute?.type === 'car' || activeRoute?.type === 'walk'
@@ -606,6 +613,7 @@ export default function AlternativeRoutePanel({
         onClose={() => {
           onClose();
         }}
+        onExited={onExited}
         headerContent={headerContent}
       >
         <FloatingButtonsContainer altHeight={altHeight} />

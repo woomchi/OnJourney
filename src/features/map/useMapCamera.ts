@@ -1,0 +1,249 @@
+"use client";
+
+import { useEffect, useRef, useMemo, useCallback } from 'react';
+import { useMapState } from './useMapState';
+import { useMapUIStore } from '@/stores/map-store';
+import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/routeUtils';
+import type { Place, LatLngBoundsLiteral, DirectionsApiResponse } from '@/types/journey';
+
+interface UseMapCameraProps {
+  map: naver.maps.Map | null;
+  currentMapPadding: { top: number; right: number; bottom: number; left: number };
+  directionsCache: Record<string, DirectionsApiResponse>;
+  loadedSegmentsCount: number;
+  isMobile: boolean;
+  windowHeight: number;
+}
+
+export function useMapCamera({
+  map,
+  currentMapPadding,
+  directionsCache,
+  loadedSegmentsCount,
+  isMobile,
+  windowHeight,
+}: UseMapCameraProps) {
+  const {
+    activeJourney,
+    focusBounds,
+    setFocusBounds,
+    focusedSegment,
+    setFocusedSegment,
+    focusedStep,
+    setFocusedStep,
+    alternativeSegment,
+    setAlternativeSegment,
+    recommendedPlaces,
+    activeSearchPlace,
+    isDrawerMaximized,
+    isSearchMode,
+    drawerSnapPoint,
+  } = useMapState();
+
+  const { setMapCenter } = useMapUIStore();
+
+  const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
+
+  const currentMapPaddingRef = useRef(currentMapPadding);
+  useEffect(() => {
+    currentMapPaddingRef.current = currentMapPadding;
+  }, [currentMapPadding]);
+
+  // 1. Offset을 고려하여 좌표로 이동 (panTo)
+  const panToWithOffset = useCallback((naverMap: naver.maps.Map, coord: { lat: number; lng: number }) => {
+    const projection = naverMap.getProjection();
+    if (!projection) {
+      naverMap.panTo(new window.naver.maps.LatLng(coord.lat, coord.lng));
+      return;
+    }
+
+    const latLng = new window.naver.maps.LatLng(coord.lat, coord.lng);
+    const pixelPoint = projection.fromCoordToOffset(latLng);
+
+    const padding = currentMapPaddingRef.current;
+    const topPadding = padding.top || 0;
+    const bottomPadding = padding.bottom || 0;
+    const visibleHeight = windowHeight - topPadding - bottomPadding;
+
+    if (visibleHeight > 0) {
+      // 50% (중심) - 40% (목표 지점) = 10% 오프셋 (아래 방향으로 +Y 이동)
+      const offsetPixels = visibleHeight * 0.1;
+      const targetPixel = new window.naver.maps.Point(pixelPoint.x, pixelPoint.y + offsetPixels);
+      const targetLatLng = projection.fromOffsetToCoord(targetPixel);
+      naverMap.panTo(targetLatLng);
+    } else {
+      naverMap.panTo(latLng);
+    }
+  }, [windowHeight]);
+
+  const lastFittedFocusBoundsRef = useRef<string>('');
+
+  // 2. 여정 줌 초기화 및 상태 복구
+  const handleResetBounds = useCallback(() => {
+    // 상세 바텀 시트 (focusedSegment) 가 열려있을 때는, 현재 세그먼트를 기준으로 다시 fitBounds를 수행함 (전체 여정으로 돌아가지 않음)
+    if (focusedSegment) {
+      const originPlace = places.find(p => p.id === focusedSegment.originId);
+      const destPlace = places.find(p => p.id === focusedSegment.destId);
+      if (originPlace && destPlace) {
+        const cacheKey = `${originPlace.id}-${destPlace.id}`;
+        const segmentData = directionsCache[cacheKey];
+        const transportType = activeJourney?.transport_type || 'public';
+        const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+        const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+        
+        lastFittedFocusBoundsRef.current = ''; // 강제로 업데이트를 유발하기 위해 캐시 초기화
+        setFocusBounds({ ...bounds }); // trigger re-fit by spreading to create a new reference
+        setFocusedStep(null);
+        return;
+      }
+    }
+
+    // 만약 이미 전체 화면 상태라면, 패딩 재적용 및 수동 핏팅 수행 (사용자 조작 복구용)
+    if (!focusBounds) {
+      if (!map || places.length === 0) return;
+      const padding = currentMapPaddingRef.current;
+      map.setOptions({ padding });
+
+      const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+      if (!navermaps) return;
+
+      if (places.length === 1) {
+        const first = places[0];
+        const latOffset = 0.0015;
+        const lngOffset = 0.0015;
+        const bounds = new navermaps.LatLngBounds(
+          new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
+          new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
+        );
+        map.fitBounds(bounds, { maxZoom: 16 });
+        map.setCenter(bounds.getCenter());
+      } else {
+        const renderer = new NaverMapRouteRenderer(map);
+        renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', padding);
+      }
+      return;
+    }
+
+    // 포커스 상태를 클리어하면 useEffect에 의해 자동으로 최적의 unpadded 뷰포트로 핏팅됨
+    setFocusBounds(null);
+    setFocusedSegment(null);
+    setFocusedStep(null);
+    setAlternativeSegment(null);
+  }, [places, map, focusBounds, focusedSegment, directionsCache, activeJourney?.transport_type, setFocusBounds, setFocusedSegment, setFocusedStep, setAlternativeSegment]);
+
+  const lastFittedDataStringRef = useRef<string>('');
+  const lastFocusStateRef = useRef<boolean>(false);
+  const isInitialFitRef = useRef<boolean>(true);
+
+  // 3. places 또는 map 인스턴스 또는 로드된 세그먼트 수가 변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
+  useEffect(() => {
+    if (!map || places.length === 0) return;
+
+    if (isSearchMode) return;
+    if (isDrawerMaximized) return;
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    const currentDataString = JSON.stringify({
+      places: places.map(p => p.id),
+      loadedSegmentsCount,
+      transport_type: activeJourney?.transport_type,
+      recommendedPlaces: recommendedPlaces?.map(p => p.id),
+      isMobile,
+      drawerSnapPoint,
+    });
+
+    const wasFocused = lastFocusStateRef.current;
+    
+    if (focusBounds) {
+      lastFocusStateRef.current = true;
+      return;
+    }
+
+    if (!wasFocused && lastFittedDataStringRef.current === currentDataString) return;
+    lastFocusStateRef.current = false;
+    lastFittedFocusBoundsRef.current = '';
+
+    const padding = currentMapPaddingRef.current;
+    map.setOptions({ padding });
+
+    const doFit = () => {
+      if (places.length === 1) {
+        const first = places[0];
+        const latOffset = 0.0015;
+        const lngOffset = 0.0015;
+        const bounds = new navermaps.LatLngBounds(
+          new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
+          new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
+        );
+        map.fitBounds(bounds, { maxZoom: 16 });
+      } else {
+        const renderer = new NaverMapRouteRenderer(map);
+        renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', padding);
+      }
+    };
+
+    if (isInitialFitRef.current) {
+      isInitialFitRef.current = false;
+      setTimeout(doFit, 100);
+    } else {
+      doFit();
+    }
+
+    lastFittedDataStringRef.current = currentDataString;
+  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, recommendedPlaces, isDrawerMaximized, isSearchMode, isMobile, drawerSnapPoint, directionsCache]);
+
+  // 4. focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
+  useEffect(() => {
+    if (!map || !focusBounds) return;
+    if (isDrawerMaximized) return;
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    const padding = currentMapPaddingRef.current;
+    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${JSON.stringify(padding)}`;
+    if (lastFittedFocusBoundsRef.current === currentFocusString) return;
+
+    map.setOptions({ padding });
+
+    const expanded = expandBounds(focusBounds, 0.01);
+    const bounds = new navermaps.LatLngBounds(
+      new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
+      new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
+    );
+
+    map.fitBounds(bounds, { maxZoom: 18 });
+
+    lastFittedFocusBoundsRef.current = currentFocusString;
+  }, [focusBounds, map, isDrawerMaximized, isMobile]);
+
+  // 5. 장소 검색 카드 클릭 시 해당 장소로 줌 인
+  useEffect(() => {
+    if (!map || !activeSearchPlace) return;
+
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermaps) return;
+
+    const currentCenter = map.getCenter();
+    const currentZoom = map.getZoom();
+
+    const latDiff = Math.abs(currentCenter.y - activeSearchPlace.lat);
+    const lngDiff = Math.abs(currentCenter.x - activeSearchPlace.lng);
+
+    if (latDiff < 0.0001 && lngDiff < 0.0001 && currentZoom === 15) {
+      return;
+    }
+
+    const targetLatLng = new navermaps.LatLng(activeSearchPlace.lat, activeSearchPlace.lng);
+    map.setCenter(targetLatLng);
+    map.setZoom(15);
+  }, [activeSearchPlace, map]);
+
+  return {
+    panToWithOffset,
+    handleResetBounds,
+  };
+}

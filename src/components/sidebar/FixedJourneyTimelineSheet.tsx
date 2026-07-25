@@ -123,14 +123,22 @@ export default function FixedJourneyTimelineSheet({
       const container = timelineContainerRef.current;
       const targetEl = cardRefs.current.get(key);
       if (container && targetEl) {
-        const containerLeft = container.getBoundingClientRect().left;
-        const targetLeft = targetEl.getBoundingClientRect().left;
-        const relativeLeft = targetLeft - containerLeft;
-        const newScrollLeft = container.scrollLeft + relativeLeft - 16;
-        container.scrollTo({
-          left: Math.max(0, newScrollLeft),
-          behavior: 'smooth',
-        });
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = targetEl.getBoundingClientRect();
+
+        // 1. Check if the card is already fully visible in the container's horizontal viewport
+        const isVisible = (targetRect.left >= containerRect.left + 16) && 
+                          (targetRect.right <= containerRect.right - 16);
+
+        // 2. Only scroll if it's not visible, and use instant behavior to prevent viewport shifting bugs
+        if (!isVisible) {
+          const relativeLeft = targetRect.left - containerRect.left;
+          const newScrollLeft = container.scrollLeft + relativeLeft - 16;
+          container.scrollTo({
+            left: Math.max(0, newScrollLeft),
+            behavior: 'auto',
+          });
+        }
       }
     });
   };
@@ -393,8 +401,8 @@ export default function FixedJourneyTimelineSheet({
               </div>
 
               {/* 우측 대안 수단 버튼 (크기 확대) */}
-              <button
-                type="button"
+              <div
+                role="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   const isCurrentlyOpen = alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id;
@@ -437,7 +445,7 @@ export default function FixedJourneyTimelineSheet({
                   isActive={alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id}
                   className="w-4 h-4"
                 />
-              </button>
+              </div>
             </div>
           </div>
         </div>
@@ -701,27 +709,27 @@ export default function FixedJourneyTimelineSheet({
                   )}
 
                   {/* 핀 버튼 (노드 테마 컬러스킴 적용) */}
-                  <button
+                  <div
                     ref={(el) => {
                       const key = `place-${place.id}`;
-                      if (el) cardRefs.current.set(key, el);
+                      if (el) cardRefs.current.set(key, el as any);
                       else cardRefs.current.delete(key);
                     }}
-                    type="button"
+                    role="button"
                     onClick={() => handlePlaceClick(place)}
-                    className="relative z-10 w-7 h-7 rounded-full text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+                    className="relative z-10 w-7 h-7 rounded-full text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95 select-none"
                     style={{ backgroundColor: placeTheme.color }}
                     title={`${place.place_name} (${place.address || ''})`}
                   >
                     <span className="text-[11px] font-black leading-none">{idx + 1}</span>
-                  </button>
+                  </div>
                 </div>
 
                 {/* 하단: 장소 이름 및 아래 배치된 장소 태그/카테고리 */}
-                <button
-                  type="button"
+                <div
+                  role="button"
                   onClick={() => handlePlaceClick(place)}
-                  className="flex flex-col items-center justify-start h-[36px] w-full text-center px-0.5 cursor-pointer group"
+                  className="flex flex-col items-center justify-start h-[36px] w-full text-center px-0.5 cursor-pointer group select-none"
                 >
                   <span className="truncate text-[12px] font-bold text-zinc-900 group-hover:text-blue-600 transition-colors leading-tight max-w-full">
                     {place.place_name}
@@ -729,7 +737,7 @@ export default function FixedJourneyTimelineSheet({
                   <span className="truncate text-[9.5px] text-zinc-400 font-medium leading-tight max-w-full mt-0.5">
                     {categoryLabel || shortAddress || '장소'}
                   </span>
-                </button>
+                </div>
               </div>
 
               {/* 다음 장소와의 구간 이동 트랙 & 상단 칩 */}

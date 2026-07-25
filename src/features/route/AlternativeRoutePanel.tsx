@@ -96,15 +96,15 @@ export default function AlternativeRoutePanel({
     scrollRef: scrollContainerRef,
     snap,
     setSnap,
-    minSnap: (windowHeight || 812) * 0.46,
-    defaultSnap: (windowHeight || 812) * 0.46,
+    minSnap: (windowHeight || 812) * 0.46 + 20,
+    defaultSnap: (windowHeight || 812) * 0.46 + 20,
     maxSnap: 1
   });
 
   const parsedSnap = parseSnapVal(snap);
   const snapPx = parsedSnap === 1
     ? windowHeight - 16
-    : (typeof snap === 'string' && snap.endsWith('vh') ? windowHeight * (parseFloat(snap) / 100) : parsedSnap);
+    : (typeof snap === 'string' && snap.endsWith('vh') ? windowHeight * (parseFloat(snap) / 100) + 20 : parsedSnap);
 
   const contentMaxHeight = isMobile && snapPx > 0
     ? `${snapPx - 120}px`
@@ -611,11 +611,10 @@ export default function AlternativeRoutePanel({
   );
 
   if (isMobile) {
+    const altHeight = windowHeight * 0.46 + 20;
     let currentSnapType: 'min' | 'default' | 'max' = 'default';
-    if (snap === '46vh' || snap === 0.46) currentSnapType = 'default';
+    if (snap === '46vh' || snap === 0.46 || (typeof snap === 'number' && Math.abs(snap - altHeight) < 5)) currentSnapType = 'default';
     else if (snap === 1 || snap === '1') currentSnapType = 'max';
-
-    const altHeight = windowHeight * 0.46;
 
     return (
       <>

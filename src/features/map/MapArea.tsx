@@ -585,9 +585,9 @@ export default function MapArea() {
         // 상세 안내 패널 상태에 따른 바텀 패딩 조절
         if (!!alternativeSegment) {
           if (guidePanelState === 'expanded') {
-            bottomPadding = windowHeight * 0.4 + 20; // 최대화 시 어차피 가려지므로 기존 40vh 유지하여 튀는 현상 방지
+            bottomPadding = windowHeight * 0.46 + 60; // 최대화 시 어차피 가려지므로 기존 높이 유지하여 튀는 현상 방지
           } else {
-            bottomPadding = windowHeight * 0.4 + 20; // 대안 경로 패널 기본 높이 (40vh)
+            bottomPadding = windowHeight * 0.46 + 60; // 대안 경로 패널 기본 높이 및 마커 안전 여유공간 고려
           }
         } else {
           if (guidePanelState === 'minimized') {
@@ -1214,7 +1214,7 @@ export default function MapArea() {
                   transition-all duration-200 ease-out
                   cursor-pointer select-none
                 "
-                title={focusedSegment ? "해당 이동 구간 보기" : "전체 여정 보기"}
+                title={(focusedSegment || alternativeSegment) ? "해당 이동 구간 보기" : "전체 여정 보기"}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

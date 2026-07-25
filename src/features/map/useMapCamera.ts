@@ -34,6 +34,7 @@ export function useMapCamera({
     setFocusedStep,
     alternativeSegment,
     setAlternativeSegment,
+    hoveredAlternativeRoute,
     recommendedPlaces,
     activeSearchPlace,
     isDrawerMaximized,
@@ -94,6 +95,24 @@ export function useMapCamera({
         
         lastFittedFocusBoundsRef.current = ''; // 강제로 업데이트를 유발하기 위해 캐시 초기화
         setFocusBounds({ ...bounds }); // trigger re-fit by spreading to create a new reference
+        setFocusedStep(null);
+        return;
+      }
+    }
+
+    // 대안 상세 상태 (alternativeSegment) 일 때도 해당 대안 경로(호버 중이거나 디폴트)를 기준으로 다시 fitBounds 수행
+    if (alternativeSegment) {
+      const originPlace = places.find(p => p.id === alternativeSegment.originId);
+      const destPlace = places.find(p => p.id === alternativeSegment.destId);
+      if (originPlace && destPlace) {
+        const cacheKey = `${originPlace.id}-${destPlace.id}`;
+        const segmentData = directionsCache[cacheKey];
+        const transportType = activeJourney?.transport_type || 'public';
+        const activeRoute = hoveredAlternativeRoute || getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+        const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+        
+        lastFittedFocusBoundsRef.current = '';
+        setFocusBounds({ ...bounds });
         setFocusedStep(null);
         return;
       }
@@ -241,6 +260,25 @@ export function useMapCamera({
     map.setCenter(targetLatLng);
     map.setZoom(15);
   }, [activeSearchPlace, map]);
+
+  // 6. 대안 상세 상태(alternativeSegment)에서 대안 경로(hoveredAlternativeRoute)가 변경될 때 지도의 focusBounds를 자동으로 피팅
+  useEffect(() => {
+    if (!alternativeSegment) return;
+
+    const originPlace = places.find(p => p.id === alternativeSegment.originId);
+    const destPlace = places.find(p => p.id === alternativeSegment.destId);
+    if (!originPlace || !destPlace) return;
+
+    const cacheKey = `${originPlace.id}-${destPlace.id}`;
+    const segmentData = directionsCache[cacheKey];
+    const transportType = activeJourney?.transport_type || 'public';
+    const activeRoute = hoveredAlternativeRoute || getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+
+    if (activeRoute) {
+      const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+      setFocusBounds({ ...bounds }); // trigger re-fit by spreading to create a new reference
+    }
+  }, [alternativeSegment, hoveredAlternativeRoute, places, directionsCache, activeJourney?.transport_type, setFocusBounds]);
 
   return {
     panToWithOffset,

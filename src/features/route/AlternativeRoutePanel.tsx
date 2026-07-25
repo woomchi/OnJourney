@@ -791,7 +791,7 @@ export default function AlternativeRoutePanel({
       className={`absolute bg-white border-t border-zinc-200 flex flex-col overflow-hidden z-[100] md:z-auto
         bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)]
         md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
-        md:h-auto
+        md:h-[calc(100%-48px)]
         ${animate
           ? 'md:translate-x-0 md:translate-y-0 opacity-100'
           : 'md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'

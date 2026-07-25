@@ -72,7 +72,7 @@ export default function FixedJourneyTimelineSheet({
   }, []);
 
   useEffect(() => {
-    const isHidden = !!alternativeSegment;
+    const isHidden = !!(focusedSegment || alternativeSegment);
     const targetY = isHidden
       ? (fullHeight > 0 ? fullHeight + 50 : 500)
       : (activeSnap === 'full' ? 0 : addButtonHeight);
@@ -83,7 +83,7 @@ export default function FixedJourneyTimelineSheet({
       damping: 30,
     });
     return () => controls.stop();
-  }, [activeSnap, addButtonHeight, y, alternativeSegment, fullHeight]);
+  }, [activeSnap, addButtonHeight, y, focusedSegment, alternativeSegment, fullHeight]);
 
   useEffect(() => {
     if (fullHeight > 0) {
@@ -123,22 +123,14 @@ export default function FixedJourneyTimelineSheet({
       const container = timelineContainerRef.current;
       const targetEl = cardRefs.current.get(key);
       if (container && targetEl) {
-        const containerRect = container.getBoundingClientRect();
-        const targetRect = targetEl.getBoundingClientRect();
-
-        // 1. Check if the card is already fully visible in the container's horizontal viewport
-        const isVisible = (targetRect.left >= containerRect.left + 16) && 
-                          (targetRect.right <= containerRect.right - 16);
-
-        // 2. Only scroll if it's not visible, and use instant behavior to prevent viewport shifting bugs
-        if (!isVisible) {
-          const relativeLeft = targetRect.left - containerRect.left;
-          const newScrollLeft = container.scrollLeft + relativeLeft - 16;
-          container.scrollTo({
-            left: Math.max(0, newScrollLeft),
-            behavior: 'auto',
-          });
-        }
+        const containerLeft = container.getBoundingClientRect().left;
+        const targetLeft = targetEl.getBoundingClientRect().left;
+        const relativeLeft = targetLeft - containerLeft;
+        const newScrollLeft = container.scrollLeft + relativeLeft - 16;
+        container.scrollTo({
+          left: Math.max(0, newScrollLeft),
+          behavior: 'smooth',
+        });
       }
     });
   };
@@ -401,8 +393,8 @@ export default function FixedJourneyTimelineSheet({
               </div>
 
               {/* 우측 대안 수단 버튼 (크기 확대) */}
-              <div
-                role="button"
+              <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   const isCurrentlyOpen = alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id;
@@ -445,7 +437,7 @@ export default function FixedJourneyTimelineSheet({
                   isActive={alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id}
                   className="w-4 h-4"
                 />
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -477,7 +469,7 @@ export default function FixedJourneyTimelineSheet({
         zIndex: 100,
         borderTopLeftRadius: '24px',
         borderTopRightRadius: '24px',
-        pointerEvents: alternativeSegment ? 'none' : 'auto',
+        pointerEvents: (focusedSegment || alternativeSegment) ? 'none' : 'auto',
       }}
       className="md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/90 shadow-[0_-4px_24px_rgba(0,0,0,0.12)] flex flex-col"
     >
@@ -709,27 +701,27 @@ export default function FixedJourneyTimelineSheet({
                   )}
 
                   {/* 핀 버튼 (노드 테마 컬러스킴 적용) */}
-                  <div
+                  <button
                     ref={(el) => {
                       const key = `place-${place.id}`;
-                      if (el) cardRefs.current.set(key, el as any);
+                      if (el) cardRefs.current.set(key, el);
                       else cardRefs.current.delete(key);
                     }}
-                    role="button"
+                    type="button"
                     onClick={() => handlePlaceClick(place)}
-                    className="relative z-10 w-7 h-7 rounded-full text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95 select-none"
+                    className="relative z-10 w-7 h-7 rounded-full text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
                     style={{ backgroundColor: placeTheme.color }}
                     title={`${place.place_name} (${place.address || ''})`}
                   >
                     <span className="text-[11px] font-black leading-none">{idx + 1}</span>
-                  </div>
+                  </button>
                 </div>
 
                 {/* 하단: 장소 이름 및 아래 배치된 장소 태그/카테고리 */}
-                <div
-                  role="button"
+                <button
+                  type="button"
                   onClick={() => handlePlaceClick(place)}
-                  className="flex flex-col items-center justify-start h-[36px] w-full text-center px-0.5 cursor-pointer group select-none"
+                  className="flex flex-col items-center justify-start h-[36px] w-full text-center px-0.5 cursor-pointer group"
                 >
                   <span className="truncate text-[12px] font-bold text-zinc-900 group-hover:text-blue-600 transition-colors leading-tight max-w-full">
                     {place.place_name}
@@ -737,7 +729,7 @@ export default function FixedJourneyTimelineSheet({
                   <span className="truncate text-[9.5px] text-zinc-400 font-medium leading-tight max-w-full mt-0.5">
                     {categoryLabel || shortAddress || '장소'}
                   </span>
-                </div>
+                </button>
               </div>
 
               {/* 다음 장소와의 구간 이동 트랙 & 상단 칩 */}

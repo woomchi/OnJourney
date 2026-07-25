@@ -61,6 +61,7 @@ interface PlaceCardProps {
   onToggleSelect: () => void;
   nextPlace: Place | null;
   transportType: 'public' | 'car' | 'walk';
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export default function PlaceCard({
@@ -72,6 +73,7 @@ export default function PlaceCard({
   onToggleSelect,
   nextPlace,
   transportType,
+  scrollContainerRef,
 }: PlaceCardProps) {
   const {
     activeJourney,
@@ -136,23 +138,46 @@ export default function PlaceCard({
 
       if (isCurrentlyFocused && cardRef.current) {
         setTimeout(() => {
-          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const container = scrollContainerRef?.current;
+          const element = cardRef.current;
+          if (container && element) {
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+            const relativeTop = elementRect.top - containerRect.top;
+            const targetScrollTop = container.scrollTop + relativeTop - (container.clientHeight / 2) + (element.clientHeight / 2);
+            container.scrollTo({
+              top: Math.max(0, targetScrollTop),
+              behavior: 'smooth'
+            });
+          } else {
+            cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
         }, 50);
       }
       
       if (wasFocusedRef.current && !isCurrentlyFocused && !focusedSegment && !focusedStep && cardRef.current) {
         const scrollBlock = isDrawerMaximized ? 'nearest' : 'center';
         setTimeout(() => {
-          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: scrollBlock });
+          const container = scrollContainerRef?.current;
+          const element = cardRef.current;
+          if (container && element) {
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+            const relativeTop = elementRect.top - containerRect.top;
+            const targetScrollTop = container.scrollTop + relativeTop - (container.clientHeight / 2) + (element.clientHeight / 2);
+            container.scrollTo({
+              top: Math.max(0, targetScrollTop),
+              behavior: 'smooth'
+            });
+          } else {
+            cardRef.current?.scrollIntoView({ behavior: 'smooth', block: scrollBlock });
+          }
         }, 50);
-        setTimeout(() => {
-          cardRef.current?.scrollIntoView({ behavior: 'smooth', block: scrollBlock });
-        }, 400);
       }
       
       wasFocusedRef.current = !!isCurrentlyFocused;
     }
-  }, [focusedSegment, focusedStep, place.id, nextPlace?.id, editMode, isDrawerMaximized]);
+  }, [focusedSegment, focusedStep, place.id, nextPlace?.id, editMode, isDrawerMaximized, scrollContainerRef]);
 
   const queryClient = useQueryClient();
   const places = activeJourney?.places ?? [];

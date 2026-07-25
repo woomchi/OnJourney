@@ -210,6 +210,7 @@ export default function PlaceList({
                     onToggleSelect={() => onToggleSelect(place.id)}
                     nextPlace={idx < localPlaces.length - 1 ? localPlaces[idx + 1] : null}
                     transportType={transportType}
+                    scrollContainerRef={scrollRef}
                   />
                 ))}
               </SortableContext>

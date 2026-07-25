@@ -108,23 +108,23 @@ export default function SegmentInfo({ data, loading, index, placeId, destId }: S
   const destPlace = places.find(p => p.id === destId);
 
   const getTransportIcon = (tType: string, steps: any[] = []) => {
-    if (tType === 'car' || tType === 'taxi') return <Car className="w-3.5 h-3.5" />;
-    if (tType === 'walk') return <Footprints className="w-3.5 h-3.5" />;
+    if (tType === 'car' || tType === 'taxi') return <Car className="w-7 h-7" />;
+    if (tType === 'walk') return <Footprints className="w-7 h-7" />;
 
     const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
     const hasBus = steps.some((s: any) => s.type === 'bus' || s.type === 'expressbus');
 
     if (hasSubway && hasBus) {
       return (
-        <div className="flex items-center gap-0.5">
-          <Bus className="w-3.5 h-3.5" />
-          <Train className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1">
+          <Bus className="w-7 h-7" />
+          <Train className="w-7 h-7" />
         </div>
       );
     }
-    if (hasSubway) return <Train className="w-3.5 h-3.5" />;
-    if (hasBus) return <Bus className="w-3.5 h-3.5" />;
-    return <Bus className="w-3.5 h-3.5" />;
+    if (hasSubway) return <Train className="w-7 h-7" />;
+    if (hasBus) return <Bus className="w-7 h-7" />;
+    return <Bus className="w-7 h-7" />;
   };
 
   return (
@@ -137,7 +137,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId }: S
     >
       {/* 1. 이동 요약 정보 (가로형 요약 바 스타일 + 요약 카드 내 버튼 포함) */}
       <div className="flex items-center justify-between w-full min-w-0 gap-2">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="flex items-center gap-3.5 min-w-0 flex-1">
           {/* 수단 아이콘 (구간 별 테마 컬러스킴 적용) */}
           <div
             style={
@@ -145,25 +145,25 @@ export default function SegmentInfo({ data, loading, index, placeId, destId }: S
                 ? { backgroundColor: segmentColor, color: '#FFFFFF' }
                 : { backgroundColor: `${segmentColor}12`, color: segmentColor }
             }
-            className="w-6.5 h-6.5 rounded-full flex items-center justify-center shrink-0 transition-colors duration-200"
+            className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-colors duration-200"
           >
             {getTransportIcon(type, data.steps)}
           </div>
 
           {/* 소요 시간, 환승 정보, 요금 요약 */}
           <div className="flex flex-col min-w-0 leading-tight">
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold tracking-tight text-[13.5px] text-zinc-800">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold tracking-tight text-[24px] text-zinc-800">
                 {duration || '이동'}
               </span>
               {formattedDistance && (
-                <span className="text-[11px] text-zinc-400 font-semibold border-l border-zinc-200 pl-1.5">
+                <span className="text-[19px] text-zinc-400 font-semibold border-l border-zinc-200 pl-2">
                   {formattedDistance}
                 </span>
               )}
             </div>
             
-            <div className="flex items-center gap-1 text-[10.5px] font-bold text-zinc-400 mt-0.5">
+            <div className="flex items-center gap-1.5 text-[17.5px] font-bold text-zinc-400 mt-1">
               <span className={isThisSegmentFocused ? 'text-blue-600/90' : 'text-zinc-500'}>
                 {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
               </span>

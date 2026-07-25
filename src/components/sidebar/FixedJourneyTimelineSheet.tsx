@@ -299,7 +299,7 @@ export default function FixedJourneyTimelineSheet({
     return (
       <div
         key={`segment-wrap-${origin.id}-${dest.id}`}
-        className="relative flex flex-col justify-between w-[128px] shrink-0 h-[100px] px-1 select-none"
+        className="relative flex flex-col justify-between w-[140px] shrink-0 h-[100px] px-1 select-none"
       >
         {/* 1. 상단 스페이서 (32px) */}
         <div className="h-[32px] w-full shrink-0" />
@@ -328,7 +328,7 @@ export default function FixedJourneyTimelineSheet({
                 else cardRefs.current.delete(key);
               }}
               onClick={() => handleSegmentClick(origin, dest, route)}
-              className={`relative z-10 px-2 py-1.5 rounded-xl flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-xs border w-[118px] h-[80px] ${
+              className={`relative z-10 px-2 py-1.5 rounded-xl flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-xs border w-[130px] h-[86px] ${
                 isFocused
                   ? 'bg-zinc-950 text-white border-zinc-950 shadow-md scale-105'
                   : 'bg-white text-zinc-800 border-zinc-200 hover:border-zinc-350 hover:bg-zinc-50'
@@ -336,16 +336,16 @@ export default function FixedJourneyTimelineSheet({
               title={`${origin.place_name} → ${dest.place_name} 이동정보`}
             >
               {/* 좌측 정보 영역 (수직으로 쌓음) */}
-              <div className="flex flex-col items-start justify-center min-w-0 flex-1 leading-tight gap-0.5">
+              <div className="flex flex-col items-start justify-center min-w-0 flex-1 leading-tight gap-1">
                 {/* 1행: 수단 아이콘 + 소요 시간 */}
-                <div className="flex items-center gap-1 font-extrabold text-[11px] w-full">
+                <div className="flex items-center gap-1 font-extrabold text-[13px] w-full">
                   <span 
                     style={{ color: isFocused ? '#FFFFFF' : theme.hex }}
                     className="shrink-0"
                   >
                     {(() => {
-                      if (type === 'car') return <Car className="w-3.5 h-3.5" />;
-                      if (type === 'walk') return <Footprints className="w-3.5 h-3.5" />;
+                      if (type === 'car') return <Car className="w-4 h-4" />;
+                      if (type === 'walk') return <Footprints className="w-4 h-4" />;
 
                       const steps = route?.steps || [];
                       const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
@@ -354,21 +354,21 @@ export default function FixedJourneyTimelineSheet({
                       if (hasSubway && hasBus) {
                         return (
                           <div className="flex items-center gap-0.5">
-                            <Bus className="w-3 h-3" />
-                            <Train className="w-3 h-3" />
+                            <Bus className="w-3.5 h-3.5" />
+                            <Train className="w-3.5 h-3.5" />
                           </div>
                         );
                       }
-                      if (hasSubway) return <Train className="w-3.5 h-3.5" />;
-                      if (hasBus) return <Bus className="w-3.5 h-3.5" />;
-                      return <Bus className="w-3.5 h-3.5" />;
+                      if (hasSubway) return <Train className="w-4 h-4" />;
+                      if (hasBus) return <Bus className="w-4 h-4" />;
+                      return <Bus className="w-4 h-4" />;
                     })()}
                   </span>
                   <span className="truncate">{duration || '이동'}</span>
                 </div>
                 
                 {/* 2행: 환승 정보 */}
-                <span className={`text-[8.5px] font-extrabold leading-none truncate max-w-full ${isFocused ? 'text-white/70' : 'text-zinc-500'}`}>
+                <span className={`text-[10.5px] font-extrabold leading-none truncate max-w-full ${isFocused ? 'text-white/70' : 'text-zinc-500'}`}>
                   {type === 'public' ? (
                     route?.steps ? `환승 ${Math.max(0, route.steps.filter((s: any) => s.type !== 'walk').length - 1)}회` : '대중교통'
                   ) : type === 'car' ? (
@@ -379,7 +379,7 @@ export default function FixedJourneyTimelineSheet({
                 </span>
 
                 {/* 3행: 요금 정보 */}
-                <span className={`text-[8.5px] font-bold leading-none truncate max-w-full ${isFocused ? 'text-white/60' : 'text-zinc-400'}`}>
+                <span className={`text-[10.5px] font-bold leading-none truncate max-w-full ${isFocused ? 'text-white/60' : 'text-zinc-400'}`}>
                   {type === 'car' ? (
                     route?.taxiFare ? `택시 ${Math.round(route.taxiFare / 1000)}k` : '비용 미정'
                   ) : type === 'walk' ? (

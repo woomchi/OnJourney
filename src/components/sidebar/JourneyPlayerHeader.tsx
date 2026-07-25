@@ -188,11 +188,11 @@ export default function JourneyPlayerHeader({
           bottomSheet.dragControls.start(e);
         }
       }}
-      className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-1' : 'pt-1'}`}
+      className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-0.5' : 'pt-1'}`}
     >
       {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
       {!isSearchMode && (
-        <div className={`absolute top-1 left-2 z-20`}>
+        <div className={`absolute top-0.5 left-2 z-20`}>
           <button
             type="button"
             onClick={() => {
@@ -217,7 +217,7 @@ export default function JourneyPlayerHeader({
 
       {/* 오른쪽 상단 모서리: 편집 및 동기화 */}
       {!isSearchMode && (
-        <div className={`absolute top-1 right-2 z-20 flex justify-end items-center gap-1`}>
+        <div className={`absolute top-0.5 right-2 z-20 flex justify-end items-center gap-1`}>
           {isSyncing && (
             <div className="flex items-center" title="클라우드 동기화 중">
               <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
@@ -253,7 +253,7 @@ export default function JourneyPlayerHeader({
       )}
 
       {/* 중앙 바: 여정 정보 수정 영역 (제목, 날짜, 이동수단 정보 전체 포함 수정 영역) */}
-      <div className="w-full flex justify-center px-14 pt-0.5 min-w-0">
+      <div className="w-full flex justify-center px-14 pt-0 min-w-0">
         <button
           type="button"
           onClick={() => setIsEditModalOpen(true)}

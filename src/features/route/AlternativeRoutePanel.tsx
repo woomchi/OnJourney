@@ -85,7 +85,7 @@ export default function AlternativeRoutePanel({
     setHoveredAlternativeRoute,
   } = useJourneyStore();
 
-  const [snap, setSnap] = useState<number | string | null>('40vh');
+  const [snap, setSnap] = useState<number | string | null>('46vh');
   const Scroller = 'div';
 
   const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
@@ -96,8 +96,8 @@ export default function AlternativeRoutePanel({
     scrollRef: scrollContainerRef,
     snap,
     setSnap,
-    minSnap: (windowHeight || 812) * 0.4,
-    defaultSnap: (windowHeight || 812) * 0.4,
+    minSnap: (windowHeight || 812) * 0.46,
+    defaultSnap: (windowHeight || 812) * 0.46,
     maxSnap: 1
   });
 
@@ -413,27 +413,20 @@ export default function AlternativeRoutePanel({
 
   const headerContent = (
     <>
-      <div className="px-4 pb-4 border-b border-zinc-100 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
+      <div className="px-4 pt-1.5 pb-3 border-b border-zinc-100 flex flex-col gap-2.5">
+        {/* 1층: 취소 / 변경 버튼을 양쪽 끝 엣지 영역에 가깝게 배치 */}
+        <div className="flex items-center justify-between w-full px-1">
           <button
             type="button"
             onClick={() => {
               setHoveredAlternativeRoute(null);
               onClose(true);
             }}
-            className="px-3 py-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+            className="px-2.5 py-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
             onPointerDown={(e) => e.stopPropagation()}
           >
             취소
           </button>
-
-          <h3 className="text-sm font-extrabold text-zinc-800 flex items-center justify-center gap-1.5 truncate">
-            <span className="truncate max-w-[100px]" title={originPlace.place_name}>{originPlace.place_name}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3 text-zinc-400 flex-shrink-0">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-            </svg>
-            <span className="truncate max-w-[100px]" title={destPlace.place_name}>{destPlace.place_name}</span>
-          </h3>
 
           <button
             type="button"
@@ -459,47 +452,73 @@ export default function AlternativeRoutePanel({
               setHoveredAlternativeRoute(null);
               onClose();
             }}
-            className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="px-2.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors cursor-pointer"
             onPointerDown={(e) => e.stopPropagation()}
           >
             변경
           </button>
         </div>
+
+        {/* 2층: 중앙에 고정된 화살표와 좌우 균등 분할된 출발/도착지 텍스트 박스 */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center w-full mt-0.5 px-1">
+          {/* 출발지 (왼쪽 영역 중앙 정렬) */}
+          <div className="flex justify-center min-w-0 pr-1">
+            <span className="text-sm font-extrabold text-zinc-800 truncate" title={originPlace.place_name}>
+              {originPlace.place_name}
+            </span>
+          </div>
+          
+          {/* 화살표 아이콘 (정중앙 고정) */}
+          <div className="flex items-center justify-center px-1 flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3.5 h-3.5 text-zinc-400">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+          </div>
+          
+          {/* 도착지 (오른쪽 영역 중앙 정렬) */}
+          <div className="flex justify-center min-w-0 pl-1">
+            <span className="text-sm font-extrabold text-zinc-800 truncate" title={destPlace.place_name}>
+              {destPlace.place_name}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <div className="px-5 pt-4 pb-2 flex-shrink-0 flex flex-col gap-2">
-        <div className="flex bg-zinc-50 p-1 rounded-xl border border-zinc-100">
-          {(['public', 'car', 'walk'] as const).map((tab) => {
-            const label = tab === 'public' ? '대중교통' : tab === 'car' ? '차량' : '도보';
-            const isActive = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab);
-                  setActiveSubTab('추천');
-                  setDisplayLimit(3);
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-                className={`
-                  flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer
-                  ${isActive
-                    ? 'bg-white text-blue-600 shadow-sm border border-zinc-200'
-                    : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100/50 border border-transparent'
-                  }
-                `}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+      <div className={`px-5 ${isMobile ? 'pt-1.5 pb-1' : 'pt-4 pb-2'} flex-shrink-0 flex flex-col gap-1.5`}>
+        {!isMobile && (
+          <div className="flex bg-zinc-50 p-1 rounded-xl border border-zinc-100">
+            {(['public', 'car', 'walk'] as const).map((tab) => {
+              const label = tab === 'public' ? '대중교통' : tab === 'car' ? '차량' : '도보';
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setActiveSubTab('추천');
+                    setDisplayLimit(3);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className={`
+                    flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer
+                    ${isActive
+                      ? 'bg-white text-blue-600 shadow-sm border border-zinc-200'
+                      : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100/50 border border-transparent'
+                    }
+                  `}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {activeTab === 'public' && subTabs.length > 1 && (
           <div onPointerDown={(e) => e.stopPropagation()}>
             <ScrollContainer
-              className="flex items-center gap-1.5 pb-1.5 pt-0.5 cursor-grab"
+              className="flex items-center gap-1.5 pb-1 pt-0 cursor-grab"
               horizontal
               vertical={false}
               hideScrollbars
@@ -519,7 +538,7 @@ export default function AlternativeRoutePanel({
                     })}
                     onPointerDown={(e) => e.stopPropagation()}
                     className={`
-                      flex-shrink-0 px-3 py-1.5 text-[11px] font-bold rounded-full transition-all duration-200 border cursor-pointer flex items-center gap-1
+                      flex-shrink-0 px-2.5 py-1 text-[10.5px] font-bold rounded-full transition-all duration-200 border cursor-pointer flex items-center gap-1
                       ${activeSubTab === subTab
                         ? 'bg-zinc-800 text-white border-zinc-800 shadow-sm'
                         : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
@@ -545,7 +564,7 @@ export default function AlternativeRoutePanel({
       {...listProps}
       ref={scrollContainerRef}
       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative bg-white px-5 pt-1"
-      style={{ paddingBottom: '2.5rem', maxHeight: contentMaxHeight }}
+      style={{ paddingBottom: isMobile ? '7.5rem' : '2.5rem', maxHeight: contentMaxHeight }}
       onPointerDown={isMobile ? handlePointerDown : undefined}
       onTouchStart={isMobile ? handleTouchStart : undefined}
       onTouchMove={isMobile ? handleTouchMove : undefined}
@@ -593,34 +612,71 @@ export default function AlternativeRoutePanel({
 
   if (isMobile) {
     let currentSnapType: 'min' | 'default' | 'max' = 'default';
-    if (snap === '40vh' || snap === 0.4) currentSnapType = 'default';
+    if (snap === '46vh' || snap === 0.46) currentSnapType = 'default';
     else if (snap === 1 || snap === '1') currentSnapType = 'max';
 
-    const altHeight = windowHeight * 0.4;
+    const altHeight = windowHeight * 0.46;
 
     return (
-      <CustomBottomSheet
-        isOpen={isOpen}
-        minHeight={altHeight}
-        defaultHeight={altHeight}
-        maxHeight={windowHeight - 16}
-        initialSnap={currentSnapType}
-        zIndex={45}
-        onSnap={(snapName) => {
-          if (snapName === 'min' || snapName === 'default') setSnap('40vh');
-          else if (snapName === 'max') setSnap(1);
-        }}
-        onClose={() => {
-          onClose();
-        }}
-        onExited={onExited}
-        headerContent={headerContent}
-      >
-        <FloatingButtonsContainer altHeight={altHeight} />
-        <div className="flex flex-col relative w-full h-full min-h-0 pb-[60px] bg-white">
-          {listContent}
-        </div>
-      </CustomBottomSheet>
+      <>
+        <CustomBottomSheet
+          isOpen={isOpen}
+          minHeight={altHeight}
+          defaultHeight={altHeight}
+          maxHeight={windowHeight - 16}
+          initialSnap={currentSnapType}
+          zIndex={45}
+          onSnap={(snapName) => {
+            if (snapName === 'min' || snapName === 'default') setSnap('46vh');
+            else if (snapName === 'max') setSnap(1);
+          }}
+          onClose={() => {
+            onClose();
+          }}
+          onExited={onExited}
+        >
+          <FloatingButtonsContainer altHeight={altHeight} />
+          <div className="flex flex-col relative w-full h-full min-h-0 pb-[60px] bg-white">
+            {headerContent}
+            {listContent}
+          </div>
+        </CustomBottomSheet>
+
+        {/* 바텀 시트 위에 독립적으로 떠 있는 플로팅 탭 바 */}
+        {isOpen && (
+          <div 
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[46] flex bg-white/95 backdrop-blur-md p-1.5 rounded-full border border-zinc-200/80 shadow-[0_8px_30px_rgba(0,0,0,0.15)] min-w-[300px] justify-between pointer-events-auto"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {(['public', 'car', 'walk'] as const).map((tab) => {
+              const label = tab === 'public' ? '대중교통' : tab === 'car' ? '차량' : '도보';
+              const icon = tab === 'public' ? '🚌' : tab === 'car' ? '🚗' : '🚶';
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setActiveSubTab('추천');
+                    setDisplayLimit(3);
+                  }}
+                  className={`
+                    flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer
+                    ${isActive
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-150/40'
+                    }
+                  `}
+                >
+                  <span>{icon}</span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </>
     );
   }
 

@@ -297,7 +297,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         {headerContent && (
           <div
             onPointerDown={(e) => dragControls.start(e)}
-            className="w-full flex flex-col items-center cursor-grab active:cursor-grabbing select-none flex-shrink-0 bg-white"
+            className="w-full flex flex-col cursor-grab active:cursor-grabbing select-none flex-shrink-0 bg-white"
             style={{ touchAction: 'none' }}
           >
             {headerContent}

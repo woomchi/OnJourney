@@ -13,6 +13,7 @@ import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import { getDefaultRoute } from '@/lib/routeUtils';
+import FittedDuration from '@/components/places/FittedDuration';
 
 interface AlternativeRoutePanelProps {
   originPlace: Place;
@@ -331,6 +332,19 @@ export default function AlternativeRoutePanel({
     const emoji = getEmoji(route.type, route.name);
     const tags = routeTags ? (routeTags[route.id] || []) : [];
 
+    // Calculate sum of steps
+    const validSteps = route.steps?.filter(s => s.duration > 0) || [];
+
+    // Calculate percentage widths using a power-curve to compress proportions (same as Web SegmentInfo.tsx)
+    const COMPRESS_POWER = 0.3;
+    const MIN_PCT = 12; // minimum percentage for any step
+    const compressed = validSteps.map(s => Math.pow(Math.max(s.duration, 1), COMPRESS_POWER));
+    const compressedTotal = compressed.reduce((a, b) => a + b, 0) || 1;
+    const rawPcts = compressed.map(c => (c / compressedTotal) * 100);
+    const clampedPcts = rawPcts.map(p => Math.max(p, MIN_PCT));
+    const clampedSum = clampedPcts.reduce((a, b) => a + b, 0);
+    const normalizedPcts = clampedPcts.map(p => (p / clampedSum) * 100);
+
     return (
       <button
         key={route.id}
@@ -339,74 +353,151 @@ export default function AlternativeRoutePanel({
           setHoveredPreviewRoute(route);
         })}
         className={`
-          flex items-center justify-between w-full py-2 px-3 min-h-[48px] rounded-xl border transition-all duration-200 text-left cursor-pointer group
+          flex flex-col w-full py-3.5 px-4 rounded-xl border transition-all duration-200 text-left cursor-pointer group gap-3
           ${isSelected
             ? 'border-blue-400 bg-blue-50/80 shadow-[0_2px_10px_rgba(59,130,246,0.12)]'
             : 'border-zinc-100 bg-white hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-sm'
           }
         `}
       >
-        {/* Left: Icon and Name/Fare */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="relative flex-shrink-0">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors ${isSelected ? 'bg-white shadow-sm' : 'bg-zinc-50 group-hover:bg-white group-hover:shadow-sm'}`}>
+        {/* Top Section: Duration, Fare, Icon, Tags */}
+        <div className="flex items-center justify-between w-full min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0 transition-colors ${isSelected ? 'bg-white shadow-sm' : 'bg-zinc-50 group-hover:bg-white group-hover:shadow-sm'}`}>
               {emoji}
             </div>
-            {isSelected && (
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shadow-sm border-2 border-blue-50">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-white">
+            <div className="flex flex-col min-w-0 justify-center">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className={`text-sm font-black tracking-tight ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
+                  {route.duration}분
+                </span>
+                {tags.map(tag => (
+                  <span key={tag} className="px-1.5 py-[2px] text-[9px] font-extrabold rounded bg-blue-50 text-blue-600 whitespace-nowrap">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              {activeTab === 'car' ? (
+                <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
+                  택시 {route.taxiFare?.toLocaleString()}원 {route.fare > 0 ? `(통행료 ${route.fare.toLocaleString()}원)` : '(통행료 무료)'}
+                </span>
+              ) : activeTab === 'walk' ? (
+                <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
+                  무료
+                </span>
+              ) : (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? (
+                <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
+                  예매처 확인
+                </span>
+              ) : route.fare > 0 ? (
+                <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
+                  {route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}
+                </span>
+              ) : (
+                <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
+                  요금 정보 없음
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Right side check mark or arrow */}
+          <div className="flex-shrink-0 ml-2">
+            {isSelected ? (
+              <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white">
                   <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                </svg>
+              </div>
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-zinc-50 flex items-center justify-center border border-zinc-150 text-zinc-400 group-hover:border-zinc-300 group-hover:text-zinc-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                  <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
                 </svg>
               </div>
             )}
           </div>
-          <div className="flex flex-col min-w-0 justify-center flex-1 pr-2">
-            <span className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-blue-700' : 'text-zinc-800 group-hover:text-blue-600'}`}>
-              {route.name.replace(/\s*\+\s*/g, ' → ')}
-            </span>
-            {activeTab === 'car' ? (
-              <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
-                택시 {route.taxiFare?.toLocaleString()}원 {route.fare > 0 ? `(통행료 ${route.fare.toLocaleString()}원)` : '(통행료 무료)'}
-              </span>
-            ) : activeTab === 'walk' ? (
-              <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
-                무료
-              </span>
-            ) : (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? (
-              <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
-                예매처 확인
-              </span>
-            ) : route.fare > 0 ? (
-              <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
-                {route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}
-              </span>
-            ) : (
-              <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
-                요금 정보 없음
-              </span>
-            )}
-          </div>
         </div>
 
-        {/* Right: Tags & Duration */}
-        <div className="flex items-center gap-3 flex-shrink-0 ml-2">
-          {/* Tags Grid */}
-          {tags.length > 0 && (
-            <div className="grid grid-cols-2 gap-1 flex-shrink-0">
-              {tags.map(tag => (
-                <span key={tag} className="px-1.5 py-[3px] text-[9px] font-extrabold rounded bg-blue-50 text-blue-600 whitespace-nowrap text-center">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
+        {/* Bottom Section: Gauge Timeline Bar (Web SegmentInfo Style Unified) */}
+        {validSteps.length > 0 && (
+          <div className="w-full flex mt-1.5 mb-1 relative" style={{ paddingLeft: '8px', paddingRight: '4px' }}>
+            {validSteps.map((step, idx) => {
+              const pct = normalizedPcts[idx];
+              const isFirst = idx === 0;
+              const isLast = idx === validSteps.length - 1;
+              const isWalk = step.type === 'walk';
+              const stepColor = step.color || (isWalk ? '#E4E4E7' : '#3b82f6');
 
-          <div className="flex flex-col items-end min-w-[32px]">
-            <span className={`text-[13px] font-black tracking-tight ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
-              {route.duration}분
-            </span>
+              let icon = '🚶';
+              if (step.type === 'subway') icon = '🚇';
+              else if (step.type === 'bus') icon = '🚌';
+              else if (step.type === 'car') icon = '🚗';
+              else if (step.type === 'train') icon = '🚄';
+              else if (step.type === 'expressbus') icon = '🚌';
+              else if (step.type === 'taxi') icon = '🚕';
+
+              return (
+                <div
+                  key={idx}
+                  className="flex flex-col items-stretch min-w-0 relative"
+                  style={{
+                    width: `${pct}%`,
+                    flexShrink: 0,
+                    flexGrow: 0,
+                  }}
+                >
+                  {/* 아이콘 백그라운드 컷아웃 */}
+                  <div
+                    className="absolute left-0 -translate-x-1/2 bg-white rounded-full z-[15]"
+                    style={{ width: '18px', height: '18px', top: '-3px' }}
+                  />
+
+                  {/* 아이콘 */}
+                  <div
+                    className="absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20"
+                    style={{
+                      borderColor: stepColor,
+                      width: '14px',
+                      height: '14px',
+                      top: '-1px',
+                    }}
+                  >
+                    <span className="text-[8px] leading-none">{icon}</span>
+                  </div>
+
+                  {/* 타임라인 바 조각 */}
+                  <div
+                    className="relative flex items-center justify-center h-3 overflow-hidden"
+                    style={{
+                      backgroundColor: stepColor,
+                      borderTopLeftRadius: isFirst ? '9999px' : '0px',
+                      borderBottomLeftRadius: isFirst ? '9999px' : '0px',
+                      borderTopRightRadius: isLast ? '9999px' : '0px',
+                      borderBottomRightRadius: isLast ? '9999px' : '0px',
+                      zIndex: 1,
+                    }}
+                  >
+                    <FittedDuration duration={step.duration} isWalk={isWalk} />
+                  </div>
+
+                  {/* 하단 노선명 텍스트 */}
+                  <div className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden">
+                    {step.type !== 'walk' ? (
+                      <span style={{ color: stepColor }} className="truncate">
+                        {step.type === 'subway'
+                          ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
+                          : step.name.replace(' 버스', '').replace(' 일반', '').replace(' 간선', '').replace(' 지선', '')}
+                      </span>
+                    ) : (
+                      <span className="invisible">&nbsp;</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </button>
     );
   };
@@ -644,7 +735,7 @@ export default function AlternativeRoutePanel({
         {/* 바텀 시트 위에 독립적으로 떠 있는 플로팅 탭 바 */}
         {isOpen && (
           <div 
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[46] flex bg-white/95 backdrop-blur-md p-1.5 rounded-full border border-zinc-200/80 shadow-[0_8px_30px_rgba(0,0,0,0.15)] min-w-[300px] justify-between pointer-events-auto"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[46] flex bg-white/95 backdrop-blur-md p-1 rounded-full border border-blue-100/80 shadow-[0_12px_32px_rgba(0,0,0,0.12),_0_4px_12px_rgba(0,0,0,0.06)] min-w-[310px] justify-between pointer-events-auto"
             onPointerDown={(e) => e.stopPropagation()}
           >
             {(['public', 'car', 'walk'] as const).map((tab) => {
@@ -661,15 +752,22 @@ export default function AlternativeRoutePanel({
                     setDisplayLimit(3);
                   }}
                   className={`
-                    flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer
+                    relative flex items-center justify-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-full transition-colors duration-200 cursor-pointer select-none min-w-[96px]
                     ${isActive
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-150/40'
+                      ? 'text-white'
+                      : 'text-zinc-500 hover:text-zinc-800 active:bg-zinc-150/40'
                     }
                   `}
                 >
-                  <span>{icon}</span>
-                  <span>{label}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeAlternativeTab"
+                      className="absolute inset-0 bg-blue-600 rounded-full z-0 shadow-[0_2px_8px_rgba(37,99,235,0.3)]"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 text-[13px]">{icon}</span>
+                  <span className="relative z-10">{label}</span>
                 </button>
               );
             })}

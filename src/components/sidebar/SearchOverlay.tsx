@@ -30,7 +30,7 @@ function calculateScore(item: PlaceResult, index: number, query: string, targetL
   // 1. 이름 완벽 일치 (최고 우선순위)
   if (placeName === searchQ) {
     score += 100000;
-  } 
+  }
   // 2. 본점/직영점 가산점 (고유명사 검색 시 본점이 최상위로 오도록 압도적 우대)
   else if (placeName.includes('본점') || placeName.includes('직영점')) {
     score += 80000;
@@ -44,9 +44,9 @@ function calculateScore(item: PlaceResult, index: number, query: string, targetL
     score += 10000;
   }
 
-  // 5. 여행객 기피 시설 패널티 (배달전문, 포장전문, 물류센터 등)
+  // 5. 여행객 숙소 안주 관련 시설 (배달전문, 포장전문)
   if (placeName.includes('배달') || placeName.includes('포장') || placeName.includes('테이크아웃') || placeName.includes('물류')) {
-    score -= 500000; // 절대 상위권에 노출되지 않도록 막대한 페널티
+    score += 10000;
   }
 
   // 6. 카카오 원본 순위(인기도/정확도) 가점 (1등: 4500점 ~ 45등: 100점)
@@ -67,12 +67,12 @@ function getDistrictPrefix(address: string) {
   if (!address) return '';
   const parts = address.trim().split(/\s+/);
   if (parts.length === 0) return '';
-  
+
   const first = parts[0];
   // '도' 단위인 경우 (경기, 강원, 충남, 제주 등)
-  const isProvince = first.endsWith('도') || 
+  const isProvince = first.endsWith('도') ||
     ['경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'].includes(first);
-    
+
   if (isProvince && parts.length >= 2) {
     // 도 단위는 시/군까지 묶어야 의미 있는 생활권이 됨 (예: "경기 성남시", "강원 영월군")
     return parts.slice(0, 2).join(' ');
@@ -134,7 +134,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       if (saved) {
         try {
           setRecentQueries(JSON.parse(saved));
-        } catch (e) {}
+        } catch (e) { }
       }
     }
   }, []);
@@ -147,7 +147,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         const elRect = el.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         const offsetTop = elRect.top - containerRect.top;
-        
+
         container.scrollTo({
           top: container.scrollTop + offsetTop - 4, // 4px top padding
           behavior: 'smooth'
@@ -248,7 +248,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}`);
         if (currentSearchId !== activeSearchId.current) return;
         const fallbackPayload = await fallbackRes.json();
-        
+
         if (fallbackRes.ok && fallbackPayload.success && fallbackPayload.data?.items && fallbackPayload.data.items.length > 0) {
           // 기존 로컬 결과와 전국망 결과를 합친 후 중복 제거
           const newItems = fallbackPayload.data.items as PlaceResult[];
@@ -369,7 +369,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       }
       return;
     }
-    
+
     const place: Place = {
       id: item.id,
       place_name: item.place_name,
@@ -442,8 +442,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         </div>
       </div>
       {/* 검색 결과 리스트 */}
-      <div 
-        id="search-results-container" 
+      <div
+        id="search-results-container"
         className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-sidebar relative"
       >
         {searchError ? (

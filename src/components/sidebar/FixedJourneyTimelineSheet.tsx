@@ -72,7 +72,7 @@ export default function FixedJourneyTimelineSheet({
   }, []);
 
   useEffect(() => {
-    const isHidden = !!(focusedSegment || alternativeSegment);
+    const isHidden = !!alternativeSegment;
     const targetY = isHidden
       ? (fullHeight > 0 ? fullHeight + 50 : 500)
       : (activeSnap === 'full' ? 0 : addButtonHeight);
@@ -83,7 +83,7 @@ export default function FixedJourneyTimelineSheet({
       damping: 30,
     });
     return () => controls.stop();
-  }, [activeSnap, addButtonHeight, y, focusedSegment, alternativeSegment, fullHeight]);
+  }, [activeSnap, addButtonHeight, y, alternativeSegment, fullHeight]);
 
   useEffect(() => {
     if (fullHeight > 0) {
@@ -469,7 +469,7 @@ export default function FixedJourneyTimelineSheet({
         zIndex: 100,
         borderTopLeftRadius: '24px',
         borderTopRightRadius: '24px',
-        pointerEvents: (focusedSegment || alternativeSegment) ? 'none' : 'auto',
+        pointerEvents: alternativeSegment ? 'none' : 'auto',
       }}
       className="md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/90 shadow-[0_-4px_24px_rgba(0,0,0,0.12)] flex flex-col"
     >

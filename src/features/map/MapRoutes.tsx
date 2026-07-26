@@ -162,6 +162,89 @@ export const MapRoutes = memo(function MapRoutes({
                 walkWeight = 4.5;
               }
 
+              if (route.isEstimated) {
+                let trailPath: { lat: number; lng: number }[] = [];
+                let flatPath: { lat: number; lng: number }[] = [];
+
+                if (route.detailedPathPoints && route.detailedPathPoints.length >= 2) {
+                  flatPath = route.detailedPathPoints;
+                } else {
+                  if (route.snappedStart && !route.snappedEnd) {
+                    flatPath = route.pathPoints.slice(-2);
+                  } else if (route.snappedEnd && !route.snappedStart) {
+                    flatPath = route.pathPoints.slice(0, 2);
+                  } else if (route.snappedStart && route.snappedEnd) {
+                    flatPath = [
+                      { lat: route.snappedStart.lat, lng: route.snappedStart.lng },
+                      { lat: route.snappedEnd.lat, lng: route.snappedEnd.lng }
+                    ];
+                  } else {
+                    flatPath = pathPoints;
+                  }
+                }
+
+                if (route.snappedStart && !route.snappedEnd) {
+                  trailPath = route.pathPoints.slice(0, -1);
+                } else if (route.snappedEnd && !route.snappedStart) {
+                  trailPath = route.pathPoints.slice(1);
+                } else if (route.snappedStart && route.snappedEnd) {
+                  const midStartIdx = route.pathPoints.findIndex(p => Math.abs(p.lat - route.snappedStart!.lat) < 1e-6 && Math.abs(p.lng - route.snappedStart!.lng) < 1e-6);
+                  const midEndIdx = route.pathPoints.findIndex(p => Math.abs(p.lat - route.snappedEnd!.lat) < 1e-6 && Math.abs(p.lng - route.snappedEnd!.lng) < 1e-6);
+                  if (midStartIdx !== -1 && midEndIdx !== -1) {
+                    trailPath = [
+                      ...route.pathPoints.slice(0, midStartIdx + 1),
+                      ...route.pathPoints.slice(midEndIdx)
+                    ];
+                  } else {
+                    trailPath = route.pathPoints;
+                  }
+                }
+
+                const hasDetailed = !!(route.detailedPathPoints && route.detailedPathPoints.length >= 2);
+
+                return (
+                  <Fragment key={`estimated-polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}>
+                    {/* Hiking Trail: Dashed Green Line */}
+                    {trailPath.length >= 2 && (
+                      <AnimatedPolyline
+                        path={trailPath}
+                        delay={stepDelay}
+                        duration={stepDuration}
+                        skipAnimation={true}
+                        strokeColor="#10B981"
+                        strokeOpacity={walkOpacity}
+                        strokeWeight={walkWeight + 1}
+                        strokeStyle="dash"
+                        strokeLineCap="round"
+                        strokeLineJoin="round"
+                        zIndex={baseZIndex + 2}
+                        onClick={() => handlePolylineClick(route)}
+                        visible={isVisible}
+                      />
+                    )}
+
+                    {/* Flat Land segment: Solid Blue if detailed, zinc shortdash if estimated */}
+                    {flatPath.length >= 2 && (
+                      <AnimatedPolyline
+                        path={flatPath}
+                        delay={stepDelay}
+                        duration={stepDuration}
+                        skipAnimation={true}
+                        strokeColor={hasDetailed ? "#3B82F6" : "#A1A1AA"}
+                        strokeOpacity={hasDetailed ? 0.95 : 0.65}
+                        strokeWeight={hasDetailed ? walkWeight + 1.5 : walkWeight}
+                        strokeStyle={hasDetailed ? "solid" : "shortdash"}
+                        strokeLineCap="round"
+                        strokeLineJoin="round"
+                        zIndex={baseZIndex + 3}
+                        onClick={() => handlePolylineClick(route)}
+                        visible={isVisible}
+                      />
+                    )}
+                  </Fragment>
+                );
+              }
+
               return (
                 <AnimatedPolyline
                   key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}

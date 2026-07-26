@@ -11,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 import { directionKeys } from '@/hooks/queries/useDirections';
-import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
+import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi, fetchTmapDetailRouteApi } from '@/lib/services/directionsService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import FittedDuration from '@/components/places/FittedDuration';
 
@@ -90,6 +90,92 @@ export default function AlternativeRoutePanel({
   const Scroller = 'div';
 
   const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
+  const [isDetailLoading, setIsDetailLoading] = useState<Record<string, boolean>>({});
+
+  const handleWalkRouteClick = async (route: DirectionResult) => {
+    setHoveredPreviewRoute(route);
+
+    if (route.isEstimated && (!route.detailedPathPoints || route.detailedPathPoints.length === 0)) {
+      setIsDetailLoading(prev => ({ ...prev, [route.id]: true }));
+      try {
+        const sx = route.snappedStart ? route.snappedStart.lng : originPlace.lng;
+        const sy = route.snappedStart ? route.snappedStart.lat : originPlace.lat;
+        const ex = route.snappedEnd ? route.snappedEnd.lng : destPlace.lng;
+        const ey = route.snappedEnd ? route.snappedEnd.lat : destPlace.lat;
+
+        const detail = await fetchTmapDetailRouteApi(sx, sy, ex, ey);
+
+        // Update React Query Cache so it propagates to all components
+        queryClient.setQueryData<{ car: DirectionResult[], walk: DirectionResult[], snapMeta?: any }>(carKey, (oldData) => {
+          if (!oldData) return oldData;
+          const updatedWalk = oldData.walk.map(w => {
+            if (w.id === route.id) {
+              return {
+                ...w,
+                detailedPathPoints: detail.polyline,
+                guide: detail.guide,
+                steps: w.steps.map((step, sIdx) => {
+                  if (sIdx === 0) {
+                    let mergedPath = [...w.pathPoints];
+                    if (w.snappedStart) {
+                      mergedPath = [...w.pathPoints.slice(0, -1), ...detail.polyline];
+                    } else if (w.snappedEnd) {
+                      mergedPath = [...detail.polyline, ...w.pathPoints.slice(1)];
+                    } else {
+                      mergedPath = detail.polyline;
+                    }
+                    return {
+                      ...step,
+                      pathPoints: mergedPath
+                    };
+                  }
+                  return step;
+                }),
+                pathPoints: (() => {
+                  if (w.snappedStart) {
+                    return [...w.pathPoints.slice(0, -1), ...detail.polyline];
+                  } else if (w.snappedEnd) {
+                    return [...detail.polyline, ...w.pathPoints.slice(1)];
+                  }
+                  return detail.polyline;
+                })()
+              };
+            }
+            return w;
+          });
+          return {
+            ...oldData,
+            walk: updatedWalk
+          };
+        });
+
+        // Also update local preview state
+        setHoveredPreviewRoute(prev => {
+          if (prev && prev.id === route.id) {
+            return {
+              ...prev,
+              detailedPathPoints: detail.polyline,
+              guide: detail.guide,
+              pathPoints: (() => {
+                if (prev.snappedStart) {
+                  return [...prev.pathPoints.slice(0, -1), ...detail.polyline];
+                } else if (prev.snappedEnd) {
+                  return [...detail.polyline, ...prev.pathPoints.slice(1)];
+                }
+                return detail.polyline;
+              })()
+            };
+          }
+          return prev;
+        });
+
+      } catch (err) {
+        console.error('Failed to load detailed pedestrian path:', err);
+      } finally {
+        setIsDetailLoading(prev => ({ ...prev, [route.id]: false }));
+      }
+    }
+  };
 
 
   // 모바일 터치 제스처 핸들러: 리스트 스크롤과 바텀시트 드래그 제스처 분리
@@ -350,7 +436,11 @@ export default function AlternativeRoutePanel({
         key={route.id}
         type="button"
         onClick={withClickPrevent(() => {
-          setHoveredPreviewRoute(route);
+          if (route.type === 'walk') {
+            handleWalkRouteClick(route);
+          } else {
+            setHoveredPreviewRoute(route);
+          }
         })}
         className={`
           flex flex-col w-full py-3.5 px-4 rounded-xl border transition-all duration-200 text-left cursor-pointer group gap-3
@@ -403,7 +493,9 @@ export default function AlternativeRoutePanel({
 
           {/* Right side check mark or arrow */}
           <div className="flex-shrink-0 ml-2">
-            {isSelected ? (
+            {isDetailLoading[route.id] ? (
+              <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin block" />
+            ) : isSelected ? (
               <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white">
                   <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />

@@ -13,6 +13,9 @@ export interface SelectedRoute {
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
   guide?: RouteGuideNode[];
+  detailedPathPoints?: { lat: number; lng: number }[];
+  snappedStart?: { lng: number; lat: number };
+  snappedEnd?: { lng: number; lat: number };
 }
 
 export interface Place {
@@ -92,6 +95,7 @@ export interface DirectionResult {
   isStraightSectionAtEnd?: boolean;
   snappedStart?: { lng: number; lat: number };
   snappedEnd?: { lng: number; lat: number };
+  detailedPathPoints?: { lat: number; lng: number }[];
 }
 
 export interface DirectionsApiResponse {

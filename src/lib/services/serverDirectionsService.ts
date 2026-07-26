@@ -1270,7 +1270,135 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
       }
     } catch (error) {
       console.warn('[serverDirectionsService] TMap Walking API failed, using fallback.', error);
-      walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
+      const hasHikingTrail = !!(startHikingPolyline || endHikingPolyline);
+      if (hasHikingTrail) {
+        let combinedPath: { lat: number; lng: number }[] = [];
+        
+        if (startHikingPolyline && startHikingPolyline.length >= 1) {
+          combinedPath.push(...startHikingPolyline);
+        } else {
+          combinedPath.push({ lat: sy, lng: sx });
+        }
+        
+        if (endHikingPolyline && endHikingPolyline.length >= 1) {
+          const lastPoint = combinedPath[combinedPath.length - 1];
+          const firstEnd = endHikingPolyline[0];
+          if (Math.abs(lastPoint.lat - firstEnd.lat) > 1e-6 || Math.abs(lastPoint.lng - firstEnd.lng) > 1e-6) {
+            combinedPath.push(...endHikingPolyline);
+          } else {
+            combinedPath.push(...endHikingPolyline.slice(1));
+          }
+        } else {
+          const lastPoint = combinedPath[combinedPath.length - 1];
+          if (Math.abs(lastPoint.lat - ey) > 1e-6 || Math.abs(lastPoint.lng - ex) > 1e-6) {
+            combinedPath.push({ lat: ey, lng: ex });
+          }
+        }
+
+        const cleanPathPoints: { lat: number; lng: number }[] = [];
+        for (const pt of combinedPath) {
+          if (cleanPathPoints.length === 0) {
+            cleanPathPoints.push(pt);
+          } else {
+            const last = cleanPathPoints[cleanPathPoints.length - 1];
+            if (Math.abs(last.lat - pt.lat) > 1e-7 || Math.abs(last.lng - pt.lng) > 1e-7) {
+              cleanPathPoints.push(pt);
+            }
+          }
+        }
+
+        let totalDistanceKm = 0;
+        for (let i = 0; i < cleanPathPoints.length - 1; i++) {
+          totalDistanceKm += haversineDistance(
+            cleanPathPoints[i].lat, cleanPathPoints[i].lng,
+            cleanPathPoints[i + 1].lat, cleanPathPoints[i + 1].lng
+          );
+        }
+
+        const walkDuration = Math.max(1, Math.round((totalDistanceKm / 4.5) * 60));
+        const bicycleDuration = Math.max(1, Math.round((totalDistanceKm / 15) * 60));
+        const kickboardDuration = Math.max(1, Math.round((totalDistanceKm / 18) * 60));
+        const kickboardFare = 1000 + Math.round(kickboardDuration * 150);
+
+        const straightSection = startHikingPolyline || endHikingPolyline;
+        const isStraightSectionAtEnd = !!(endHikingPolyline && !startHikingPolyline);
+
+        walkResults = [
+          {
+            id: 'walk',
+            type: 'walk' as const,
+            name: '도보(우회)',
+            duration: walkDuration,
+            fare: 0,
+            distance: totalDistanceKm,
+            isEstimated: true,
+            steps: [
+              {
+                type: 'walk' as const,
+                name: '도보(우회)',
+                duration: walkDuration,
+                color: '#E4E4E7',
+                pathPoints: cleanPathPoints,
+                startLat: sy,
+                startLng: sx,
+                endLat: ey,
+                endLng: ex,
+              }
+            ],
+            pathPoints: cleanPathPoints,
+            ...(straightSection ? { straightSection } : {}),
+            ...(isStraightSectionAtEnd ? { isStraightSectionAtEnd: true } : {})
+          },
+          {
+            id: 'bicycle',
+            type: 'bicycle' as const,
+            name: '자전거(우회)',
+            duration: bicycleDuration,
+            fare: 0,
+            distance: totalDistanceKm,
+            isEstimated: true,
+            steps: [
+              {
+                type: 'walk' as const,
+                name: '자전거(우회)',
+                duration: bicycleDuration,
+                color: '#10B981',
+                pathPoints: cleanPathPoints,
+                startLat: sy,
+                startLng: sx,
+                endLat: ey,
+                endLng: ex,
+              }
+            ],
+            pathPoints: cleanPathPoints
+          },
+          {
+            id: 'kickboard',
+            type: 'kickboard' as const,
+            name: '공유 킥보드(우회)',
+            duration: kickboardDuration,
+            fare: kickboardFare,
+            distance: totalDistanceKm,
+            isEstimated: true,
+            steps: [
+              {
+                type: 'walk' as const,
+                name: '공유 킥보드(우회)',
+                duration: kickboardDuration,
+                color: '#8B5CF6',
+                pathPoints: cleanPathPoints,
+                startLat: sy,
+                startLng: sx,
+                endLat: ey,
+                endLng: ex,
+              }
+            ],
+            pathPoints: cleanPathPoints
+          }
+        ];
+      } else {
+        walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
+      }
     }
   }
 

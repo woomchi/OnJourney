@@ -1,11 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import nearestPointOnLine from '@turf/nearest-point-on-line';
-import pointToLineDistance from '@turf/point-to-line-distance';
 import distance from '@turf/distance';
 import { point } from '@turf/helpers';
 import type { FeatureCollection, Feature, LineString } from 'geojson';
-import { isNonWalkableArea } from '@/lib/utils/walkabilityCheck';
+import PathFinder from 'geojson-path-finder';
 
 export interface HikingTrailFeature {
   type: 'Feature';
@@ -23,12 +21,15 @@ export interface HikingPolylineResult {
 }
 
 let cachedLineFeatures: HikingTrailFeature[] = [];
+let cachedPointFeatures: any[] = [];
+let cachedGraphNodes: [number, number][] = [];
+let pathFinderInstance: PathFinder | null = null;
 let isLoaded = false;
 
 /**
- * Loads hikingTrails.json and caches features whose geometry.type is LineString or MultiLineString.
- * Point features are filtered out.
+ * Loads hikingTrails.json and caches features whose geometry.type is LineString, MultiLineString, or Point.
  * MultiLineString features are normalized into individual LineString features for fast indexing.
+ * Builds the geojson-path-finder routing graph using the LineString features.
  */
 export function loadHikingTrails(): HikingTrailFeature[] {
   if (isLoaded) return cachedLineFeatures;
@@ -44,6 +45,7 @@ export function loadHikingTrails(): HikingTrailFeature[] {
     const geojson: FeatureCollection = JSON.parse(rawData);
 
     const tempFeatures: HikingTrailFeature[] = [];
+    const tempPoints: any[] = [];
 
     for (const feature of geojson.features) {
       if (!feature.geometry) continue;
@@ -104,12 +106,42 @@ export function loadHikingTrails(): HikingTrailFeature[] {
             bbox: [minLng, minLat, maxLng, maxLat],
           });
         }
+      } else if (geomType === 'Point') {
+        tempPoints.push(feature);
       }
     }
 
     cachedLineFeatures = tempFeatures;
+    cachedPointFeatures = tempPoints;
+
+    // Build the geojson-path-finder routing graph using LineStrings
+    const lineFeaturesCollection: FeatureCollection = {
+      type: 'FeatureCollection',
+      features: cachedLineFeatures.map(f => ({
+        type: 'Feature',
+        geometry: f.geometry,
+        properties: f.properties
+      }))
+    };
+
+    pathFinderInstance = new PathFinder(lineFeaturesCollection, { precision: 1e-5 });
+
+    // Collect unique graph nodes from LineStrings
+    const nodeSet = new Set<string>();
+    const tempNodes: [number, number][] = [];
+    cachedLineFeatures.forEach(f => {
+      f.geometry.coordinates.forEach(coord => {
+        const key = `${coord[0].toFixed(5)},${coord[1].toFixed(5)}`;
+        if (!nodeSet.has(key)) {
+          nodeSet.add(key);
+          tempNodes.push([coord[0], coord[1]]);
+        }
+      });
+    });
+    cachedGraphNodes = tempNodes;
+
     isLoaded = true;
-    console.log(`[hikingTrailService] Loaded and cached ${cachedLineFeatures.length} hiking trail LineString features.`);
+    console.log(`[hikingTrailService] Loaded: ${cachedLineFeatures.length} LineStrings, ${cachedPointFeatures.length} Points, ${cachedGraphNodes.length} Graph Nodes.`);
   } catch (error) {
     console.error('[hikingTrailService] Failed to load hiking trails:', error);
   }
@@ -119,8 +151,8 @@ export function loadHikingTrails(): HikingTrailFeature[] {
 
 /**
  * Given a start coordinate (inside a mountain/non-walkable area) and a destination coordinate,
- * finds the nearest hiking trail LineString, snaps the start point onto it,
- * and extracts a continuous polyline towards the destination up to the nearest exit node.
+ * finds the nearest hiking trail graph node, snaps the start point onto it,
+ * and uses geojson-path-finder to query the shortest trail path to the optimal exit node.
  *
  * @param start { lng, lat } Starting coordinate (e.g. in mountain)
  * @param dest { lng, lat } Destination coordinate
@@ -134,119 +166,124 @@ export function getHikingTrailPolyline(
     loadHikingTrails();
   }
 
-  if (cachedLineFeatures.length === 0) {
+  if (cachedLineFeatures.length === 0 || !pathFinderInstance || cachedGraphNodes.length === 0) {
     return null;
   }
 
   const startPt = point([start.lng, start.lat]);
   const destPt = point([dest.lng, dest.lat]);
 
-  // Spatial search bounding box: start point +/- 0.05 degrees (~5.5km)
-  const SEARCH_MARGIN = 0.05;
-  let candidates = cachedLineFeatures.filter(f => {
-    const [minLng, minLat, maxLng, maxLat] = f.bbox;
-    return (
-      start.lng >= minLng - SEARCH_MARGIN &&
-      start.lng <= maxLng + SEARCH_MARGIN &&
-      start.lat >= minLat - SEARCH_MARGIN &&
-      start.lat <= maxLat + SEARCH_MARGIN
-    );
-  });
+  // 1. Find startNode: nearest graph node to start point
+  let startNode: [number, number] | null = null;
+  let minStartDist = Infinity;
 
-  if (candidates.length === 0) {
-    candidates = cachedLineFeatures;
-  }
-
-  let bestFeature: HikingTrailFeature | null = null;
-  let minDistanceKm = Infinity;
-
-  for (const candidate of candidates) {
-    try {
-      const dist = pointToLineDistance(startPt, candidate as any, { units: 'kilometers' });
-      if (dist < minDistanceKm) {
-        minDistanceKm = dist;
-        bestFeature = candidate;
-      }
-    } catch {
-      // Continue if geometry error
+  for (const node of cachedGraphNodes) {
+    const dist = distance(point(node), startPt, { units: 'kilometers' });
+    if (dist < minStartDist) {
+      minStartDist = dist;
+      startNode = node;
     }
   }
 
-  // If closest trail is farther than 10km, return null fallback
-  if (!bestFeature || minDistanceKm > 10.0) {
+  // If closest trail node is farther than 10km, return null fallback
+  if (!startNode || minStartDist > 10.0) {
     return null;
   }
 
-  // Snap start point onto the best feature
-  const startSnap = nearestPointOnLine(bestFeature as any, startPt);
-  const snapCoords = startSnap.geometry.coordinates; // [lng, lat]
-  const snapLng = snapCoords[0];
-  const snapLat = snapCoords[1];
-  const segmentIdx = startSnap.properties.index ?? 0;
+  // 2. Identify candidate exit nodes sorted by distance to dest
+  const candidateExitNodesMap = new Map<string, { node: [number, number]; dist: number }>();
 
-  const lineCoords = bestFeature.geometry.coordinates;
+  // Add graph nodes near dest (limit to top 100 for speed)
+  const graphCandidates = cachedGraphNodes
+    .map(node => {
+      const dist = distance(point(node), destPt, { units: 'kilometers' });
+      return { node, dist };
+    })
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 100);
 
-  // Trace Forward along LineString
-  const forwardPath: [number, number][] = [[snapLng, snapLat]];
-  let forwardExited = false;
+  graphCandidates.forEach(c => {
+    const key = `${c.node[0].toFixed(5)},${c.node[1].toFixed(5)}`;
+    candidateExitNodesMap.set(key, c);
+  });
 
-  for (let i = segmentIdx + 1; i < lineCoords.length; i++) {
-    const pt = lineCoords[i];
-    forwardPath.push([pt[0], pt[1]]);
+  // Add Point features (entrances) near dest
+  // For each point, find the nearest graph node to it, and add that graph node as a candidate
+  const pointCandidates = cachedPointFeatures
+    .map(f => {
+      const coords = f.geometry.coordinates as [number, number];
+      const dist = distance(point(coords), destPt, { units: 'kilometers' });
+      return { coords, dist };
+    })
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 50);
 
-    if (!isNonWalkableArea(pt[0], pt[1])) {
-      forwardExited = true;
-      break;
+  pointCandidates.forEach(pc => {
+    let nearestNode: [number, number] | null = null;
+    let minD = Infinity;
+    for (const gNode of cachedGraphNodes) {
+      const d = distance(point(gNode), point(pc.coords), { units: 'kilometers' });
+      if (d < minD) {
+        minD = d;
+        nearestNode = gNode;
+      }
+    }
+    if (nearestNode) {
+      const distToDest = distance(point(nearestNode), destPt, { units: 'kilometers' });
+      const key = `${nearestNode[0].toFixed(5)},${nearestNode[1].toFixed(5)}`;
+      const existing = candidateExitNodesMap.get(key);
+      if (!existing || distToDest < existing.dist) {
+        candidateExitNodesMap.set(key, { node: nearestNode, dist: distToDest });
+      }
+    }
+  });
+
+  // Sort combined candidate exit nodes by distance to dest
+  const sortedCandidates = Array.from(candidateExitNodesMap.values())
+    .sort((a, b) => a.dist - b.dist);
+
+  // 3. Search for a valid path from startNode to a reachable exit node
+  let chosenPathCoords: [number, number][] | null = null;
+  let chosenExitNode: [number, number] | null = null;
+
+  for (const candidate of sortedCandidates) {
+    try {
+      const pathResult = pathFinderInstance.findPath(
+        point(startNode),
+        point(candidate.node)
+      );
+
+      if (pathResult && pathResult.path && pathResult.path.length >= 2) {
+        chosenPathCoords = pathResult.path;
+        chosenExitNode = candidate.node;
+        break; // Found the best reachable exit node closer to dest!
+      }
+    } catch (e) {
+      // Continue if routing error
     }
   }
 
-  // Trace Backward along LineString
-  const backwardPath: [number, number][] = [[snapLng, snapLat]];
-  let backwardExited = false;
-
-  for (let i = segmentIdx; i >= 0; i--) {
-    const pt = lineCoords[i];
-    backwardPath.push([pt[0], pt[1]]);
-
-    if (!isNonWalkableArea(pt[0], pt[1])) {
-      backwardExited = true;
-      break;
-    }
+  // Fallback: If no path found, return null
+  if (!chosenPathCoords || !chosenExitNode) {
+    console.warn(`[hikingTrailService] No path found between startNode [${startNode}] and any candidate exit nodes.`);
+    return null;
   }
 
-  // Determine best directional path towards destination
-  const forwardExitPt = forwardPath[forwardPath.length - 1];
-  const backwardExitPt = backwardPath[backwardPath.length - 1];
-
-  const distForwardToDest = distance(point(forwardExitPt), destPt, { units: 'kilometers' });
-  const distBackwardToDest = distance(point(backwardExitPt), destPt, { units: 'kilometers' });
-
-  let chosenPath: [number, number][];
-
-  if (forwardExited && !backwardExited) {
-    chosenPath = forwardPath;
-  } else if (!forwardExited && backwardExited) {
-    chosenPath = backwardPath;
-  } else {
-    // Both exited or neither exited: pick the exit point closer to destination
-    chosenPath = distForwardToDest <= distBackwardToDest ? forwardPath : backwardPath;
-  }
-
-  // Format chosen path into { lat, lng }[]
+  // 4. Construct Polyline and return result
   const polyline: { lat: number; lng: number }[] = [];
 
-  // Start directly at user start location if slightly off snap
+  // Always start with user's exact starting point (origin)
   polyline.push({ lat: start.lat, lng: start.lng });
 
-  for (const coord of chosenPath) {
+  // Add the path coordinates
+  for (const coord of chosenPathCoords) {
     const last = polyline[polyline.length - 1];
     if (!last || Math.abs(last.lat - coord[1]) > 1e-7 || Math.abs(last.lng - coord[0]) > 1e-7) {
       polyline.push({ lat: coord[1], lng: coord[0] });
     }
   }
 
-  const exitNodeCoord = chosenPath[chosenPath.length - 1];
-  const snappedStart = { lng: exitNodeCoord[0], lat: exitNodeCoord[1] };
+  const snappedStart = { lng: chosenExitNode[0], lat: chosenExitNode[1] };
 
   return {
     polyline,

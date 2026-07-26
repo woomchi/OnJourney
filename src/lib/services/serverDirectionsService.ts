@@ -1,4 +1,4 @@
-import type { DirectionResult, DirectionStep, DirectionsApiResponse } from '@/types/journey';
+import type { DirectionResult, DirectionStep, DirectionsApiResponse, CarWalkDirectionsResult, SnapMeta, SnapType } from '@/types/journey';
 import { unstable_cache } from 'next/cache';
 import { externalFetch } from '@/lib/utils/externalFetch';
 import { chunkAsync } from '@/lib/utils/odsayThrottle';
@@ -7,6 +7,12 @@ import { WALK_LIMITS } from '@/constants/transit';
 import { odsayRateLimiter } from '@/lib/infrastructure/rateLimiter';
 import { odsayCircuitBreaker } from '@/lib/infrastructure/circuitBreaker';
 import { OdsayAdapter, AppError } from '@/lib/infrastructure/odsayAdapter';
+import { isNonWalkableArea } from '@/lib/utils/walkabilityCheck';
+import { getNearestRoadCoords, findExitPoint } from '@/lib/utils/snapToRoad';
+import distance from '@turf/distance';
+import bearing from '@turf/bearing';
+import destination from '@turf/destination';
+import { point } from '@turf/helpers';
 
 type OdsayApiCacheResult =
   | { ok: true; data: any }
@@ -485,7 +491,7 @@ export async function fetchCarRoute(
   const rex = ex.toFixed(4);
   const rey = ey.toFixed(4);
 
-  const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${rsx},${rsy}&goal=${rex},${rey}&option=trafast:traoptimal:traavoidtoll`;
+  const url = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${rsx},${rsy}&goal=${rex},${rey}&option=trafast:traoptimal:traavoidtoll`;
 
   let res;
   try {
@@ -708,6 +714,116 @@ const getCachedTMapWalkingRoute = unstable_cache(
   { revalidate: 3600 }
 );
 
+async function fetchTMapWalkingRouteDirect(
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number,
+  apiKey: string
+): Promise<any> {
+  const url = 'https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1';
+  const body = {
+    startX: sx,
+    startY: sy,
+    endX: ex,
+    endY: ey,
+    reqCoordType: 'WGS84GEO',
+    resCoordType: 'WGS84GEO',
+    startName: '출발지',
+    endName: '목적지'
+  };
+
+  const res = await externalFetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'appKey': apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+
+  return res.json();
+}
+
+/**
+ * TMAP 내부 자동 스냅 좌표 오차 검증 Probing 루프.
+ * 요청 좌표와 TMAP 실제 시작 노드 간 오차가 50m 이상인 경우(절벽/옹벽 우회 스냅)
+ * 목적지 방향으로 40m씩 전진하며 교차점을 재타진합니다. (최대 5회)
+ */
+async function probeTMapSnapPoint(
+  initialSnapLng: number,
+  initialSnapLat: number,
+  destLng: number,
+  destLat: number,
+  apiKey: string,
+  bearDeg: number
+): Promise<{ tmapData: any; snappedLng: number; snappedLat: number }> {
+  const MAX_ITERATIONS = 5;
+  const SNAP_THRESHOLD_KM = 0.05; // 50m
+  const ADVANCE_STEP_KM = 0.04;  // 40m
+
+  let snapLng = initialSnapLng;
+  let snapLat = initialSnapLat;
+  let lastTmapData: any = null;
+
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    try {
+      const tmapData = await fetchTMapWalkingRouteDirect(snapLng, snapLat, destLng, destLat, apiKey);
+      lastTmapData = tmapData;
+
+      if (!tmapData || !tmapData.features || !Array.isArray(tmapData.features) || tmapData.features.length === 0) {
+        break;
+      }
+
+      // 첫 번째 LineString feature에서 TMAP 내부 실제 시작 노드 좌표 추출
+      let firstCoord: [number, number] | undefined;
+      for (const feature of tmapData.features) {
+        if (feature.geometry?.type === 'LineString' && Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length > 0) {
+          firstCoord = feature.geometry.coordinates[0];
+          break;
+        }
+      }
+
+      if (!firstCoord || !Array.isArray(firstCoord) || firstCoord.length < 2) {
+        break;
+      }
+
+      const [tmapLng, tmapLat] = firstCoord;
+      const reqPt = point([snapLng, snapLat]);
+      const tmapPt = point([tmapLng, tmapLat]);
+
+      const snapErrorKm = distance(reqPt, tmapPt, { units: 'kilometers' });
+
+      // 조건 1: 거리가 50m 미만인 경우 (성공) -> 즉시 종료
+      if (snapErrorKm < SNAP_THRESHOLD_KM) {
+        console.log(`[probeTMapSnapPoint] Probing success at step ${i + 1}: snap error = ${Math.round(snapErrorKm * 1000)}m (< 50m)`);
+        return { tmapData, snappedLng: snapLng, snappedLat: snapLat };
+      }
+
+      console.warn(`[probeTMapSnapPoint] Probing step ${i + 1} failed: snap error = ${Math.round(snapErrorKm * 1000)}m (>= 50m). Advancing 40m towards destination.`);
+
+      // 조건 2: 50m 이상인 경우 -> 40m 전진 후 다음 회차
+      const advanced = destination(point([snapLng, snapLat]), ADVANCE_STEP_KM, bearDeg, { units: 'kilometers' });
+      const [nextLng, nextLat] = advanced.geometry.coordinates;
+
+      // 목적지에 너무 가까워지면 중단
+      const remainingDistKm = distance(advanced, point([destLng, destLat]), { units: 'kilometers' });
+      snapLng = nextLng;
+      snapLat = nextLat;
+
+      if (remainingDistKm <= ADVANCE_STEP_KM) {
+        console.warn('[probeTMapSnapPoint] Reached destination vicinity during probing.');
+        break;
+      }
+    } catch (err) {
+      console.error(`[probeTMapSnapPoint] Error during probing step ${i + 1}:`, err);
+      break;
+    }
+  }
+
+  return { tmapData: lastTmapData, snappedLng: snapLng, snappedLat: snapLat };
+}
+
 function parseTMapResponse(
   data: any,
   sx: number,
@@ -912,22 +1028,79 @@ function parseTMapResponse(
   ];
 }
 
-export async function fetchCarWalkDirections(params: DirectionsQueryType): Promise<{ car: DirectionResult[], walk: DirectionResult[] }> {
+export async function fetchCarWalkDirections(params: DirectionsQueryType): Promise<CarWalkDirectionsResult> {
   const { sx, sy, ex, ey } = params;
+
+  // 1. 거리 제한 검증 (직선거리 10km 이상시 API 호출 금지)
+  const straightDistKm = haversineDistance(sy, sx, ey, ex);
+  if (straightDistKm >= 10.0) {
+    return {
+      status: 'EXCEED_LIMIT',
+      message: '도보 탐색 거리는 10km 이내만 지원합니다.'
+    };
+  }
+
+  // 2. 지형 기반 좌표 보정 (Snap to Road)
+  const isStartNonWalkable = isNonWalkableArea(sx, sy);
+  const isEndNonWalkable = isNonWalkableArea(ex, ey);
+
+  let effectiveSx = sx;
+  let effectiveSy = sy;
+  let effectiveEx = ex;
+  let effectiveEy = ey;
+
+  let snappedStartCoords: { lng: number; lat: number } | undefined;
+  let snappedEndCoords: { lng: number; lat: number } | undefined;
+
+  if (isStartNonWalkable) {
+    const snapped = await getNearestRoadCoords(sx, sy, ex, ey);
+    effectiveSx = snapped.lng;
+    effectiveSy = snapped.lat;
+    snappedStartCoords = snapped;
+  }
+
+  if (isEndNonWalkable) {
+    const snapped = await getNearestRoadCoords(ex, ey, sx, sy);
+    effectiveEx = snapped.lng;
+    effectiveEy = snapped.lat;
+    snappedEndCoords = snapped;
+  }
+
+  // 3. 상황별 snapMeta 설정
+  let snapType: SnapType = 'NONE';
+  let message = '';
+
+  if (isStartNonWalkable && isEndNonWalkable) {
+    snapType = 'BOTH';
+    message = '출발지와 도착지 모두 가장 가까운 도로를 기준으로 경로를 탐색했습니다.';
+  } else if (isStartNonWalkable) {
+    snapType = 'START';
+    message = '출발지 근처 가장 가까운 도로를 기준으로 경로를 탐색했습니다.';
+  } else if (isEndNonWalkable) {
+    snapType = 'END';
+    message = '도착지 근처 가장 가까운 도로를 기준으로 경로를 탐색했습니다.';
+  }
+
+  const snapMeta: SnapMeta = {
+    snapType,
+    ...(snapType !== 'NONE' ? { message } : {}),
+    ...(snappedStartCoords ? { snappedStartCoords } : {}),
+    ...(snappedEndCoords ? { snappedEndCoords } : {}),
+  };
   
   // 도보는 정밀도가 중요하므로 소수점 8자리(약 1.1mm 초정밀 오차범위)로 반올림하여 TMap API에 전송 및 캐싱
   const roundCoordWalk = (val: number) => Math.round(val * 100000000) / 100000000;
   const roundCoordCar = (val: number) => Math.round(val * 10000) / 10000;
   
-  const wsx = roundCoordWalk(sx);
-  const wsy = roundCoordWalk(sy);
-  const wex = roundCoordWalk(ex);
-  const wey = roundCoordWalk(ey);
+  const wsx = roundCoordWalk(effectiveSx);
+  const wsy = roundCoordWalk(effectiveSy);
+  const wex = roundCoordWalk(effectiveEx);
+  const wey = roundCoordWalk(effectiveEy);
 
-  const csx = roundCoordCar(sx);
-  const csy = roundCoordCar(sy);
-  const cex = roundCoordCar(ex);
-  const cey = roundCoordCar(ey);
+  const csx = roundCoordCar(effectiveSx);
+  const csy = roundCoordCar(effectiveSy);
+  const cex = roundCoordCar(effectiveEx);
+  const cey = roundCoordCar(effectiveEy);
 
   let walkResults: DirectionResult[];
 
@@ -937,23 +1110,136 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
   } else {
     try {
-      const tmapData = await getCachedTMapWalkingRoute(wsx, wsy, wex, wey, apiKey);
-      walkResults = parseTMapResponse(tmapData, sx, sy, ex, ey);
+      let tmapData: any;
+      let finalSx = wsx;
+      let finalSy = wsy;
+      let finalEx = wex;
+      let finalEy = wey;
+
+      if (isStartNonWalkable || isEndNonWalkable) {
+        const bearDeg = bearing(point([effectiveSx, effectiveSy]), point([effectiveEx, effectiveEy]));
+        const probeRes = await probeTMapSnapPoint(effectiveSx, effectiveSy, effectiveEx, effectiveEy, apiKey, bearDeg);
+        tmapData = probeRes.tmapData;
+        finalSx = probeRes.snappedLng;
+        finalSy = probeRes.snappedLat;
+
+        effectiveSx = finalSx;
+        effectiveSy = finalSy;
+      } else {
+        tmapData = await getCachedTMapWalkingRoute(wsx, wsy, wex, wey, apiKey);
+      }
+
+      walkResults = parseTMapResponse(tmapData, finalSx, finalSy, finalEx, finalEy);
+
+      // 산/비보행 구역이 포함되어 구간 분할이 필요한 경우 직선 연결 구간 조합
+      if (isStartNonWalkable || isEndNonWalkable) {
+        walkResults = walkResults.map((result) => {
+          let updatedPathPoints = [...result.pathPoints];
+          let addedDistKm = 0;
+          let addedTimeMin = 0;
+
+          // 1) 출발지 비보행 구역 -> 탈출 도로 좌표까지의 직선 구간
+          let startStraightSection: { lat: number; lng: number }[] | undefined;
+          if (isStartNonWalkable) {
+            startStraightSection = [
+              { lat: sy, lng: sx },
+              { lat: effectiveSy, lng: effectiveSx }
+            ];
+            const dist = haversineDistance(sy, sx, effectiveSy, effectiveSx);
+            const timeMin = Math.round((dist / 4.5) * 60);
+            addedDistKm += dist;
+            addedTimeMin += timeMin;
+
+            // pathPoints 중복 제거하며 맨 앞에 삽입
+            if (updatedPathPoints.length > 0 &&
+                updatedPathPoints[0].lat === effectiveSy &&
+                updatedPathPoints[0].lng === effectiveSx) {
+              updatedPathPoints.unshift({ lat: sy, lng: sx });
+            } else {
+              updatedPathPoints = [{ lat: sy, lng: sx }, { lat: effectiveSy, lng: effectiveSx }, ...updatedPathPoints];
+            }
+          }
+
+          // 2) 탈출 도로 좌표 -> 도착지 비보행 구역까지의 직선 구간
+          let endStraightSection: { lat: number; lng: number }[] | undefined;
+          if (isEndNonWalkable) {
+            endStraightSection = [
+              { lat: effectiveEy, lng: effectiveEx },
+              { lat: ey, lng: ex }
+            ];
+            const dist = haversineDistance(effectiveEy, effectiveEx, ey, ex);
+            const timeMin = Math.round((dist / 4.5) * 60);
+            addedDistKm += dist;
+            addedTimeMin += timeMin;
+
+            // pathPoints 중복 제거하며 맨 뒤에 삽입
+            const lastIdx = updatedPathPoints.length - 1;
+            if (lastIdx >= 0 &&
+                updatedPathPoints[lastIdx].lat === effectiveEy &&
+                updatedPathPoints[lastIdx].lng === effectiveEx) {
+              updatedPathPoints.push({ lat: ey, lng: ex });
+            } else {
+              updatedPathPoints = [...updatedPathPoints, { lat: effectiveEy, lng: effectiveEx }, { lat: ey, lng: ex }];
+            }
+          }
+
+          // 직선 구간 정보 설정 (출발지 또는 도착지 산 탈출 구간)
+          const straightSection = startStraightSection || endStraightSection;
+          const isStraightSectionAtEnd = isEndNonWalkable && !isStartNonWalkable;
+
+          // steps의 pathPoints 및 첫/끝 좌표 보정
+          const updatedSteps = result.steps.map((step, idx) => {
+            if (idx === 0 && isStartNonWalkable) {
+              return {
+                ...step,
+                startLat: sy,
+                startLng: sx,
+                pathPoints: updatedPathPoints
+              };
+            }
+            if (idx === result.steps.length - 1 && isEndNonWalkable) {
+              return {
+                ...step,
+                endLat: ey,
+                endLng: ex,
+                pathPoints: updatedPathPoints
+              };
+            }
+            return {
+              ...step,
+              pathPoints: updatedPathPoints
+            };
+          });
+
+          return {
+            ...result,
+            duration: result.duration + addedTimeMin,
+            distance: (result.distance ?? 0) + addedDistKm,
+            pathPoints: updatedPathPoints,
+            steps: updatedSteps,
+            ...(straightSection ? { straightSection } : {}),
+            ...(isStraightSectionAtEnd ? { isStraightSectionAtEnd: true } : {})
+          };
+        });
+      }
     } catch (error) {
       console.warn('[serverDirectionsService] TMap Walking API failed, using fallback.', error);
       walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
     }
   }
 
+  let carResults: DirectionResult[];
   try {
-    const carResults = await fetchCarRoute(csx, csy, cex, cey);
-    return { car: carResults, walk: walkResults };
+    carResults = await fetchCarRoute(csx, csy, cex, cey);
   } catch (error: any) {
     // 모든 차량 탐색 실패 시 Fallback 반환
-    return {
-      car: [calculateCarFallback(sx, sy, ex, ey)],
-      walk: walkResults
-    };
+    carResults = [calculateCarFallback(sx, sy, ex, ey)];
   }
+
+  return {
+    car: carResults,
+    walk: walkResults,
+    snapMeta
+  };
 }
 

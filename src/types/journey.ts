@@ -88,6 +88,8 @@ export interface DirectionResult {
   steps: DirectionStep[];
   pathPoints: { lat: number; lng: number }[];
   guide?: RouteGuideNode[];
+  straightSection?: { lat: number; lng: number }[];
+  isStraightSectionAtEnd?: boolean;
 }
 
 export interface DirectionsApiResponse {
@@ -150,4 +152,18 @@ export interface PlaceResult {
   score?: number;
   category_group_code?: string;
 }
+
+export type SnapType = 'NONE' | 'START' | 'END' | 'BOTH';
+
+export interface SnapMeta {
+  snapType: SnapType;
+  message?: string;
+  snappedStartCoords?: { lng: number; lat: number };
+  snappedEndCoords?: { lng: number; lat: number };
+}
+
+export type CarWalkDirectionsResult =
+  | { status: 'EXCEED_LIMIT'; message: string }
+  | { car: DirectionResult[]; walk: DirectionResult[]; snapMeta: SnapMeta };
+
 

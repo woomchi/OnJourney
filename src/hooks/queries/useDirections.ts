@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
-import type { Place, DirectionsApiResponse, DirectionResult } from '@/types/journey';
+import type { Place, DirectionsApiResponse, DirectionResult, SnapMeta } from '@/types/journey';
 import { useEffect, useState, useRef, useMemo } from 'react';
 
 export const directionKeys = {
@@ -113,7 +113,7 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
         const dest = activePlaces[i + 1];
         const cacheKey = `${origin.id}-${dest.id}`;
         const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id));
-        const carData = queryClient.getQueryData<{ car: DirectionResult[], walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id));
+        const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id));
         
         if (publicData || carData) {
           newCache[cacheKey] = {

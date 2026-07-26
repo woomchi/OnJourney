@@ -1,4 +1,4 @@
-import type { Place, DirectionResult, DirectionsApiResponse } from '@/types/journey';
+import type { Place, DirectionResult, DirectionsApiResponse, CarWalkDirectionsResult, SnapMeta } from '@/types/journey';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import { TRANSIT_SPEEDS } from '@/constants/transit';
 
@@ -104,14 +104,29 @@ export async function fetchPublicDirectionsApi(origin: Place, dest: Place): Prom
   }
 }
 
-export async function fetchCarWalkDirectionsApi(origin: Place, dest: Place): Promise<{ car: DirectionResult[], walk: DirectionResult[] }> {
+export async function fetchCarWalkDirectionsApi(
+  origin: Place,
+  dest: Place
+): Promise<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }> {
   try {
     const url = `/api/directions/car?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('차량 경로 요청 실패');
     const payload = await res.json();
     if (!payload.success) throw new Error(payload.error || '차량 경로 요청 실패');
-    return payload.data;
+
+    const data: CarWalkDirectionsResult = payload.data;
+
+    // 거리 초과 응답 처리
+    if ('status' in data && data.status === 'EXCEED_LIMIT') {
+      console.warn(`[directionsService] ${data.message} (${origin.place_name} -> ${dest.place_name}), using fallback.`);
+      const fallback = getFallbackDirections(origin, dest);
+      return { car: fallback.car, walk: fallback.walk };
+    }
+
+    // 타입 내로잉: EXCEED_LIMIT가 아닌 경우 car/walk/snapMeta 포함 분기
+    const successData = data as { car: DirectionResult[]; walk: DirectionResult[]; snapMeta: SnapMeta };
+    return { car: successData.car, walk: successData.walk, snapMeta: successData.snapMeta };
   } catch (err) {
     console.warn(`[directionsService] Car API failed for ${origin.place_name} -> ${dest.place_name}, using fallback.`, err);
     const fallback = getFallbackDirections(origin, dest);

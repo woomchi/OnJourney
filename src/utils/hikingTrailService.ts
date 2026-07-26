@@ -18,6 +18,9 @@ export interface HikingTrailFeature {
 export interface HikingPolylineResult {
   polyline: { lat: number; lng: number }[];
   snappedStart: { lng: number; lat: number };
+  difficulty?: string;
+  mountainDistance?: number;
+  totalDuration?: number;
 }
 
 let cachedLineFeatures: HikingTrailFeature[] = [];
@@ -243,9 +246,7 @@ export function getHikingTrailPolyline(
     .sort((a, b) => a.dist - b.dist);
 
   // 3. Search for valid paths from startNode to reachable exit nodes
-  const results: HikingPolylineResult[] = [];
-  const seenFirstStep = new Set<string>();
-  const seenExitNode = new Set<string>();
+  const candidates: HikingPolylineResult[] = [];
 
   const buildPolyline = (startCoords: { lng: number; lat: number }, pathCoords: [number, number][]) => {
     const polyline: { lat: number; lng: number }[] = [];
@@ -259,7 +260,6 @@ export function getHikingTrailPolyline(
     return polyline;
   };
 
-  // First pass: try to get different starting directions (Forward/Backward) to secure distinct exit options
   for (const candidate of sortedCandidates) {
     try {
       const pathResult = pathFinderInstance.findPath(
@@ -268,60 +268,103 @@ export function getHikingTrailPolyline(
       );
 
       if (pathResult && pathResult.path && pathResult.path.length >= 2) {
-        const pathCoords = pathResult.path;
-        const firstStepKey = `${pathCoords[1][0].toFixed(5)},${pathCoords[1][1].toFixed(5)}`;
-        const exitKey = `${candidate.node[0].toFixed(5)},${candidate.node[1].toFixed(5)}`;
+        const pathCoords = pathResult.path as [number, number][];
+        const polyline = buildPolyline(start, pathCoords);
 
-        if (!seenFirstStep.has(firstStepKey) && !seenExitNode.has(exitKey)) {
-          seenFirstStep.add(firstStepKey);
-          seenExitNode.add(exitKey);
-
-          results.push({
-            polyline: buildPolyline(start, pathCoords),
-            snappedStart: { lng: candidate.node[0], lat: candidate.node[1] }
-          });
-
-          if (results.length >= 3) {
-            break;
-          }
+        // Calculate mountain distance
+        let mountainDistance = 0;
+        for (let j = 0; j < polyline.length - 1; j++) {
+          mountainDistance += distance(point([polyline[j].lng, polyline[j].lat]), point([polyline[j + 1].lng, polyline[j + 1].lat]), { units: 'kilometers' });
         }
+
+        // Calculate flat distance to dest
+        const flatDistance = distance(point([candidate.node[0], candidate.node[1]]), destPt, { units: 'kilometers' });
+        const totalDuration = (mountainDistance / 2.5) * 60 + (flatDistance / 4.5) * 60;
+
+        const difficulty = getPathDifficulty(pathCoords);
+
+        candidates.push({
+          polyline,
+          snappedStart: { lng: candidate.node[0], lat: candidate.node[1] },
+          difficulty,
+          mountainDistance,
+          totalDuration,
+        });
       }
     } catch (e) {
-      // Continue if routing error
+      // Continue
     }
   }
 
-  // Second pass: if we have fewer than 3 options, grab other distinct exits even if they share the same first step
-  if (results.length < 3) {
-    for (const candidate of sortedCandidates) {
-      try {
-        const pathResult = pathFinderInstance.findPath(
-          point(startNode),
-          point(candidate.node)
-        );
+  // 4. Sort and filter duplicate routes
+  // Sort by total duration ascending (fastest first)
+  candidates.sort((a, b) => (a.totalDuration || 0) - (b.totalDuration || 0));
 
-        if (pathResult && pathResult.path && pathResult.path.length >= 2) {
-          const pathCoords = pathResult.path;
-          const exitKey = `${candidate.node[0].toFixed(5)},${candidate.node[1].toFixed(5)}`;
+  const selectedResults: HikingPolylineResult[] = [];
 
-          if (!seenExitNode.has(exitKey)) {
-            seenExitNode.add(exitKey);
-
-            results.push({
-              polyline: buildPolyline(start, pathCoords),
-              snappedStart: { lng: candidate.node[0], lat: candidate.node[1] }
-            });
-
-            if (results.length >= 3) {
-              break;
-            }
-          }
-        }
-      } catch (e) {
-        // Continue if routing error
+  for (const cand of candidates) {
+    // Check overlap with already selected paths
+    const isOverlap = selectedResults.some(sel => arePathsOverlapping(cand.polyline, sel.polyline));
+    if (!isOverlap) {
+      selectedResults.push(cand);
+      if (selectedResults.length >= 3) {
+        break;
       }
     }
   }
 
-  return results;
+  return selectedResults;
+}
+
+function arePathsOverlapping(p1: { lat: number; lng: number }[], p2: { lat: number; lng: number }[]): boolean {
+  let sharedCount = 0;
+  for (const pt1 of p1) {
+    const hasClosePoint = p2.some(pt2 => 
+      Math.abs(pt1.lat - pt2.lat) < 1e-4 && Math.abs(pt1.lng - pt2.lng) < 1e-4
+    );
+    if (hasClosePoint) {
+      sharedCount++;
+    }
+  }
+  const ratio = sharedCount / Math.min(p1.length, p2.length);
+  return ratio > 0.6; // 60% overlap threshold
+}
+
+function getPathDifficulty(path: [number, number][]): string {
+  let difficulty = '쉬움';
+  const difficulties: string[] = [];
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const c1 = path[i];
+    const c2 = path[i + 1];
+
+    const matchedFeature = cachedLineFeatures.find(f => {
+      const coords = f.geometry.coordinates;
+      for (let j = 0; j < coords.length - 1; j++) {
+        const pt1 = coords[j];
+        const pt2 = coords[j + 1];
+        if (
+          (Math.abs(pt1[0] - c1[0]) < 1e-5 && Math.abs(pt1[1] - c1[1]) < 1e-5 &&
+           Math.abs(pt2[0] - c2[0]) < 1e-5 && Math.abs(pt2[1] - c2[1]) < 1e-5) ||
+          (Math.abs(pt1[0] - c2[0]) < 1e-5 && Math.abs(pt1[1] - c2[1]) < 1e-5 &&
+           Math.abs(pt2[0] - c1[0]) < 1e-5 && Math.abs(pt2[1] - c1[1]) < 1e-5)
+        ) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (matchedFeature && matchedFeature.properties?.PMNTN_DFFL) {
+      difficulties.push(matchedFeature.properties.PMNTN_DFFL);
+    }
+  }
+
+  if (difficulties.length > 0) {
+    if (difficulties.includes('어려움')) difficulty = '어려움';
+    else if (difficulties.includes('중간')) difficulty = '중간';
+    else difficulty = difficulties[0];
+  }
+
+  return difficulty;
 }

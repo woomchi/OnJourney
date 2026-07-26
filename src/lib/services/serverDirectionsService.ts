@@ -1116,6 +1116,8 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
 
     if (hasStartTrails || hasEndTrails) {
       const numOptions = Math.max(startOptions.length, endOptions.length);
+      const optionsData = [];
+
       for (let i = 0; i < numOptions; i++) {
         const startOpt = startOptions[i] || startOptions[0];
         const endOpt = endOptions[i] || endOptions[0];
@@ -1177,42 +1179,89 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
         const flatTime = (d_flat / 4.5) * 60;
         const totalDuration = Math.max(1, Math.round(mountainTime + flatTime));
 
-        if (i === 0) {
-          if (snappedStart) snappedStartCoords = snappedStart;
-          if (snappedEnd) snappedEndCoords = snappedEnd;
+        optionsData.push({
+          index: i,
+          totalDuration,
+          totalDistance,
+          mountainDistance: (startOpt?.mountainDistance || 0) + (endOpt?.mountainDistance || 0),
+          difficulty: startOpt?.difficulty || endOpt?.difficulty || '쉬움',
+          pathPoints,
+          snappedStart,
+          snappedEnd,
+          flatStartLat,
+          flatStartLng,
+          flatEndLat,
+          flatEndLng,
+        });
+      }
+
+      // Find options with minimum mountain distance
+      let minMountainDist = Infinity;
+      let minMountainIdx = -1;
+      optionsData.forEach((opt, idx) => {
+        if (opt.mountainDistance < minMountainDist) {
+          minMountainDist = opt.mountainDistance;
+          minMountainIdx = idx;
+        }
+      });
+
+      optionsData.forEach((opt, idx) => {
+        const tags: string[] = [];
+
+        // 1. 최단시간: index 0 (as candidates are sorted by duration in hikingTrailService)
+        if (idx === 0) {
+          tags.push('최단시간');
+        }
+
+        // 2. 최단 산길
+        if (idx === minMountainIdx) {
+          tags.push('최단 산길');
+        }
+
+        // 3. 완만한 코스: difficulty is '쉬움'
+        if (opt.difficulty === '쉬움') {
+          tags.push('완만한 코스');
+        }
+
+        const uniqueTags = Array.from(new Set(tags));
+
+        if (idx === 0) {
+          if (opt.snappedStart) snappedStartCoords = opt.snappedStart;
+          if (opt.snappedEnd) snappedEndCoords = opt.snappedEnd;
         }
 
         walkResults.push({
-          id: `walk-${i}`,
+          id: `walk-${idx}`,
           type: 'walk',
-          name: `도보 (등산로 경로 ${i + 1})`,
-          duration: totalDuration,
+          name: `도보 (등산로 경로 ${idx + 1})`,
+          duration: opt.totalDuration,
           fare: 0,
-          distance: totalDistance,
+          distance: opt.totalDistance,
           isEstimated: true,
           steps: [
             {
               type: 'walk',
-              name: `도보 (등산로 경로 ${i + 1})`,
-              duration: totalDuration,
+              name: `도보 (등산로 경로 ${idx + 1})`,
+              duration: opt.totalDuration,
               color: '#E4E4E7',
-              pathPoints,
+              pathPoints: opt.pathPoints,
               startLat: sy,
               startLng: sx,
               endLat: ey,
               endLng: ex,
             }
           ],
-          pathPoints,
-          straightSection: (snappedStart || snappedEnd) ? [
-            { lat: flatStartLat, lng: flatStartLng },
-            { lat: flatEndLat, lng: flatEndLng }
+          pathPoints: opt.pathPoints,
+          straightSection: (opt.snappedStart || opt.snappedEnd) ? [
+            { lat: opt.flatStartLat, lng: opt.flatStartLng },
+            { lat: opt.flatEndLat, lng: opt.flatEndLng }
           ] : undefined,
-          isStraightSectionAtEnd: !!(snappedEnd && !snappedStart),
-          snappedStart,
-          snappedEnd,
+          isStraightSectionAtEnd: !!(opt.snappedEnd && !opt.snappedStart),
+          snappedStart: opt.snappedStart,
+          snappedEnd: opt.snappedEnd,
+          tags: uniqueTags,
         });
-      }
+      });
     } else {
       // 등산로가 없는 경우 (도로 스냅 Fallback)
       let pathPoints: { lat: number; lng: number }[] = [];

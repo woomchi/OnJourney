@@ -16,6 +16,7 @@ export interface SelectedRoute {
   detailedPathPoints?: { lat: number; lng: number }[];
   snappedStart?: { lng: number; lat: number };
   snappedEnd?: { lng: number; lat: number };
+  tags?: string[];
 }
 
 export interface Place {
@@ -96,6 +97,7 @@ export interface DirectionResult {
   snappedStart?: { lng: number; lat: number };
   snappedEnd?: { lng: number; lat: number };
   detailedPathPoints?: { lat: number; lng: number }[];
+  tags?: string[];
 }
 
 export interface DirectionsApiResponse {

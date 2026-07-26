@@ -142,9 +142,26 @@ export default function AlternativeSegmentInfo({
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-base flex-shrink-0">{emoji}</span>
                   <div className="flex flex-col min-w-0">
-                    <span className={`text-[11px] font-bold truncate leading-tight ${isSelected ? 'text-blue-700' : 'text-zinc-700'}`}>
-                      {route.name}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-[11px] font-bold truncate leading-tight ${isSelected ? 'text-blue-700' : 'text-zinc-700'}`}>
+                        {route.name}
+                      </span>
+                      {route.tags?.map(tag => {
+                        let colorClass = 'bg-blue-50 text-blue-600';
+                        if (tag === '최단시간' || tag === '추천' || tag === '최단 시간') {
+                          colorClass = 'bg-emerald-50 text-emerald-600';
+                        } else if (tag === '최단 산길') {
+                          colorClass = 'bg-amber-50 text-amber-600';
+                        } else if (tag === '완만한 코스') {
+                          colorClass = 'bg-zinc-100 text-zinc-600';
+                        }
+                        return (
+                          <span key={tag} className={`px-1 py-[1px] text-[8px] font-extrabold rounded whitespace-nowrap ${colorClass}`}>
+                            {tag}
+                          </span>
+                        );
+                      })}
+                    </div>
                     {activeTab === 'car' ? (
                       <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
                         택시 {route.taxiFare?.toLocaleString()}원 {route.fare > 0 ? `(통행료 ${route.fare.toLocaleString()}원)` : '(통행료 무료)'}

@@ -461,11 +461,21 @@ export default function AlternativeRoutePanel({
                 <span className={`text-sm font-black tracking-tight ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
                   {route.duration}분
                 </span>
-                {tags.map(tag => (
-                  <span key={tag} className="px-1.5 py-[2px] text-[9px] font-extrabold rounded bg-blue-50 text-blue-600 whitespace-nowrap">
-                    {tag}
-                  </span>
-                ))}
+                {tags.map(tag => {
+                  let colorClass = 'bg-blue-50 text-blue-600 border border-blue-100';
+                  if (tag === '최단시간' || tag === '추천' || tag === '최단 시간') {
+                    colorClass = 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                  } else if (tag === '최단 산길') {
+                    colorClass = 'bg-amber-50 text-amber-600 border border-amber-100';
+                  } else if (tag === '완만한 코스') {
+                    colorClass = 'bg-zinc-100 text-zinc-600 border border-zinc-200';
+                  }
+                  return (
+                    <span key={tag} className={`px-1.5 py-[2px] text-[9px] font-extrabold rounded whitespace-nowrap ${colorClass}`}>
+                      {tag}
+                    </span>
+                  );
+                })}
               </div>
               {activeTab === 'car' ? (
                 <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">

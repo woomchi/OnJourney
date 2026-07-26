@@ -9,6 +9,7 @@ export const placesQuerySchema = z.object({
   minLng: z.coerce.number().optional(),
   maxLng: z.coerce.number().optional(),
   sort: z.string().optional(),
+  transport_type: z.enum(['public', 'car', 'walk']).optional(),
 });
 
 export type PlacesQueryType = z.infer<typeof placesQuerySchema>;

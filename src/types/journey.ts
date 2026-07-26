@@ -147,5 +147,7 @@ export interface PlaceResult {
   category: string;
   lat: number;
   lng: number;
+  score?: number;
+  category_group_code?: string;
 }
 

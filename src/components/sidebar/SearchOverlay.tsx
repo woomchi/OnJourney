@@ -14,55 +14,6 @@ interface SearchOverlayProps {
   activeJourney: Journey;
 }
 
-function getDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
-  return calculateHaversineDistance(lat1, lng1, lat2, lng2) / 1000; // km 단위 반환
-}
-
-function calculateScore(item: PlaceResult, index: number, query: string, targetLat: number | null, targetLng: number | null) {
-  let score = 0;
-  const placeName = item.place_name.replace(/\s+/g, '').toLowerCase();
-  const searchQ = query.replace(/\s+/g, '').toLowerCase();
-
-  // 검색어 의도 분석 (일반 카테고리 vs 특정 고유 명사)
-  const genericKeywords = ['카페', '커피', '식당', '맛집', '편의점', '주차장', '화장실', '공원', '은행', '약국', '병원', '마트', '시장', '주유소', '지하철', '역'];
-  const isGenericQuery = genericKeywords.some(k => searchQ.includes(k));
-
-  // 1. 이름 완벽 일치 (최고 우선순위)
-  if (placeName === searchQ) {
-    score += 100000;
-  }
-  // 2. 본점/직영점 가산점 (고유명사 검색 시 본점이 최상위로 오도록 압도적 우대)
-  else if (placeName.includes('본점') || placeName.includes('직영점')) {
-    score += 80000;
-  }
-  // 3. 검색어로 시작함 (높은 우선순위)
-  else if (placeName.startsWith(searchQ)) {
-    score += 50000;
-  }
-  // 4. 검색어를 포함함
-  else if (placeName.includes(searchQ)) {
-    score += 10000;
-  }
-
-  // 5. 여행객 숙소 안주 관련 시설 (배달전문, 포장전문)
-  if (placeName.includes('배달') || placeName.includes('포장') || placeName.includes('테이크아웃') || placeName.includes('물류')) {
-    score += 10000;
-  }
-
-  // 6. 카카오 원본 순위(인기도/정확도) 가점 (1등: 4500점 ~ 45등: 100점)
-  score += (50 - index) * 100;
-
-  // 7. 거리 감점 (지도 중심 좌표가 있을 경우)
-  if (targetLat !== null && targetLng !== null) {
-    const dist = getDistance(targetLat, targetLng, item.lat, item.lng);
-    // 일반 키워드면 거리 감점을 크게(1km당 50점), 고유 명사면 거리를 무시수준으로(1km당 1점) 적용
-    const distancePenaltyWeight = isGenericQuery ? 50 : 1;
-    score -= (dist * distancePenaltyWeight);
-  }
-
-  return score;
-}
-
 function getDistrictPrefix(address: string) {
   if (!address) return '';
   const parts = address.trim().split(/\s+/);
@@ -224,9 +175,12 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         ? `&minLat=${mapBounds.minLat}&maxLat=${mapBounds.maxLat}&minLng=${mapBounds.minLng}&maxLng=${mapBounds.maxLng}`
         : '';
       const coordParam = mapCenterCoord ? `&lat=${mapCenterCoord.lat}&lng=${mapCenterCoord.lng}` : '';
+      const transportParam = activeJourney?.transport_type
+        ? `&transport_type=${activeJourney.transport_type}`
+        : '';
 
       // 1차 검색: 현재 지도 영역 기반으로 정확도순 검색 (거리순 제외)
-      let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}`);
+      let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`);
       if (currentSearchId !== activeSearchId.current) return;
       let payload = await res.json();
       let items: PlaceResult[] = [];
@@ -241,11 +195,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       }
 
       // 1차 검색 결과가 15개 미만이라면(현재 지도 영역 내에 해당 장소가 부족함 = 특수한 고유명사일 확률이 높음), 범위를 넓혀 전국망 2차 검색 진행
-      let isFallbackSearch = false;
       if (items.length < 15) {
-        isFallbackSearch = true;
         // coordParam은 남겨서 현 중심점 기준으로 가장 가까운 곳부터 우선 탐색되도록 유도하되 rect는 해제 (전국망 확장)
-        const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}`);
+        const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}${transportParam}`);
         if (currentSearchId !== activeSearchId.current) return;
         const fallbackPayload = await fallbackRes.json();
 
@@ -263,36 +215,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         }
       }
 
-      // [하이브리드 정렬 적용] 
-      // 카카오가 반환한 정확도순(인기도순) 45개의 배열을 프론트엔드 자체 점수 알고리즘으로 재정렬
-      let targetLat = mapCenterCoord ? mapCenterCoord.lat : null;
-      let targetLng = mapCenterCoord ? mapCenterCoord.lng : null;
-
-      // 만약 2차(전국구) 검색이라면, 검색어와 가장 일치하는 1순위 장소를 새로운 중심으로 설정하여 그 주변으로 정렬되게 유도
-      if (isFallbackSearch && items.length > 0) {
-        let bestItem = items[0];
-        let highestBaseScore = -1;
-        items.forEach((item, index) => {
-          // 거리 감점 없이 순수 이름 + 카카오랭킹 점수만 계산
-          const baseScore = calculateScore(item, index, q, null, null);
-          if (baseScore > highestBaseScore) {
-            highestBaseScore = baseScore;
-            bestItem = item;
-          }
-        });
-        targetLat = bestItem.lat;
-        targetLng = bestItem.lng;
-      }
-
-      const scoredItems = items.map((item, index) => {
-        return {
-          item,
-          score: calculateScore(item, index, q, targetLat, targetLng)
-        };
-      });
-
-      scoredItems.sort((a, b) => b.score - a.score); // 점수가 높은 순으로 내림차순 정렬
-      items = scoredItems.map(si => si.item);
+      // 서버에서 전달한 composite score 기준 내림차순 최종 정렬
+      items.sort((a, b) => (b.score || 0) - (a.score || 0));
 
       setSearchResults(items);
       setRecommendedPlaces(items);
@@ -331,7 +255,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces, mapCenterCoord, mapBounds]);
+  }, [clearRecommendedPlaces, setRecommendedPlaces, mapCenterCoord, mapBounds, activeJourney?.transport_type]);
 
 
 

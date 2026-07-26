@@ -108,7 +108,7 @@ async function preprocessTrails() {
         : undefined;
 
       const parsedShp = parseShp(shpBuffer, prjString);
-      const parsedDbf = parseDbf(dbfBuffer, 'EUC-KR');
+      const parsedDbf = parseDbf(dbfBuffer, Buffer.from('EUC-KR'));
 
       const geojson = combine([parsedShp, parsedDbf]) as FeatureCollection;
 

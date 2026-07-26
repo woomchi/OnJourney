@@ -133,3 +133,23 @@ export async function fetchCarWalkDirectionsApi(
     return { car: fallback.car, walk: fallback.walk };
   }
 }
+
+export async function fetchTmapDetailRouteApi(
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number
+): Promise<{ polyline: { lat: number; lng: number }[]; guide: any[] }> {
+  try {
+    const url = `/api/directions/tmap-detail?sx=${sx}&sy=${sy}&ex=${ex}&ey=${ey}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('상세 경로 요청 실패');
+    const payload = await res.json();
+    if (!payload.success) throw new Error(payload.error || '상세 경로 요청 실패');
+    return payload.data;
+  } catch (err) {
+    console.error('[directionsService] TMAP detail route fetch failed:', err);
+    throw err;
+  }
+}
+

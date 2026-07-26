@@ -90,6 +90,8 @@ export interface DirectionResult {
   guide?: RouteGuideNode[];
   straightSection?: { lat: number; lng: number }[];
   isStraightSectionAtEnd?: boolean;
+  snappedStart?: { lng: number; lat: number };
+  snappedEnd?: { lng: number; lat: number };
 }
 
 export interface DirectionsApiResponse {

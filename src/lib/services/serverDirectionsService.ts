@@ -1,4 +1,4 @@
-import type { DirectionResult, DirectionStep, DirectionsApiResponse, CarWalkDirectionsResult, SnapMeta, SnapType } from '@/types/journey';
+import type { DirectionResult, DirectionStep, DirectionsApiResponse, CarWalkDirectionsResult, SnapMeta, SnapType, RouteGuideNode } from '@/types/journey';
 import { unstable_cache } from 'next/cache';
 import { externalFetch } from '@/lib/utils/externalFetch';
 import { chunkAsync } from '@/lib/utils/odsayThrottle';
@@ -1041,60 +1041,53 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     };
   }
 
-  // 2. 지형 기반 좌표 보정 (Snap to Road / Hiking Trail)
+  // 2. 지형 기반 좌표 보정 및 TMAP API 지연 호출 (On-Demand) 결정
   const isStartNonWalkable = isNonWalkableArea(sx, sy);
   const isEndNonWalkable = isNonWalkableArea(ex, ey);
 
+  let snappedStartCoords: { lng: number; lat: number } | undefined;
+  let snappedEndCoords: { lng: number; lat: number } | undefined;
+
+  let walkResults: DirectionResult[] = [];
+
+  const roundCoordWalk = (val: number) => Math.round(val * 100000000) / 100000000;
+  const roundCoordCar = (val: number) => Math.round(val * 10000) / 10000;
+
+  // 차량용 Snap 좌표 (기존 도로 좌표 스냅)
   let effectiveSx = sx;
   let effectiveSy = sy;
   let effectiveEx = ex;
   let effectiveEy = ey;
 
-  let snappedStartCoords: { lng: number; lat: number } | undefined;
-  let snappedEndCoords: { lng: number; lat: number } | undefined;
-
-  let startHikingPolyline: { lat: number; lng: number }[] | undefined;
-  let endHikingPolyline: { lat: number; lng: number }[] | undefined;
-
   if (isStartNonWalkable) {
-    const trailResult = getHikingTrailPolyline({ lng: sx, lat: sy }, { lng: ex, lat: ey });
-    if (trailResult && trailResult.polyline.length >= 2) {
-      effectiveSx = trailResult.snappedStart.lng;
-      effectiveSy = trailResult.snappedStart.lat;
-      snappedStartCoords = trailResult.snappedStart;
-      startHikingPolyline = trailResult.polyline;
+    const startOptions = getHikingTrailPolyline({ lng: sx, lat: sy }, { lng: ex, lat: ey });
+    if (startOptions.length > 0) {
+      effectiveSx = startOptions[0].snappedStart.lng;
+      effectiveSy = startOptions[0].snappedStart.lat;
     } else {
       const snapped = await getNearestRoadCoords(sx, sy, ex, ey);
       effectiveSx = snapped.lng;
       effectiveSy = snapped.lat;
-      snappedStartCoords = snapped;
-      startHikingPolyline = [
-        { lat: sy, lng: sx },
-        { lat: effectiveSy, lng: effectiveSx }
-      ];
     }
   }
-
   if (isEndNonWalkable) {
-    const trailResult = getHikingTrailPolyline({ lng: ex, lat: ey }, { lng: sx, lat: sy });
-    if (trailResult && trailResult.polyline.length >= 2) {
-      effectiveEx = trailResult.snappedStart.lng;
-      effectiveEy = trailResult.snappedStart.lat;
-      snappedEndCoords = trailResult.snappedStart;
-      endHikingPolyline = [...trailResult.polyline].reverse();
+    const endOptions = getHikingTrailPolyline({ lng: ex, lat: ey }, { lng: sx, lat: sy });
+    if (endOptions.length > 0) {
+      effectiveEx = endOptions[0].snappedStart.lng;
+      effectiveEy = endOptions[0].snappedStart.lat;
     } else {
       const snapped = await getNearestRoadCoords(ex, ey, sx, sy);
       effectiveEx = snapped.lng;
       effectiveEy = snapped.lat;
-      snappedEndCoords = snapped;
-      endHikingPolyline = [
-        { lat: effectiveEy, lng: effectiveEx },
-        { lat: ey, lng: ex }
-      ];
     }
   }
 
-  // 3. 상황별 snapMeta 설정
+  const csx = roundCoordCar(effectiveSx);
+  const csy = roundCoordCar(effectiveSy);
+  const cex = roundCoordCar(effectiveEx);
+  const cey = roundCoordCar(effectiveEy);
+
+  // 3. 상황별 snapType 판정
   let snapType: SnapType = 'NONE';
   let message = '';
 
@@ -1109,298 +1102,214 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     message = '도착지 근처 산림청 등산로 및 도로를 기준으로 경로를 탐색했습니다.';
   }
 
+  // 등산로가 있을 때 - On-Demand: TMAP API 호출 없이 예상 경로(Fast Return) 구성
+  if (isStartNonWalkable || isEndNonWalkable) {
+    const startOptions = isStartNonWalkable
+      ? getHikingTrailPolyline({ lng: sx, lat: sy }, { lng: ex, lat: ey })
+      : [];
+    const endOptions = isEndNonWalkable
+      ? getHikingTrailPolyline({ lng: ex, lat: ey }, { lng: sx, lat: sy })
+      : [];
+
+    const hasStartTrails = isStartNonWalkable && startOptions.length > 0;
+    const hasEndTrails = isEndNonWalkable && endOptions.length > 0;
+
+    if (hasStartTrails || hasEndTrails) {
+      const numOptions = Math.max(startOptions.length, endOptions.length);
+      for (let i = 0; i < numOptions; i++) {
+        const startOpt = startOptions[i] || startOptions[0];
+        const endOpt = endOptions[i] || endOptions[0];
+
+        let pathPoints: { lat: number; lng: number }[] = [];
+        let d_mountain = 0;
+        let snappedStart: { lng: number; lat: number } | undefined;
+        let snappedEnd: { lng: number; lat: number } | undefined;
+
+        if (isStartNonWalkable && startOpt) {
+          snappedStart = startOpt.snappedStart;
+          for (let j = 0; j < startOpt.polyline.length - 1; j++) {
+            d_mountain += haversineDistance(
+              startOpt.polyline[j].lat, startOpt.polyline[j].lng,
+              startOpt.polyline[j + 1].lat, startOpt.polyline[j + 1].lng
+            );
+          }
+          pathPoints.push(...startOpt.polyline);
+        }
+
+        if (isEndNonWalkable && endOpt) {
+          snappedEnd = endOpt.snappedStart;
+          const revPolyline = [...endOpt.polyline].reverse();
+          for (let j = 0; j < revPolyline.length - 1; j++) {
+            d_mountain += haversineDistance(
+              revPolyline[j].lat, revPolyline[j].lng,
+              revPolyline[j + 1].lat, revPolyline[j + 1].lng
+            );
+          }
+
+          if (pathPoints.length > 0) {
+            const lastStart = pathPoints[pathPoints.length - 1];
+            const firstEnd = revPolyline[0];
+            if (Math.abs(lastStart.lat - firstEnd.lat) > 1e-6 || Math.abs(lastStart.lng - firstEnd.lng) > 1e-6) {
+              pathPoints.push(...revPolyline);
+            } else {
+              pathPoints.push(...revPolyline.slice(1));
+            }
+          } else {
+            pathPoints.push(...revPolyline);
+          }
+        }
+
+        const flatStartLat = snappedStart ? snappedStart.lat : sy;
+        const flatStartLng = snappedStart ? snappedStart.lng : sx;
+        const flatEndLat = snappedEnd ? snappedEnd.lat : ey;
+        const flatEndLng = snappedEnd ? snappedEnd.lng : ex;
+
+        const d_flat = haversineDistance(flatStartLat, flatStartLng, flatEndLat, flatEndLng);
+
+        if (!isStartNonWalkable) {
+          pathPoints.unshift({ lat: sy, lng: sx });
+        } else if (!isEndNonWalkable) {
+          pathPoints.push({ lat: ey, lng: ex });
+        }
+
+        const totalDistance = d_mountain + d_flat;
+        const mountainTime = (d_mountain / 2.5) * 60;
+        const flatTime = (d_flat / 4.5) * 60;
+        const totalDuration = Math.max(1, Math.round(mountainTime + flatTime));
+
+        if (i === 0) {
+          if (snappedStart) snappedStartCoords = snappedStart;
+          if (snappedEnd) snappedEndCoords = snappedEnd;
+        }
+
+        walkResults.push({
+          id: `walk-${i}`,
+          type: 'walk',
+          name: `도보 (등산로 경로 ${i + 1})`,
+          duration: totalDuration,
+          fare: 0,
+          distance: totalDistance,
+          isEstimated: true,
+          steps: [
+            {
+              type: 'walk',
+              name: `도보 (등산로 경로 ${i + 1})`,
+              duration: totalDuration,
+              color: '#E4E4E7',
+              pathPoints,
+              startLat: sy,
+              startLng: sx,
+              endLat: ey,
+              endLng: ex,
+            }
+          ],
+          pathPoints,
+          straightSection: (snappedStart || snappedEnd) ? [
+            { lat: flatStartLat, lng: flatStartLng },
+            { lat: flatEndLat, lng: flatEndLng }
+          ] : undefined,
+          isStraightSectionAtEnd: !!(snappedEnd && !snappedStart),
+          snappedStart,
+          snappedEnd,
+        });
+      }
+    } else {
+      // 등산로가 없는 경우 (도로 스냅 Fallback)
+      let pathPoints: { lat: number; lng: number }[] = [];
+      let d_mountain = 0;
+      let snappedStart: { lng: number; lat: number } | undefined;
+      let snappedEnd: { lng: number; lat: number } | undefined;
+
+      if (isStartNonWalkable) {
+        snappedStart = await getNearestRoadCoords(sx, sy, ex, ey);
+        snappedStartCoords = snappedStart;
+        d_mountain = haversineDistance(sy, sx, snappedStart.lat, snappedStart.lng);
+        pathPoints.push({ lat: sy, lng: sx }, { lat: snappedStart.lat, lng: snappedStart.lng });
+      }
+
+      if (isEndNonWalkable) {
+        snappedEnd = await getNearestRoadCoords(ex, ey, sx, sy);
+        snappedEndCoords = snappedEnd;
+        d_mountain += haversineDistance(ey, ex, snappedEnd.lat, snappedEnd.lng);
+        pathPoints.push({ lat: snappedEnd.lat, lng: snappedEnd.lng }, { lat: ey, lng: ex });
+      }
+
+      const flatStartLat = snappedStart ? snappedStart.lat : sy;
+      const flatStartLng = snappedStart ? snappedStart.lng : sx;
+      const flatEndLat = snappedEnd ? snappedEnd.lat : ey;
+      const flatEndLng = snappedEnd ? snappedEnd.lng : ex;
+
+      const d_flat = haversineDistance(flatStartLat, flatStartLng, flatEndLat, flatEndLng);
+
+      if (!isStartNonWalkable) {
+        pathPoints.unshift({ lat: sy, lng: sx });
+      }
+      if (!isEndNonWalkable) {
+        pathPoints.push({ lat: ey, lng: ex });
+      }
+
+      const totalDistance = d_mountain + d_flat;
+      const totalDuration = Math.max(1, Math.round((d_mountain / 2.5) * 60 + (d_flat / 4.5) * 60));
+
+      walkResults.push({
+        id: 'walk',
+        type: 'walk',
+        name: '도보 (경로 예상)',
+        duration: totalDuration,
+        fare: 0,
+        distance: totalDistance,
+        isEstimated: true,
+        steps: [
+          {
+            type: 'walk',
+            name: '도보 (경로 예상)',
+            duration: totalDuration,
+            color: '#E4E4E7',
+            pathPoints,
+            startLat: sy,
+            startLng: sx,
+            endLat: ey,
+            endLng: ex,
+          }
+        ],
+        pathPoints,
+        straightSection: [
+          { lat: flatStartLat, lng: flatStartLng },
+          { lat: flatEndLat, lng: flatEndLng }
+        ],
+        isStraightSectionAtEnd: !!(snappedEnd && !snappedStart),
+        snappedStart,
+        snappedEnd,
+      });
+    }
+  } else {
+    // 4. 일반 평지 도보 (기존처럼 TMAP API 직접 호출)
+    const apiKey = process.env.TMAP_API_KEY;
+    if (!apiKey) {
+      console.warn('[serverDirectionsService] TMAP_API_KEY is not defined. Using fallback straight line calculations.');
+      walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
+    } else {
+      try {
+        const wsx = roundCoordWalk(sx);
+        const wsy = roundCoordWalk(sy);
+        const wex = roundCoordWalk(ex);
+        const wey = roundCoordWalk(ey);
+
+        const tmapData = await getCachedTMapWalkingRoute(wsx, wsy, wex, wey, apiKey);
+        walkResults = parseTMapResponse(tmapData, wsx, wsy, wex, wey);
+      } catch (error) {
+        console.warn('[serverDirectionsService] TMap Walking API failed, using fallback.', error);
+        walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
+      }
+    }
+  }
+
   const snapMeta: SnapMeta = {
     snapType,
     ...(snapType !== 'NONE' ? { message } : {}),
     ...(snappedStartCoords ? { snappedStartCoords } : {}),
     ...(snappedEndCoords ? { snappedEndCoords } : {}),
   };
-  
-  // 도보는 정밀도가 중요하므로 소수점 8자리(약 1.1mm 초정밀 오차범위)로 반올림하여 TMap API에 전송 및 캐싱
-  const roundCoordWalk = (val: number) => Math.round(val * 100000000) / 100000000;
-  const roundCoordCar = (val: number) => Math.round(val * 10000) / 10000;
-  
-  const wsx = roundCoordWalk(effectiveSx);
-  const wsy = roundCoordWalk(effectiveSy);
-  const wex = roundCoordWalk(effectiveEx);
-  const wey = roundCoordWalk(effectiveEy);
-
-  const csx = roundCoordCar(effectiveSx);
-  const csy = roundCoordCar(effectiveSy);
-  const cex = roundCoordCar(effectiveEx);
-  const cey = roundCoordCar(effectiveEy);
-
-  let walkResults: DirectionResult[];
-
-  const apiKey = process.env.TMAP_API_KEY;
-  if (!apiKey) {
-    console.warn('[serverDirectionsService] TMAP_API_KEY is not defined. Using fallback straight line calculations.');
-    walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
-  } else {
-    try {
-      let tmapData: any;
-      let finalSx = wsx;
-      let finalSy = wsy;
-      let finalEx = wex;
-      let finalEy = wey;
-
-      if (isStartNonWalkable || isEndNonWalkable) {
-        const bearDeg = bearing(point([effectiveSx, effectiveSy]), point([effectiveEx, effectiveEy]));
-        const probeRes = await probeTMapSnapPoint(effectiveSx, effectiveSy, effectiveEx, effectiveEy, apiKey, bearDeg);
-        tmapData = probeRes.tmapData;
-        finalSx = probeRes.snappedLng;
-        finalSy = probeRes.snappedLat;
-
-        effectiveSx = finalSx;
-        effectiveSy = finalSy;
-      } else {
-        tmapData = await getCachedTMapWalkingRoute(wsx, wsy, wex, wey, apiKey);
-      }
-
-      walkResults = parseTMapResponse(tmapData, finalSx, finalSy, finalEx, finalEy);
-
-      // 산/비보행 구역이 포함되어 구간 분할이 필요한 경우 산림청 등산로 Polyline 또는 보정 구간 조합
-      if (isStartNonWalkable || isEndNonWalkable) {
-        walkResults = walkResults.map((result) => {
-          let updatedPathPoints = [...result.pathPoints];
-          let addedDistKm = 0;
-          let addedTimeMin = 0;
-
-          // 1) 출발지 비보행 구역 -> 산림청 등산로 Polyline
-          let startStraightSection: { lat: number; lng: number }[] | undefined;
-          if (isStartNonWalkable) {
-            startStraightSection = startHikingPolyline || [
-              { lat: sy, lng: sx },
-              { lat: effectiveSy, lng: effectiveSx }
-            ];
-            let dist = 0;
-            for (let i = 0; i < startStraightSection.length - 1; i++) {
-              dist += haversineDistance(
-                startStraightSection[i].lat, startStraightSection[i].lng,
-                startStraightSection[i + 1].lat, startStraightSection[i + 1].lng
-              );
-            }
-            const timeMin = Math.round((dist / 4.5) * 60);
-            addedDistKm += dist;
-            addedTimeMin += timeMin;
-
-            // pathPoints 중복 제거하며 맨 앞에 등산로 Polyline 합침
-            const firstTmap = updatedPathPoints[0];
-            const lastStartPoly = startStraightSection[startStraightSection.length - 1];
-            if (
-              firstTmap &&
-              Math.abs(firstTmap.lat - lastStartPoly.lat) < 1e-5 &&
-              Math.abs(firstTmap.lng - lastStartPoly.lng) < 1e-5
-            ) {
-              updatedPathPoints = [...startStraightSection, ...updatedPathPoints.slice(1)];
-            } else {
-              updatedPathPoints = [...startStraightSection, ...updatedPathPoints];
-            }
-          }
-
-          // 2) 탈출 도로 좌표 -> 도착지 비보행 구역 산림청 등산로 Polyline
-          let endStraightSection: { lat: number; lng: number }[] | undefined;
-          if (isEndNonWalkable) {
-            endStraightSection = endHikingPolyline || [
-              { lat: effectiveEy, lng: effectiveEx },
-              { lat: ey, lng: ex }
-            ];
-            let dist = 0;
-            for (let i = 0; i < endStraightSection.length - 1; i++) {
-              dist += haversineDistance(
-                endStraightSection[i].lat, endStraightSection[i].lng,
-                endStraightSection[i + 1].lat, endStraightSection[i + 1].lng
-              );
-            }
-            const timeMin = Math.round((dist / 4.5) * 60);
-            addedDistKm += dist;
-            addedTimeMin += timeMin;
-
-            const lastIdx = updatedPathPoints.length - 1;
-            const firstEndPoly = endStraightSection[0];
-            if (
-              lastIdx >= 0 &&
-              Math.abs(updatedPathPoints[lastIdx].lat - firstEndPoly.lat) < 1e-5 &&
-              Math.abs(updatedPathPoints[lastIdx].lng - firstEndPoly.lng) < 1e-5
-            ) {
-              updatedPathPoints = [...updatedPathPoints, ...endStraightSection.slice(1)];
-            } else {
-              updatedPathPoints = [...updatedPathPoints, ...endStraightSection];
-            }
-          }
-
-          // 등산로 구간 정보 설정 (출발지 또는 도착지 산 탈출 등산로)
-          const straightSection = startStraightSection || endStraightSection;
-          const isStraightSectionAtEnd = isEndNonWalkable && !isStartNonWalkable;
-
-          // steps의 pathPoints 및 첫/끝 좌표 보정
-          const updatedSteps = result.steps.map((step, idx) => {
-            if (idx === 0 && isStartNonWalkable) {
-              return {
-                ...step,
-                startLat: sy,
-                startLng: sx,
-                pathPoints: updatedPathPoints
-              };
-            }
-            if (idx === result.steps.length - 1 && isEndNonWalkable) {
-              return {
-                ...step,
-                endLat: ey,
-                endLng: ex,
-                pathPoints: updatedPathPoints
-              };
-            }
-            return {
-              ...step,
-              pathPoints: updatedPathPoints
-            };
-          });
-
-          return {
-            ...result,
-            duration: result.duration + addedTimeMin,
-            distance: (result.distance ?? 0) + addedDistKm,
-            pathPoints: updatedPathPoints,
-            steps: updatedSteps,
-            ...(straightSection ? { straightSection } : {}),
-            ...(isStraightSectionAtEnd ? { isStraightSectionAtEnd: true } : {})
-          };
-        });
-      }
-    } catch (error) {
-      console.warn('[serverDirectionsService] TMap Walking API failed, using fallback.', error);
-      const hasHikingTrail = !!(startHikingPolyline || endHikingPolyline);
-      if (hasHikingTrail) {
-        let combinedPath: { lat: number; lng: number }[] = [];
-        
-        if (startHikingPolyline && startHikingPolyline.length >= 1) {
-          combinedPath.push(...startHikingPolyline);
-        } else {
-          combinedPath.push({ lat: sy, lng: sx });
-        }
-        
-        if (endHikingPolyline && endHikingPolyline.length >= 1) {
-          const lastPoint = combinedPath[combinedPath.length - 1];
-          const firstEnd = endHikingPolyline[0];
-          if (Math.abs(lastPoint.lat - firstEnd.lat) > 1e-6 || Math.abs(lastPoint.lng - firstEnd.lng) > 1e-6) {
-            combinedPath.push(...endHikingPolyline);
-          } else {
-            combinedPath.push(...endHikingPolyline.slice(1));
-          }
-        } else {
-          const lastPoint = combinedPath[combinedPath.length - 1];
-          if (Math.abs(lastPoint.lat - ey) > 1e-6 || Math.abs(lastPoint.lng - ex) > 1e-6) {
-            combinedPath.push({ lat: ey, lng: ex });
-          }
-        }
-
-        const cleanPathPoints: { lat: number; lng: number }[] = [];
-        for (const pt of combinedPath) {
-          if (cleanPathPoints.length === 0) {
-            cleanPathPoints.push(pt);
-          } else {
-            const last = cleanPathPoints[cleanPathPoints.length - 1];
-            if (Math.abs(last.lat - pt.lat) > 1e-7 || Math.abs(last.lng - pt.lng) > 1e-7) {
-              cleanPathPoints.push(pt);
-            }
-          }
-        }
-
-        let totalDistanceKm = 0;
-        for (let i = 0; i < cleanPathPoints.length - 1; i++) {
-          totalDistanceKm += haversineDistance(
-            cleanPathPoints[i].lat, cleanPathPoints[i].lng,
-            cleanPathPoints[i + 1].lat, cleanPathPoints[i + 1].lng
-          );
-        }
-
-        const walkDuration = Math.max(1, Math.round((totalDistanceKm / 4.5) * 60));
-        const bicycleDuration = Math.max(1, Math.round((totalDistanceKm / 15) * 60));
-        const kickboardDuration = Math.max(1, Math.round((totalDistanceKm / 18) * 60));
-        const kickboardFare = 1000 + Math.round(kickboardDuration * 150);
-
-        const straightSection = startHikingPolyline || endHikingPolyline;
-        const isStraightSectionAtEnd = !!(endHikingPolyline && !startHikingPolyline);
-
-        walkResults = [
-          {
-            id: 'walk',
-            type: 'walk' as const,
-            name: '도보(우회)',
-            duration: walkDuration,
-            fare: 0,
-            distance: totalDistanceKm,
-            isEstimated: true,
-            steps: [
-              {
-                type: 'walk' as const,
-                name: '도보(우회)',
-                duration: walkDuration,
-                color: '#E4E4E7',
-                pathPoints: cleanPathPoints,
-                startLat: sy,
-                startLng: sx,
-                endLat: ey,
-                endLng: ex,
-              }
-            ],
-            pathPoints: cleanPathPoints,
-            ...(straightSection ? { straightSection } : {}),
-            ...(isStraightSectionAtEnd ? { isStraightSectionAtEnd: true } : {})
-          },
-          {
-            id: 'bicycle',
-            type: 'bicycle' as const,
-            name: '자전거(우회)',
-            duration: bicycleDuration,
-            fare: 0,
-            distance: totalDistanceKm,
-            isEstimated: true,
-            steps: [
-              {
-                type: 'walk' as const,
-                name: '자전거(우회)',
-                duration: bicycleDuration,
-                color: '#10B981',
-                pathPoints: cleanPathPoints,
-                startLat: sy,
-                startLng: sx,
-                endLat: ey,
-                endLng: ex,
-              }
-            ],
-            pathPoints: cleanPathPoints
-          },
-          {
-            id: 'kickboard',
-            type: 'kickboard' as const,
-            name: '공유 킥보드(우회)',
-            duration: kickboardDuration,
-            fare: kickboardFare,
-            distance: totalDistanceKm,
-            isEstimated: true,
-            steps: [
-              {
-                type: 'walk' as const,
-                name: '공유 킥보드(우회)',
-                duration: kickboardDuration,
-                color: '#8B5CF6',
-                pathPoints: cleanPathPoints,
-                startLat: sy,
-                startLng: sx,
-                endLat: ey,
-                endLng: ex,
-              }
-            ],
-            pathPoints: cleanPathPoints
-          }
-        ];
-      } else {
-        walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
-      }
-    }
-  }
 
   let carResults: DirectionResult[];
   try {
@@ -1414,6 +1323,50 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     car: carResults,
     walk: walkResults,
     snapMeta
+  };
+}
+
+/**
+ * TMAP 상세 경로 지연 호출용 API 핵심 비즈니스 로직
+ * 남은 평지 구간(start -> end)에 대해 TMAP 도보 API를 직접/지연 호출하여 실제 경로를 가져옵니다.
+ */
+export async function fetchTmapDetailRoute(
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number
+): Promise<{ polyline: { lat: number; lng: number }[]; guide: RouteGuideNode[] }> {
+  const apiKey = process.env.TMAP_API_KEY;
+  if (!apiKey) {
+    throw new Error('TMAP_API_KEY가 설정되지 않았습니다.');
+  }
+
+  const roundCoordWalk = (val: number) => Math.round(val * 100000000) / 100000000;
+  const wsx = roundCoordWalk(sx);
+  const wsy = roundCoordWalk(sy);
+  const wex = roundCoordWalk(ex);
+  const wey = roundCoordWalk(ey);
+
+  const bearDeg = bearing(point([wsx, wsy]), point([wex, wey]));
+  const probeRes = await probeTMapSnapPoint(wsx, wsy, wex, wey, apiKey, bearDeg);
+  const tmapData = probeRes.tmapData;
+  const finalSx = probeRes.snappedLng;
+  const finalSy = probeRes.snappedLat;
+
+  if (!tmapData || !tmapData.features || tmapData.features.length === 0) {
+    throw new Error('TMAP API 상세 경로를 탐색할 수 없습니다.');
+  }
+
+  const walkResults = parseTMapResponse(tmapData, finalSx, finalSy, wex, wey);
+  const walkResult = walkResults.find(r => r.id === 'walk');
+
+  if (!walkResult) {
+    throw new Error('TMAP 도보 상세 경로 파싱 실패');
+  }
+
+  return {
+    polyline: walkResult.pathPoints,
+    guide: walkResult.guide || []
   };
 }
 

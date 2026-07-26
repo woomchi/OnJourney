@@ -161,13 +161,13 @@ export function loadHikingTrails(): HikingTrailFeature[] {
 export function getHikingTrailPolyline(
   start: { lng: number; lat: number },
   dest: { lng: number; lat: number }
-): HikingPolylineResult | null {
+): HikingPolylineResult[] {
   if (!isLoaded) {
     loadHikingTrails();
   }
 
   if (cachedLineFeatures.length === 0 || !pathFinderInstance || cachedGraphNodes.length === 0) {
-    return null;
+    return [];
   }
 
   const startPt = point([start.lng, start.lat]);
@@ -185,9 +185,9 @@ export function getHikingTrailPolyline(
     }
   }
 
-  // If closest trail node is farther than 10km, return null fallback
+  // If closest trail node is farther than 10km, return empty array fallback
   if (!startNode || minStartDist > 10.0) {
-    return null;
+    return [];
   }
 
   // 2. Identify candidate exit nodes sorted by distance to dest
@@ -242,10 +242,24 @@ export function getHikingTrailPolyline(
   const sortedCandidates = Array.from(candidateExitNodesMap.values())
     .sort((a, b) => a.dist - b.dist);
 
-  // 3. Search for a valid path from startNode to a reachable exit node
-  let chosenPathCoords: [number, number][] | null = null;
-  let chosenExitNode: [number, number] | null = null;
+  // 3. Search for valid paths from startNode to reachable exit nodes
+  const results: HikingPolylineResult[] = [];
+  const seenFirstStep = new Set<string>();
+  const seenExitNode = new Set<string>();
 
+  const buildPolyline = (startCoords: { lng: number; lat: number }, pathCoords: [number, number][]) => {
+    const polyline: { lat: number; lng: number }[] = [];
+    polyline.push({ lat: startCoords.lat, lng: startCoords.lng });
+    for (const coord of pathCoords) {
+      const last = polyline[polyline.length - 1];
+      if (!last || Math.abs(last.lat - coord[1]) > 1e-7 || Math.abs(last.lng - coord[0]) > 1e-7) {
+        polyline.push({ lat: coord[1], lng: coord[0] });
+      }
+    }
+    return polyline;
+  };
+
+  // First pass: try to get different starting directions (Forward/Backward) to secure distinct exit options
   for (const candidate of sortedCandidates) {
     try {
       const pathResult = pathFinderInstance.findPath(
@@ -254,39 +268,60 @@ export function getHikingTrailPolyline(
       );
 
       if (pathResult && pathResult.path && pathResult.path.length >= 2) {
-        chosenPathCoords = pathResult.path;
-        chosenExitNode = candidate.node;
-        break; // Found the best reachable exit node closer to dest!
+        const pathCoords = pathResult.path;
+        const firstStepKey = `${pathCoords[1][0].toFixed(5)},${pathCoords[1][1].toFixed(5)}`;
+        const exitKey = `${candidate.node[0].toFixed(5)},${candidate.node[1].toFixed(5)}`;
+
+        if (!seenFirstStep.has(firstStepKey) && !seenExitNode.has(exitKey)) {
+          seenFirstStep.add(firstStepKey);
+          seenExitNode.add(exitKey);
+
+          results.push({
+            polyline: buildPolyline(start, pathCoords),
+            snappedStart: { lng: candidate.node[0], lat: candidate.node[1] }
+          });
+
+          if (results.length >= 3) {
+            break;
+          }
+        }
       }
     } catch (e) {
       // Continue if routing error
     }
   }
 
-  // Fallback: If no path found, return null
-  if (!chosenPathCoords || !chosenExitNode) {
-    console.warn(`[hikingTrailService] No path found between startNode [${startNode}] and any candidate exit nodes.`);
-    return null;
-  }
+  // Second pass: if we have fewer than 3 options, grab other distinct exits even if they share the same first step
+  if (results.length < 3) {
+    for (const candidate of sortedCandidates) {
+      try {
+        const pathResult = pathFinderInstance.findPath(
+          point(startNode),
+          point(candidate.node)
+        );
 
-  // 4. Construct Polyline and return result
-  const polyline: { lat: number; lng: number }[] = [];
+        if (pathResult && pathResult.path && pathResult.path.length >= 2) {
+          const pathCoords = pathResult.path;
+          const exitKey = `${candidate.node[0].toFixed(5)},${candidate.node[1].toFixed(5)}`;
 
-  // Always start with user's exact starting point (origin)
-  polyline.push({ lat: start.lat, lng: start.lng });
+          if (!seenExitNode.has(exitKey)) {
+            seenExitNode.add(exitKey);
 
-  // Add the path coordinates
-  for (const coord of chosenPathCoords) {
-    const last = polyline[polyline.length - 1];
-    if (!last || Math.abs(last.lat - coord[1]) > 1e-7 || Math.abs(last.lng - coord[0]) > 1e-7) {
-      polyline.push({ lat: coord[1], lng: coord[0] });
+            results.push({
+              polyline: buildPolyline(start, pathCoords),
+              snappedStart: { lng: candidate.node[0], lat: candidate.node[1] }
+            });
+
+            if (results.length >= 3) {
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        // Continue if routing error
+      }
     }
   }
 
-  const snappedStart = { lng: chosenExitNode[0], lat: chosenExitNode[1] };
-
-  return {
-    polyline,
-    snappedStart,
-  };
+  return results;
 }

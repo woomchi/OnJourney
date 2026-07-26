@@ -27,7 +27,11 @@
     "@turf/destination": "^7.3.5",
     "@turf/distance": "^7.3.5",
     "@turf/helpers": "^7.3.5",
+    "@turf/line-slice": "^7.3.5",
+    "@turf/nearest-point-on-line": "^7.3.5",
+    "@turf/point-to-line-distance": "^7.3.5",
     "@uidotdev/usehooks": "^2.4.1",
+    "adm-zip": "^0.6.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -41,6 +45,7 @@
     "react-dom": "^19.2.4",
     "react-indiana-drag-scroll": "^2.2.1",
     "react-naver-maps": "^0.2.2",
+    "shpjs": "^6.2.0",
     "tailwind-merge": "^3.6.0",
     "use-debounce": "^10.1.1",
     "xlsx": "^0.18.5",
@@ -49,6 +54,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/adm-zip": "^0.5.8",
     "@types/geojson": "^7946.0.16",
     "@types/navermaps": "^3.9.2",
     "@types/node": "^20",
@@ -58,6 +64,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
+    "tsx": "^4.23.1",
     "typescript": "^5"
   }
 }

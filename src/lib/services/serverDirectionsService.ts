@@ -9,6 +9,7 @@ import { odsayCircuitBreaker } from '@/lib/infrastructure/circuitBreaker';
 import { OdsayAdapter, AppError } from '@/lib/infrastructure/odsayAdapter';
 import { isNonWalkableArea } from '@/lib/utils/walkabilityCheck';
 import { getNearestRoadCoords, findExitPoint } from '@/lib/utils/snapToRoad';
+import { getHikingTrailPolyline } from '@/utils/hikingTrailService';
 import distance from '@turf/distance';
 import bearing from '@turf/bearing';
 import destination from '@turf/destination';
@@ -1040,7 +1041,7 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     };
   }
 
-  // 2. 지형 기반 좌표 보정 (Snap to Road)
+  // 2. 지형 기반 좌표 보정 (Snap to Road / Hiking Trail)
   const isStartNonWalkable = isNonWalkableArea(sx, sy);
   const isEndNonWalkable = isNonWalkableArea(ex, ey);
 
@@ -1052,18 +1053,45 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   let snappedStartCoords: { lng: number; lat: number } | undefined;
   let snappedEndCoords: { lng: number; lat: number } | undefined;
 
+  let startHikingPolyline: { lat: number; lng: number }[] | undefined;
+  let endHikingPolyline: { lat: number; lng: number }[] | undefined;
+
   if (isStartNonWalkable) {
-    const snapped = await getNearestRoadCoords(sx, sy, ex, ey);
-    effectiveSx = snapped.lng;
-    effectiveSy = snapped.lat;
-    snappedStartCoords = snapped;
+    const trailResult = getHikingTrailPolyline({ lng: sx, lat: sy }, { lng: ex, lat: ey });
+    if (trailResult && trailResult.polyline.length >= 2) {
+      effectiveSx = trailResult.snappedStart.lng;
+      effectiveSy = trailResult.snappedStart.lat;
+      snappedStartCoords = trailResult.snappedStart;
+      startHikingPolyline = trailResult.polyline;
+    } else {
+      const snapped = await getNearestRoadCoords(sx, sy, ex, ey);
+      effectiveSx = snapped.lng;
+      effectiveSy = snapped.lat;
+      snappedStartCoords = snapped;
+      startHikingPolyline = [
+        { lat: sy, lng: sx },
+        { lat: effectiveSy, lng: effectiveSx }
+      ];
+    }
   }
 
   if (isEndNonWalkable) {
-    const snapped = await getNearestRoadCoords(ex, ey, sx, sy);
-    effectiveEx = snapped.lng;
-    effectiveEy = snapped.lat;
-    snappedEndCoords = snapped;
+    const trailResult = getHikingTrailPolyline({ lng: ex, lat: ey }, { lng: sx, lat: sy });
+    if (trailResult && trailResult.polyline.length >= 2) {
+      effectiveEx = trailResult.snappedStart.lng;
+      effectiveEy = trailResult.snappedStart.lat;
+      snappedEndCoords = trailResult.snappedStart;
+      endHikingPolyline = [...trailResult.polyline].reverse();
+    } else {
+      const snapped = await getNearestRoadCoords(ex, ey, sx, sy);
+      effectiveEx = snapped.lng;
+      effectiveEy = snapped.lat;
+      snappedEndCoords = snapped;
+      endHikingPolyline = [
+        { lat: effectiveEy, lng: effectiveEx },
+        { lat: ey, lng: ex }
+      ];
+    }
   }
 
   // 3. 상황별 snapMeta 설정
@@ -1072,13 +1100,13 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
 
   if (isStartNonWalkable && isEndNonWalkable) {
     snapType = 'BOTH';
-    message = '출발지와 도착지 모두 가장 가까운 도로를 기준으로 경로를 탐색했습니다.';
+    message = '출발지와 도착지 모두 가장 가까운 도로/등산로를 기준으로 경로를 탐색했습니다.';
   } else if (isStartNonWalkable) {
     snapType = 'START';
-    message = '출발지 근처 가장 가까운 도로를 기준으로 경로를 탐색했습니다.';
+    message = '출발지 근처 산림청 등산로 및 도로를 기준으로 경로를 탐색했습니다.';
   } else if (isEndNonWalkable) {
     snapType = 'END';
-    message = '도착지 근처 가장 가까운 도로를 기준으로 경로를 탐색했습니다.';
+    message = '도착지 근처 산림청 등산로 및 도로를 기준으로 경로를 탐색했습니다.';
   }
 
   const snapMeta: SnapMeta = {
@@ -1131,59 +1159,77 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
 
       walkResults = parseTMapResponse(tmapData, finalSx, finalSy, finalEx, finalEy);
 
-      // 산/비보행 구역이 포함되어 구간 분할이 필요한 경우 직선 연결 구간 조합
+      // 산/비보행 구역이 포함되어 구간 분할이 필요한 경우 산림청 등산로 Polyline 또는 보정 구간 조합
       if (isStartNonWalkable || isEndNonWalkable) {
         walkResults = walkResults.map((result) => {
           let updatedPathPoints = [...result.pathPoints];
           let addedDistKm = 0;
           let addedTimeMin = 0;
 
-          // 1) 출발지 비보행 구역 -> 탈출 도로 좌표까지의 직선 구간
+          // 1) 출발지 비보행 구역 -> 산림청 등산로 Polyline
           let startStraightSection: { lat: number; lng: number }[] | undefined;
           if (isStartNonWalkable) {
-            startStraightSection = [
+            startStraightSection = startHikingPolyline || [
               { lat: sy, lng: sx },
               { lat: effectiveSy, lng: effectiveSx }
             ];
-            const dist = haversineDistance(sy, sx, effectiveSy, effectiveSx);
+            let dist = 0;
+            for (let i = 0; i < startStraightSection.length - 1; i++) {
+              dist += haversineDistance(
+                startStraightSection[i].lat, startStraightSection[i].lng,
+                startStraightSection[i + 1].lat, startStraightSection[i + 1].lng
+              );
+            }
             const timeMin = Math.round((dist / 4.5) * 60);
             addedDistKm += dist;
             addedTimeMin += timeMin;
 
-            // pathPoints 중복 제거하며 맨 앞에 삽입
-            if (updatedPathPoints.length > 0 &&
-                updatedPathPoints[0].lat === effectiveSy &&
-                updatedPathPoints[0].lng === effectiveSx) {
-              updatedPathPoints.unshift({ lat: sy, lng: sx });
+            // pathPoints 중복 제거하며 맨 앞에 등산로 Polyline 합침
+            const firstTmap = updatedPathPoints[0];
+            const lastStartPoly = startStraightSection[startStraightSection.length - 1];
+            if (
+              firstTmap &&
+              Math.abs(firstTmap.lat - lastStartPoly.lat) < 1e-5 &&
+              Math.abs(firstTmap.lng - lastStartPoly.lng) < 1e-5
+            ) {
+              updatedPathPoints = [...startStraightSection, ...updatedPathPoints.slice(1)];
             } else {
-              updatedPathPoints = [{ lat: sy, lng: sx }, { lat: effectiveSy, lng: effectiveSx }, ...updatedPathPoints];
+              updatedPathPoints = [...startStraightSection, ...updatedPathPoints];
             }
           }
 
-          // 2) 탈출 도로 좌표 -> 도착지 비보행 구역까지의 직선 구간
+          // 2) 탈출 도로 좌표 -> 도착지 비보행 구역 산림청 등산로 Polyline
           let endStraightSection: { lat: number; lng: number }[] | undefined;
           if (isEndNonWalkable) {
-            endStraightSection = [
+            endStraightSection = endHikingPolyline || [
               { lat: effectiveEy, lng: effectiveEx },
               { lat: ey, lng: ex }
             ];
-            const dist = haversineDistance(effectiveEy, effectiveEx, ey, ex);
+            let dist = 0;
+            for (let i = 0; i < endStraightSection.length - 1; i++) {
+              dist += haversineDistance(
+                endStraightSection[i].lat, endStraightSection[i].lng,
+                endStraightSection[i + 1].lat, endStraightSection[i + 1].lng
+              );
+            }
             const timeMin = Math.round((dist / 4.5) * 60);
             addedDistKm += dist;
             addedTimeMin += timeMin;
 
-            // pathPoints 중복 제거하며 맨 뒤에 삽입
             const lastIdx = updatedPathPoints.length - 1;
-            if (lastIdx >= 0 &&
-                updatedPathPoints[lastIdx].lat === effectiveEy &&
-                updatedPathPoints[lastIdx].lng === effectiveEx) {
-              updatedPathPoints.push({ lat: ey, lng: ex });
+            const firstEndPoly = endStraightSection[0];
+            if (
+              lastIdx >= 0 &&
+              Math.abs(updatedPathPoints[lastIdx].lat - firstEndPoly.lat) < 1e-5 &&
+              Math.abs(updatedPathPoints[lastIdx].lng - firstEndPoly.lng) < 1e-5
+            ) {
+              updatedPathPoints = [...updatedPathPoints, ...endStraightSection.slice(1)];
             } else {
-              updatedPathPoints = [...updatedPathPoints, { lat: effectiveEy, lng: effectiveEx }, { lat: ey, lng: ex }];
+              updatedPathPoints = [...updatedPathPoints, ...endStraightSection];
             }
           }
 
-          // 직선 구간 정보 설정 (출발지 또는 도착지 산 탈출 구간)
+          // 등산로 구간 정보 설정 (출발지 또는 도착지 산 탈출 등산로)
           const straightSection = startStraightSection || endStraightSection;
           const isStraightSectionAtEnd = isEndNonWalkable && !isStartNonWalkable;
 

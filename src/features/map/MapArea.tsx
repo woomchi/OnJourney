@@ -900,7 +900,7 @@ export default function MapArea() {
     <div className="relative w-full h-full overflow-hidden">
       {/* ── 현 지도에서 재검색 버튼 ── */}
       {isSearchMode && hasSearchQuery && (
-        <div className={`absolute top-6 left-1/2 -translate-x-1/2 z-[2000] pointer-events-auto transition-opacity duration-300 ${isDrawerMaximized ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`absolute top-20 md:top-6 left-1/2 -translate-x-1/2 z-[2000] pointer-events-auto transition-opacity duration-300 ${isDrawerMaximized ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <button
             type="button"
             onClick={triggerSearch}

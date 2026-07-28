@@ -137,8 +137,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     localStorage.removeItem('onjourney_recent_queries');
   };
 
-
-
   // 검색 모드 진입/복귀 시 상태 초기화
   useEffect(() => {
     if (isSearchMode) {
@@ -148,10 +146,11 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       setTimeout(() => searchInputRef.current?.focus(), 150);
     } else {
       clearRecommendedPlaces();
+      setActiveSearchPlace(null);
       setSearchResults([]);
       setSearchQuery('');
     }
-  }, [isSearchMode, clearRecommendedPlaces]);
+  }, [isSearchMode, clearRecommendedPlaces, setActiveSearchPlace, setSearchQuery, setSearchResults]);
 
   // 이미 여정에 추가된 장소 ID 동기화
   useEffect(() => {
@@ -160,11 +159,12 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
   const activeSearchId = useRef(0);
 
-  const runSearch = useCallback(async (q: string, isConfirmed: boolean = false) => {
+  const runSearch = useCallback(async (q: string, triggerMapHighlight: boolean = false) => {
     const currentSearchId = ++activeSearchId.current;
     if (q.trim().length < 1) {
       setSearchResults([]);
       clearRecommendedPlaces();
+      setActiveSearchPlace(null);
       setSearchError(null);
       return;
     }
@@ -219,45 +219,49 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       items.sort((a, b) => (b.score || 0) - (a.score || 0));
 
       setSearchResults(items);
-      setRecommendedPlaces(items);
       setSearchError(null);
 
-      let exactMatchItem: PlaceResult | null = null;
-      if (isConfirmed && items.length > 0) {
+      if (triggerMapHighlight) {
+        setRecommendedPlaces(items);
+
+        let exactMatchItem: PlaceResult | null = null;
         const searchQ = q.replace(/\s+/g, '').toLowerCase();
         exactMatchItem = items.find(item => item.place_name.replace(/\s+/g, '').toLowerCase() === searchQ) || null;
-      }
 
-      if (isConfirmed && exactMatchItem) {
-        // 완전 일치하는 항목이 있으면 해당 마커를 즉시 클릭(하이라이트)된 상태로 만듦
-        setActiveSearchPlace(exactMatchItem);
-      } else {
-        // 검색 후 항상 기본적으로 선택 해제 상태로 시작
-        setActiveSearchPlace(null);
+        if (exactMatchItem) {
+          // 완전 일치하는 항목이 있으면 해당 마커를 즉시 클릭(하이라이트)된 상태로 만듦
+          setActiveSearchPlace(exactMatchItem);
+        } else {
+          // 검색 후 항상 기본적으로 선택 해제 상태로 시작
+          setActiveSearchPlace(null);
 
-        // 첫 번째 장소(1순위)를 중심으로 지도 줌 및 패닝 자동 조절 (확정 검색일 경우만)
-        if (isConfirmed && items.length > 0) {
-          const bestItem = items[0];
-          // 반경 500m 수준의 적절한 줌 레벨로 맞춰지도록 작은 바운딩 박스 생성
-          setFocusBounds({
-            sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
-            ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
-          });
+          // 첫 번째 장소(1순위)를 중심으로 지도 줌 및 패닝 자동 조절 (확정 검색일 경우만)
+          if (items.length > 0) {
+            const bestItem = items[0];
+            // 반경 500m 수준의 적절한 줌 레벨로 맞춰지도록 작은 바운딩 박스 생성
+            setFocusBounds({
+              sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
+              ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
+            });
+            setActiveSearchPlace(bestItem);
+          }
         }
+      } else {
+        clearRecommendedPlaces();
+        setActiveSearchPlace(null);
       }
     } catch {
       if (currentSearchId !== activeSearchId.current) return;
       setSearchError('네트워크 오류가 발생했습니다.');
       setSearchResults([]);
       clearRecommendedPlaces();
+      setActiveSearchPlace(null);
     } finally {
       if (currentSearchId === activeSearchId.current) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces, mapCenterCoord, mapBounds, activeJourney?.transport_type]);
-
-
+  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, mapBounds, activeJourney?.transport_type]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -270,7 +274,11 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setSearchQuery(val);
 
     if (val.trim().length === 0) {
-      runSearch(val, false);
+      debouncedRunSearch.cancel();
+      setSearchResults([]);
+      clearRecommendedPlaces();
+      setActiveSearchPlace(null);
+      setSearchError(null);
     } else if (val.trim().length >= 2) {
       debouncedRunSearch(val);
     }
@@ -282,6 +290,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     await runSearch(category, true);
     saveRecentQuery(category);
   };
+
 
   const handleToggleSearchResult = async (item: PlaceResult) => {
     if (addedIds.has(item.id)) {
@@ -317,54 +326,67 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         }`}
     >
       {/* 검색 모드 헤더 */}
-      <div className="px-5 pt-4 pb-3 flex-shrink-0">
-        {/* 검색바 */}
-        <div className="flex items-center gap-2 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20 transition-all">
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={handleSearchInputChange}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { debouncedRunSearch.cancel(); runSearch(searchQuery, true); saveRecentQuery(searchQuery); }
-              if (e.key === 'Escape') closeSearchMode();
-            }}
-            placeholder={mapCenterAddress ? `${mapCenterAddress} 주변 장소 검색` : '방문할 장소를 검색해보세요'}
-            className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-sm pl-1"
-          />
-          {isSearchLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0 mr-1" />
-          ) : searchQuery.length > 0 ? (
-            <button type="button" onClick={() => { setSearchQuery(''); setSearchResults([]); clearRecommendedPlaces(); searchInputRef.current?.focus(); }} className="w-4 h-4 flex-shrink-0 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors cursor-pointer mr-1">
-              <X className="w-2.5 h-2.5 text-zinc-600" />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              debouncedRunSearch.cancel();
-              runSearch(searchQuery, true);
-              saveRecentQuery(searchQuery);
-            }}
-            className="flex-shrink-0 text-zinc-400 hover:text-blue-600 transition-colors cursor-pointer p-1 -mr-1"
-          >
-            <Search className="w-4 h-4" />
-          </button>
-        </div>
-        {/* 카테고리 칩 */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5 scrollbar-none select-none">
-          {[{ label: '맛집 🍔', value: '맛집' }, { label: '카페 ☕', value: '카페' }, { label: '명소 🎪', value: '명소' }, { label: '숙소 🏨', value: '숙소' }].map(chip => (
+      {!isMobile && (
+        <div className="px-5 pt-4 pb-3 flex-shrink-0">
+          {/* 검색바 */}
+          <div className="flex items-center gap-2 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20 transition-all">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchInputChange}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { debouncedRunSearch.cancel(); runSearch(searchQuery, true); saveRecentQuery(searchQuery); }
+                if (e.key === 'Escape') closeSearchMode();
+              }}
+              placeholder={mapCenterAddress ? `${mapCenterAddress} 주변 장소 검색` : '방문할 장소를 검색해보세요'}
+              className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-sm pl-1"
+            />
+            {isSearchLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0 mr-1" />
+            ) : searchQuery.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                  clearRecommendedPlaces();
+                  setActiveSearchPlace(null);
+                  searchInputRef.current?.focus();
+                }}
+                className="w-4 h-4 flex-shrink-0 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors cursor-pointer mr-1"
+              >
+                <X className="w-2.5 h-2.5 text-zinc-600" />
+              </button>
+            ) : null}
             <button
-              key={chip.value}
               type="button"
-              onClick={() => handleCategoryClick(chip.value)}
-              className="px-3.5 py-1.5 rounded-full text-[11px] font-bold text-zinc-500 bg-zinc-50 border border-zinc-200/70 hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-600 active:scale-95 transition-all duration-150 cursor-pointer whitespace-nowrap"
+              onClick={() => {
+                debouncedRunSearch.cancel();
+                runSearch(searchQuery, true);
+                saveRecentQuery(searchQuery);
+              }}
+              className="flex-shrink-0 text-zinc-400 hover:text-blue-600 transition-colors cursor-pointer p-1 -mr-1"
             >
-              {chip.label}
+              <Search className="w-4 h-4" />
             </button>
-          ))}
+          </div>
+          {/* 카테고리 칩 */}
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5 scrollbar-none select-none">
+
+            {[{ label: '맛집 🍔', value: '맛집' }, { label: '카페 ☕', value: '카페' }, { label: '명소 🎪', value: '명소' }, { label: '숙소 🏨', value: '숙소' }].map(chip => (
+              <button
+                key={chip.value}
+                type="button"
+                onClick={() => handleCategoryClick(chip.value)}
+                className="px-3.5 py-1.5 rounded-full text-[11px] font-bold text-zinc-500 bg-zinc-50 border border-zinc-200/70 hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-600 active:scale-95 transition-all duration-150 cursor-pointer whitespace-nowrap"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       {/* 검색 결과 리스트 */}
       <div
         id="search-results-container"
@@ -493,18 +515,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         )}
       </div>
 
-      {/* 하단 고정: 선택 완료 버튼 */}
-      <div className="p-6 border-t border-zinc-100 flex-shrink-0 bg-white/80 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={closeSearchMode}
-          className="relative group w-full py-4 bg-zinc-900 rounded-2xl text-white font-bold text-[15px] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex justify-center items-center gap-2 overflow-hidden cursor-pointer"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <Check className="w-4 h-4 relative z-10 transition-transform group-hover:scale-110 duration-300" strokeWidth={2.5} />
-          <span className="relative z-10 tracking-wide">닫기</span>
-        </button>
-      </div>
     </div>
   );
 }

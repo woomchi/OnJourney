@@ -18,7 +18,7 @@ import { useJourneys } from '@/hooks/queries/useJourneys';
 import { useQueryClient } from '@tanstack/react-query';
 import { sortJourneysByStoredOrder } from '@/lib/journeyUtils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 
 const FloatingButtonsContainer = () => {
   const bottomSheet = useOptionalBottomSheet();
@@ -78,6 +78,26 @@ const AddPlaceFloatingButton = ({ show, onClick, PlusIcon }: { show: boolean, on
   );
 };
 
+const CloseSearchFloatingButton = ({ onClick }: { onClick: () => void }) => (
+  <div className="fixed bottom-[20px] left-4 right-4 z-[200] md:hidden pointer-events-auto">
+    <button
+      type="button"
+      onClick={onClick}
+      className="
+        w-full py-3.5 rounded-2xl font-bold text-[15px] tracking-wide
+        flex justify-center items-center gap-2 cursor-pointer
+        transition-all duration-200 active:scale-[0.98]
+        bg-zinc-900/90 hover:bg-zinc-800 text-white
+        shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:shadow-xl
+        backdrop-blur-md border border-white/10
+      "
+    >
+      <X className="w-4 h-4" strokeWidth={2.5} />
+      <span>닫기</span>
+    </button>
+  </div>
+);
+
 const parseSnapVal = (s: any): number => {
   if (s === 1 || s === '1') return 1;
   if (typeof s === 'number') return s;
@@ -106,6 +126,7 @@ export default function JourneySidebar() {
     journeys,
     isSearchMode,
     openSearchMode,
+    closeSearchMode,
     setFocusedStep,
     setFocusedSegment,
     setAlternativeSegment,
@@ -338,6 +359,11 @@ export default function JourneySidebar() {
               <FloatingButtonsContainer />
               {content}
             </CustomBottomSheet>
+          )}
+
+          {/* 검색 모드 플로팅 닫기 버튼 */}
+          {isSearchMode && (
+            <CloseSearchFloatingButton onClick={closeSearchMode} />
           )}
 
           <EditJourneyModal

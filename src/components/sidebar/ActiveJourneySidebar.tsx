@@ -42,7 +42,7 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
   }, []);
 
   // On Mobile, header is a 32px button bar inside bottom sheet ([< 목록] & [편집])
-  const headerHeight = isMobile ? 32 : (isEditMode ? 48 : 72);
+  const headerHeight = isMobile ? (isSearchMode ? 0 : 32) : (isEditMode ? 48 : 72);
 
   const bottomSheet = useOptionalBottomSheet();
   const fallbackY = useMotionValue(0);
@@ -135,12 +135,14 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
 
   const innerContent = (
     <div className="flex flex-col w-full h-full bg-white">
-      <JourneyPlayerHeader
-        activeJourney={activeJourney}
-        isSearchMode={isSearchMode}
-        setIsEditModalOpen={setIsEditModalOpen}
-        handleDoneEdit={handleDoneEdit}
-      />
+      {!(isMobile && isSearchMode) && (
+        <JourneyPlayerHeader
+          activeJourney={activeJourney}
+          isSearchMode={isSearchMode}
+          setIsEditModalOpen={setIsEditModalOpen}
+          handleDoneEdit={handleDoneEdit}
+        />
+      )}
 
       <div className="flex-1 flex flex-col min-h-0 relative">
         <motion.div

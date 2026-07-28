@@ -54,7 +54,21 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
 
   const { user, openAuthModal } = useAuth();
   const { alert } = useDialog();
-  const { activeJourney, addPlace, journeys, setJourneys, openCreateForm, setActiveJourney } = useJourneyStore();
+  const {
+    activeJourney,
+    addPlace,
+    journeys,
+    setJourneys,
+    openCreateForm,
+    setActiveJourney,
+    isSearchMode,
+    openSearchMode,
+    setSearchQuery,
+    triggerSearch,
+    clearRecommendedPlaces,
+    setActiveSearchPlace,
+    searchQuery,
+  } = useJourneyStore();
 
   // 이미 추가된 장소 ID 동기화 (파생 상태로 변경하여 Flicker 및 불필요한 렌더링 해결)
   const addedIds = useMemo(() => {
@@ -81,16 +95,46 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     };
   }, []);
 
+  // Sync search input query with store's searchQuery in search mode
+  useEffect(() => {
+    if (isSearchMode) {
+      setQuery(searchQuery);
+    }
+  }, [isSearchMode, searchQuery, setQuery]);
 
+  const handleSearchSubmit = () => {
+    if (query.trim().length > 0) {
+      cancelDebounce();
+      if (activeJourney) {
+        setSearchQuery(query);
+        triggerSearch();
+        if (!isSearchMode) {
+          openSearchMode();
+        }
+        setIsOpen(false);
+        inputRef.current?.blur();
+      } else {
+        searchPlaces(query);
+      }
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      cancelDebounce();
-      searchPlaces(query);
+      handleSearchSubmit();
     }
     if (e.key === 'Escape') {
       setIsOpen(false);
       inputRef.current?.blur();
+    }
+  };
+
+  const onClearInput = () => {
+    handleClear();
+    if (isSearchMode) {
+      setSearchQuery('');
+      clearRecommendedPlaces();
+      setActiveSearchPlace(null);
     }
   };
 
@@ -228,7 +272,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
           <button
             type="button"
             onClick={() => {
-              handleClear();
+              onClearInput();
               inputRef.current?.focus();
             }}
             className="flex-shrink-0 w-5 h-5 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors"

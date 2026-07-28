@@ -33,6 +33,7 @@ export const useJourneyStore = create<JourneyStore>()(
         alternativeSegment: state.alternativeSegment,
         drawerSnapPoint: state.drawerSnapPoint,
         guidePanelState: state.guidePanelState,
+        departureTime: state.departureTime,
       }),
     }
   )

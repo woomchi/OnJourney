@@ -8,6 +8,7 @@ export interface UISlice {
   isCacheRestored: boolean;
   isDrawerMaximized: boolean;
   drawerSnapPoint: string | number | null;
+  departureTime: number | null;
   openCreateForm: () => void;
   closeCreateForm: () => void;
   openSearchMode: () => void;
@@ -16,6 +17,7 @@ export interface UISlice {
   setCacheRestored: (isRestored: boolean) => void;
   setDrawerMaximized: (isMaximized: boolean) => void;
   setDrawerSnapPoint: (snap: string | number | null) => void;
+  setDepartureTime: (time: number | null) => void;
   guidePanelState: 'expanded' | 'minimized' | 'default';
   setGuidePanelState: (state: 'expanded' | 'minimized' | 'default') => void;
 }
@@ -32,6 +34,7 @@ export const createUISlice: StateCreator<
   isCacheRestored: false,
   isDrawerMaximized: false,
   drawerSnapPoint: '294px',
+  departureTime: null,
   guidePanelState: 'default',
   openCreateForm: () => set({ isCreateFormOpen: true }),
   closeCreateForm: () => set({ isCreateFormOpen: false }),
@@ -50,5 +53,6 @@ export const createUISlice: StateCreator<
   setCacheRestored: (isRestored) => set({ isCacheRestored: isRestored }),
   setDrawerMaximized: (isMaximized) => set({ isDrawerMaximized: isMaximized }),
   setDrawerSnapPoint: (snap) => set({ drawerSnapPoint: snap }),
+  setDepartureTime: (time) => set({ departureTime: time }),
   setGuidePanelState: (state) => set({ guidePanelState: state }),
 });

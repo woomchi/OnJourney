@@ -89,9 +89,12 @@ export function getFallbackDirections(origin: Place, dest: Place): DirectionsApi
   };
 }
 
-export async function fetchPublicDirectionsApi(origin: Place, dest: Place): Promise<{ public: DirectionResult[] }> {
+export async function fetchPublicDirectionsApi(origin: Place, dest: Place, departureTime?: number): Promise<{ public: DirectionResult[] }> {
   try {
-    const url = `/api/directions/public?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+    let url = `/api/directions/public?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+    if (departureTime) {
+      url += `&departureTime=${departureTime}`;
+    }
     const res = await fetch(url);
     if (!res.ok) throw new Error('대중교통 경로 요청 실패');
     const payload = await res.json();
@@ -106,10 +109,14 @@ export async function fetchPublicDirectionsApi(origin: Place, dest: Place): Prom
 
 export async function fetchCarWalkDirectionsApi(
   origin: Place,
-  dest: Place
+  dest: Place,
+  departureTime?: number
 ): Promise<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }> {
   try {
-    const url = `/api/directions/car?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+    let url = `/api/directions/car?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+    if (departureTime) {
+      url += `&departureTime=${departureTime}`;
+    }
     const res = await fetch(url);
     if (!res.ok) throw new Error('차량 경로 요청 실패');
     const payload = await res.json();

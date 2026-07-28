@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
@@ -9,6 +9,7 @@ import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey, Place } from '@/types/journey';
 import { MapPin, ArrowRight, Footprints, Car, Bus, Train } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
+import DepartureTimePicker from '@/components/common/DepartureTimePicker';
 
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 
@@ -20,6 +21,7 @@ export default function HorizontalJourneyTimelineBar({
   activeJourney,
 }: HorizontalJourneyTimelineBarProps) {
   const queryClient = useQueryClient();
+  const { departureTime, setDepartureTime } = useJourneyStore();
   const {
     focusedSegment,
     setFocusedSegment,
@@ -265,6 +267,11 @@ export default function HorizontalJourneyTimelineBar({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[100] md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      {/* 시간 선택기 (타임라인바 위) */}
+      <div className="w-full flex justify-center px-4 py-2 border-b border-zinc-100/50">
+        <DepartureTimePicker onTimeChange={setDepartureTime} className="text-xs" />
+      </div>
+      
       <div
         ref={timelineContainerRef}
         className="w-full px-5 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] flex items-center overflow-x-auto scrollbar-none"

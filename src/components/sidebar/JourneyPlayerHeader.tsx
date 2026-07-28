@@ -12,6 +12,7 @@ import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
+import DepartureTimePicker from '@/components/common/DepartureTimePicker';
 
 interface JourneyPlayerHeaderProps {
   activeJourney: Journey;
@@ -46,6 +47,7 @@ export default function JourneyPlayerHeader({
   const bottomSheet = useOptionalBottomSheet();
 
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
+  const { departureTime, setDepartureTime } = useJourneyStore();
 
   useEffect(() => {
     if (!focusedSegment && !focusedStep) {
@@ -192,7 +194,7 @@ export default function JourneyPlayerHeader({
     >
       {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
       {!isSearchMode && (
-        <div className={`absolute top-0.5 left-2 z-20`}>
+        <div className={`absolute top-1 left-2 z-20`}>
           <button
             type="button"
             onClick={() => {
@@ -217,7 +219,7 @@ export default function JourneyPlayerHeader({
 
       {/* 오른쪽 상단 모서리: 편집 및 동기화 */}
       {!isSearchMode && (
-        <div className={`absolute top-0.5 right-2 z-20 flex justify-end items-center gap-1`}>
+        <div className={`absolute top-1 right-2 z-20 flex justify-end items-center gap-1`}>
           {isSyncing && (
             <div className="flex items-center" title="클라우드 동기화 중">
               <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
@@ -290,6 +292,11 @@ export default function JourneyPlayerHeader({
             )}
           </p>
         </button>
+      </div>
+
+      {/* 시간 선택기 (헤더 아래) */}
+      <div className="w-full flex justify-center px-4 py-2">
+        <DepartureTimePicker onTimeChange={setDepartureTime} />
       </div>
 
       {/* 하단: 여정 이동 및 재생 조절 컨트롤 */}

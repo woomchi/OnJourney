@@ -14,6 +14,7 @@ export const directionsQuerySchema = z.object({
   sy: z.coerce.number({ message: "출발지 위도는 숫자여야 합니다." }),
   ex: z.coerce.number({ message: "도착지 경도는 숫자여야 합니다." }),
   ey: z.coerce.number({ message: "도착지 위도는 숫자여야 합니다." }),
+  departureTime: z.coerce.number().optional(), // Unix timestamp (선택적)
 });
 
 export type DirectionsQueryType = z.infer<typeof directionsQuerySchema>;

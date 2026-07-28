@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import type { Place, DirectionsApiResponse, DirectionResult, SnapMeta } from '@/types/journey';
 import { useEffect, useState, useRef, useMemo } from 'react';
+import { useJourneyStore } from '@/stores/journey-store';
 
 export const directionKeys = {
   all: ['directions'] as const,
@@ -11,11 +12,13 @@ export const directionKeys = {
 };
 
 export function useSegmentDirection(origin: Place | null, dest: Place | null) {
+  const { departureTime } = useJourneyStore();
+  
   const publicQuery = useQuery({
     queryKey: origin && dest ? directionKeys.segmentPublic(origin.id, dest.id) : directionKeys.all,
     queryFn: () => {
       if (!origin || !dest) throw new Error('Invalid origin or dest');
-      return fetchPublicDirectionsApi(origin, dest);
+      return fetchPublicDirectionsApi(origin, dest, departureTime || undefined);
     },
     enabled: !!origin && !!dest,
     staleTime: 1000 * 60 * 30,
@@ -25,7 +28,7 @@ export function useSegmentDirection(origin: Place | null, dest: Place | null) {
     queryKey: origin && dest ? directionKeys.segmentCar(origin.id, dest.id) : directionKeys.all,
     queryFn: () => {
       if (!origin || !dest) throw new Error('Invalid origin or dest');
-      return fetchCarWalkDirectionsApi(origin, dest);
+      return fetchCarWalkDirectionsApi(origin, dest, departureTime || undefined);
     },
     enabled: !!origin && !!dest,
     staleTime: 1000 * 60 * 30,

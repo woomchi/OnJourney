@@ -19,11 +19,57 @@ type OdsayApiCacheResult =
   | { ok: true; data: any }
   | { ok: false; error: string; code: string };
 
+// 시간대 분류 함수: 평일/주말, 낮/밤 구분하여 캐시 키 생성
+function getTimeSlot(): string {
+  const now = new Date();
+  const hour = now.getHours();
+  const day = now.getDay(); // 0: 일요일, 6: 토요일
+  
+  const isWeekend = day === 0 || day === 6;
+  const isNight = hour >= 23 || hour < 6;
+  
+  if (isWeekend) {
+    return isNight ? 'weekend-night' : 'weekend-day';
+  } else {
+    return isNight ? 'weekday-night' : 'weekday-day';
+  }
+}
+
+// 출발 시간 기반 시간 그룹화 함수 (3시간 단위)
+function getTimeGroup(departureTime?: number): string {
+  if (!departureTime) {
+    return getTimeSlot(); // 출발 시간이 없으면 현재 시간대 사용
+  }
+  
+  const date = new Date(departureTime * 1000); // Unix timestamp to Date
+  const hour = date.getHours();
+  const group = Math.floor(hour / 3); // 0-7 (8개 그룹, 3시간 단위)
+  return `time-group-${group}`;
+}
+
+// 동적 캐시 만료 시간 함수: 시간대별 캐시 기간 반환
+function getCacheDuration(departureTime?: number): number {
+  if (!departureTime) {
+    departureTime = Math.floor(Date.now() / 1000);
+  }
+  
+  const date = new Date(departureTime * 1000);
+  const hour = date.getHours();
+  
+  // 밤 시간대 (23:00-06:00): 30분 (1800초) - 더 자주 갱신
+  if (hour >= 23 || hour < 6) {
+    return 1800;
+  }
+  
+  // 낮 시간대 (06:00-23:00): 4시간 (14400초) - 길게 캐싱
+  return 14400;
+}
+
 // ODsay 대중교통 경로 조회를 위한 top-level 캐시 함수
 // - Circuit Breaker 패턴 도입: 맹목적인 300ms/600ms 동기 딜레이 대기 로직을 제거하고,
 //   연속 실패 시 Circuit Breaker가 즉시 OPEN되어 딜레이 없이 Fail-Fast로 Fallback을 반환함.
 const getCachedOdsayDirections = unstable_cache(
-  async (rsx: string, rsy: string, rex: string, rey: string, apiKey: string) => {
+  async (rsx: string, rsy: string, rex: string, rey: string, apiKey: string, timeSlot: string) => {
     return odsayCircuitBreaker.execute<OdsayApiCacheResult>(
       async () => {
         const data = await OdsayAdapter.fetchPublicTransit(rsx, rsy, rex, rey, apiKey);
@@ -44,12 +90,12 @@ const getCachedOdsayDirections = unstable_cache(
     );
   },
   ['odsay-directions-pubtrans'],
-  { revalidate: 3600 }
+  { revalidate: 3600 } // 기본 1시간 (시간대별 캐시 키로 분리하므로 고정값 사용)
 );
 
 // ODsay loadLane 조회를 위한 top-level 캐시 함수 (Circuit Breaker 적용)
 const getCachedOdsayLoadLane = unstable_cache(
-  async (mapObjectParam: string, apiKey: string) => {
+  async (mapObjectParam: string, apiKey: string, timeSlot: string) => {
     return odsayCircuitBreaker.execute<OdsayApiCacheResult>(
       async () => {
         const data = await OdsayAdapter.fetchLoadLane(mapObjectParam, apiKey);
@@ -65,7 +111,7 @@ const getCachedOdsayLoadLane = unstable_cache(
     );
   },
   ['odsay-loadlane'],
-  { revalidate: 3600 }
+  { revalidate: 3600 } // 기본 1시간 (시간대별 캐시 키로 분리하므로 고정값 사용)
 );
 
 // 두 좌표 간 직선 거리 계산 (Haversine 공식)
@@ -115,7 +161,8 @@ export async function fetchPublicTransitOptions(
   sx: number,
   sy: number,
   ex: number,
-  ey: number
+  ey: number,
+  departureTime?: number
 ): Promise<DirectionResult[]> {
   const apiKey = process.env.ODSAY_API_KEY;
   if (!apiKey) {
@@ -126,9 +173,10 @@ export async function fetchPublicTransitOptions(
   const rsy = sy.toFixed(4);
   const rex = ex.toFixed(4);
   const rey = ey.toFixed(4);
+  const timeGroup = getTimeGroup(departureTime);
   
   // 재시도 로직은 getCachedOdsayDirections 내부에서 처리됨
-  const res = await getCachedOdsayDirections(rsx, rsy, rex, rey, apiKey);
+  const res = await getCachedOdsayDirections(rsx, rsy, rex, rey, apiKey, timeGroup);
   if (!res.ok) {
     throw new AppError(`[API 내부 에러] ${res.error}`, res.code, 500, false);
   }
@@ -199,7 +247,7 @@ export async function fetchPublicTransitOptions(
 
         // 재시도 로직은 getCachedOdsayLoadLane 내부에서 처리됨
         let laneData: any = null;
-        const laneRes = await getCachedOdsayLoadLane(mapObjectParam, apiKey);
+        const laneRes = await getCachedOdsayLoadLane(mapObjectParam, apiKey, timeGroup);
         if (laneRes.ok) {
           laneData = laneRes.data;
         }
@@ -478,7 +526,8 @@ export async function fetchCarRoute(
   sx: number,
   sy: number,
   ex: number,
-  ey: number
+  ey: number,
+  departureTime?: number
 ): Promise<DirectionResult[]> {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
@@ -491,6 +540,7 @@ export async function fetchCarRoute(
   const rsy = sy.toFixed(4);
   const rex = ex.toFixed(4);
   const rey = ey.toFixed(4);
+  const cacheDuration = getCacheDuration(departureTime);
 
   const url = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${rsx},${rsy}&goal=${rex},${rey}&option=trafast:traoptimal:traavoidtoll`;
 
@@ -501,7 +551,7 @@ export async function fetchCarRoute(
         'X-NCP-APIGW-API-KEY-ID': clientId,
         'X-NCP-APIGW-API-KEY': clientSecret,
       },
-      next: { revalidate: 3600 }
+      next: { revalidate: cacheDuration }
     });
   } catch (err: any) {
     if (err.status === 408) {
@@ -622,10 +672,10 @@ export function calculateCarFallback(
 import { DirectionsQueryType } from '../validations/directions';
 
 export async function fetchPublicDirections(params: DirectionsQueryType): Promise<{ public: DirectionResult[] }> {
-  const { sx, sy, ex, ey } = params;
+  const { sx, sy, ex, ey, departureTime } = params;
 
   try {
-    const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey);
+    const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey, departureTime);
     return { public: publicResults };
   } catch (error: any) {
     // API 실패 (경로 없음, 네트웍 장애, 서킷 오픈 등 모든 에러) 시 Fallback 반환
@@ -1030,7 +1080,7 @@ function parseTMapResponse(
 }
 
 export async function fetchCarWalkDirections(params: DirectionsQueryType): Promise<CarWalkDirectionsResult> {
-  const { sx, sy, ex, ey } = params;
+  const { sx, sy, ex, ey, departureTime } = params;
 
   // 1. 거리 제한 검증 (직선거리 10km 이상시 API 호출 금지)
   const straightDistKm = haversineDistance(sy, sx, ey, ex);

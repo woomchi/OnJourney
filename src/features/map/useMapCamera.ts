@@ -13,6 +13,7 @@ interface UseMapCameraProps {
   directionsCache: Record<string, DirectionsApiResponse>;
   loadedSegmentsCount: number;
   isMobile: boolean;
+  windowWidth: number;
   windowHeight: number;
 }
 
@@ -22,6 +23,7 @@ export function useMapCamera({
   directionsCache,
   loadedSegmentsCount,
   isMobile,
+  windowWidth,
   windowHeight,
 }: UseMapCameraProps) {
   const {
@@ -80,8 +82,32 @@ export function useMapCamera({
 
   const lastFittedFocusBoundsRef = useRef<string>('');
 
+  // Helper function to validate that bounds are reasonable and not too extreme
+  const validateBounds = useCallback((bounds: LatLngBoundsLiteral): boolean => {
+    const latDiff = bounds.ne.lat - bounds.sw.lat;
+    const lngDiff = bounds.ne.lng - bounds.sw.lng;
+    
+    // Check if bounds are too small (zoomed in too much)
+    if (latDiff < 0.0001 || lngDiff < 0.0001) {
+      return false;
+    }
+    
+    // Check if bounds are too large (zoomed out too much)
+    if (latDiff > 10 || lngDiff > 10) {
+      return false;
+    }
+    
+    return true;
+  }, []);
+
   // 2. 여정 줌 초기화 및 상태 복구
-  const handleResetBounds = useCallback(() => {
+  const handleResetBounds = useCallback((forceRefit: boolean = false) => {
+    // forceRefit이 true이면 캐시를 초기화하여 강제로 재핏팅 유발
+    if (forceRefit) {
+      lastFittedDataStringRef.current = '';
+      lastFittedFocusBoundsRef.current = '';
+    }
+
     // 상세 바텀 시트 (focusedSegment) 가 열려있을 때는, 현재 세그먼트를 기준으로 다시 fitBounds를 수행함 (전체 여정으로 돌아가지 않음)
     if (focusedSegment) {
       const originPlace = places.find(p => p.id === focusedSegment.originId);
@@ -171,6 +197,8 @@ export function useMapCamera({
       transport_type: activeJourney?.transport_type,
       recommendedPlaces: recommendedPlaces?.map(p => p.id),
       isMobile,
+      windowWidth,
+      windowHeight,
       drawerSnapPoint,
     });
 
@@ -197,7 +225,19 @@ export function useMapCamera({
           new navermaps.LatLng(first.lat - latOffset, first.lng - lngOffset),
           new navermaps.LatLng(first.lat + latOffset, first.lng + lngOffset)
         );
-        map.fitBounds(bounds, { maxZoom: 16 });
+        
+        // Validate single place bounds
+        const boundsLiteral = {
+          sw: { lat: first.lat - latOffset, lng: first.lng - lngOffset },
+          ne: { lat: first.lat + latOffset, lng: first.lng + lngOffset }
+        };
+        if (!validateBounds(boundsLiteral)) {
+          console.warn('[useMapCamera] Invalid single place bounds detected, using default zoom');
+          map.setCenter(new navermaps.LatLng(first.lat, first.lng));
+          map.setZoom(16);
+        } else {
+          map.fitBounds(bounds, { maxZoom: 16 });
+        }
       } else {
         const renderer = new NaverMapRouteRenderer(map);
         renderer.fitMapBounds(places, directionsCache, activeJourney?.transport_type || 'public', padding);
@@ -212,7 +252,7 @@ export function useMapCamera({
     }
 
     lastFittedDataStringRef.current = currentDataString;
-  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, recommendedPlaces, isDrawerMaximized, isSearchMode, isMobile, drawerSnapPoint, directionsCache]);
+  }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, recommendedPlaces, isDrawerMaximized, isSearchMode, isMobile, windowWidth, windowHeight, drawerSnapPoint, directionsCache, validateBounds]);
 
   // 4. focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
   useEffect(() => {
@@ -222,8 +262,14 @@ export function useMapCamera({
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
 
+    // Validate bounds before applying
+    if (!validateBounds(focusBounds)) {
+      console.warn('[useMapCamera] Invalid focusBounds detected, skipping fitBounds');
+      return;
+    }
+
     const padding = currentMapPaddingRef.current;
-    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${JSON.stringify(padding)}`;
+    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${windowWidth}-${windowHeight}-${JSON.stringify(padding)}`;
     if (lastFittedFocusBoundsRef.current === currentFocusString) return;
 
     map.setOptions({ padding });
@@ -237,7 +283,7 @@ export function useMapCamera({
     map.fitBounds(bounds, { maxZoom: 18 });
 
     lastFittedFocusBoundsRef.current = currentFocusString;
-  }, [focusBounds, map, isDrawerMaximized, isMobile]);
+  }, [focusBounds, map, isDrawerMaximized, isMobile, windowWidth, windowHeight, validateBounds]);
 
   // 5. 장소 검색 카드 클릭 시 해당 장소로 줌 인
   useEffect(() => {

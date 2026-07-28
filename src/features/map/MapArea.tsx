@@ -654,8 +654,56 @@ export default function MapArea() {
     directionsCache,
     loadedSegmentsCount,
     isMobile,
+    windowWidth,
     windowHeight,
   });
+
+  // Handle significant screen size changes to reset map zoom bounds
+  const lastWindowDimensionsRef = useRef<{ width: number; height: number } | null>(null);
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResizeWithReset = () => {
+      const currentWidth = window.innerWidth;
+      const currentHeight = window.innerHeight;
+      const lastDimensions = lastWindowDimensionsRef.current;
+
+      // Check if dimensions changed significantly (>10% change in either dimension)
+      if (lastDimensions) {
+        const widthChangeRatio = Math.abs(currentWidth - lastDimensions.width) / lastDimensions.width;
+        const heightChangeRatio = Math.abs(currentHeight - lastDimensions.height) / lastDimensions.height;
+        
+        if (widthChangeRatio > 0.1 || heightChangeRatio > 0.1) {
+          // Debounce the reset to avoid excessive re-fitting during continuous resize
+          if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current);
+          resizeTimeoutRef.current = setTimeout(() => {
+            handleResetBounds(true); // forceRefit=true to clear caches
+          }, 300);
+        }
+      }
+
+      lastWindowDimensionsRef.current = { width: currentWidth, height: currentHeight };
+    };
+
+    // Also listen for orientation changes on mobile
+    const handleOrientationChange = () => {
+      handleResizeWithReset();
+    };
+
+    window.addEventListener('resize', handleResizeWithReset);
+    window.addEventListener('orientationchange', handleOrientationChange);
+
+    // Initialize last dimensions
+    lastWindowDimensionsRef.current = { width: window.innerWidth, height: window.innerHeight };
+
+    return () => {
+      window.removeEventListener('resize', handleResizeWithReset);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current);
+    };
+  }, [handleResetBounds]);
 
   const handleRecommendedMarkerClick = (recPlace: PlaceResult) => {
     // 0ms: 즉시 햅틱 피드백 및 선택 마커 강조
@@ -1203,7 +1251,7 @@ export default function MapArea() {
             {(!!activeJourney || places.length > 0) && !isSearchMode && (
               <button
                 type="button"
-                onClick={handleResetBounds}
+                onClick={() => handleResetBounds()}
                 className="
                   group flex items-center justify-center w-12 h-12 rounded-2xl
                   bg-white border border-zinc-200/80

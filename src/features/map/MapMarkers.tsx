@@ -49,7 +49,7 @@ export const MapMarkers = memo(function MapMarkers({
       {places.map((place, idx) => {
         const isSegmentMarker = !!(activeSegment && (place.id === activeSegment.originId || place.id === activeSegment.destId));
         const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
-        const isVisible = (!activeSegment || isSegmentMarker) && !isSearchMode;
+        const isVisible = !activeSegment || isSegmentMarker;
 
         if (!isVisible) return null;
 

@@ -84,19 +84,33 @@ export function useMapCamera({
 
   // Helper function to validate that bounds are reasonable and not too extreme
   const validateBounds = useCallback((bounds: LatLngBoundsLiteral): boolean => {
-    const latDiff = bounds.ne.lat - bounds.sw.lat;
-    const lngDiff = bounds.ne.lng - bounds.sw.lng;
-    
-    // Check if bounds are too small (zoomed in too much)
-    if (latDiff < 0.0001 || lngDiff < 0.0001) {
+    if (!bounds || !bounds.sw || !bounds.ne) return false;
+
+    const { sw, ne } = bounds;
+    if (
+      typeof sw.lat !== 'number' || typeof sw.lng !== 'number' ||
+      typeof ne.lat !== 'number' || typeof ne.lng !== 'number'
+    ) {
       return false;
     }
-    
+
+    if (isNaN(sw.lat) || isNaN(sw.lng) || isNaN(ne.lat) || isNaN(ne.lng)) {
+      return false;
+    }
+
+    const latDiff = ne.lat - sw.lat;
+    const lngDiff = ne.lng - sw.lng;
+
+    // Check if sw is strictly greater than ne (invalid coordinate ordering)
+    if (latDiff < 0 || lngDiff < 0) {
+      return false;
+    }
+
     // Check if bounds are too large (zoomed out too much)
     if (latDiff > 10 || lngDiff > 10) {
       return false;
     }
-    
+
     return true;
   }, []);
 

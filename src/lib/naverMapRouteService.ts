@@ -116,16 +116,16 @@ export function expandBounds(
   const latDiff = boundsObj.ne.lat - boundsObj.sw.lat;
   const lngDiff = boundsObj.ne.lng - boundsObj.sw.lng;
   
-  // 단일 마커 등 크기가 0인 경우 최소값 보장
-  const effectiveLatDiff = latDiff === 0 ? 0.0015 : latDiff;
-  const effectiveLngDiff = lngDiff === 0 ? 0.0015 : lngDiff;
+  // 단일 마커 등 크기가 0이거나 매우 작은 경우 최소 범위(0.0015) 보장
+  const effectiveLatDiff = Math.max(latDiff, 0.0015);
+  const effectiveLngDiff = Math.max(lngDiff, 0.0015);
 
   // 침범 방지 및 안전 여백 확보를 위해 항상 양수(확장) 비율만 사용하도록 보장합니다.
   // ratio가 음수이거나 너무 작다면 기본 안전 마진(0.03, 즉 3% 확장)을 적용합니다.
   const safeRatio = ratio <= 0 ? 0.03 : ratio;
 
-  const latExpansion = effectiveLatDiff * safeRatio;
-  const lngExpansion = effectiveLngDiff * safeRatio;
+  const latExpansion = Math.max(effectiveLatDiff * safeRatio, 0.0005);
+  const lngExpansion = Math.max(effectiveLngDiff * safeRatio, 0.0005);
   
   return {
     sw: {

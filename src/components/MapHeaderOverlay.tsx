@@ -5,14 +5,15 @@ import { useClickAway } from '@uidotdev/usehooks';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDialog } from '@/providers/DialogProvider';
 import PlaceSearchBar from '@/features/places/PlaceSearchBar';
-import { User, Settings, LogOut } from 'lucide-react';
+import MapCategoryChips from '@/components/map/MapCategoryChips';
+import { User, Settings, LogOut, ArrowLeft } from 'lucide-react';
 
 import { useJourneyStore } from '@/stores/journey-store';
 
 export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();
   const { alert } = useDialog();
-  const { isSearchMode } = useJourneyStore();
+  const { isSearchMode, closeSearchMode } = useJourneyStore();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -24,7 +25,23 @@ export default function MapHeaderOverlay() {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  if (isSearchMode) return null;
+  if (isSearchMode) {
+    return (
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-center gap-2 pointer-events-none md:hidden">
+        <button
+          type="button"
+          onClick={closeSearchMode}
+          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/95 backdrop-blur-xl border border-blue-100/80 shadow-[0_4px_20px_rgba(37,99,235,0.12)] text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-all pointer-events-auto flex-shrink-0 cursor-pointer active:scale-95"
+          title="검색 종료"
+        >
+          <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+        </button>
+        <div className="flex-1 overflow-hidden pointer-events-auto">
+          <MapCategoryChips />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="absolute top-4 left-4 right-4 z-10 flex items-start gap-2 pointer-events-none md:hidden">

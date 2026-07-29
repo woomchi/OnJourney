@@ -7,7 +7,7 @@ import { getCategoryTheme } from '@/lib/categoryUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
-import { MapPin, Search, X, Check, Clock, Plus, Loader2 } from 'lucide-react';
+import { MapPin, Search, X, Check, Clock, Plus, Loader2, Coffee, Utensils, Hotel, Compass, Store } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 
@@ -389,8 +389,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-10"
       >
         {/* 검색 입력 바 */}
-        <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
-          <div className="flex-1 flex items-center gap-2 px-3.5 py-2 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+        <div className="flex items-center px-4 pt-3 pb-2">
+          <div className="w-full flex items-center gap-2 px-3.5 py-2.5 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
             <Search className="w-4 h-4 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
             <input
               ref={searchInputRef}
@@ -414,14 +414,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
               </button>
             ) : null}
           </div>
-
-          <button
-            type="button"
-            onClick={closeSearchMode}
-            className="text-sm font-bold text-zinc-500 hover:text-zinc-900 px-1.5 py-2 transition-colors cursor-pointer flex-shrink-0"
-          >
-            취소
-          </button>
         </div>
 
         {/* 가로형 최근 검색 내역 태그 (검색바 바로 아래 배치) */}
@@ -482,12 +474,36 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             <p className="text-sm font-medium">검색 결과가 없습니다.</p>
           </div>
         ) : searchResults.length === 0 ? (
-          <div className="py-4">
+          <div className="py-4 space-y-4">
             {/* 기본 가이드 */}
-            <div className="flex flex-col items-center justify-center py-12 text-zinc-400 border border-dashed border-zinc-200/70 rounded-3xl bg-zinc-50/50 mx-1">
+            <div className="flex flex-col items-center justify-center py-8 px-4 text-zinc-400 border border-dashed border-zinc-200/70 rounded-3xl bg-zinc-50/50 mx-1 text-center">
               <div className="text-3xl mb-2">🗺️</div>
-              <p className="text-sm font-semibold text-zinc-600 mb-1">장소를 검색하거나 주변 장소를 찾아보세요</p>
+              <p className="text-sm font-semibold text-zinc-600 mb-1">장소를 검색하거나 추천 카테고리를 눌러보세요</p>
               <p className="text-[11px] text-zinc-400">지도를 클릭하면 원하는 위치에 직접 핀을 꽂을 수도 있습니다</p>
+
+              {/* 카테고리 퀵 추천 버튼 그룹 */}
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-4 max-w-xs">
+                {[
+                  { label: '카페', query: '카페', icon: Coffee, color: 'hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200' },
+                  { label: '맛집', query: '맛집', icon: Utensils, color: 'hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200' },
+                  { label: '숙소', query: '숙소', icon: Hotel, color: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200' },
+                  { label: '명소', query: '관광지', icon: Compass, color: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200' },
+                  { label: '편의점', query: '편의점', icon: Store, color: 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200' },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => handleTagClick(item.query)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 text-zinc-700 text-xs font-bold rounded-full transition-all cursor-pointer shadow-xs active:scale-95 ${item.color}`}
+                    >
+                      <Icon className="w-3.5 h-3.5" strokeWidth={2.2} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : (

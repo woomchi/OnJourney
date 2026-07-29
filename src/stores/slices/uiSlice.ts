@@ -38,8 +38,8 @@ export const createUISlice: StateCreator<
   guidePanelState: 'default',
   openCreateForm: () => set({ isCreateFormOpen: true }),
   closeCreateForm: () => set({ isCreateFormOpen: false }),
-  openSearchMode: () => set({ isSearchMode: true }),
-  closeSearchMode: () => set({ isSearchMode: false, recommendedPlaces: [] }),
+  openSearchMode: () => set({ isSearchMode: true, searchQuery: '', searchTriggerCount: 0, activeSearchPlace: null }),
+  closeSearchMode: () => set({ isSearchMode: false, recommendedPlaces: [], searchQuery: '', searchTriggerCount: 0, activeSearchPlace: null }),
   setEditMode: (isEdit) => set((state) => ({ 
     isEditMode: isEdit,
     ...(isEdit ? {

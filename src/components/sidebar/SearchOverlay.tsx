@@ -217,8 +217,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         items = payload.data?.items || [];
       }
 
-      // 1차 검색 결과가 15개 미만이라면(현재 지도 영역 내에 해당 장소가 부족함 = 특수한 고유명사일 확률이 높음), 범위를 넓혀 전국망 2차 검색 진행
-      if (items.length < 15) {
+      // 1차 검색 결과가 부족한 경우 (3개 미만 = 현재 지도 영역 내 해당 장소가 거의 없음), 범위를 넓혀 전국망 2차 검색 진행
+      if (items.length < 3) {
         // coordParam은 남겨서 현 중심점 기준으로 가장 가까운 곳부터 우선 탐색되도록 유도하되 rect는 해제 (전국망 확장)
         const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}${transportParam}`);
         if (currentSearchId !== activeSearchId.current) return;
@@ -243,6 +243,10 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
       setSearchResults(items);
       setSearchError(null);
+
+      if (typeof window !== 'undefined') {
+        setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
+      }
 
       if (triggerMapHighlight) {
         setRecommendedPlaces(items);
@@ -284,7 +288,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, mapBounds, activeJourney?.transport_type]);
+  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, mapBounds, activeJourney?.transport_type, setDrawerSnapPoint]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -426,7 +430,10 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             {recentQueries.map((q, idx) => (
               <div
                 key={`rq-tag-${idx}`}
-                onClick={() => handleTagClick(q)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTagClick(q);
+                }}
                 className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-blue-50 hover:text-blue-600 border border-zinc-200/60 hover:border-blue-200 text-zinc-700 text-xs font-bold rounded-full transition-all cursor-pointer group"
               >
                 <Clock className="w-3 h-3 text-zinc-400 group-hover:text-blue-500 flex-shrink-0" strokeWidth={2.2} />

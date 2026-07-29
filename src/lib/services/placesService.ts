@@ -1,5 +1,10 @@
 import { PlacesQueryType } from '../validations/places';
 import { createClient } from '@/lib/supabase/server';
+import { 
+  analyzeQuery, 
+  getCategoryPatternScore, 
+  hasExplicitRegionKeyword 
+} from './searchPatternService';
 
 export interface PlaceResult {
   id: string;
@@ -31,14 +36,13 @@ function getDistanceDecayScore(
   lng: number | undefined,
   placeLat: number,
   placeLng: number,
-  transportType: string | undefined
+  scale: number
 ): number {
   if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) {
     return 0.0; // 기준 위치가 없으면 감쇠 점수 0.0 부여
   }
 
   const d = getDistanceKm(lat, lng, placeLat, placeLng);
-  const scale = transportType === 'walk' ? 1.0 : 5.0; // 도보 모드는 1km, 차량/대중교통 모드는 5km 적용
   
   return Math.exp(- (d * d) / (2 * scale * scale));
 }
@@ -48,7 +52,7 @@ function getCategoryScore(groupCode: string | null | undefined, categoryName: st
   if (groupCode) {
     const tier1 = ['AT4', 'AD5', 'CT1']; // 관광명소, 숙박, 문화시설
     const tier2 = ['FD6', 'CE7', 'PK6']; // 음식점, 카페, 주차장
-    const tier3 = ['CS2', 'PM9', 'MT1', 'OL7']; // 편의점, 약국, 대형마트, 주유소
+    const tier3 = ['CS2', 'PM9', 'MT1', 'OL7', 'SW8', 'PO3', 'BK9']; // 편의점, 약국, 대형마트, 주유소, 지하철역, 공공기관, 은행
     
     if (tier1.includes(groupCode)) return 1.0;
     if (tier2.includes(groupCode)) return 0.8;
@@ -61,6 +65,12 @@ function getCategoryScore(groupCode: string | null | undefined, categoryName: st
   // 카카오 카테고리 그룹 코드가 비어 있는 경우 categoryName 키워드 기반으로 역매핑
   const catLower = categoryName.toLowerCase();
   
+  // 2차 정밀 필터링: 여행/이동 목적과 거리가 먼 세부 업종 정규식 제외
+  const excludeSubCategoryRegex = /(만화카페|키즈카페|보드게임카페|룸카페|스터디카페|애견카페|고양이카페)/i;
+  if (excludeSubCategoryRegex.test(catLower)) {
+    return 0.0;
+  }
+
   const tier1Keywords = [
     '관광', '명소', '여행', '숙박', '호텔', '펜션', '콘도', '리조트', '민박', '게스트하우스', 
     '캠핑', '글램핑', '야영장', '문화', '박물관', '미술관', '전시관', '유적', '사찰', '공원', 
@@ -82,21 +92,11 @@ function getCategoryScore(groupCode: string | null | undefined, categoryName: st
 
   const tier3Keywords = [
     '편의점', '약국', '마트', '슈퍼', '주유소', '충전소', '터미널', '역', '공항', '대형마트',
-    '교통', '정류소', '정류장'
+    '교통', '정류소', '정류장', '지하철', '기관', '시청', '구청', '주민센터', '동사무소', '은행', '금융',
+    '우체국', '경찰서', '소방서', '법원', '검찰청', '병원', '의원', '대학교'
   ];
   if (tier3Keywords.some(kw => catLower.includes(kw))) {
     return 0.4;
-  }
-
-  // 명시적 제외 키워드
-  const excludedKeywords = [
-    '부동산', '공공기관', '시청', '구청', '주민센터', '동사무소', '학교', '초등학교', '중학교', 
-    '고등학교', '대학교', '학원', '유치원', '어린이집', '병원', '의원', '치과', '한의원', '은행', 
-    '금융', '회사', '기업', '사무실', '공장', '아파트', '빌라', '오피스텔', '주택', '건설',
-    '세무서', '경찰서', '소방서', '우체국', '법원', '검찰청'
-  ];
-  if (excludedKeywords.some(kw => catLower.includes(kw))) {
-    return 0.0;
   }
 
   return 0.0; // 매칭되지 않는 기타 카테고리는 필터링
@@ -258,26 +258,88 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
     return [];
   }
 
+  // Step 1.5 쿼리 패턴 분석 (analyzeQuery)
+  const queryAnalysis = analyzeQuery(query);
+  const isExplicitRegion = hasExplicitRegionKeyword(query);
+
   // Step 4. 내부 인기도 데이터 결합 (조회 및 연동)
   const activePlaceIds = categoryEvaluated.map(entry => entry.item.id);
   const popularityScores = await getPopularityScores(activePlaceIds);
 
-  // Step 3 & 5. 거리 감쇠 계산 및 최종 복합 점수 산출
-  const scoredItems = categoryEvaluated.map(entry => {
+  // 외곽 지역 판별 헬퍼
+  const isSuburbanArea = (address: string | undefined): boolean => {
+    if (!address) return false;
+    const suburbanKeywords = ['제주', '강원', '울릉', '독도', '가평', '양평', '강화', '태안', '남해'];
+    return suburbanKeywords.some(kw => address.includes(kw));
+  };
+
+  const isSuburban = items.length > 0 && isSuburbanArea(items[0].address);
+
+  // 50km 하드 컷오프 제한 (도보 시 5km, 명시적 타지역 검색어 제외)
+  const maxDistanceKm = transport_type === 'walk' ? 5.0 : (isSuburban ? 70.0 : 50.0);
+
+  // Step 3 & 5. 기본 단어 매칭, 패턴 카테고리, 거리 감쇠 계산 및 최종 복합 점수 산출
+  const scoredItems: PlaceResult[] = [];
+
+  for (const entry of categoryEvaluated) {
     const item = entry.item;
     const sCat = entry.sCat;
-    const sDist = getDistanceDecayScore(lat, lng, item.lat, item.lng, transport_type);
-    const sPop = popularityScores[item.id] || 0.0;
 
-    // 복합 점수 계산 공식: S_total = (S_cat * W_cat) + (S_dist * W_dist) + (S_pop * W_pop)
-    // 가중치 추천 설정값: W_cat = 0.4, W_dist = 0.4, W_pop = 0.2
-    const totalScore = (sCat * 0.4) + (sDist * 0.4) + (sPop * 0.2);
+    // 거리 검증 및 하드 컷오프 (경도/위도 좌표가 존재하고 명시적 지역명이 없으면 반경 검증)
+    if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
+      const d = getDistanceKm(lat, lng, item.lat, item.lng);
+      if (!isExplicitRegion && d > maxDistanceKm) {
+        continue; // 허용 거리 초과 장소 드롭
+      }
+    }
 
-    return {
+    // 기본 단어(baseWord) 매칭 점수 (S_match)
+    const placeNameLower = item.place_name.toLowerCase();
+    const itemCategoryLower = (item.category || '').toLowerCase();
+    const baseWordLower = (queryAnalysis.baseWord || query).toLowerCase();
+
+    let sMatch = 0.1; // 기본 최저 점수
+    if (placeNameLower.includes(baseWordLower)) {
+      sMatch = 1.0; // 장소명에 baseWord 포함 시 100점(1.0)
+    } else if (itemCategoryLower.includes(baseWordLower)) {
+      sMatch = 0.6; // 카테고리에 포함 시 60점(0.6)
+    }
+
+    // 패턴별 카테고리 점수 (S_pattern)
+    const sPattern = getCategoryPatternScore(
+      queryAnalysis.pattern,
+      item.category_group_code,
+      item.category
+    );
+
+    // 가우시안 scale 동적 결정 (도보: 1.0, 차량 도심: 3.0, 차량 외곽: 7.0)
+    const scale = transport_type === 'walk'
+      ? 1.0
+      : (isSuburban ? 7.0 : 3.0);
+
+    const sDist = getDistanceDecayScore(lat, lng, item.lat, item.lng, scale);
+
+    // 콜드 스타트 방지 가산점 계산
+    let sPop = popularityScores[item.id] || 0.0;
+    if (sPop === 0.0 && item.category_group_code && ['AT4', 'AD5', 'CT1'].includes(item.category_group_code)) {
+      sPop = 0.3; // Tier 1인 경우 콜드 스타트 가산점 부여
+    }
+
+    // 복합 점수 계산 공식:
+    // 패턴이 감지된 경우: S_total = (S_match * 0.40) + (S_pattern * 0.25) + (S_cat * 0.15) + (S_dist * 0.10) + (S_pop * 0.10)
+    // 일반 키워드인 경우: S_total = (S_match * 0.40) + (S_cat * 0.30) + (S_dist * 0.20) + (S_pop * 0.10)
+    let totalScore = 0;
+    if (queryAnalysis.pattern) {
+      totalScore = (sMatch * 0.40) + (sPattern * 0.25) + (sCat * 0.15) + (sDist * 0.10) + (sPop * 0.10);
+    } else {
+      totalScore = (sMatch * 0.40) + (sCat * 0.30) + (sDist * 0.20) + (sPop * 0.10);
+    }
+
+    scoredItems.push({
       ...item,
       score: Number(totalScore.toFixed(4)) // 소수점 4자리까지 포맷
-    };
-  });
+    });
+  }
 
   // 최종 점수 기준 내림차순 정렬
   scoredItems.sort((a, b) => (b.score || 0) - (a.score || 0));

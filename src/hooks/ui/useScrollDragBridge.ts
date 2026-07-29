@@ -121,10 +121,10 @@ export function useScrollDragBridge({
 
     const isAtTopAtEnd = currentScrollTop <= 5;
     const threshold = bottomThreshold ?? 20;
-    // 리스트가 스크롤 불가능하더라도 최상단에 머물러 있는 상태라면 최하단 상태로 보지 않습니다.
+    // 리스트가 스크롤 불가능한 경우 최상단이자 동시에 최하단 상태로 판단하여 양방향 오버스크롤 지원
     const isAtBottomAtEnd = isScrollable
       ? (maxScroll - currentScrollTop < threshold)
-      : false;
+      : true;
 
     // 스크롤이 거의 발생하지 않았다는 것은 스크롤의 끝(최상단/최하단) 상태에서 드래그 제스처가 발생했음을 의미
     const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;

@@ -9,6 +9,7 @@ import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
 import { MapPin, Search, X, Check, Clock, Plus, Loader2 } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 
 interface SearchOverlayProps {
   activeJourney: Journey;
@@ -52,6 +53,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     searchTriggerCount,
     searchQuery,
     setSearchQuery,
+    drawerSnapPoint,
+    setDrawerSnapPoint,
   } = useJourneyStore(useShallow((state) => ({
     isSearchMode: state.isSearchMode,
     closeSearchMode: state.closeSearchMode,
@@ -70,14 +73,34 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     searchTriggerCount: state.searchTriggerCount,
     searchQuery: state.searchQuery,
     setSearchQuery: state.setSearchQuery,
+    drawerSnapPoint: state.drawerSnapPoint,
+    setDrawerSnapPoint: state.setDrawerSnapPoint,
   })));
 
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [searchError, setSearchError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
-
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const minSnapPx = isSearchMode ? (recentQueries.length > 0 ? 114 : 74) : (activeJourney ? 133 : 62);
+  const defaultSnapPx = activeJourney ? 370 : 360;
+
+  const {
+    handlePointerDown,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    handleWheel,
+  } = useScrollDragBridge({
+    scrollRef,
+    snap: drawerSnapPoint,
+    setSnap: setDrawerSnapPoint,
+    minSnap: minSnapPx,
+    defaultSnap: defaultSnapPx,
+    maxSnap: 1,
+    disabled: !isMobile,
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -284,13 +307,43 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     }
   };
 
-  const handleCategoryClick = async (category: string) => {
-    setSearchQuery(category);
+  const handleTagClick = useCallback((q: string) => {
+    setSearchQuery(q);
     debouncedRunSearch.cancel();
-    await runSearch(category, true);
-    saveRecentQuery(category);
+    runSearch(q, true);
+    saveRecentQuery(q);
+    if (typeof window !== 'undefined') {
+      setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
+    }
+  }, [setSearchQuery, debouncedRunSearch, runSearch, saveRecentQuery, setDrawerSnapPoint]);
+
+  const handleCategoryClick = async (category: string) => {
+    handleTagClick(category);
   };
 
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (searchQuery.trim().length > 0) {
+        debouncedRunSearch.cancel();
+        saveRecentQuery(searchQuery);
+        runSearch(searchQuery, true);
+        if (typeof window !== 'undefined') {
+          setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
+        }
+      }
+    }
+  };
+
+  const handleClearInput = () => {
+    setSearchQuery('');
+    debouncedRunSearch.cancel();
+    setSearchResults([]);
+    clearRecommendedPlaces();
+    setActiveSearchPlace(null);
+    setSearchError(null);
+    searchInputRef.current?.focus();
+  };
 
   const handleToggleSearchResult = async (item: PlaceResult) => {
     if (addedIds.has(item.id)) {
@@ -325,72 +378,94 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       className={`absolute inset-0 bg-white z-50 flex flex-col min-h-0 transition-all duration-350 ease-in-out ${isSearchMode ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
         }`}
     >
-      {/* 검색 모드 헤더 */}
-      {!isMobile && (
-        <div className="px-5 pt-4 pb-3 flex-shrink-0">
-          {/* 검색바 */}
-          <div className="flex items-center gap-2 px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20 transition-all">
+      {/* ── 검색 헤더 (검색 입력창 + 가로형 검색 내역/추천 태그) ── */}
+      <div
+        onPointerDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-10"
+      >
+        {/* 검색 입력 바 */}
+        <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
+          <div className="flex-1 flex items-center gap-2 px-3.5 py-2 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+            <Search className="w-4 h-4 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
             <input
               ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={handleSearchInputChange}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') { debouncedRunSearch.cancel(); runSearch(searchQuery, true); saveRecentQuery(searchQuery); }
-                if (e.key === 'Escape') closeSearchMode();
-              }}
-              placeholder={mapCenterAddress ? `${mapCenterAddress} 주변 장소 검색` : '방문할 장소를 검색해보세요'}
-              className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-sm pl-1"
+              onKeyDown={handleKeyDown}
+              placeholder="방문할 장소를 검색해보세요"
+              className="flex-1 bg-transparent outline-none text-sm text-zinc-800 placeholder-zinc-400 font-semibold"
             />
             {isSearchLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0 mr-1" />
+              <Loader2 className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0" />
             ) : searchQuery.length > 0 ? (
               <button
                 type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setSearchResults([]);
-                  clearRecommendedPlaces();
-                  setActiveSearchPlace(null);
-                  searchInputRef.current?.focus();
-                }}
-                className="w-4 h-4 flex-shrink-0 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center transition-colors cursor-pointer mr-1"
+                onClick={handleClearInput}
+                className="w-4.5 h-4.5 rounded-full bg-zinc-200 hover:bg-zinc-300 flex items-center justify-center text-zinc-500 hover:text-zinc-700 transition-colors flex-shrink-0 cursor-pointer"
+                title="검색어 지우기"
               >
-                <X className="w-2.5 h-2.5 text-zinc-600" />
+                <X className="w-3 h-3" strokeWidth={2.5} />
               </button>
             ) : null}
+          </div>
+
+          <button
+            type="button"
+            onClick={closeSearchMode}
+            className="text-sm font-bold text-zinc-500 hover:text-zinc-900 px-1.5 py-2 transition-colors cursor-pointer flex-shrink-0"
+          >
+            취소
+          </button>
+        </div>
+
+        {/* 가로형 최근 검색 내역 태그 (검색바 바로 아래 배치) */}
+        {recentQueries.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-4 pb-3 pt-0.5 select-none">
+            {recentQueries.map((q, idx) => (
+              <div
+                key={`rq-tag-${idx}`}
+                onClick={() => handleTagClick(q)}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-blue-50 hover:text-blue-600 border border-zinc-200/60 hover:border-blue-200 text-zinc-700 text-xs font-bold rounded-full transition-all cursor-pointer group"
+              >
+                <Clock className="w-3 h-3 text-zinc-400 group-hover:text-blue-500 flex-shrink-0" strokeWidth={2.2} />
+                <span>{q}</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteRecentQuery(q);
+                  }}
+                  className="w-3.5 h-3.5 rounded-full hover:bg-zinc-200 hover:text-zinc-600 flex items-center justify-center text-zinc-400 transition-colors cursor-pointer -mr-0.5"
+                  title="기록 삭제"
+                >
+                  <X className="w-2.5 h-2.5" strokeWidth={2.5} />
+                </button>
+              </div>
+            ))}
             <button
               type="button"
-              onClick={() => {
-                debouncedRunSearch.cancel();
-                runSearch(searchQuery, true);
-                saveRecentQuery(searchQuery);
-              }}
-              className="flex-shrink-0 text-zinc-400 hover:text-blue-600 transition-colors cursor-pointer p-1 -mr-1"
+              onClick={clearRecentQueries}
+              className="flex-shrink-0 text-[11px] font-semibold text-zinc-400 hover:text-red-500 px-2 py-1 transition-colors cursor-pointer ml-1 whitespace-nowrap"
+              title="최근 검색어 전체 삭제"
             >
-              <Search className="w-4 h-4" />
+              전체 삭제
             </button>
           </div>
-          {/* 카테고리 칩 */}
-          <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5 scrollbar-none select-none">
+        )}
+      </div>
 
-            {[{ label: '맛집 🍔', value: '맛집' }, { label: '카페 ☕', value: '카페' }, { label: '명소 🎪', value: '명소' }, { label: '숙소 🏨', value: '숙소' }].map(chip => (
-              <button
-                key={chip.value}
-                type="button"
-                onClick={() => handleCategoryClick(chip.value)}
-                className="px-3.5 py-1.5 rounded-full text-[11px] font-bold text-zinc-500 bg-zinc-50 border border-zinc-200/70 hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-600 active:scale-95 transition-all duration-150 cursor-pointer whitespace-nowrap"
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
       {/* 검색 결과 리스트 */}
       <div
+        ref={scrollRef}
         id="search-results-container"
-        className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-sidebar relative"
+        onPointerDown={handlePointerDown}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onWheel={handleWheel}
+        className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-sidebar relative overscroll-none"
       >
         {searchError ? (
           <p className="text-sm text-red-500 py-6 text-center">{searchError}</p>
@@ -400,58 +475,13 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             <p className="text-sm font-medium">검색 결과가 없습니다.</p>
           </div>
         ) : searchResults.length === 0 ? (
-          <div className="space-y-6 py-4">
-            {/* 최근 검색어 */}
-            {recentQueries.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">최근 검색어</h3>
-                  <button
-                    type="button"
-                    onClick={clearRecentQueries}
-                    className="text-[10px] text-zinc-400 hover:text-red-500 font-semibold cursor-pointer transition-colors"
-                  >
-                    전체 삭제
-                  </button>
-                </div>
-                <ul className="space-y-1.5">
-                  {recentQueries.map((q, idx) => (
-                    <li
-                      key={`rq-${idx}`}
-                      className="group flex items-center gap-3 p-3 rounded-2xl border bg-white border-zinc-100 hover:border-blue-100 hover:bg-blue-50/40 transition-all cursor-pointer"
-                      onClick={() => {
-                        setSearchQuery(q);
-                        runSearch(q, true);
-                      }}
-                    >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:text-blue-500 group-hover:bg-blue-100/50 transition-colors">
-                        <Clock className="w-4 h-4" strokeWidth={2.5} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-zinc-700 truncate group-hover:text-zinc-900">{q}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); deleteRecentQuery(q); }}
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200 transition-colors cursor-pointer"
-                        title="기록 삭제"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
+          <div className="py-4">
             {/* 기본 가이드 */}
-            {recentQueries.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 text-zinc-400 border border-dashed border-zinc-200/70 rounded-3xl bg-zinc-50/50 mt-4 mx-1">
-                <div className="text-3xl mb-3">🗺️</div>
-                <p className="text-sm font-semibold text-zinc-600 mb-1">장소를 검색하거나 주변 장소를 찾아보세요</p>
-                <p className="text-[11px] text-zinc-400">지도를 클릭하면 원하는 위치에 직접 핀을 꽂을 수도 있습니다</p>
-              </div>
-            )}
+            <div className="flex flex-col items-center justify-center py-12 text-zinc-400 border border-dashed border-zinc-200/70 rounded-3xl bg-zinc-50/50 mx-1">
+              <div className="text-3xl mb-2">🗺️</div>
+              <p className="text-sm font-semibold text-zinc-600 mb-1">장소를 검색하거나 주변 장소를 찾아보세요</p>
+              <p className="text-[11px] text-zinc-400">지도를 클릭하면 원하는 위치에 직접 핀을 꽂을 수도 있습니다</p>
+            </div>
           </div>
         ) : (
           <ul className="space-y-1.5 pt-1">

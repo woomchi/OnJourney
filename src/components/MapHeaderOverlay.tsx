@@ -7,9 +7,12 @@ import { useDialog } from '@/providers/DialogProvider';
 import PlaceSearchBar from '@/features/places/PlaceSearchBar';
 import { User, Settings, LogOut } from 'lucide-react';
 
+import { useJourneyStore } from '@/stores/journey-store';
+
 export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();
   const { alert } = useDialog();
+  const { isSearchMode } = useJourneyStore();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -20,6 +23,8 @@ export default function MapHeaderOverlay() {
   const handleProfileClick = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  if (isSearchMode) return null;
 
   return (
     <div className="absolute top-4 left-4 right-4 z-10 flex items-start gap-2 pointer-events-none md:hidden">

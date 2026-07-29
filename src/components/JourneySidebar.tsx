@@ -140,6 +140,27 @@ export default function JourneySidebar() {
   const [isDragging, setIsDragging] = useState(false);
   const touchStartY = useRef<number | null>(null);
   const wasActiveJourneyRef = useRef(activeJourney);
+  const prevSearchModeRef = useRef(isSearchMode);
+
+  const getSearchMinSnap = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('onjourney_recent_queries');
+        const parsed = saved ? JSON.parse(saved) : [];
+        if (Array.isArray(parsed) && parsed.length > 0) return 114;
+      } catch (e) { }
+    }
+    return 74;
+  };
+
+  useEffect(() => {
+    if (isSearchMode && !prevSearchModeRef.current) {
+      setSnap(getSearchMinSnap());
+    } else if (!isSearchMode && prevSearchModeRef.current) {
+      setSnap(activeJourney ? 370 : 360);
+    }
+    prevSearchModeRef.current = isSearchMode;
+  }, [isSearchMode, activeJourney]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   // Initialize snap point on mount based on existing store state or activeJourney
@@ -301,8 +322,10 @@ export default function JourneySidebar() {
   }
 
   if (isMobile) {
-    const minSnapPx = activeJourney ? 133 : 62;
-    const defaultSnapPx = activeJourney ? 370 : 360;
+    const minSnapPx = isSearchMode ? getSearchMinSnap() : (activeJourney ? 133 : 62);
+    const defaultSnapPx = isSearchMode
+      ? (windowHeight ? Math.round(windowHeight * 0.62) : 500)
+      : (activeJourney ? 370 : 360);
 
     const parsedSnap = parseSnapVal(snap);
     let currentSnapType: 'min' | 'default' | 'max' = 'default';
@@ -347,7 +370,7 @@ export default function JourneySidebar() {
               minHeight={minSnapPx}
               defaultHeight={defaultSnapPx}
               maxHeight={windowHeight - 16}
-              initialSnap={currentSnapType}
+              initialSnap={isSearchMode ? 'min' : currentSnapType}
               zIndex={30}
               y={y}
               onSnap={(snapName) => {
@@ -359,11 +382,6 @@ export default function JourneySidebar() {
               <FloatingButtonsContainer />
               {content}
             </CustomBottomSheet>
-          )}
-
-          {/* 검색 모드 플로팅 닫기 버튼 */}
-          {isSearchMode && (
-            <CloseSearchFloatingButton onClick={closeSearchMode} />
           )}
 
           <EditJourneyModal

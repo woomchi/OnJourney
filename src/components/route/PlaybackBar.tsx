@@ -127,14 +127,7 @@ export default function PlaybackBar({
           }`}
           style={{ 
             width: `${progressPercent}%`,
-            WebkitMaskImage: 'radial-gradient(ellipse 100% 100% at 100% 100%, black 98%, transparent 100%), linear-gradient(black, black), radial-gradient(ellipse 100% 100% at 0% 100%, black 98%, transparent 100%)',
-            WebkitMaskSize: '15% 100%, 70% 100%, 15% 100%',
-            WebkitMaskPosition: 'left bottom, center bottom, right bottom',
-            WebkitMaskRepeat: 'no-repeat',
-            maskImage: 'radial-gradient(ellipse 100% 100% at 100% 100%, black 98%, transparent 100%), linear-gradient(black, black), radial-gradient(ellipse 100% 100% at 0% 100%, black 98%, transparent 100%)',
-            maskSize: '15% 100%, 70% 100%, 15% 100%',
-            maskPosition: 'left bottom, center bottom, right bottom',
-            maskRepeat: 'no-repeat'
+            contain: 'layout style paint'
           }}
         >
           <div 

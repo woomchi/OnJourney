@@ -265,8 +265,7 @@ export default function AlternativeRoutePanel({
 
   useEffect(() => {
     if (isOpen) {
-      const timer = setTimeout(() => setAnimate(true), 50);
-      return () => clearTimeout(timer);
+      setAnimate(true);
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnimate(false);

@@ -12,7 +12,6 @@ import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
-import DepartureTimePicker from '@/components/common/DepartureTimePicker';
 
 interface JourneyPlayerHeaderProps {
   activeJourney: Journey;
@@ -47,7 +46,6 @@ export default function JourneyPlayerHeader({
   const bottomSheet = useOptionalBottomSheet();
 
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
-  const { departureTime, setDepartureTime } = useJourneyStore();
 
   useEffect(() => {
     if (!focusedSegment && !focusedStep) {
@@ -292,11 +290,6 @@ export default function JourneyPlayerHeader({
             )}
           </p>
         </button>
-      </div>
-
-      {/* 시간 선택기 (헤더 아래) */}
-      <div className="w-full flex justify-center px-4 py-2">
-        <DepartureTimePicker onTimeChange={setDepartureTime} />
       </div>
 
       {/* 하단: 여정 이동 및 재생 조절 컨트롤 */}

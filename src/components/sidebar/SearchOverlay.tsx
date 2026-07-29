@@ -7,7 +7,7 @@ import { getCategoryTheme } from '@/lib/categoryUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
-import { MapPin, Search, X, Check, Clock, Plus, Loader2, Coffee, Utensils, Hotel, Compass, Store } from 'lucide-react';
+import { MapPin, Search, X, Check, Clock, Plus, Loader2, Coffee, Utensils, Hotel, Compass, Store, ArrowLeft } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 
@@ -379,7 +379,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   return (
     <div
       inert={!isSearchMode ? true : undefined}
-      className={`absolute inset-0 bg-white z-50 flex flex-col min-h-0 transition-all duration-350 ease-in-out ${isSearchMode ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+      className={`absolute inset-0 bg-white z-50 flex flex-col min-h-0 transition duration-350 ease-in-out ${isSearchMode ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
         }`}
     >
       {/* ── 검색 헤더 (검색 입력창 + 가로형 검색 내역/추천 태그) ── */}
@@ -389,8 +389,17 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-10"
       >
         {/* 검색 입력 바 */}
-        <div className="flex items-center px-4 pt-3 pb-2">
-          <div className="w-full flex items-center gap-2 px-3.5 py-2.5 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+        <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
+          <button
+            type="button"
+            onClick={closeSearchMode}
+            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-zinc-100 hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-zinc-200/80 hover:border-blue-200/80 transition-all flex-shrink-0 cursor-pointer active:scale-95 shadow-2xs"
+            title="검색 종료"
+          >
+            <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+          </button>
+
+          <div className="flex-1 flex items-center gap-2 px-3.5 py-2.5 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
             <Search className="w-4 h-4 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
             <input
               ref={searchInputRef}

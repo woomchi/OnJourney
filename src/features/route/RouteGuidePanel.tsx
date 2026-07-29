@@ -509,7 +509,9 @@ export default function RouteGuidePanel({
     <div 
       style={{ 
         zIndex: animate ? 105 : 40,
-        transition: 'all 400ms cubic-bezier(0.32, 0.72, 0, 1)',
+        transition: animate 
+          ? 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms ease-out'
+          : 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms ease-out',
       }}
       className={`absolute z-[105] 
         bottom-4 left-4 right-4 
@@ -604,7 +606,9 @@ export default function RouteGuidePanel({
         }}
         style={{ 
           zIndex: animate ? 45 : 40,
-          transition: 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms',
+          transition: animate 
+            ? 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms ease-out'
+            : 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms ease-out',
         }}
         className={`absolute bg-white border-t border-zinc-200 flex flex-col overflow-hidden z-[100] md:z-auto
           bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)] pb-[80px] md:pb-[88px]

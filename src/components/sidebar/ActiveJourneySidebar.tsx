@@ -183,7 +183,7 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
   return (
     <>
       {isMobile ? innerContent : (
-        <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] flex flex-col h-full bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+        <aside className="w-full md:w-[35%] md:min-w-[380px] md:max-w-[480px] flex flex-col h-full bg-white md:border-r border-zinc-100 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20 relative">
           {innerContent}
         </aside>
       )}

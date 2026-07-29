@@ -55,7 +55,7 @@ export default function Home() {
     <div className="flex h-[100dvh] w-full bg-white text-zinc-900 overflow-hidden font-sans relative">
       <JourneySidebar />
 
-      <main className="absolute inset-0 md:relative md:flex-1 md:h-full bg-zinc-50 flex items-center justify-center">
+      <main className="absolute inset-0 md:relative md:flex-1 md:h-full bg-zinc-50 flex items-center justify-center z-10 overflow-hidden">
         <MapHeaderOverlay />
         <MapArea />
         <RoutePanels />

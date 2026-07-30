@@ -23,7 +23,7 @@ export function useScrollDragBridge({
   bottomThreshold
 }: PanelScrollBridgeOptions) {
   const bottomSheet = useOptionalBottomSheet();
-  const touchStartRef = useRef<{ y: number; scrollTop: number } | null>(null);
+  const touchStartRef = useRef<{ y: number; scrollTop: number; isInteractive: boolean } | null>(null);
   const wheelAccumulator = useRef({
     lastTime: 0,
     delta: 0,
@@ -70,9 +70,8 @@ export function useScrollDragBridge({
 
     if (!isScrollable && bottomSheet) {
       const isDragHandle = (e.target as HTMLElement).closest('.drag-handle');
-      const isButton = (e.target as HTMLElement).closest('button');
-      const isInput = (e.target as HTMLElement).closest('input, textarea, select');
-      if (!isDragHandle && !isButton && !isInput) {
+      const isButton = (e.target as HTMLElement).closest('button, input, textarea, select, a, [role="button"]');
+      if (!isDragHandle && !isButton) {
         bottomSheet.dragControls.start(e);
       }
     }
@@ -80,16 +79,23 @@ export function useScrollDragBridge({
 
   const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
     const target = scrollRef.current || e.currentTarget;
+    const isInteractive = !!(e.target as HTMLElement).closest('button, input, textarea, select, a, [role="button"]');
     touchStartRef.current = {
       y: e.touches[0].clientY,
-      scrollTop: target.scrollTop
+      scrollTop: target.scrollTop,
+      isInteractive,
     };
     e.stopPropagation();
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
-    // 스크롤 중 터치 이동 이벤트가 바텀 시트로 전파되어 시트가 움직이는 것 항상 차단
-    e.stopPropagation();
+    const target = scrollRef.current || e.currentTarget;
+    const maxScroll = target.scrollHeight - target.clientHeight;
+    const isScrollable = maxScroll > 5;
+    // 스크롤 가능한 상태일 때만 리스트 스크롤 영역 외부로의 터치 이벤트 전파를 차단
+    if (isScrollable) {
+      e.stopPropagation();
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
@@ -103,10 +109,25 @@ export function useScrollDragBridge({
     }
     if (!touchStartRef.current) return;
 
+    const { isInteractive } = touchStartRef.current;
+    if (isInteractive) {
+      touchStartRef.current = null;
+      return;
+    }
+
     const target = scrollRef.current || e.currentTarget;
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
     const { scrollTop: startScrollTop } = touchStartRef.current;
     const currentScrollTop = target.scrollTop;
+
+    const maxScroll = target.scrollHeight - target.clientHeight;
+    const isScrollable = maxScroll > 5;
+
+    // 리스트 스크롤이 불가능한 영역(!isScrollable)은 Framer Motion dragControls에 유연하게 위임하고 오버스크롤 강제 스냅 억제
+    if (!isScrollable) {
+      touchStartRef.current = null;
+      return;
+    }
 
     console.log('useScrollDragBridge: touchEnd values', {
       deltaY,
@@ -116,20 +137,14 @@ export function useScrollDragBridge({
       clientHeight: target.clientHeight
     });
 
-    const maxScroll = target.scrollHeight - target.clientHeight;
-    const isScrollable = maxScroll > 5;
-
     const isAtTopAtEnd = currentScrollTop <= 5;
     const threshold = bottomThreshold ?? 20;
-    // 리스트가 스크롤 불가능한 경우 최상단이자 동시에 최하단 상태로 판단하여 양방향 오버스크롤 지원
-    const isAtBottomAtEnd = isScrollable
-      ? (maxScroll - currentScrollTop < threshold)
-      : true;
+    const isAtBottomAtEnd = maxScroll - currentScrollTop < threshold;
 
     // 스크롤이 거의 발생하지 않았다는 것은 스크롤의 끝(최상단/최하단) 상태에서 드래그 제스처가 발생했음을 의미
     const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
 
-    // 최상단/최하단 경계 오버스크롤 판단 (탄성 바운스로 인해 didNotScroll이 거짓으로 인식되어도 강제 트리거하도록 보강)
+    // 최상단/최하단 경계 오버스크롤 판단
     const isOverscrollingTop = isAtTopAtEnd && deltaY > 20;
     const isOverscrollingBottom = isAtBottomAtEnd && deltaY < -20;
 

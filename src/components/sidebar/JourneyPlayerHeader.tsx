@@ -41,6 +41,7 @@ export default function JourneyPlayerHeader({
     isEditMode,
     setEditMode,
     setDrawerSnapPoint,
+    closeSearchMode,
   } = useJourneyStore();
 
   const bottomSheet = useOptionalBottomSheet();
@@ -121,8 +122,19 @@ export default function JourneyPlayerHeader({
         }}
         className="w-full h-8 flex items-center justify-between px-3 border-b border-zinc-100/80 bg-white flex-shrink-0 relative drawer-drag-area cursor-grab active:cursor-grabbing touch-none"
       >
-        {/* 왼쪽: 목록 / 취소 */}
-        {!isSearchMode && (
+        {/* 왼쪽: 목록 / 취소 / 여정 상세 */}
+        {isSearchMode ? (
+          <button
+            type="button"
+            onClick={closeSearchMode}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-[11px] font-semibold rounded-md px-1.5 py-0.5 cursor-pointer"
+            title="여정 상세로 돌아가기"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+            여정 상세
+          </button>
+        ) : (
           <button
             type="button"
             onClick={() => {
@@ -154,14 +166,13 @@ export default function JourneyPlayerHeader({
                 isEditMode
                   ? handleDoneEdit
                   : () => {
-                      setEditMode(true);
-                      setDrawerSnapPoint(1);
-                    }
+                    setEditMode(true);
+                    setDrawerSnapPoint(1);
+                  }
               }
               onPointerDown={(e) => e.stopPropagation()}
-              className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1.5 py-0.5 ${
-                isEditMode ? 'text-blue-600' : 'text-zinc-500 hover:text-zinc-800'
-              }`}
+              className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors px-1.5 py-0.5 ${isEditMode ? 'text-blue-600' : 'text-zinc-500 hover:text-zinc-800'
+                }`}
             >
               {isEditMode ? (
                 <>
@@ -182,7 +193,7 @@ export default function JourneyPlayerHeader({
   }
 
   return (
-    <HeaderComponent 
+    <HeaderComponent
       onPointerDown={(e: any) => {
         if (isMobile && bottomSheet?.dragControls) {
           bottomSheet.dragControls.start(e);
@@ -190,9 +201,22 @@ export default function JourneyPlayerHeader({
       }}
       className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-0.5' : 'pt-1'}`}
     >
-      {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 */}
-      {!isSearchMode && (
-        <div className={`absolute top-1 left-2 z-20`}>
+      {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 / 여정 상세 */}
+      {isSearchMode ? (
+        <div className="absolute top-1 left-2 z-20">
+          <button
+            type="button"
+            onClick={closeSearchMode}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 cursor-pointer"
+            title="닫기"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+            닫기
+          </button>
+        </div>
+      ) : (
+        <div className="absolute top-1 left-2 z-20">
           <button
             type="button"
             onClick={() => {
@@ -229,9 +253,9 @@ export default function JourneyPlayerHeader({
               isEditMode
                 ? handleDoneEdit
                 : () => {
-                    setEditMode(true);
-                    setDrawerSnapPoint(1);
-                  }
+                  setEditMode(true);
+                  setDrawerSnapPoint(1);
+                }
             }
             onPointerDown={(e) => e.stopPropagation()}
             className={`flex items-center gap-0.5 text-xs font-semibold transition-colors px-1 py-0.5 ${isEditMode ? 'text-blue-600 font-bold' : 'text-zinc-400 hover:text-zinc-700'
@@ -452,17 +476,16 @@ export default function JourneyPlayerHeader({
         return (
           <div className="absolute bottom-0 left-0 w-full h-[3px] bg-zinc-100">
             {/* 연속 물결 파동 이펙트 (채워진 영역에만 그려짐) */}
-            <div 
-              className={`absolute bottom-0 left-0 h-[14px] origin-bottom transition-all duration-500 ease-out ${
-                isPlaying ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-0'
-              }`}
-              style={{ 
+            <div
+              className={`absolute bottom-0 left-0 h-[14px] origin-bottom transition-all duration-500 ease-out ${isPlaying ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-0'
+                }`}
+              style={{
                 width: `${progressPercent}%`,
                 contain: 'layout style paint'
               }}
             >
               {/* 파동 레이어 1 */}
-              <div 
+              <div
                 className="absolute bottom-0 left-0 w-full h-[14px]"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M 0 10 Q 25 0 50 10 T 100 10 L 100 20 L 0 20 Z' fill='%236366f1' opacity='0.3'/%3E%3C/svg%3E")`,
@@ -472,7 +495,7 @@ export default function JourneyPlayerHeader({
                 }}
               />
               {/* 파동 레이어 2 */}
-              <div 
+              <div
                 className="absolute bottom-0 left-0 w-full h-[10px]"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M 0 10 Q 25 0 50 10 T 100 10 L 100 20 L 0 20 Z' fill='%238b5cf6' opacity='0.5'/%3E%3C/svg%3E")`,

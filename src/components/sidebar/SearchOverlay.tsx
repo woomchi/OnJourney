@@ -7,7 +7,7 @@ import { getCategoryTheme } from '@/lib/categoryUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
-import { MapPin, Search, X, Check, Clock, Plus, Loader2, Coffee, Utensils, Hotel, Compass, Store, ArrowLeft } from 'lucide-react';
+import { MapPin, Search, X, Check, Clock, Plus, Loader2 } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 
@@ -37,7 +37,6 @@ function getDistrictPrefix(address: string) {
 export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const {
     isSearchMode,
-    closeSearchMode,
     addPlace,
     removePlace,
     mapCenterAddress,
@@ -57,7 +56,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setDrawerSnapPoint,
   } = useJourneyStore(useShallow((state) => ({
     isSearchMode: state.isSearchMode,
-    closeSearchMode: state.closeSearchMode,
     addPlace: state.addPlace,
     removePlace: state.removePlace,
     mapCenterAddress: state.mapCenterAddress,
@@ -84,8 +82,19 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [windowHeight, setWindowHeight] = useState(0);
+
+  useEffect(() => {
+    setWindowHeight(window.innerHeight);
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const minSnapPx = isSearchMode ? (recentQueries.length > 0 ? 114 : 74) : (activeJourney ? 133 : 62);
-  const defaultSnapPx = activeJourney ? 370 : 360;
+  const defaultSnapPx = isSearchMode
+    ? (windowHeight ? Math.round(windowHeight * 0.62) : 500)
+    : (activeJourney ? 370 : 360);
 
   const {
     handlePointerDown,
@@ -404,15 +413,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       >
         {/* 검색 입력 바 */}
         <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
-          <button
-            type="button"
-            onClick={closeSearchMode}
-            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-zinc-100 hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-zinc-200/80 hover:border-blue-200/80 transition-all flex-shrink-0 cursor-pointer active:scale-95 shadow-2xs"
-            title="검색 종료"
-          >
-            <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
-          </button>
-
           <form
             action=""
             onSubmit={handleSearchSubmit}
@@ -453,6 +453,14 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         {/* 가로형 최근 검색 내역 태그 (검색바 바로 아래 배치) */}
         {recentQueries.length > 0 && (
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-4 pb-3 pt-0.5 select-none">
+            <button
+              type="button"
+              onClick={clearRecentQueries}
+              className="flex-shrink-0 sticky left-0 z-10 text-[11px] font-semibold text-zinc-400 hover:text-red-500 bg-white py-1 pr-2 transition-colors cursor-pointer whitespace-nowrap shadow-[6px_0_8px_white]"
+              title="최근 검색어 전체 삭제"
+            >
+              전체 삭제
+            </button>
             {recentQueries.map((q, idx) => (
               <div
                 key={`rq-tag-${idx}`}
@@ -477,14 +485,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                 </button>
               </div>
             ))}
-            <button
-              type="button"
-              onClick={clearRecentQueries}
-              className="flex-shrink-0 text-[11px] font-semibold text-zinc-400 hover:text-red-500 px-2 py-1 transition-colors cursor-pointer ml-1 whitespace-nowrap"
-              title="최근 검색어 전체 삭제"
-            >
-              전체 삭제
-            </button>
           </div>
         )}
       </div>
@@ -512,32 +512,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             {/* 기본 가이드 */}
             <div className="flex flex-col items-center justify-center py-8 px-4 text-zinc-400 border border-dashed border-zinc-200/70 rounded-3xl bg-zinc-50/50 mx-1 text-center">
               <div className="text-3xl mb-2">🗺️</div>
-              <p className="text-sm font-semibold text-zinc-600 mb-1">장소를 검색하거나 추천 카테고리를 눌러보세요</p>
+              <p className="text-sm font-semibold text-zinc-600 mb-1">방문할 장소를 검색해보세요</p>
               <p className="text-[11px] text-zinc-400">지도를 클릭하면 원하는 위치에 직접 핀을 꽂을 수도 있습니다</p>
-
-              {/* 카테고리 퀵 추천 버튼 그룹 */}
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-4 max-w-xs">
-                {[
-                  { label: '카페', query: '카페', icon: Coffee, color: 'hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200' },
-                  { label: '맛집', query: '맛집', icon: Utensils, color: 'hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200' },
-                  { label: '숙소', query: '숙소', icon: Hotel, color: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200' },
-                  { label: '명소', query: '관광지', icon: Compass, color: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200' },
-                  { label: '편의점', query: '편의점', icon: Store, color: 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200' },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.label}
-                      type="button"
-                      onClick={() => handleTagClick(item.query)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 text-zinc-700 text-xs font-bold rounded-full transition-all cursor-pointer shadow-xs active:scale-95 ${item.color}`}
-                    >
-                      <Icon className="w-3.5 h-3.5" strokeWidth={2.2} />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </div>
         ) : (

@@ -103,7 +103,7 @@ export default function JourneyControlFloatingBar({
   };
 
   return (
-    <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-[101] md:hidden pointer-events-auto">
+    <div className="fixed bottom-[calc(6.5rem-10px+env(safe-area-inset-bottom,0px))] left-3 right-3 z-[101] md:hidden pointer-events-auto">
       {/* 2배 높이 2단 레이아웃 카드 */}
       <div className="w-full bg-white/95 text-zinc-900 backdrop-blur-xl border border-white/80 shadow-[0_8px_24px_rgba(0,0,0,0.14)] rounded-2xl p-3 flex flex-col gap-2 transition-all">
         {/* 상단 1단: 조작 컨트롤러 (목록/취소, 여정 제목, 추가/편집/재생) */}

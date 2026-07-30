@@ -111,7 +111,7 @@ export default function RouteGuidePanel({
     if (isOpen) {
       if (snap === 1 || snap === '1') {
         setGuidePanelState('expanded');
-      } else if (snap === 200 || snap === '200px') {
+      } else if (snap === 190 || snap === '190px') {
         setGuidePanelState('minimized');
       } else {
         setGuidePanelState('default');
@@ -145,7 +145,7 @@ export default function RouteGuidePanel({
     scrollRef: scrollContainerRef,
     snap,
     setSnap,
-    minSnap: 200,
+    minSnap: 190,
     defaultSnap: 370,
     maxSnap: 1
   });
@@ -538,7 +538,7 @@ export default function RouteGuidePanel({
   if (isMobile) {
     const parsedSnap = parseSnapVal(snap);
     let currentSnapType: 'min' | 'default' | 'max' = 'default';
-    if (parsedSnap === 200) currentSnapType = 'min';
+    if (parsedSnap === 190) currentSnapType = 'min';
     else if (parsedSnap === 1) currentSnapType = 'max';
 
     const snapPx = parsedSnap === 1
@@ -553,13 +553,13 @@ export default function RouteGuidePanel({
       <>
         <CustomBottomSheet
           isOpen={isOpen}
-          minHeight={200}
+          minHeight={190}
           defaultHeight={370}
           maxHeight={windowHeight - 16}
           initialSnap={currentSnapType}
           zIndex={45}
           onSnap={(snapName) => {
-            if (snapName === 'min') setSnap(200);
+            if (snapName === 'min') setSnap(190);
             else if (snapName === 'default') setSnap(370);
             else if (snapName === 'max') setSnap(1);
           }}

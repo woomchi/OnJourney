@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useMemo, Fragment, useCallback } from 'react';
+import { useRef, useState, useEffect, useMemo, Fragment, useCallback, useReducer } from 'react';
 import { createPortal } from 'react-dom';
 import {
   NaverMap,
@@ -150,7 +150,7 @@ export default function MapArea() {
     currentAddress, setCurrentAddress,
     showLocationCard, setShowLocationCard,
     gpsMode, setGpsMode,
-    deviceHeading, setDeviceHeading,
+    setDeviceHeading,
     forceLoad, setForceLoad,
     mapCenter, setMapCenter,
     zoomLevel, setZoomLevel,
@@ -162,14 +162,6 @@ export default function MapArea() {
   useEffect(() => { gpsModeRef.current = gpsMode; }, [gpsMode]);
   
   const headingEmaRef = useRef<{ x: number, y: number } | null>(null);
-  
-  // 회전값 변경 시 DOM을 직접 업데이트하여 마커 애니메이션 리셋 방지
-  useEffect(() => {
-    const el = document.getElementById('user-compass-cone');
-    if (el) {
-      el.style.transform = `rotate(${deviceHeading || 0}deg)`;
-    }
-  }, [deviceHeading]);
 
   const watchIdRef = useRef<number | null>(null);
 
@@ -217,7 +209,8 @@ export default function MapArea() {
           setPortalTarget(prev => prev !== el ? el : prev);
         }
       });
-      observer.observe(document.body, { childList: true, subtree: true });
+      const targetContainer = document.getElementById('mobile-map-buttons-target') || document.body;
+      observer.observe(targetContainer, { childList: true, subtree: false });
       return () => observer.disconnect();
     } else {
       setPortalTarget(prev => prev !== null ? null : prev);
@@ -549,20 +542,32 @@ export default function MapArea() {
   }, [places.length, map]);
 
 
-  const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
-  const [windowHeight, setWindowHeight] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 800);
+  const windowWidthRef = useRef<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const windowHeightRef = useRef<number>(typeof window !== 'undefined' ? window.innerHeight : 800);
+  const [paddingVersion, forceUpdatePadding] = useReducer((x) => x + 1, 0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    let resizeTimer: NodeJS.Timeout;
     const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-      setWindowHeight(window.innerHeight);
+      windowWidthRef.current = window.innerWidth;
+      windowHeightRef.current = window.innerHeight;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        forceUpdatePadding();
+      }, 100);
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
   }, []);
 
   const currentMapPadding = useMemo(() => {
+    const windowWidth = windowWidthRef.current;
+    const windowHeight = windowHeightRef.current;
+
     // 맵 컨테이너의 예상 너비 계산 (사이드바 너비 고려)
     const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
     const mapWidth = windowWidth - sidebarWidth;
@@ -635,7 +640,7 @@ export default function MapArea() {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [focusedSegment, alternativeSegment, windowWidth, windowHeight, isMobile, drawerSnapPoint, isDrawerMaximized, guidePanelState]);
+  }, [focusedSegment, alternativeSegment, paddingVersion, isMobile, drawerSnapPoint, isDrawerMaximized, guidePanelState]);
 
   const currentMapPaddingRef = useRef(currentMapPadding);
   useEffect(() => {
@@ -654,8 +659,8 @@ export default function MapArea() {
     directionsCache,
     loadedSegmentsCount,
     isMobile,
-    windowWidth,
-    windowHeight,
+    windowWidth: windowWidthRef.current,
+    windowHeight: windowHeightRef.current,
   });
 
   // Handle significant screen size changes to reset map zoom bounds
@@ -1058,7 +1063,6 @@ export default function MapArea() {
             navermaps={navermaps}
             handleMarkerClick={handleMarkerClick}
             handleRecommendedMarkerClick={handleRecommendedMarkerClick}
-            deviceHeading={deviceHeading}
           />
         </NaverMap>
       </MapDiv>

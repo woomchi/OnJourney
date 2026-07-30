@@ -144,19 +144,23 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
     // Initial populate
     setTimeout(updateCache, 0);
 
+    let cacheUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+
     // Subscribe to query cache changes
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (event.type === 'updated' || event.type === 'added') {
         // Only update if the query matches our direction keys
         const isDirectionQuery = event.query.queryKey[0] === 'directions';
         if (isDirectionQuery) {
-          updateCache();
+          if (cacheUpdateTimer) clearTimeout(cacheUpdateTimer);
+          cacheUpdateTimer = setTimeout(updateCache, 50);
         }
       }
     });
 
     return () => {
       unsubscribe();
+      if (cacheUpdateTimer) clearTimeout(cacheUpdateTimer);
     };
   }, [placesKey, queryClient]);
 

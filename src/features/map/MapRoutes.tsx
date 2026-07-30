@@ -1,4 +1,4 @@
-import React, { Fragment, memo } from 'react';
+import React, { Fragment, memo, useCallback } from 'react';
 import AnimatedPolyline from '@/components/AnimatedPolyline';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
@@ -40,6 +40,18 @@ export const MapRoutes = memo(function MapRoutes({
   animationVersion,
   animatedSegmentsRef,
 }: MapRoutesProps) {
+  const handlePolylineClick = useCallback((place: Place, nextPlace: Place, targetRoute: any) => {
+    const bounds = calculateSegmentBounds(place, nextPlace, targetRoute);
+    if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
+      setFocusBounds({ ...bounds });
+      setFocusedStep(null);
+    } else {
+      setFocusBounds(bounds);
+      setFocusedSegment({ originId: place.id, destId: nextPlace.id });
+      setFocusedStep(null);
+    }
+  }, [focusedSegment, setFocusBounds, setFocusedStep, setFocusedSegment]);
+
   if (!isAllInitialRoutesLoaded) return null;
   
   const activeSegment = focusedSegment || alternativeSegment;
@@ -69,18 +81,6 @@ export const MapRoutes = memo(function MapRoutes({
         if (hasHoveredAlternative && hoveredAlternativeRoute) {
           routesToRender.push({ route: hoveredAlternativeRoute, isHoveredRoute: true });
         }
-
-        const handlePolylineClick = (targetRoute: any) => {
-          const bounds = calculateSegmentBounds(place, nextPlace, targetRoute);
-          if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
-            setFocusBounds({ ...bounds });
-            setFocusedStep(null);
-          } else {
-            setFocusBounds(bounds);
-            setFocusedSegment({ originId: place.id, destId: nextPlace.id });
-            setFocusedStep(null);
-          }
-        };
 
         return routesToRender.map(({ route, isHoveredRoute }) => {
           const totalAnimDuration = isHoveredRoute ? 300 : 800;
@@ -203,7 +203,7 @@ export const MapRoutes = memo(function MapRoutes({
                 const hasDetailed = !!(route.detailedPathPoints && route.detailedPathPoints.length >= 2);
 
                 return (
-                  <Fragment key={`estimated-polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}>
+                  <Fragment key={`estimated-polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}>
                     {/* Hiking Trail: Dashed Green Line */}
                     {trailPath.length >= 2 && (
                       <AnimatedPolyline
@@ -211,6 +211,7 @@ export const MapRoutes = memo(function MapRoutes({
                         delay={stepDelay}
                         duration={stepDuration}
                         skipAnimation={true}
+                        resetKey={animationVersion}
                         strokeColor="#10B981"
                         strokeOpacity={walkOpacity}
                         strokeWeight={walkWeight + 1}
@@ -218,7 +219,7 @@ export const MapRoutes = memo(function MapRoutes({
                         strokeLineCap="round"
                         strokeLineJoin="round"
                         zIndex={baseZIndex + 2}
-                        onClick={() => handlePolylineClick(route)}
+                        onClick={() => handlePolylineClick(place, nextPlace, route)}
                         visible={isVisible}
                       />
                     )}
@@ -230,6 +231,7 @@ export const MapRoutes = memo(function MapRoutes({
                         delay={stepDelay}
                         duration={stepDuration}
                         skipAnimation={true}
+                        resetKey={animationVersion}
                         strokeColor={hasDetailed ? "#3B82F6" : "#A1A1AA"}
                         strokeOpacity={hasDetailed ? 0.95 : 0.65}
                         strokeWeight={hasDetailed ? walkWeight + 1.5 : walkWeight}
@@ -237,7 +239,7 @@ export const MapRoutes = memo(function MapRoutes({
                         strokeLineCap="round"
                         strokeLineJoin="round"
                         zIndex={baseZIndex + 3}
-                        onClick={() => handlePolylineClick(route)}
+                        onClick={() => handlePolylineClick(place, nextPlace, route)}
                         visible={isVisible}
                       />
                     )}
@@ -247,11 +249,12 @@ export const MapRoutes = memo(function MapRoutes({
 
               return (
                 <AnimatedPolyline
-                  key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}
+                  key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}
                   path={pathPoints}
                   delay={stepDelay}
                   duration={stepDuration}
                   skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
+                  resetKey={animationVersion}
                   strokeColor={segmentColor}
                   strokeOpacity={walkOpacity}
                   strokeWeight={walkWeight}
@@ -259,19 +262,20 @@ export const MapRoutes = memo(function MapRoutes({
                   strokeLineCap="round"
                   strokeLineJoin="round"
                   zIndex={baseZIndex}
-                  onClick={() => handlePolylineClick(route)}
+                  onClick={() => handlePolylineClick(place, nextPlace, route)}
                   visible={isVisible}
                 />
               );
             }
 
             return (
-              <Fragment key={`polyline-group-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}-v${animationVersion}`}>
+              <Fragment key={`polyline-group-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}>
                 <AnimatedPolyline
                   path={pathPoints}
                   delay={stepDelay}
                   duration={stepDuration}
                   skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
+                  resetKey={animationVersion}
                   strokeColor="#FFFFFF"
                   strokeOpacity={0.95}
                   strokeWeight={strokeWeight + 1.8}
@@ -279,7 +283,7 @@ export const MapRoutes = memo(function MapRoutes({
                   strokeLineCap="round"
                   strokeLineJoin="round"
                   zIndex={baseZIndex}
-                  onClick={() => handlePolylineClick(route)}
+                  onClick={() => handlePolylineClick(place, nextPlace, route)}
                   visible={isVisible}
                 />
                 <AnimatedPolyline
@@ -287,6 +291,7 @@ export const MapRoutes = memo(function MapRoutes({
                   delay={stepDelay}
                   duration={stepDuration}
                   skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
+                  resetKey={animationVersion}
                   strokeColor={strokeColor}
                   strokeOpacity={strokeOpacity}
                   strokeWeight={strokeWeight}
@@ -294,7 +299,7 @@ export const MapRoutes = memo(function MapRoutes({
                   strokeLineCap="round"
                   strokeLineJoin="round"
                   zIndex={baseZIndex + 1}
-                  onClick={() => handlePolylineClick(route)}
+                  onClick={() => handlePolylineClick(place, nextPlace, route)}
                   visible={isVisible}
                 />
               </Fragment>

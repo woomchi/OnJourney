@@ -441,30 +441,22 @@ export default function TransferMarkers({
             onClick={() => handleTransferMarkerClick(pt)}
             icon={{
               content: `
-                <style>
-                  .transfer-marker-${pt.key} {
-                    display: flex;
-                    align-items: center;
-                    background: #ffffff;
-                    border: 2px solid ${pt.color};
-                    border-radius: 9999px;
-                    padding: 3.5px 8px 3.5px 4px;
-                    box-shadow: ${isThisStepFocused ? `0 0 0 4px ${pt.color}40, 0 6px 20px ${pt.color}50` : '0 4px 14px rgba(0, 0, 0, 0.16)'};
-                    font-family: Pretendard, -apple-system, sans-serif;
-                    white-space: nowrap;
-                    position: relative;
-                    cursor: pointer;
-                    transform: translate(calc(-50% + ${offsetX}px), -100%) ${isThisStepFocused ? 'scale(1.1)' : ''};
-                    margin-top: -8px;
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                  }
-                  .transfer-marker-${pt.key}:hover {
-                    transform: translate(calc(-50% + ${offsetX}px), -105%) scale(${isThisStepFocused ? '1.15' : '1.05'});
-                    box-shadow: ${isThisStepFocused ? `0 0 0 4px ${pt.color}40, 0 8px 24px ${pt.color}60` : '0 6px 20px rgba(0, 0, 0, 0.22)'};
-                    z-index: 100;
-                  }
-                </style>
-                <div class="transfer-marker-${pt.key}">
+                <div style="
+                  display: flex;
+                  align-items: center;
+                  background: #ffffff;
+                  border: 2px solid ${pt.color};
+                  border-radius: 9999px;
+                  padding: 3.5px 8px 3.5px 4px;
+                  box-shadow: ${isThisStepFocused ? `0 0 0 4px ${pt.color}40, 0 6px 20px ${pt.color}50` : '0 4px 14px rgba(0, 0, 0, 0.16)'};
+                  font-family: Pretendard, -apple-system, sans-serif;
+                  white-space: nowrap;
+                  position: relative;
+                  cursor: pointer;
+                  transform: translate(calc(-50% + ${offsetX}px), -100%) ${isThisStepFocused ? 'scale(1.1)' : ''};
+                  margin-top: -8px;
+                  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                ">
                   <!-- 아이콘 원형 -->
                   <div style="
                     display: flex;

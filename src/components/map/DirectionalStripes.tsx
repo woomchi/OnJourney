@@ -302,27 +302,35 @@ export default function DirectionalStripes({
     }
   }, [stripePoints, mapBounds, navermaps]);
 
+  const chevronPaths = useMemo(() => {
+    return visiblePoints.map((pt) => {
+      const pathPoints = navermaps
+        ? getChevronPath(pt.position, pt.bearing, zoomLevel).map(coord => new navermaps.LatLng(coord.lat, coord.lng))
+        : getChevronPath(pt.position, pt.bearing, zoomLevel);
+      return {
+        key: pt.key,
+        path: pathPoints,
+        transportType: pt.transportType,
+        zIndex: pt.zIndex,
+      };
+    });
+  }, [visiblePoints, zoomLevel, navermaps]);
+
   return (
     <>
-      {visiblePoints.map((pt) => {
-        const pathPoints = navermaps
-          ? getChevronPath(pt.position, pt.bearing, zoomLevel).map(coord => new navermaps.LatLng(coord.lat, coord.lng))
-          : getChevronPath(pt.position, pt.bearing, zoomLevel);
-
-        return (
-          <Polyline
-            key={pt.key}
-            path={pathPoints}
-            strokeColor="#FFFFFF"
-            strokeOpacity={pt.transportType === 'public' ? 0.95 : 0.55}
-            strokeWeight={getChevronStrokeWeight(zoomLevel)}
-            strokeStyle="solid"
-            strokeLineCap="round"
-            strokeLineJoin="round"
-            zIndex={pt.zIndex}
-          />
-        );
-      })}
+      {chevronPaths.map((pt) => (
+        <Polyline
+          key={pt.key}
+          path={pt.path}
+          strokeColor="#FFFFFF"
+          strokeOpacity={pt.transportType === 'public' ? 0.95 : 0.55}
+          strokeWeight={getChevronStrokeWeight(zoomLevel)}
+          strokeStyle="solid"
+          strokeLineCap="round"
+          strokeLineJoin="round"
+          zIndex={pt.zIndex}
+        />
+      ))}
     </>
   );
 }

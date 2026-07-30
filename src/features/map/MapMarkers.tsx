@@ -1,7 +1,8 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect } from 'react';
 import AnimatedMarker from '@/components/AnimatedMarker';
 import { getSequenceTheme } from '@/constants/colors';
 import { getCategoryTheme } from '@/lib/categoryUtils';
+import { useMapUIStore } from '@/stores/map-store';
 import type { Place, PlaceResult } from '@/types/journey';
 
 export interface MapMarkersProps {
@@ -17,7 +18,6 @@ export interface MapMarkersProps {
   navermaps: any;
   handleMarkerClick: (place: Place, idx: number) => void;
   handleRecommendedMarkerClick: (place: PlaceResult) => void;
-  deviceHeading: number | null;
 }
 
 const categoryEmojis: Record<string, string> = {
@@ -42,8 +42,16 @@ export const MapMarkers = memo(function MapMarkers({
   navermaps,
   handleMarkerClick,
   handleRecommendedMarkerClick,
-  deviceHeading
 }: MapMarkersProps) {
+  const deviceHeading = useMapUIStore((state) => state.deviceHeading);
+
+  // 회전값 변경 시 DOM을 직접 업데이트하여 마커 애니메이션 리셋 방지
+  useEffect(() => {
+    const el = document.getElementById('user-compass-cone');
+    if (el) {
+      el.style.transform = `rotate(${deviceHeading || 0}deg)`;
+    }
+  }, [deviceHeading]);
   return (
     <>
       {places.map((place, idx) => {

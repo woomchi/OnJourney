@@ -956,7 +956,12 @@ export default function MapArea() {
         <div className={`absolute top-20 md:top-6 left-1/2 -translate-x-1/2 z-[2000] pointer-events-auto transition-opacity duration-300 ${isDrawerMaximized ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <button
             type="button"
-            onClick={triggerSearch}
+            onClick={() => {
+              if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+              }
+              triggerSearch();
+            }}
             disabled={isSearchLoading}
             className={`
               flex items-center gap-2 px-5 py-3 rounded-full font-bold text-[14px]

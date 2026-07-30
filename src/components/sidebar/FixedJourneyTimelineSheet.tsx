@@ -586,7 +586,7 @@ export default function FixedJourneyTimelineSheet({
           if ((e.target as HTMLElement).closest('button')) return;
           dragControls.start(e);
         }}
-        className="w-full px-4 pt-1.5 pb-1 flex items-center justify-between gap-2 shrink-0 border-t border-zinc-100/60 select-none touch-none"
+        className="w-full px-4 pt-1.5 pb-1 flex items-center justify-between gap-2 shrink-0 border-b border-zinc-100/80 select-none touch-none"
       >
         {/* 좌측: 소요 시간 & 비용 (목록 폰트 크기 text-xs/text-sm로 확대) */}
         <div className="flex-1 flex flex-col items-start justify-center min-w-0 leading-tight">

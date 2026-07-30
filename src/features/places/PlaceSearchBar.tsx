@@ -102,7 +102,8 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     }
   }, [isSearchMode, searchQuery, setQuery]);
 
-  const handleSearchSubmit = () => {
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (query.trim().length > 0) {
       cancelDebounce();
       if (activeJourney) {
@@ -112,20 +113,26 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
           openSearchMode();
         }
         setIsOpen(false);
-        inputRef.current?.blur();
       } else {
         searchPlaces(query);
+      }
+      inputRef.current?.blur();
+      if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
       }
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleSearchSubmit();
+      handleSearchSubmit(e);
     }
     if (e.key === 'Escape') {
       setIsOpen(false);
       inputRef.current?.blur();
+      if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
     }
   };
 
@@ -230,7 +237,9 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   return (
     <div ref={containerRef} className="relative w-full max-w-lg mx-auto">
       {/* 검색바 */}
-      <div
+      <form
+        action=""
+        onSubmit={handleSearchSubmit}
         onClick={() => {
           inputRef.current?.focus();
         }}
@@ -246,14 +255,19 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
         `}
       >
         {/* 아이콘 */}
-        <div className={`flex-shrink-0 p-1.5 rounded-full transition-colors duration-200 ${isFocused ? 'bg-blue-50' : 'bg-zinc-50'}`}>
+        <button
+          type="submit"
+          aria-label="검색"
+          className={`flex-shrink-0 p-1.5 rounded-full transition-colors duration-200 cursor-pointer ${isFocused ? 'bg-blue-50' : 'bg-zinc-50'}`}
+        >
           <Search className={`w-5 h-5 transition-colors duration-200 ${isFocused ? 'text-blue-600' : 'text-zinc-400'}`} strokeWidth={2} />
-        </div>
+        </button>
 
         {/* 입력창 */}
         <input
           ref={inputRef}
-          type="text"
+          type="search"
+          enterKeyHint="search"
           value={query}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
@@ -261,13 +275,16 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
             if (activeJourney) {
               openSearchMode();
               inputRef.current?.blur();
+              if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+              }
             } else {
               setIsFocused(true);
               if (results.length > 0) setIsOpen(true);
             }
           }}
           placeholder="방문할 장소를 검색해보세요"
-          className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-[15px] disabled:cursor-default disabled:opacity-50"
+          className="flex-1 bg-transparent outline-none text-zinc-800 placeholder-zinc-400 font-medium text-[15px] disabled:cursor-default disabled:opacity-50 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
         />
 
         {/* 로딩 / 클리어 */}
@@ -286,7 +303,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
             <X className="w-3 h-3 text-zinc-600" />
           </button>
         ) : null}
-      </div>
+      </form>
 
       {/* 드롭다운 결과 */}
       {showDropdown && (

@@ -73,6 +73,9 @@ export default function MapCategoryChips() {
   } = useJourneyStore();
 
   const handleCategoryClick = (query: string) => {
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     if (!isSearchMode) {
       openSearchMode();
     }

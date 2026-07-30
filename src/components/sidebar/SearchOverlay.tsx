@@ -83,6 +83,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const minSnapPx = isSearchMode ? (recentQueries.length > 0 ? 114 : 74) : (activeJourney ? 133 : 62);
   const defaultSnapPx = activeJourney ? 370 : 360;
 
@@ -290,7 +291,14 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     }
   }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, mapBounds, activeJourney?.transport_type, setDrawerSnapPoint]);
 
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const dismissKeyboard = useCallback(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.blur();
+    }
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }, []);
 
   const debouncedRunSearch = useDebouncedCallback((val: string) => {
     runSearch(val, false);
@@ -312,6 +320,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   };
 
   const handleTagClick = useCallback((q: string) => {
+    dismissKeyboard();
     setSearchQuery(q);
     debouncedRunSearch.cancel();
     runSearch(q, true);
@@ -319,23 +328,28 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     if (typeof window !== 'undefined') {
       setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
     }
-  }, [setSearchQuery, debouncedRunSearch, runSearch, saveRecentQuery, setDrawerSnapPoint]);
+  }, [dismissKeyboard, setSearchQuery, debouncedRunSearch, runSearch, saveRecentQuery, setDrawerSnapPoint]);
 
   const handleCategoryClick = async (category: string) => {
     handleTagClick(category);
   };
 
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    dismissKeyboard();
+    if (searchQuery.trim().length > 0) {
+      debouncedRunSearch.cancel();
+      saveRecentQuery(searchQuery);
+      runSearch(searchQuery, true);
+      if (typeof window !== 'undefined') {
+        setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
+      }
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      if (searchQuery.trim().length > 0) {
-        debouncedRunSearch.cancel();
-        saveRecentQuery(searchQuery);
-        runSearch(searchQuery, true);
-        if (typeof window !== 'undefined') {
-          setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
-        }
-      }
+      handleSearchSubmit(e);
     }
   };
 
@@ -399,16 +413,27 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
           </button>
 
-          <div className="flex-1 flex items-center gap-2 px-3.5 py-2.5 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-            <Search className="w-4 h-4 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
+          <form
+            action=""
+            onSubmit={handleSearchSubmit}
+            className="flex-1 flex items-center gap-2 px-3.5 py-2.5 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all"
+          >
+            <button
+              type="submit"
+              aria-label="검색"
+              className="flex items-center justify-center p-0 border-none bg-transparent cursor-pointer flex-shrink-0"
+            >
+              <Search className="w-4 h-4 text-zinc-400" strokeWidth={2.5} />
+            </button>
             <input
               ref={searchInputRef}
-              type="text"
+              type="search"
+              enterKeyHint="search"
               value={searchQuery}
               onChange={handleSearchInputChange}
               onKeyDown={handleKeyDown}
               placeholder="방문할 장소를 검색해보세요"
-              className="flex-1 bg-transparent outline-none text-sm text-zinc-800 placeholder-zinc-400 font-semibold"
+              className="flex-1 bg-transparent outline-none text-sm text-zinc-800 placeholder-zinc-400 font-semibold [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
             />
             {isSearchLoading ? (
               <Loader2 className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0" />
@@ -422,7 +447,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                 <X className="w-3 h-3" strokeWidth={2.5} />
               </button>
             ) : null}
-          </div>
+          </form>
         </div>
 
         {/* 가로형 최근 검색 내역 태그 (검색바 바로 아래 배치) */}
@@ -533,6 +558,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                   id={`search-item-${item.id}`}
                   key={item.id}
                   onClick={() => {
+                    dismissKeyboard();
                     if (activeSearchPlace?.id === item.id) {
                       setActiveSearchPlace(null);
                     } else {

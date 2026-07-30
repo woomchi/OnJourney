@@ -43,9 +43,8 @@ const FloatingButtonsContainer = ({ altHeight }: { altHeight: number }) => {
   const fallbackY = useMotionValue(0);
   const y = bottomSheet?.y || fallbackY;
   const maxHeight = bottomSheet?.maxHeight ?? 800;
-  const opacity = useTransform(y, [-altHeight, -maxHeight + 100], [1, 0]);
-  // Use a transform to dynamically disable pointer events when hidden
-  const pointerEvents = useTransform(y, (latest: number) => latest < -altHeight - 100 ? 'none' : 'auto');
+  const opacity = useTransform(y, [-maxHeight + 160, -maxHeight + 40], [1, 0]);
+  const pointerEvents = useTransform(y, (latest: number) => latest < -maxHeight + 60 ? 'none' : 'auto');
   
   return (
     <motion.div 

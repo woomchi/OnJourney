@@ -198,22 +198,21 @@ export default function MapArea() {
         return document.getElementById('mobile-map-buttons-target');
       };
 
-      const target = getTarget();
-      if (target) {
+      const updateTarget = () => {
+        const target = getTarget();
         setPortalTarget(prev => prev !== target ? target : prev);
-      }
+      };
+
+      updateTarget();
 
       const observer = new MutationObserver(() => {
-        const el = getTarget();
-        if (el) {
-          setPortalTarget(prev => prev !== el ? el : prev);
-        }
+        updateTarget();
       });
-      const targetContainer = document.getElementById('mobile-map-buttons-target') || document.body;
-      observer.observe(targetContainer, { childList: true, subtree: false });
+
+      observer.observe(document.body, { childList: true, subtree: true });
       return () => observer.disconnect();
     } else {
-      setPortalTarget(prev => prev !== null ? null : prev);
+      setPortalTarget(null);
     }
   }, [isMobile, focusedSegment, alternativeSegment]);
 
@@ -1257,7 +1256,7 @@ export default function MapArea() {
       {(() => {
         const buttons = (
           <>
-            {(!!activeJourney || places.length > 0) && !isSearchMode && (
+            {(!!activeJourney || places.length > 0) && (
               <button
                 type="button"
                 onClick={() => handleResetBounds()}
@@ -1340,8 +1339,29 @@ export default function MapArea() {
           return createPortal(buttons, portalTarget);
         }
 
+        let fallbackBottomPx = 32;
+        if (isMobile) {
+          let snapPx = 370;
+          if (typeof drawerSnapPoint === 'number') {
+            snapPx = drawerSnapPoint === 1 ? 80 : drawerSnapPoint;
+          } else if (typeof drawerSnapPoint === 'string') {
+            if (drawerSnapPoint.endsWith('px')) {
+              snapPx = parseInt(drawerSnapPoint, 10) || 370;
+            } else if (drawerSnapPoint === '1') {
+              snapPx = 80;
+            }
+          }
+          if (isSearchMode) {
+            snapPx = Math.max(snapPx, 420);
+          }
+          fallbackBottomPx = snapPx + 16;
+        }
+
         return (
-          <div className="absolute bottom-[224px] md:bottom-8 right-4 md:right-6 z-[2000] flex flex-col gap-3">
+          <div 
+            className="absolute md:bottom-8 right-4 md:right-6 z-[2000] flex flex-col gap-3 transition-[bottom] duration-200 ease-out"
+            style={isMobile ? { bottom: `${fallbackBottomPx}px` } : undefined}
+          >
             {buttons}
           </div>
         );

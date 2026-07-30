@@ -53,6 +53,11 @@ export function useMapCamera({
     currentMapPaddingRef.current = currentMapPadding;
   }, [currentMapPadding]);
 
+  const lastFittedWidthRef = useRef<number | undefined>(undefined);
+  const lastFittedHeightRef = useRef<number | undefined>(undefined);
+  const lastFittedPlacesWidthRef = useRef<number | undefined>(undefined);
+  const lastFittedPlacesHeightRef = useRef<number | undefined>(undefined);
+
   // 1. Offset을 고려하여 좌표로 이동 (panTo)
   const panToWithOffset = useCallback((naverMap: naver.maps.Map, coord: { lat: number; lng: number }) => {
     const projection = naverMap.getProjection();
@@ -216,6 +221,16 @@ export function useMapCamera({
       drawerSnapPoint,
     });
 
+    const lastWidth = lastFittedPlacesWidthRef.current;
+    const lastHeight = lastFittedPlacesHeightRef.current;
+    const widthChangedSignificantly = lastWidth === undefined || Math.abs(windowWidth - lastWidth) / lastWidth > 0.1;
+    const heightChangedSignificantly = lastHeight === undefined || Math.abs(windowHeight - lastHeight) / lastHeight > 0.1;
+    const isDimensionChange = lastWidth !== undefined && lastHeight !== undefined && (windowWidth !== lastWidth || windowHeight !== lastHeight);
+
+    if (isDimensionChange && !widthChangedSignificantly && !heightChangedSignificantly) {
+      return;
+    }
+
     const wasFocused = lastFocusStateRef.current;
     
     if (focusBounds) {
@@ -266,6 +281,8 @@ export function useMapCamera({
     }
 
     lastFittedDataStringRef.current = currentDataString;
+    lastFittedPlacesWidthRef.current = windowWidth;
+    lastFittedPlacesHeightRef.current = windowHeight;
   }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, recommendedPlaces, isDrawerMaximized, isSearchMode, isMobile, windowWidth, windowHeight, drawerSnapPoint, directionsCache, validateBounds]);
 
   // 4. focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
@@ -283,6 +300,18 @@ export function useMapCamera({
     }
 
     const padding = currentMapPaddingRef.current;
+    
+    // 미세한 브라우저 주소창 토글에 의한 높이 변화(10% 미만)는 fitBounds 재계산을 무시하여 줌 레벨이 튀는 것을 방지
+    const lastWidth = lastFittedWidthRef.current;
+    const lastHeight = lastFittedHeightRef.current;
+    const widthChangedSignificantly = lastWidth === undefined || Math.abs(windowWidth - lastWidth) / lastWidth > 0.1;
+    const heightChangedSignificantly = lastHeight === undefined || Math.abs(windowHeight - lastHeight) / lastHeight > 0.1;
+    const isDimensionChange = lastWidth !== undefined && lastHeight !== undefined && (windowWidth !== lastWidth || windowHeight !== lastHeight);
+
+    if (isDimensionChange && !widthChangedSignificantly && !heightChangedSignificantly) {
+      return;
+    }
+
     const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${windowWidth}-${windowHeight}-${JSON.stringify(padding)}`;
     if (lastFittedFocusBoundsRef.current === currentFocusString) return;
 
@@ -297,6 +326,8 @@ export function useMapCamera({
     map.fitBounds(bounds, { maxZoom: 18 });
 
     lastFittedFocusBoundsRef.current = currentFocusString;
+    lastFittedWidthRef.current = windowWidth;
+    lastFittedHeightRef.current = windowHeight;
   }, [focusBounds, map, isDrawerMaximized, isMobile, windowWidth, windowHeight, validateBounds]);
 
   // 5. 장소 검색 카드 클릭 시 해당 장소로 줌 인

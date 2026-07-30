@@ -86,32 +86,38 @@ export default function MapCategoryChips() {
   };
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1.5 px-2 max-w-full pointer-events-auto select-none rounded-3xl bg-white/80 backdrop-blur-xl border border-white/70 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-      {CATEGORIES.map((cat) => {
-        const Icon = cat.icon;
-        const isActive = isSearchMode && searchQuery === cat.query;
+    <div className="relative flex items-center max-w-full pointer-events-auto select-none rounded-3xl bg-white/95 backdrop-blur-xl border border-zinc-200 shadow-[0_4px_20px_rgba(0,0,0,0.1)] overflow-hidden">
+      <div
+        className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1.5 px-3.5 w-full"
+        style={{
+          maskImage: 'linear-gradient(to right, transparent, white 16px, white calc(100% - 16px), transparent)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent, white 16px, white calc(100% - 16px), transparent)',
+        }}
+      >
+        {CATEGORIES.map((cat) => {
+          const Icon = cat.icon;
+          const isActive = isSearchMode && searchQuery === cat.query;
 
-        return (
-          <button
-            key={cat.id}
-            type="button"
-            onClick={() => handleCategoryClick(cat.query)}
-            className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 border ${
-              isActive
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => handleCategoryClick(cat.query)}
+              className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 border ${isActive
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500/50 shadow-md shadow-blue-500/25 scale-[1.02]'
                 : `bg-white/90 border-zinc-200/70 text-zinc-700 hover:border-zinc-300 ${cat.badgeBg}`
-            }`}
-          >
-            <Icon
-              className={`w-3.5 h-3.5 transition-colors ${
-                isActive ? 'text-white drop-shadow-xs' : cat.accentColor
-              }`}
-              strokeWidth={2.4}
-            />
-            <span className={isActive ? 'text-white' : 'text-zinc-800'}>{cat.label}</span>
-          </button>
-        );
-      })}
+                }`}
+            >
+              <Icon
+                className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-white drop-shadow-xs' : cat.accentColor
+                  }`}
+                strokeWidth={2.4}
+              />
+              <span className={isActive ? 'text-white' : 'text-zinc-800'}>{cat.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -9,7 +9,8 @@ import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
 import { MapPin, Search, X, Check, Clock, Plus, Loader2 } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
+import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
+import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 
 interface SearchOverlayProps {
   activeJourney: Journey;
@@ -23,15 +24,13 @@ function getDistrictPrefix(address: string) {
   const first = parts[0];
   // '도' 단위인 경우 (경기, 강원, 충남, 제주 등)
   const isProvince = first.endsWith('도') ||
-    ['경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'].includes(first);
+    first.endsWith('특별자치도');
+  const second = parts[1];
 
-  if (isProvince && parts.length >= 2) {
-    // 도 단위는 시/군까지 묶어야 의미 있는 생활권이 됨 (예: "경기 성남시", "강원 영월군")
-    return parts.slice(0, 2).join(' ');
-  } else {
-    // 서울, 부산, 대구 등 광역시/특별시는 그 자체로 하나의 거대 생활권이므로 구(구역)를 무시하고 묶음 (예: "서울", "부산")
-    return first;
+  if (isProvince && second) {
+    return `${first.slice(0, 2)} ${second}`;
   }
+  return first;
 }
 
 export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
@@ -54,6 +53,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setSearchQuery,
     drawerSnapPoint,
     setDrawerSnapPoint,
+    isDrawerMaximized,
   } = useJourneyStore(useShallow((state) => ({
     isSearchMode: state.isSearchMode,
     addPlace: state.addPlace,
@@ -73,6 +73,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setSearchQuery: state.setSearchQuery,
     drawerSnapPoint: state.drawerSnapPoint,
     setDrawerSnapPoint: state.setDrawerSnapPoint,
+    isDrawerMaximized: state.isDrawerMaximized,
   })));
 
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
@@ -102,15 +103,34 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     handleTouchMove,
     handleTouchEnd,
     handleWheel,
-  } = useScrollDragBridge({
+  } = useSnapScrollBridge({
     scrollRef,
-    snap: drawerSnapPoint,
-    setSnap: setDrawerSnapPoint,
+    drawerSnapPoint,
+    isDrawerMaximized,
+    setDrawerSnapPoint,
+    activeJourney,
     minSnap: minSnapPx,
     defaultSnap: defaultSnapPx,
-    maxSnap: 1,
     disabled: !isMobile,
   });
+
+  const bottomSheet = useOptionalBottomSheet();
+
+  const handleHeaderPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    const isInteractive = (e.target as HTMLElement).closest('input, button, a, [role="button"]');
+    if (!isInteractive && bottomSheet) {
+      bottomSheet.dragControls.start(e);
+    } else {
+      e.stopPropagation();
+    }
+  };
+
+  const handleHeaderTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    const isInteractive = (e.target as HTMLElement).closest('input, button, a, [role="button"]');
+    if (isInteractive) {
+      e.stopPropagation();
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -407,9 +427,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     >
       {/* ── 검색 헤더 (검색 입력창 + 가로형 검색 내역/추천 태그) ── */}
       <div
-        onPointerDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-10"
+        onPointerDown={handleHeaderPointerDown}
+        onTouchStart={handleHeaderTouchStart}
+        className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-10 cursor-grab active:cursor-grabbing"
       >
         {/* 검색 입력 바 */}
         <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">

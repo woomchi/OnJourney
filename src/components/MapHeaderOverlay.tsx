@@ -31,7 +31,7 @@ export default function MapHeaderOverlay() {
         <button
           type="button"
           onClick={closeSearchMode}
-          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/95 backdrop-blur-xl border border-blue-100/80 shadow-[0_4px_20px_rgba(37,99,235,0.12)] text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-all pointer-events-auto flex-shrink-0 cursor-pointer active:scale-95 md:hidden"
+          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/95 backdrop-blur-xl border border-zinc-200 shadow-[0_4px_20px_rgba(0,0,0,0.1)] text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950 transition-all pointer-events-auto flex-shrink-0 cursor-pointer active:scale-95 md:hidden"
           title="검색 종료"
         >
           <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />

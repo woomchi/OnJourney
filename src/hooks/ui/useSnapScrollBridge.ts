@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import type { Journey } from '@/types/journey';
+import { animate } from 'framer-motion';
 
 const parseSnapVal = (s: any): number => {
   if (s === 1 || s === '1') return 1;
@@ -16,6 +17,8 @@ export interface UseSnapScrollBridgeOptions {
   setDrawerSnapPoint: (snap: string | number) => void;
   activeJourney: Journey | null;
   disabled?: boolean;
+  minSnap?: number;
+  defaultSnap?: number;
 }
 
 export function useSnapScrollBridge({
@@ -24,11 +27,18 @@ export function useSnapScrollBridge({
   isDrawerMaximized,
   setDrawerSnapPoint,
   activeJourney,
-  disabled = false
+  disabled = false,
+  minSnap: minSnapOpt,
+  defaultSnap: defaultSnapOpt
 }: UseSnapScrollBridgeOptions) {
   const bottomSheet = useOptionalBottomSheet();
 
-  const touchStartRef = useRef<{ y: number; scrollTop: number } | null>(null);
+  const touchStartRef = useRef<{
+    y: number;
+    scrollTop: number;
+    startSnapY: number;
+    isOverscrolling: boolean;
+  } | null>(null);
   const wheelAccumulator = useRef({
     lastTime: 0,
     delta: 0,
@@ -55,18 +65,60 @@ export function useSnapScrollBridge({
   const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
     if (disabled) return;
     const target = scrollRef.current || e.currentTarget;
+    const startSnapY = bottomSheet ? bottomSheet.y.get() : 0;
     touchStartRef.current = {
       y: e.touches[0].clientY,
-      scrollTop: target.scrollTop
+      scrollTop: target.scrollTop,
+      startSnapY,
+      isOverscrolling: false
     };
     // 터치 이벤트가 바텀 시트로 넘어가서 의도치 않은 드래그가 시작되는 것을 방지하기 위해 상위 전파 항상 차단
     e.stopPropagation();
   };
 
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || disabled) return;
+
+    const handleNativeTouchMove = (e: TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const currentScrollTop = el.scrollTop;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      const deltaY = e.touches[0].clientY - touchStartRef.current.y;
+
+      const isAtTop = currentScrollTop <= 2;
+      const isAtBottom = maxScroll - currentScrollTop <= 3;
+
+      const isOverscrollingTop = isAtTop && deltaY > 0;
+      const isOverscrollingBottom = isAtBottom && deltaY < 0;
+
+      if (isOverscrollingTop || isOverscrollingBottom) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        if (bottomSheet) {
+          touchStartRef.current.isOverscrolling = true;
+          const { startSnapY } = touchStartRef.current;
+          const newY = startSnapY + deltaY * 0.45;
+          bottomSheet.y.set(newY);
+        }
+      } else {
+        if (touchStartRef.current.isOverscrolling && bottomSheet) {
+          bottomSheet.y.set(touchStartRef.current.startSnapY);
+          touchStartRef.current.isOverscrolling = false;
+        }
+        e.stopPropagation();
+      }
+    };
+
+    el.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener('touchmove', handleNativeTouchMove);
+    };
+  }, [scrollRef, disabled, bottomSheet]);
+
   const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
-    if (disabled) return;
-    // 스크롤 중 터치 이동 이벤트가 바텀 시트로 전파되어 시트가 움직이는 것 항상 차단
-    e.stopPropagation();
+    // Native event listener handles propagation and preventDefault.
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
@@ -78,7 +130,7 @@ export function useSnapScrollBridge({
 
     const target = scrollRef.current || e.currentTarget;
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
-    const { scrollTop: startScrollTop } = touchStartRef.current;
+    const { scrollTop: startScrollTop, startSnapY, isOverscrolling } = touchStartRef.current;
     const currentScrollTop = target.scrollTop;
 
     const maxScroll = target.scrollHeight - target.clientHeight;
@@ -91,14 +143,63 @@ export function useSnapScrollBridge({
 
     const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
 
-    if (didNotScroll) {
-      const minSnap = activeJourney ? 133 : 62;
-      const defaultSnap = activeJourney ? 370 : 360;
+    if (isOverscrolling) {
+      const minSnap = minSnapOpt ?? (activeJourney ? 133 : 62);
+      const defaultSnap = defaultSnapOpt ?? (activeJourney ? 370 : 360);
 
       const parsedSnap = parseSnapVal(drawerSnapPoint);
       let currentSnap: 'min' | 'default' | 'max' = 'default';
-      if (parsedSnap === minSnap) {
+      if (Math.abs(parsedSnap - minSnap) <= 10) {
         currentSnap = 'min';
+      } else if (Math.abs(parsedSnap - defaultSnap) <= 10) {
+        currentSnap = 'default';
+      } else if (parsedSnap === 1 || isDrawerMaximized) {
+        currentSnap = 'max';
+      }
+
+      const THRESHOLD = 35;
+      let snapChanged = false;
+
+      if (isAtTopAtStart && deltaY > THRESHOLD) {
+        if (currentSnap === 'max') {
+          setDrawerSnapPoint(defaultSnap);
+          snapChanged = true;
+        } else if (currentSnap === 'default') {
+          setDrawerSnapPoint(minSnap);
+          snapChanged = true;
+        }
+      } else if (isAtBottomAtStart && deltaY < -THRESHOLD) {
+        if (currentSnap === 'min') {
+          setDrawerSnapPoint(defaultSnap);
+          snapChanged = true;
+        } else if (currentSnap === 'default') {
+          setDrawerSnapPoint(1);
+          snapChanged = true;
+        }
+      }
+
+      if (!snapChanged && bottomSheet) {
+        animate(bottomSheet.y, startSnapY, {
+          type: 'spring',
+          stiffness: 320,
+          damping: 30,
+        });
+      }
+
+      touchStartRef.current = null;
+      return;
+    }
+
+    if (didNotScroll) {
+      const minSnap = minSnapOpt ?? (activeJourney ? 133 : 62);
+      const defaultSnap = defaultSnapOpt ?? (activeJourney ? 370 : 360);
+
+      const parsedSnap = parseSnapVal(drawerSnapPoint);
+      let currentSnap: 'min' | 'default' | 'max' = 'default';
+      if (Math.abs(parsedSnap - minSnap) <= 10) {
+        currentSnap = 'min';
+      } else if (Math.abs(parsedSnap - defaultSnap) <= 10) {
+        currentSnap = 'default';
       } else if (parsedSnap === 1 || isDrawerMaximized) {
         currentSnap = 'max';
       }
@@ -148,13 +249,15 @@ export function useSnapScrollBridge({
       ? (target.scrollTop > 2 && maxScroll - target.scrollTop < 3)
       : true;
 
-    const minSnap = activeJourney ? 133 : 62;
-    const defaultSnap = activeJourney ? 370 : 360;
+    const minSnap = minSnapOpt ?? (activeJourney ? 133 : 62);
+    const defaultSnap = defaultSnapOpt ?? (activeJourney ? 370 : 360);
 
     const parsedSnap = parseSnapVal(drawerSnapPoint);
     let currentSnap: 'min' | 'default' | 'max' = 'default';
-    if (parsedSnap === minSnap) {
+    if (Math.abs(parsedSnap - minSnap) <= 10) {
       currentSnap = 'min';
+    } else if (Math.abs(parsedSnap - defaultSnap) <= 10) {
+      currentSnap = 'default';
     } else if (parsedSnap === 1 || isDrawerMaximized) {
       currentSnap = 'max';
     }

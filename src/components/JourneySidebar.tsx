@@ -270,8 +270,13 @@ export default function JourneySidebar() {
 
   const isLoading = authLoading || (!!user && isJourneysLoading);
 
-  const minSnapPx = activeJourney ? 133 : 62;
-  const defaultSnapPx = activeJourney ? 370 : 360;
+  const minSnapPx = isSearchMode
+    ? getSearchMinSnap()
+    : (activeJourney ? 133 : 62);
+
+  const defaultSnapPx = isSearchMode
+    ? (windowHeight ? Math.round(windowHeight * 0.62) : 500)
+    : (activeJourney ? 370 : 360);
 
 
 
@@ -370,7 +375,7 @@ export default function JourneySidebar() {
               minHeight={minSnapPx}
               defaultHeight={defaultSnapPx}
               maxHeight={windowHeight - 16}
-              initialSnap={isSearchMode ? 'default' : currentSnapType}
+              initialSnap={currentSnapType}
               zIndex={30}
               y={y}
               onSnap={(snapName) => {

@@ -46,8 +46,8 @@ npm run dev
 git add .
 git commit -m "feat: [기능명] 작업 내용 요약"
 
-# dev 브랜치에 푸시
-git push origin dev
+# devtest 브랜치에 푸시
+git push origin devtest
 ```
 
 > **🔍 Preview 테스트 확인**
@@ -64,14 +64,14 @@ Preview URL에서 에러가 없고 모든 기능이 완벽히 작동하는 것�
 # 1. main 브랜치로 이동
 git checkout main
 
-# 2. dev 브랜치에서 완성한 코드 병합
-git merge dev
+# 2. devtest 브랜치에서 완성한 코드 병합
+git merge devtest
 
 # 3. main 브랜치 푸시 (🚀 실제 라이브 서비스 자동 업데이트!)
 git push origin main
 
-# 4. 다음 작업을 위해 다시 dev 브랜치로 복귀
-git checkout dev
+# 4. 다음 작업을 위해 다시 devtest 브랜치로 복귀
+git checkout devtest
 ```
 
 ---
@@ -80,4 +80,4 @@ git checkout dev
 
 * **Vercel 환경 변수 세팅:** 새로운 API 키나 환경 변수를 추가했다면 Vercel의 **Settings ➔ Environment Variables**에도 꼭 등록했는지 확인합니다.
 * **캐시 없는 재배포:** Vercel 환경 변수를 변경한 후에는 대시보드의 **Deployments ➔ Redeploy (Use existing Build Cache 체크 해제)**를 진행해야 확실하게 반영됩니다.
-* **항상 `dev`에서 시작:** 코드 수정을 시작하기 직전 터미널에 `git branch`를 입력하여 현 위치가 `dev`인지 꼭 체크하세요!
+* **항상 `devtest`에서 시작:** 코드 수정을 시작하기 직전 터미널에 `git branch`를 입력하여 현 위치가 `devtest`인지 꼭 체크하세요!

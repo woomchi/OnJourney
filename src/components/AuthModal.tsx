@@ -241,10 +241,10 @@ export default function AuthModal() {
               {isSubmitting
                 ? '처리 중...'
                 : mode === 'login'
-                ? '로그인'
-                : mode === 'signup'
-                ? '가입하기'
-                : '재설정 링크 발송'}
+                  ? '로그인'
+                  : mode === 'signup'
+                    ? '가입하기'
+                    : '재설정 링크 발송'}
             </button>
           </div>
 

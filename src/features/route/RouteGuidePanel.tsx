@@ -11,6 +11,7 @@ import TransitGuideList from '@/components/route/TransitGuideList';
 import CarGuideList from '@/components/route/CarGuideList';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
+import { usePWA } from '@/components/PWAProvider';
 
 const FloatingButtonsContainer = () => {
   const bottomSheet = useOptionalBottomSheet();
@@ -59,6 +60,7 @@ export default function RouteGuidePanel({
   isOpen = false,
   onExited,
 }: RouteGuidePanelProps) {
+  const { isInstalled } = usePWA();
   const [animate, setAnimate] = useState(false);
   const [windowHeight, setWindowHeight] = useState(
     () => typeof window !== 'undefined' ? window.innerHeight : 812

@@ -98,6 +98,8 @@ const CloseSearchFloatingButton = ({ onClick }: { onClick: () => void }) => (
   </div>
 );
 
+import { usePWA } from '@/components/PWAProvider';
+
 const parseSnapVal = (s: any): number => {
   if (s === 1 || s === '1') return 1;
   if (typeof s === 'number') return s;
@@ -106,6 +108,7 @@ const parseSnapVal = (s: any): number => {
 };
 
 export default function JourneySidebar() {
+  const { isInstalled } = usePWA();
   const { user, loading: authLoading, openAuthModal } = useAuth();
   const y = useMotionValue(0);
   const scrollProgress = useMotionValue(1); // 1: 최하단, 0: 최하단 아님 (React 리렌더링 병목 제거용 MotionValue)

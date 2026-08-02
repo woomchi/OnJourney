@@ -12,6 +12,8 @@ import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon, Alterna
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
 
+import { usePWA } from '@/components/PWAProvider';
+
 interface FixedJourneyTimelineSheetProps {
   activeJourney: Journey;
   setIsEditModalOpen: (isOpen: boolean) => void;
@@ -21,6 +23,7 @@ export default function FixedJourneyTimelineSheet({
   activeJourney,
   setIsEditModalOpen,
 }: FixedJourneyTimelineSheetProps) {
+  const { isInstalled } = usePWA();
   const queryClient = useQueryClient();
   const {
     journeys,
@@ -76,7 +79,7 @@ export default function FixedJourneyTimelineSheet({
     const isHidden = !!(focusedSegment || alternativeSegment);
     const targetY = isHidden
       ? (fullHeight > 0 ? fullHeight + 50 : 500)
-      : (activeSnap === 'full' ? 0 : addButtonHeight);
+      : 0;
 
     const controls = animate(y, targetY, {
       type: 'spring',
@@ -84,35 +87,16 @@ export default function FixedJourneyTimelineSheet({
       damping: 30,
     });
     return () => controls.stop();
-  }, [activeSnap, addButtonHeight, y, focusedSegment, alternativeSegment, fullHeight]);
+  }, [addButtonHeight, y, focusedSegment, alternativeSegment, fullHeight]);
 
   useEffect(() => {
     if (fullHeight > 0) {
-      const currentHeight = activeSnap === 'full' ? fullHeight : (fullHeight - addButtonHeight);
-      setDrawerSnapPoint(currentHeight);
+      setDrawerSnapPoint(fullHeight);
     }
-  }, [activeSnap, fullHeight, addButtonHeight, setDrawerSnapPoint]);
+  }, [fullHeight, setDrawerSnapPoint]);
 
   const handleDragEnd = (event: any, info: any) => {
-    const currentY = y.get();
-    const velocityY = info.velocity.y;
-    const VELOCITY_THRESHOLD = 200;
-    const DRAG_THRESHOLD = addButtonHeight / 2;
-
-    let nextSnap: 'full' | 'reduced' = 'full';
-
-    if (velocityY > VELOCITY_THRESHOLD) {
-      nextSnap = 'reduced';
-    } else if (velocityY < -VELOCITY_THRESHOLD) {
-      nextSnap = 'full';
-    } else {
-      if (currentY > DRAG_THRESHOLD) {
-        nextSnap = 'reduced';
-      } else {
-        nextSnap = 'full';
-      }
-    }
-    setActiveSnap(nextSnap);
+    return;
   };
 
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
@@ -504,15 +488,14 @@ export default function FixedJourneyTimelineSheet({
   return (
     <motion.div
       ref={containerRef}
-      drag="y"
+      drag={false}
       dragControls={dragControls}
       dragListener={false}
-      dragElastic={{ top: 0.05, bottom: 0.05 }}
+      dragElastic={0}
       dragConstraints={{
         top: 0,
         bottom: addButtonHeight
       }}
-      onDragEnd={handleDragEnd}
       style={{
         y,
         position: 'fixed',
@@ -532,21 +515,12 @@ export default function FixedJourneyTimelineSheet({
         className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] pointer-events-none *:pointer-events-auto"
       />
 
-      {/* 드래그 핸들바 영역 */}
-      <div
-        onPointerDown={(e) => dragControls.start(e)}
-        className="w-full flex justify-center pt-2.5 pb-1 bg-transparent cursor-grab active:cursor-grabbing touch-none shrink-0 select-none rounded-t-[24px]"
-      >
-        <div className="w-12 h-1 bg-zinc-300 rounded-full pointer-events-none" />
-      </div>
-
       {/* 1. 슬림 상단 컨트롤 헤더 (여정 제목 + 날짜 & 이동 수단 설정 정보) */}
       <div
         onPointerDown={(e) => {
           if ((e.target as HTMLElement).closest('button')) return;
-          dragControls.start(e);
         }}
-        className="w-full px-4 pt-1 pb-1 flex items-center justify-between gap-2 shrink-0 select-none touch-none"
+        className="w-full px-4 pt-3 pb-1 flex items-center justify-between gap-2 shrink-0 select-none touch-none"
       >
         {/* 좌측: 목록/취소 버튼 */}
         <button
@@ -637,7 +611,6 @@ export default function FixedJourneyTimelineSheet({
       <div
         onPointerDown={(e) => {
           if ((e.target as HTMLElement).closest('button')) return;
-          dragControls.start(e);
         }}
         className="w-full px-4 pt-1.5 pb-1 flex items-center justify-between gap-2 shrink-0 border-b border-zinc-100/80 select-none touch-none"
       >

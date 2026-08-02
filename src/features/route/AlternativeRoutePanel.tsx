@@ -14,6 +14,7 @@ import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi, fetchTmapDetailRouteApi } from '@/lib/services/directionsService';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import FittedDuration from '@/components/places/FittedDuration';
+import { usePWA } from '@/components/PWAProvider';
 
 interface AlternativeRoutePanelProps {
   originPlace: Place;
@@ -62,6 +63,7 @@ export default function AlternativeRoutePanel({
   isOpen = false,
   onExited,
 }: AlternativeRoutePanelProps) {
+  const { isInstalled } = usePWA();
   const [animate, setAnimate] = useState(false);
   const [windowHeight, setWindowHeight] = useState(
     () => typeof window !== 'undefined' ? window.innerHeight : 812

@@ -74,10 +74,31 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       }
     }
 
-    // 2. Check if the app is running in standalone mode (installed as PWA)
+    // 2. Check if the app is running in standalone mode (installed as PWA) or if testing via ?pwa=true
     if (typeof window !== 'undefined') {
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      setIsInstalled(isStandalone);
+      const checkPWA = () => {
+        const isStandalone =
+          window.matchMedia('(display-mode: standalone)').matches ||
+          window.matchMedia('(display-mode: fullscreen)').matches ||
+          window.matchMedia('(display-mode: minimal-ui)').matches ||
+          (navigator as any).standalone === true ||
+          document.referrer.includes('android-app://') ||
+          window.location.search.includes('pwa=true');
+        setIsInstalled(isStandalone);
+      };
+
+      checkPWA();
+
+      const mediaQuery = window.matchMedia('(display-mode: standalone)');
+      const handleChange = () => checkPWA();
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleChange);
+      }
+      return () => {
+        if (mediaQuery.removeEventListener) {
+          mediaQuery.removeEventListener('change', handleChange);
+        }
+      };
     }
   }, []);
 

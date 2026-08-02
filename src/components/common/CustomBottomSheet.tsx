@@ -33,6 +33,8 @@ export interface CustomBottomSheetProps {
   zIndex?: number;
   scrollRef?: React.Ref<HTMLDivElement>;
   y?: any;
+  showHandleBar?: boolean;
+  disableSnap?: boolean;
 }
 
 export const BottomSheetContext = createContext<{
@@ -70,6 +72,8 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   zIndex = 1000,
   scrollRef,
   y: propY,
+  showHandleBar = true,
+  disableSnap = false,
 }) => {
   const dragControls = useDragControls();
   const internalY = useMotionValue(0);
@@ -197,6 +201,8 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   }, [isOpen]);
 
   const handleDragEnd = (event: any, info: any) => {
+    if (disableSnap) return;
+
     const currentY = y.get(); // Current dynamic translation value (negative)
     const velocityY = info.velocity.y; // Swipe velocity (positive down, negative up)
 
@@ -261,10 +267,10 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   return (
     <BottomSheetContext.Provider value={{ y, minHeight, defaultHeight, maxHeight, dragControls }}>
       <motion.div
-        drag="y"
+        drag={disableSnap ? false : "y"}
         dragControls={dragControls}
         dragListener={false} // Only drag when explicitly starting from a handler
-        dragElastic={{ top: 0.08, bottom: 0 }} // Elastic on top, rigid (concrete wall) on bottom
+        dragElastic={disableSnap ? 0 : { top: 0.08, bottom: 0 }} // Elastic on top, rigid (concrete wall) on bottom
         dragMomentum={false} // 가속도에 의한 관성 밀림 현상 원천 차단
         dragConstraints={{
           top: -maxHeight,
@@ -284,19 +290,21 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
           pointerEvents: isOpen ? 'auto' : 'none',
         }}
         className={`bg-white flex flex-col pointer-events-auto ${className}`}
-        onDragEnd={handleDragEnd}
+        onDragEnd={disableSnap ? undefined : handleDragEnd}
       >
         {/* Global Common Drag Handle */}
-        <div
-          onPointerDown={(e) => dragControls.start(e)}
-          className="w-full flex justify-center pt-1 pb-0.5 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white rounded-t-[20px]"
-        >
-          <div className="w-12 h-1 bg-zinc-300 rounded-full pointer-events-none" />
-        </div>
+        {showHandleBar && (
+          <div
+            onPointerDown={(e) => disableSnap ? undefined : dragControls.start(e)}
+            className="w-full flex justify-center pt-1 pb-0.5 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 bg-white rounded-t-[20px]"
+          >
+            <div className="w-12 h-1 bg-zinc-300 rounded-full pointer-events-none" />
+          </div>
+        )}
 
         {headerContent && (
           <div
-            onPointerDown={(e) => dragControls.start(e)}
+            onPointerDown={(e) => disableSnap ? undefined : dragControls.start(e)}
             className="w-full flex flex-col cursor-grab active:cursor-grabbing select-none flex-shrink-0 bg-white"
             style={{ touchAction: 'none' }}
           >

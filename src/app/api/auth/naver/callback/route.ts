@@ -3,12 +3,20 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state');
+  const isJson = searchParams.get('format') === 'json' || request.headers.get('accept')?.includes('application/json');
+
+  const createErrorResponse = (errorCode: string, errorMessage: string) => {
+    if (isJson) {
+      return NextResponse.json({ success: false, error: errorMessage, code: errorCode }, { status: 400 });
+    }
+    return NextResponse.redirect(new URL(`/?error=${errorCode}`, request.url));
+  };
 
   if (!code) {
-    return NextResponse.redirect(new URL('/?error=naver_code_missing', request.url));
+    return createErrorResponse('naver_code_missing', '네이버 인증 코드가 유효하지 않거나 누락되었습니다.');
   }
 
   const clientId = process.env.NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID;
@@ -16,7 +24,7 @@ export async function GET(request: Request) {
 
   if (!clientId || !clientSecret) {
     console.error('Naver Client ID or Client Secret is missing in environment variables.');
-    return NextResponse.redirect(new URL('/?error=naver_config_missing', request.url));
+    return createErrorResponse('naver_config_missing', '서버에 네이버 로그인 API 키 설정이 올바르지 않습니다.');
   }
 
   try {
@@ -33,7 +41,7 @@ export async function GET(request: Request) {
 
     if (!tokenRes.ok || !tokenData.access_token) {
       console.error('Failed to get Naver access_token:', tokenData);
-      return NextResponse.redirect(new URL('/?error=naver_token_failed', request.url));
+      return createErrorResponse('naver_token_failed', tokenData.error_description || '네이버 액세스 토큰 발급에 실패했습니다.');
     }
 
     const accessToken = tokenData.access_token;
@@ -48,7 +56,7 @@ export async function GET(request: Request) {
 
     if (!profileRes.ok || profileData.resultcode !== '00') {
       console.error('Failed to fetch Naver user profile:', profileData);
-      return NextResponse.redirect(new URL('/?error=naver_profile_failed', request.url));
+      return createErrorResponse('naver_profile_failed', profileData.message || '네이버 프로필 정보를 가져오지 못했습니다.');
     }
 
     const naverUser = profileData.response;
@@ -64,7 +72,7 @@ export async function GET(request: Request) {
     const { data: { users }, error: listError } = await adminSupabase.auth.admin.listUsers();
     if (listError) {
       console.error('Error listing Supabase users:', listError);
-      return NextResponse.redirect(new URL('/?error=supabase_user_check_failed', request.url));
+      return createErrorResponse('supabase_user_check_failed', '사용자 정보 조회 중 오류가 발생했습니다.');
     }
 
     let user = users.find((u) => u.email === email);
@@ -84,7 +92,7 @@ export async function GET(request: Request) {
 
       if (createError || !newUser.user) {
         console.error('Failed to create Supabase user for Naver OAuth:', createError);
-        return NextResponse.redirect(new URL('/?error=user_creation_failed', request.url));
+        return createErrorResponse('user_creation_failed', 'Supabase 계정 생성에 실패했습니다.');
       }
       user = newUser.user;
     } else {
@@ -107,7 +115,7 @@ export async function GET(request: Request) {
 
     if (linkError || !linkData.properties?.hashed_token) {
       console.error('Failed to generate session link for Naver user:', linkError);
-      return NextResponse.redirect(new URL('/?error=session_link_failed', request.url));
+      return createErrorResponse('session_link_failed', '로그인 세션 생성 링크를 만들지 못했습니다.');
     }
 
     const serverSupabase = await createClient();
@@ -118,13 +126,18 @@ export async function GET(request: Request) {
 
     if (verifyError) {
       console.error('Failed to verify OTP session:', verifyError);
-      return NextResponse.redirect(new URL('/?error=session_verify_failed', request.url));
+      return createErrorResponse('session_verify_failed', '세션 인증에 실패했습니다.');
+    }
+
+    if (isJson) {
+      return NextResponse.json({ success: true, redirectUrl: '/' });
     }
 
     // 로그인 성공 후 메인 화면으로 이동
     return NextResponse.redirect(new URL('/', request.url));
   } catch (err) {
     console.error('Unexpected error during Naver OAuth callback:', err);
-    return NextResponse.redirect(new URL('/?error=naver_auth_unexpected', request.url));
+    const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
+    return createErrorResponse('naver_auth_unexpected', message);
   }
 }

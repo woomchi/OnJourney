@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(errorMsg);
     }
 
-    const redirectUri = `${window.location.origin}/api/auth/naver/callback`;
+    const redirectUri = `${window.location.origin}/auth/naver/callback`;
     const state = Math.random().toString(36).substring(2, 15);
     const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 

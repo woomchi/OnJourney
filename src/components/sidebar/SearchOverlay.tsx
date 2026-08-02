@@ -77,12 +77,18 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   })));
 
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
+  const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [searchError, setSearchError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchHeaderRef = useRef<HTMLDivElement>(null);
   const [windowHeight, setWindowHeight] = useState(0);
 
   useEffect(() => {
@@ -90,6 +96,21 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     const handleResize = () => setWindowHeight(window.innerHeight);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (searchHeaderRef.current && !searchHeaderRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const minSnapPx = isSearchMode ? (recentQueries.length > 0 ? 114 : 74) : (activeJourney ? 133 : 62);
@@ -195,12 +216,18 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     if (isSearchMode) {
       setSearchQuery('');
       setSearchResults([]);
+      setSuggestions([]);
+      setIsDropdownOpen(false);
+      setHasSearched(false);
       setSearchError(null);
       setTimeout(() => searchInputRef.current?.focus(), 150);
     } else {
       clearRecommendedPlaces();
       setActiveSearchPlace(null);
       setSearchResults([]);
+      setSuggestions([]);
+      setIsDropdownOpen(false);
+      setHasSearched(false);
       setSearchQuery('');
     }
   }, [isSearchMode, clearRecommendedPlaces, setActiveSearchPlace, setSearchQuery, setSearchResults]);
@@ -211,18 +238,17 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   }, [activeJourney?.places]);
 
   const activeSearchId = useRef(0);
+  const activeSuggestionId = useRef(0);
 
-  const runSearch = useCallback(async (q: string, triggerMapHighlight: boolean = false) => {
-    const currentSearchId = ++activeSearchId.current;
+  // 1. 입력 중 추천 검색어(자동완성) 드롭다운용 API 조회
+  const fetchSuggestions = useCallback(async (q: string) => {
+    const currentSuggestionId = ++activeSuggestionId.current;
     if (q.trim().length < 1) {
-      setSearchResults([]);
-      clearRecommendedPlaces();
-      setActiveSearchPlace(null);
-      setSearchError(null);
+      setSuggestions([]);
+      setIsDropdownOpen(false);
       return;
     }
-    setIsSearchLoading(true);
-    setSearchError(null);
+    setIsSuggestionsLoading(true);
     try {
       const boundsParam = mapBounds
         ? `&minLat=${mapBounds.minLat}&maxLat=${mapBounds.maxLat}&minLng=${mapBounds.minLng}&maxLng=${mapBounds.maxLng}`
@@ -232,7 +258,65 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         ? `&transport_type=${activeJourney.transport_type}`
         : '';
 
-      // 1차 검색: 현재 지도 영역 기반으로 정확도순 검색 (거리순 제외)
+      let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`);
+      if (currentSuggestionId !== activeSuggestionId.current) return;
+      let payload = await res.json();
+      let items: PlaceResult[] = payload.data?.items || [];
+
+      if (items.length < 3) {
+        const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}${transportParam}`);
+        if (currentSuggestionId !== activeSuggestionId.current) return;
+        const fallbackPayload = await fallbackRes.json();
+        if (fallbackRes.ok && fallbackPayload.success && fallbackPayload.data?.items) {
+          const merged = [...items, ...fallbackPayload.data.items];
+          items = Array.from(new Map(merged.map(item => [item.id, item])).values());
+        }
+      }
+
+      items.sort((a, b) => (b.score || 0) - (a.score || 0));
+      setSuggestions(items);
+      setIsDropdownOpen(items.length > 0);
+    } catch {
+      if (currentSuggestionId !== activeSuggestionId.current) return;
+      setSuggestions([]);
+    } finally {
+      if (currentSuggestionId === activeSuggestionId.current) {
+        setIsSuggestionsLoading(false);
+      }
+    }
+  }, [mapBounds, mapCenterCoord, activeJourney?.transport_type]);
+
+  const debouncedFetchSuggestions = useDebouncedCallback((val: string) => {
+    fetchSuggestions(val);
+  }, 300);
+
+  // 2. 검색 확정 실행 (Enter, 검색 버튼, 드롭다운 클릭, 최근검색어 태그 클릭)
+  const runSearch = useCallback(async (q: string, triggerMapHighlight: boolean = true) => {
+    const currentSearchId = ++activeSearchId.current;
+    if (q.trim().length < 1) {
+      setSearchResults([]);
+      clearRecommendedPlaces();
+      setActiveSearchPlace(null);
+      setSearchError(null);
+      setHasSearched(false);
+      return;
+    }
+
+    setIsDropdownOpen(false);
+    debouncedFetchSuggestions.cancel();
+    setIsSearchLoading(true);
+    setSearchError(null);
+    setHasSearched(true);
+
+    try {
+      const boundsParam = mapBounds
+        ? `&minLat=${mapBounds.minLat}&maxLat=${mapBounds.maxLat}&minLng=${mapBounds.minLng}&maxLng=${mapBounds.maxLng}`
+        : '';
+      const coordParam = mapCenterCoord ? `&lat=${mapCenterCoord.lat}&lng=${mapCenterCoord.lng}` : '';
+      const transportParam = activeJourney?.transport_type
+        ? `&transport_type=${activeJourney.transport_type}`
+        : '';
+
       let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`);
       if (currentSearchId !== activeSearchId.current) return;
       let payload = await res.json();
@@ -247,19 +331,15 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         items = payload.data?.items || [];
       }
 
-      // 1차 검색 결과가 부족한 경우 (3개 미만 = 현재 지도 영역 내 해당 장소가 거의 없음), 범위를 넓혀 전국망 2차 검색 진행
       if (items.length < 3) {
-        // coordParam은 남겨서 현 중심점 기준으로 가장 가까운 곳부터 우선 탐색되도록 유도하되 rect는 해제 (전국망 확장)
         const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}${transportParam}`);
         if (currentSearchId !== activeSearchId.current) return;
         const fallbackPayload = await fallbackRes.json();
 
         if (fallbackRes.ok && fallbackPayload.success && fallbackPayload.data?.items && fallbackPayload.data.items.length > 0) {
-          // 기존 로컬 결과와 전국망 결과를 합친 후 중복 제거
           const newItems = fallbackPayload.data.items as PlaceResult[];
           const merged = [...items, ...newItems];
-          const uniqueItems = Array.from(new Map(merged.map(item => [item.id, item])).values());
-          items = uniqueItems;
+          items = Array.from(new Map(merged.map(item => [item.id, item])).values());
         } else if (items.length === 0) {
           setSearchError(fallbackPayload.error || '검색 결과가 없습니다.');
           setSearchResults([]);
@@ -268,7 +348,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         }
       }
 
-      // 서버에서 전달한 composite score 기준 내림차순 최종 정렬
       items.sort((a, b) => (b.score || 0) - (a.score || 0));
 
       setSearchResults(items);
@@ -286,16 +365,12 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         exactMatchItem = items.find(item => item.place_name.replace(/\s+/g, '').toLowerCase() === searchQ) || null;
 
         if (exactMatchItem) {
-          // 완전 일치하는 항목이 있으면 해당 마커를 즉시 클릭(하이라이트)된 상태로 만듦
           setActiveSearchPlace(exactMatchItem);
         } else {
-          // 검색 후 항상 기본적으로 선택 해제 상태로 시작
           setActiveSearchPlace(null);
 
-          // 첫 번째 장소(1순위)를 중심으로 지도 줌 및 패닝 자동 조절 (확정 검색일 경우만)
           if (items.length > 0) {
             const bestItem = items[0];
-            // 반경 500m 수준의 적절한 줌 레벨로 맞춰지도록 작은 바운딩 박스 생성
             setFocusBounds({
               sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
               ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
@@ -318,7 +393,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, mapBounds, activeJourney?.transport_type, setDrawerSnapPoint]);
+  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, mapBounds, activeJourney?.transport_type, setDrawerSnapPoint, debouncedFetchSuggestions]);
 
   const dismissKeyboard = useCallback(() => {
     if (searchInputRef.current) {
@@ -329,45 +404,46 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     }
   }, []);
 
-  const debouncedRunSearch = useDebouncedCallback((val: string) => {
-    runSearch(val, false);
-  }, 350);
-
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchQuery(val);
 
     if (val.trim().length === 0) {
-      debouncedRunSearch.cancel();
-      setSearchResults([]);
-      clearRecommendedPlaces();
-      setActiveSearchPlace(null);
-      setSearchError(null);
-    } else if (val.trim().length >= 2) {
-      debouncedRunSearch(val);
+      debouncedFetchSuggestions.cancel();
+      setSuggestions([]);
+      setIsDropdownOpen(false);
+    } else {
+      debouncedFetchSuggestions(val);
     }
   };
 
   const handleTagClick = useCallback((q: string) => {
     dismissKeyboard();
     setSearchQuery(q);
-    debouncedRunSearch.cancel();
+    debouncedFetchSuggestions.cancel();
     runSearch(q, true);
     saveRecentQuery(q);
     if (typeof window !== 'undefined') {
       setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
     }
-  }, [dismissKeyboard, setSearchQuery, debouncedRunSearch, runSearch, saveRecentQuery, setDrawerSnapPoint]);
+  }, [dismissKeyboard, setSearchQuery, debouncedFetchSuggestions, runSearch, saveRecentQuery, setDrawerSnapPoint]);
 
-  const handleCategoryClick = async (category: string) => {
-    handleTagClick(category);
+  const handleSelectSuggestion = (item: PlaceResult) => {
+    dismissKeyboard();
+    setSearchQuery(item.place_name);
+    setIsDropdownOpen(false);
+    debouncedFetchSuggestions.cancel();
+    saveRecentQuery(item.place_name);
+
+    // 추천 항목을 선택했을 때 해당 항목을 바로 마커/줌 하이라이트 및 카드 생성
+    runSearch(item.place_name, true);
   };
 
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     dismissKeyboard();
     if (searchQuery.trim().length > 0) {
-      debouncedRunSearch.cancel();
+      debouncedFetchSuggestions.cancel();
       saveRecentQuery(searchQuery);
       runSearch(searchQuery, true);
       if (typeof window !== 'undefined') {
@@ -379,13 +455,19 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSearchSubmit(e);
+    } else if (e.key === 'Escape') {
+      setIsDropdownOpen(false);
+      dismissKeyboard();
     }
   };
 
   const handleClearInput = () => {
     setSearchQuery('');
-    debouncedRunSearch.cancel();
+    debouncedFetchSuggestions.cancel();
+    setSuggestions([]);
+    setIsDropdownOpen(false);
     setSearchResults([]);
+    setHasSearched(false);
     clearRecommendedPlaces();
     setActiveSearchPlace(null);
     setSearchError(null);
@@ -425,14 +507,15 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       className={`absolute inset-0 bg-white z-50 flex flex-col min-h-0 transition duration-350 ease-in-out ${isSearchMode ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
         }`}
     >
-      {/* ── 검색 헤더 (검색 입력창 + 가로형 검색 내역/추천 태그) ── */}
+      {/* ── 검색 헤더 (검색 입력창 + 드롭다운 추천 검색어 + 가로형 검색 내역/추천 태그) ── */}
       <div
+        ref={searchHeaderRef}
         onPointerDown={handleHeaderPointerDown}
         onTouchStart={handleHeaderTouchStart}
-        className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-10 cursor-grab active:cursor-grabbing"
+        className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-20 cursor-grab active:cursor-grabbing relative"
       >
         {/* 검색 입력 바 */}
-        <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2.5 px-4 pt-3 pb-2 relative">
           <form
             action=""
             onSubmit={handleSearchSubmit}
@@ -452,10 +535,13 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
               value={searchQuery}
               onChange={handleSearchInputChange}
               onKeyDown={handleKeyDown}
+              onFocus={() => {
+                if (suggestions.length > 0) setIsDropdownOpen(true);
+              }}
               placeholder="방문할 장소를 검색해보세요"
               className="flex-1 bg-transparent outline-none text-sm text-zinc-800 placeholder-zinc-400 font-semibold [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
             />
-            {isSearchLoading ? (
+            {isSearchLoading || isSuggestionsLoading ? (
               <Loader2 className="w-4 h-4 animate-spin text-blue-500 flex-shrink-0" />
             ) : searchQuery.length > 0 ? (
               <button
@@ -468,6 +554,62 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
               </button>
             ) : null}
           </form>
+
+          {/* ── 추천 검색어 드롭다운 팝오버 (검색바 하단 배치) ── */}
+          {isDropdownOpen && suggestions.length > 0 && (
+            <div
+              className="
+                absolute top-full left-4 right-4 mt-1 z-[100]
+                bg-white/95 backdrop-blur-xl
+                rounded-2xl border border-zinc-200/80
+                shadow-[0_12px_36px_rgba(0,0,0,0.14)]
+                overflow-hidden
+                animate-in fade-in slide-in-from-top-2 duration-150
+              "
+            >
+              <ul className="max-h-64 overflow-y-auto divide-y divide-zinc-50 scrollbar-sleek">
+                {suggestions.map((item) => {
+                  const theme = getCategoryTheme(item.category);
+                  const badgeColors: Record<string, string> = {
+                    cafe: 'text-amber-700 bg-amber-50',
+                    restaurant: 'text-rose-700 bg-rose-50',
+                    hotel: 'text-emerald-700 bg-emerald-50',
+                    activity: 'text-blue-700 bg-blue-50',
+                    transit: 'text-zinc-700 bg-zinc-100',
+                    etc: 'text-purple-700 bg-purple-50',
+                  };
+                  return (
+                    <li key={`sugg-${item.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSuggestion(item)}
+                        className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-blue-50/60 active:bg-blue-100/60 transition-colors cursor-pointer"
+                      >
+                        <MapPin className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-zinc-800 truncate">
+                            {item.place_name}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                            {item.address}
+                          </p>
+                          {item.category && (
+                            <span className={`inline-block mt-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full ${badgeColors[theme.type] || badgeColors.etc}`}>
+                              {item.category.split('>').pop()?.trim() || item.category}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="px-4 py-2 border-t border-zinc-100 bg-zinc-50/60 flex items-center justify-between">
+                <span className="text-[10px] font-medium text-zinc-400">추천 검색어</span>
+                <span className="text-[10px] text-zinc-400">클릭 시 검색 실행</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 가로형 최근 검색 내역 태그 (검색바 바로 아래 배치) */}
@@ -509,7 +651,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         )}
       </div>
 
-      {/* 검색 결과 리스트 */}
+      {/* ── 검색 결과 리스트 (검색 실행 시에만 생성되는 카드) ── */}
       <div
         ref={scrollRef}
         id="search-results-container"
@@ -522,7 +664,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       >
         {searchError ? (
           <p className="text-sm text-red-500 py-6 text-center">{searchError}</p>
-        ) : searchResults.length === 0 && searchQuery.length > 0 && !isSearchLoading ? (
+        ) : searchResults.length === 0 && hasSearched && !isSearchLoading ? (
           <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
             <MapPin className="w-8 h-8 mb-2 opacity-50" strokeWidth={1.5} />
             <p className="text-sm font-medium">검색 결과가 없습니다.</p>
@@ -533,7 +675,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             <div className="flex flex-col items-center justify-center py-8 px-4 text-zinc-400 border border-dashed border-zinc-200/70 rounded-3xl bg-zinc-50/50 mx-1 text-center">
               <div className="text-3xl mb-2">🗺️</div>
               <p className="text-sm font-semibold text-zinc-600 mb-1">방문할 장소를 검색해보세요</p>
-              <p className="text-[11px] text-zinc-400">지도를 클릭하면 원하는 위치에 직접 핀을 꽂을 수도 있습니다</p>
+              <p className="text-[11px] text-zinc-400">검색어를 입력 후 Enter 또는 클릭하면 결과 카드가 생성됩니다</p>
             </div>
           </div>
         ) : (
@@ -601,4 +743,5 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
     </div>
   );
+
 }

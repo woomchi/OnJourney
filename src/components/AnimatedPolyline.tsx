@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Polyline } from 'react-naver-maps';
 
 export default function AnimatedPolyline({ path, delay = 0, duration = 800, skipAnimation = false, resetKey, onComplete, ...props }: any) {
-  const [initialPath] = useState<any[]>(() => path || []);
+  const [currentPath, setCurrentPath] = useState<any[]>(() => path || []);
   const polylineRef = useRef<any>(null);
   const requestRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number | null>(null);
@@ -42,6 +42,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
   useEffect(() => {
     if (!path || path.length < 2) {
       const initial = path || [];
+      setCurrentPath(initial);
       updatePolylinePath(initial);
       return;
     }
@@ -56,6 +57,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       : [...path];
 
     if (skipAnimation || hasAnimatedRef.current) {
+      setCurrentPath(fullPath);
       updatePolylinePath(fullPath);
       if (onComplete) onComplete();
       return;
@@ -65,8 +67,9 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
 
     let timeoutId: NodeJS.Timeout;
 
-    // Reset animation path imperative
+    // Reset animation path imperative and update React state for initial position
     const startPath = [fullPath[0]];
+    setCurrentPath(startPath);
     updatePolylinePath(startPath);
     startTimeRef.current = null;
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
@@ -88,6 +91,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
     }
 
     if (totalDist === 0) {
+      setCurrentPath(fullPath);
       updatePolylinePath(fullPath);
       if (onComplete) onComplete();
       return;
@@ -102,6 +106,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       const progress = Math.min(elapsed / duration, 1);
       
       if (progress >= 1) {
+        setCurrentPath(fullPath);
         updatePolylinePath(fullPath);
         if (onComplete) onComplete();
         return;
@@ -140,6 +145,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
          newPath.push({ lat: currentLat, lng: currentLng });
       }
       
+      // Update SDK directly during rAF without triggering React state re-renders
       updatePolylinePath(newPath);
       requestRef.current = requestAnimationFrame(animate);
     };
@@ -157,5 +163,5 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
 
   if (!path || path.length === 0) return null;
 
-  return <Polyline ref={polylineRef} path={initialPath} {...props} />;
+  return <Polyline ref={polylineRef} path={currentPath} {...props} />;
 }

@@ -166,7 +166,7 @@ export default function DirectionalStripes({
         const stepLen = stepPath.length;
 
         // Base distance spacing in meters for anchor calculation
-        let D = activeRoute.type === 'public' ? 150 : 200;
+        let D = activeRoute.type === 'public' ? 250 : 350;
 
         const pointsBefore = points.length;
         let accumulatedDistance = 0;
@@ -239,17 +239,28 @@ export default function DirectionalStripes({
     return points;
   }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps, hoveredAlternativeRoute, alternativeSegment]);
 
-  // 2. Filter points by viewport bounds
+  // 2. Filter points by viewport bounds & apply zoom-based stride sampling
   const visiblePoints = useMemo(() => {
-    if (zoomLevel <= 5) return [];
+    if (zoomLevel <= 7) return [];
+
+    let stride = 1;
+    if (zoomLevel >= 16) stride = 1;
+    else if (zoomLevel === 15) stride = 2;
+    else if (zoomLevel === 14) stride = 3;
+    else if (zoomLevel === 13) stride = 5;
+    else if (zoomLevel === 12) stride = 8;
+    else stride = 12;
+
+    const sampledAnchors = arrowAnchors.filter((_, idx) => idx % stride === 0);
+
     if (!mapBounds || !navermaps) {
-      return arrowAnchors.slice(0, 120);
+      return sampledAnchors.slice(0, 80);
     }
     try {
       const sw = mapBounds.getSW();
       const ne = mapBounds.getNE();
       if (!sw || !ne || typeof sw.lat !== 'function' || typeof ne.lat !== 'function') {
-        return arrowAnchors.slice(0, 120);
+        return sampledAnchors.slice(0, 80);
       }
 
       const latSpan = ne.lat() - sw.lat();
@@ -262,21 +273,21 @@ export default function DirectionalStripes({
       const minLng = sw.lng() - paddingLng;
       const maxLng = ne.lng() + paddingLng;
 
-      const filtered = arrowAnchors.filter(pt => {
+      const filtered = sampledAnchors.filter(pt => {
         const { lat, lng } = pt.position;
         return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
       });
 
-      return filtered.slice(0, 120);
+      return filtered.slice(0, 80);
     } catch (e) {
       console.warn('[DirectionalStripes] Failed to filter points by bounds:', e);
-      return arrowAnchors.slice(0, 120);
+      return sampledAnchors.slice(0, 80);
     }
   }, [arrowAnchors, mapBounds, navermaps, zoomLevel]);
 
   // 3. Compute chevron geometries using current zoomLevel
   const chevronPaths = useMemo(() => {
-    if (zoomLevel <= 5) return [];
+    if (zoomLevel <= 7) return [];
     return visiblePoints.map((pt) => {
       const pathPoints = navermaps
         ? getChevronPath(pt.position, pt.bearing, zoomLevel).map(coord => new navermaps.LatLng(coord.lat, coord.lng))

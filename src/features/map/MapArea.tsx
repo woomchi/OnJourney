@@ -209,16 +209,10 @@ export default function MapArea() {
   const directionsCache = useJourneyDirectionsCache(places);
 
   useEffect(() => {
-    if (places.length < 2) return;
     setForceLoad(false);
-    const timer = setTimeout(() => {
-      setForceLoad(true);
-    }, 3000);
-    return () => clearTimeout(timer);
   }, [places, setForceLoad]);
 
   const isAllInitialRoutesLoaded = useMemo(() => {
-    if (forceLoad) return true;
     if (places.length < 2) return true;
 
     let totalInitialSegments = 0;
@@ -244,7 +238,7 @@ export default function MapArea() {
     }
 
     return loadedInitialSegments === totalInitialSegments;
-  }, [places, initialPlaceIds, directionsCache, forceLoad]);
+  }, [places, initialPlaceIds, directionsCache]);
 
   const loadedSegmentsCount = useMemo(() => {
     if (places.length < 2) return 0;

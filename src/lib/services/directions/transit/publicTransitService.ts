@@ -429,33 +429,7 @@ export async function fetchPublicDirections(params: DirectionsQueryType): Promis
     const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey, departureTime);
     return { public: publicResults };
   } catch (error: any) {
-    const distanceKm = haversineDistance(sy, sx, ey, ex);
-    if (distanceKm > 2.0) {
-      const carFallback = calculateCarFallback(sx, sy, ex, ey);
-      const fallbackPath = [{ lat: sy, lng: sx }, { lat: ey, lng: ex }];
-      return {
-        public: [
-          {
-            id: 'public-0',
-            type: 'public',
-            name: '대중교통(예상)',
-            duration: Math.round(carFallback.duration * 1.3),
-            fare: 1500,
-            isEstimated: true,
-            steps: [
-              {
-                type: 'bus',
-                name: '대중교통(예상)',
-                duration: Math.round(carFallback.duration * 1.3),
-                color: '#0068b7',
-                pathPoints: fallbackPath,
-              },
-            ],
-            pathPoints: fallbackPath,
-          },
-        ],
-      };
-    }
+    console.warn('[fetchPublicDirections] Public transit API fetch failed:', error);
     return { public: [] };
   }
 }

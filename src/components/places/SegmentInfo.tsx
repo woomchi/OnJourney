@@ -1,11 +1,12 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { DirectionResult } from '@/types/journey';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
 import { SEQUENCE_COLORS } from '@/constants/colors';
 import FittedDuration from './FittedDuration';
-import { Car, Footprints, Bus, Train } from 'lucide-react';
+import { Car, Footprints, Bus, Train, RotateCw } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
@@ -35,12 +36,15 @@ interface SegmentInfoProps {
   index: number;
   placeId?: string;
   destId?: string;
+  onRetry?: () => void;
 }
 
 // 2. 실시간 구간 이동 정보 렌더링 컴포넌트
-export default function SegmentInfo({ data, loading, index, placeId, destId }: SegmentInfoProps) {
+export default function SegmentInfo({ data, loading, index, placeId, destId, onRetry }: SegmentInfoProps) {
   const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 767px)');
+  const [isTimedOut, setIsTimedOut] = useState(false);
+
   const {
     focusedStep,
     setFocusedStep,
@@ -54,14 +58,68 @@ export default function SegmentInfo({ data, loading, index, placeId, destId }: S
     activeJourney
   } = useJourneyStore();
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading) {
+      setIsTimedOut(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setIsTimedOut(true);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  const handleRefresh = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsTimedOut(false);
+
+    if (placeId && destId) {
+      queryClient.invalidateQueries({ queryKey: directionKeys.segment(placeId, destId) });
+      const places = activeJourney?.places || [];
+      const originPlace = places.find(p => p.id === placeId);
+      const destPlace = places.find(p => p.id === destId);
+      if (originPlace && destPlace) {
+        Promise.allSettled([
+          queryClient.fetchQuery({
+            queryKey: directionKeys.segmentPublic(placeId, destId),
+            queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
+          }),
+          queryClient.fetchQuery({
+            queryKey: directionKeys.segmentCar(placeId, destId),
+            queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
+          })
+        ]).catch(console.error);
+      }
+    }
+
+    if (onRetry) {
+      onRetry();
+    }
+  };
+
+  if (loading && !isTimedOut) {
     return <SegmentInfoSkeleton />;
   }
 
-  if (!data) {
+  if (isTimedOut || !data) {
     return (
-      <div className="w-full px-4 py-3 bg-zinc-50 rounded-xl border border-zinc-100 text-center text-xs text-zinc-400">
-        경로 정보를 불러올 수 없습니다.
+      <div className="w-full px-4 py-3 bg-amber-50/50 border border-amber-200/80 rounded-xl shadow-2xs flex items-center justify-between gap-3 text-xs select-none">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
+          <span className="text-zinc-600 font-bold truncate">
+            이동 정보를 불러올 수 없습니다.
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-amber-300 hover:border-amber-400 hover:bg-amber-50 text-amber-700 hover:text-amber-800 rounded-lg shadow-2xs text-xs font-bold transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
+        >
+          <RotateCw className="w-3.5 h-3.5" />
+          <span>재갱신</span>
+        </button>
       </div>
     );
   }

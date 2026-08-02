@@ -101,9 +101,8 @@ export async function fetchPublicDirectionsApi(origin: Place, dest: Place, depar
     if (!payload.success) throw new Error(payload.error || '대중교통 경로 요청 실패');
     return payload.data;
   } catch (err) {
-    console.warn(`[directionsService] Public API failed for ${origin.place_name} -> ${dest.place_name}, using fallback.`, err);
-    const fallback = getFallbackDirections(origin, dest);
-    return { public: fallback.public };
+    console.warn(`[directionsService] Public API failed for ${origin.place_name} -> ${dest.place_name}`, err);
+    throw err;
   }
 }
 
@@ -126,18 +125,16 @@ export async function fetchCarWalkDirectionsApi(
 
     // 거리 초과 응답 처리
     if ('status' in data && data.status === 'EXCEED_LIMIT') {
-      console.warn(`[directionsService] ${data.message} (${origin.place_name} -> ${dest.place_name}), using fallback.`);
-      const fallback = getFallbackDirections(origin, dest);
-      return { car: fallback.car, walk: fallback.walk };
+      console.warn(`[directionsService] ${data.message} (${origin.place_name} -> ${dest.place_name})`);
+      throw new Error(data.message || '도보 탐색 거리는 10km 이내만 지원합니다.');
     }
 
     // 타입 내로잉: EXCEED_LIMIT가 아닌 경우 car/walk/snapMeta 포함 분기
     const successData = data as { car: DirectionResult[]; walk: DirectionResult[]; snapMeta: SnapMeta };
     return { car: successData.car, walk: successData.walk, snapMeta: successData.snapMeta };
   } catch (err) {
-    console.warn(`[directionsService] Car API failed for ${origin.place_name} -> ${dest.place_name}, using fallback.`, err);
-    const fallback = getFallbackDirections(origin, dest);
-    return { car: fallback.car, walk: fallback.walk };
+    console.warn(`[directionsService] Car API failed for ${origin.place_name} -> ${dest.place_name}`, err);
+    throw err;
   }
 }
 

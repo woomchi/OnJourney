@@ -53,6 +53,12 @@ export default function AuthModal() {
   };
 
   const handleNaverSignIn = async () => {
+    const clientId = process.env.NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    if (!clientId) {
+      alert('[오류] .env.local에 NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID 가 등록되어 있지 않습니다.');
+    }
+
     setError('');
     setInfo('');
     setIsSubmitting(true);

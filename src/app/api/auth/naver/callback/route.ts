@@ -11,8 +11,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/?error=naver_code_missing', request.url));
   }
 
-  const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-  const clientSecret = process.env.NAVER_CLIENT_SECRET;
+  const clientId = process.env.NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID;
+  const clientSecret = process.env.NEXT_NAVER_LOGIN_SECRET_ID;
 
   if (!clientId || !clientSecret) {
     console.error('Naver Client ID or Client Secret is missing in environment variables.');

@@ -188,14 +188,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signInWithNaver = useCallback(async () => {
-    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
+    const clientId = process.env.NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID;
     if (!clientId) {
-      throw new Error('네이버 Client ID 설정(NEXT_PUBLIC_NAVER_CLIENT_ID)을 확인해주세요.');
+      const errorMsg = '네이버 로그인 Client ID(NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID)가 설정되지 않았습니다.';
+      alert(errorMsg);
+      throw new Error(errorMsg);
     }
 
-    const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/naver/callback`);
+    const redirectUri = `${window.location.origin}/api/auth/naver/callback`;
     const state = Math.random().toString(36).substring(2, 15);
-    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}`;
+    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 
     window.location.href = naverAuthUrl;
   }, []);

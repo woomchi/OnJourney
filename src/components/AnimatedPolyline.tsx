@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Polyline } from 'react-naver-maps';
 
 export default function AnimatedPolyline({ path, delay = 0, duration = 800, skipAnimation = false, resetKey, onComplete, ...props }: any) {
-  const [currentPath, setCurrentPath] = useState<any[]>([]);
+  const [initialPath] = useState<any[]>(() => path || []);
   const polylineRef = useRef<any>(null);
   const requestRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number | null>(null);
@@ -12,35 +12,36 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
     hasAnimatedRef.current = false;
   }, [resetKey]);
 
-  // stringified path to prevent animation restarts when only reference changes
+  // Optimized pathKey generation to avoid heavy string concatenation on long paths
   const pathKey = useMemo(() => {
-    if (!path) return '';
-    return path.map((p: any) => {
-      const lat = typeof p.lat === 'function' ? p.lat() : p.lat;
-      const lng = typeof p.lng === 'function' ? p.lng() : p.lng;
-      return `${lat},${lng}`;
-    }).join('|');
+    if (!path || path.length === 0) return '';
+    const len = path.length;
+    const first = path[0];
+    const last = path[len - 1];
+    const fLat = typeof first.lat === 'function' ? first.lat() : first.lat;
+    const fLng = typeof first.lng === 'function' ? first.lng() : first.lng;
+    const lLat = typeof last.lat === 'function' ? last.lat() : last.lat;
+    const lLng = typeof last.lng === 'function' ? last.lng() : last.lng;
+    return `${len}:${fLat},${fLng}:${lLat},${lLng}`;
   }, [path]);
 
   const updatePolylinePath = (newPath: any[]) => {
     if (polylineRef.current) {
       if (typeof polylineRef.current.setPath === 'function') {
         polylineRef.current.setPath(newPath);
-        return;
+        return true;
       }
       if (polylineRef.current.instance && typeof polylineRef.current.instance.setPath === 'function') {
         polylineRef.current.instance.setPath(newPath);
-        return;
+        return true;
       }
     }
-    // Fallback: update React state if ref is not available
-    setCurrentPath(newPath);
+    return false;
   };
 
   useEffect(() => {
     if (!path || path.length < 2) {
       const initial = path || [];
-      setCurrentPath(initial);
       updatePolylinePath(initial);
       return;
     }
@@ -55,7 +56,6 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       : [...path];
 
     if (skipAnimation || hasAnimatedRef.current) {
-      setCurrentPath(fullPath);
       updatePolylinePath(fullPath);
       if (onComplete) onComplete();
       return;
@@ -65,9 +65,8 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
 
     let timeoutId: NodeJS.Timeout;
 
-    // Reset animation
+    // Reset animation path imperative
     const startPath = [fullPath[0]];
-    setCurrentPath(startPath);
     updatePolylinePath(startPath);
     startTimeRef.current = null;
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
@@ -83,15 +82,12 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       const lat2 = typeof p2.lat === 'function' ? p2.lat() : p2.lat;
       const lng2 = typeof p2.lng === 'function' ? p2.lng() : p2.lng;
       
-      // Simple Euclidean distance for visual interpolation
       const d = Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lng2 - lng1, 2));
       totalDist += d;
       distances.push(totalDist);
     }
 
-    // If total distance is 0, just show it
     if (totalDist === 0) {
-      setCurrentPath(fullPath);
       updatePolylinePath(fullPath);
       if (onComplete) onComplete();
       return;
@@ -103,10 +99,9 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       }
       
       const elapsed = time - startTimeRef.current;
-      const progress = Math.min(elapsed / duration, 1); // 0 to 1
+      const progress = Math.min(elapsed / duration, 1);
       
       if (progress >= 1) {
-        setCurrentPath(fullPath);
         updatePolylinePath(fullPath);
         if (onComplete) onComplete();
         return;
@@ -114,7 +109,6 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
 
       const targetDist = progress * totalDist;
       
-      // Find the segment where targetDist falls
       let segIndex = 0;
       for (let i = 0; i < distances.length - 1; i++) {
         if (targetDist >= distances[i] && targetDist <= distances[i + 1]) {
@@ -150,7 +144,6 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       requestRef.current = requestAnimationFrame(animate);
     };
 
-    // Delay start for sequential animations
     timeoutId = setTimeout(() => {
        requestRef.current = requestAnimationFrame(animate);
     }, delay);
@@ -162,7 +155,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathKey]);
 
-  if (!currentPath || currentPath.length === 0) return null;
+  if (!path || path.length === 0) return null;
 
-  return <Polyline ref={polylineRef} path={currentPath} {...props} />;
+  return <Polyline ref={polylineRef} path={initialPath} {...props} />;
 }

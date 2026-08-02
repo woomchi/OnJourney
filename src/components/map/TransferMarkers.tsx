@@ -1,7 +1,6 @@
-"use client";
-
 import { useMemo } from 'react';
-import { Marker } from 'react-naver-maps';
+import { motion } from 'framer-motion';
+import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { useJourneyStore } from '@/stores/journey-store';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { getSequenceTheme } from '@/constants/colors';
@@ -434,76 +433,89 @@ export default function TransferMarkers({
         const offsetX = pt.offsetX || 0;
 
         return (
-          <Marker
+          <CustomOverlayView
             key={pt.key}
             position={pt.position}
             zIndex={isThisStepFocused ? 25000 : zIndex}
             onClick={() => handleTransferMarkerClick(pt)}
-            icon={{
-              content: `
-                <div style="
-                  display: flex;
-                  align-items: center;
-                  background: #ffffff;
-                  border: 2px solid ${pt.color};
-                  border-radius: 9999px;
-                  padding: 3.5px 8px 3.5px 4px;
-                  box-shadow: ${isThisStepFocused ? `0 0 0 4px ${pt.color}40, 0 6px 20px ${pt.color}50` : '0 4px 14px rgba(0, 0, 0, 0.16)'};
-                  font-family: Pretendard, -apple-system, sans-serif;
-                  white-space: nowrap;
-                  position: relative;
-                  cursor: pointer;
-                  transform: translate(calc(-50% + ${offsetX}px), -100%) ${isThisStepFocused ? 'scale(1.1)' : ''};
-                  margin-top: -8px;
-                  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                ">
-                  <!-- 아이콘 원형 -->
-                  <div style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: ${pt.color};
-                    color: white;
-                    border-radius: 50%;
-                    width: 18px;
-                    height: 18px;
-                    font-size: 10px;
-                    margin-right: 5px;
-                    box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.25);
-                  ">
-                    ${iconEmoji}
-                  </div>
-                  <!-- 정보 텍스트 -->
-                  <div style="
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    max-width: 130px;
-                  ">
-                    ${(pt.isSegmentStart || pt.isSegmentDest) ? `
-                    <span style="font-size: 10.5px; font-weight: 800; color: #18181b; line-height: 1.1;">${labelText}</span>
-                    ` : `
-                    <span style="font-size: 8px; color: #71717a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1;">${labelText}</span>
-                    <span style="font-size: 10.5px; font-weight: 800; color: #18181b; line-height: 1.1; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">${displayBusName}</span>
-                    `}
-                  </div>
-                  <!-- 아래쪽 꼭지점 화살표 -->
-                  <div style="
-                    position: absolute;
-                    bottom: -6px;
-                    left: calc(50% - ${offsetX}px);
-                    transform: translateX(-50%);
-                    width: 0;
-                    height: 0;
-                    border-left: 5px solid transparent;
-                    border-right: 5px solid transparent;
-                    border-top: 6px solid ${pt.color};
-                  "></div>
-                </div>
-              `,
-              anchor: new navermaps.Point(0, 0),
-            }}
-          />
+            anchorX={0.5}
+            anchorY={1}
+            offsetX={offsetX}
+            offsetY={-8}
+          >
+            <motion.div
+              initial={{ scale: 0, opacity: 0, y: 10 }}
+              animate={{
+                scale: isThisStepFocused ? 1.1 : 1,
+                opacity: 1,
+                y: 0,
+              }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="relative flex items-center bg-white border-2 rounded-full px-2 py-1 shadow-md font-sans whitespace-nowrap cursor-pointer select-none"
+              style={{
+                borderColor: pt.color,
+                boxShadow: isThisStepFocused
+                  ? `0 0 0 4px ${pt.color}40, 0 6px 20px ${pt.color}50`
+                  : '0 4px 14px rgba(0, 0, 0, 0.16)',
+              }}
+            >
+              {/* 아이콘 원형 */}
+              <div
+                className="flex items-center justify-center text-white rounded-full w-[18px] h-[18px] text-[10px] mr-1.5 shadow-inner shrink-0"
+                style={{ backgroundColor: pt.color }}
+              >
+                {pt.isSegmentDest ? (
+                  '🚩'
+                ) : pt.isSegmentStart ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-2.5 h-2.5 text-white"
+                  >
+                    <path
+                      d="M8 5v14l11-7z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : pt.type === 'walk' ? (
+                  '🚶'
+                ) : pt.type === 'subway' ? (
+                  '🚇'
+                ) : pt.type === 'train' ? (
+                  '🚄'
+                ) : (
+                  '🚌'
+                )}
+              </div>
+
+              {/* 정보 텍스트 */}
+              <div className="flex flex-col justify-center max-w-[130px]">
+                {pt.isSegmentStart || pt.isSegmentDest ? (
+                  <span className="text-[10.5px] font-black text-zinc-900 leading-tight">
+                    {labelText}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-[8px] color-zinc-500 font-bold uppercase tracking-wider leading-none">
+                      {labelText}
+                    </span>
+                    <span className="text-[10.5px] font-black text-zinc-900 leading-tight mt-0.5 truncate block">
+                      {displayBusName}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* 아래쪽 꼭지점 화살표 */}
+              <div
+                className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent"
+                style={{ borderTopColor: pt.color }}
+              />
+            </motion.div>
+          </CustomOverlayView>
         );
       })}
     </>

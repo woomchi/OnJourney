@@ -101,19 +101,19 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
   }, [places]);
 
   useEffect(() => {
-    const currentPlaces = placesRef.current;
-    if (!currentPlaces || currentPlaces.length < 2) {
-      setTimeout(() => setDirectionsCache({}), 0);
+    const activePlaces = placesRef.current;
+    if (!activePlaces || activePlaces.length < 2) {
+      setDirectionsCache({});
       return;
     }
 
     const updateCache = () => {
-      const activePlaces = placesRef.current;
-      if (!activePlaces || activePlaces.length < 2) return;
+      const currentPlaces = placesRef.current;
+      if (!currentPlaces || currentPlaces.length < 2) return;
 
       const newCache: Record<string, DirectionsApiResponse> = {};
-      activePlaces.slice(0, -1).forEach((origin, i) => {
-        const dest = activePlaces[i + 1];
+      currentPlaces.slice(0, -1).forEach((origin, i) => {
+        const dest = currentPlaces[i + 1];
         const cacheKey = `${origin.id}-${dest.id}`;
         const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id));
         const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id));
@@ -141,19 +141,60 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
       });
     };
 
-    // Initial populate
-    setTimeout(updateCache, 0);
+    updateCache();
+  }, [placesKey, queryClient]);
 
+  useEffect(() => {
     let cacheUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Subscribe to query cache changes
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (event.type === 'updated' || event.type === 'added') {
-        // Only update if the query matches our direction keys
-        const isDirectionQuery = event.query.queryKey[0] === 'directions';
-        if (isDirectionQuery) {
-          if (cacheUpdateTimer) clearTimeout(cacheUpdateTimer);
-          cacheUpdateTimer = setTimeout(updateCache, 50);
+        const qKey = event.query.queryKey;
+        if (Array.isArray(qKey) && qKey[0] === 'directions') {
+          // Check if updated direction segment belongs to active places
+          const activePlaces = placesRef.current;
+          if (activePlaces && activePlaces.length >= 2 && qKey.length >= 3) {
+            const originId = qKey[1];
+            const destId = qKey[2];
+            const isRelevant = activePlaces.some((p, i) => i < activePlaces.length - 1 && p.id === originId && activePlaces[i + 1].id === destId);
+            
+            if (isRelevant) {
+              if (cacheUpdateTimer) clearTimeout(cacheUpdateTimer);
+              cacheUpdateTimer = setTimeout(() => {
+                const currentPlaces = placesRef.current;
+                if (!currentPlaces || currentPlaces.length < 2) return;
+
+                const newCache: Record<string, DirectionsApiResponse> = {};
+                currentPlaces.slice(0, -1).forEach((origin, i) => {
+                  const dest = currentPlaces[i + 1];
+                  const cacheKey = `${origin.id}-${dest.id}`;
+                  const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id));
+                  const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id));
+                  
+                  if (publicData || carData) {
+                    newCache[cacheKey] = {
+                      public: publicData?.public || [],
+                      car: carData?.car || [],
+                      walk: carData?.walk || []
+                    };
+                  }
+                });
+
+                setDirectionsCache(prevCache => {
+                  const prevKeys = Object.keys(prevCache);
+                  const newKeys = Object.keys(newCache);
+                  if (prevKeys.length !== newKeys.length) return newCache;
+                  
+                  for (const key of newKeys) {
+                    if (prevCache[key] !== newCache[key]) {
+                      return newCache;
+                    }
+                  }
+                  return prevCache;
+                });
+              }, 50);
+            }
+          }
         }
       }
     });
@@ -162,7 +203,7 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
       unsubscribe();
       if (cacheUpdateTimer) clearTimeout(cacheUpdateTimer);
     };
-  }, [placesKey, queryClient]);
+  }, [queryClient]);
 
   return directionsCache;
 }

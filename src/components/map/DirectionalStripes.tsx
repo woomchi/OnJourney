@@ -105,7 +105,8 @@ export default function DirectionalStripes({
   hoveredAlternativeRoute,
   alternativeSegment,
 }: DirectionalStripesProps) {
-  const stripePoints = useMemo(() => {
+  // 1. Calculate anchor points along path (independent of zoomLevel)
+  const arrowAnchors = useMemo(() => {
     const points: Array<{
       key: string;
       position: { lat: number; lng: number };
@@ -115,8 +116,7 @@ export default function DirectionalStripes({
       zIndex: number;
     }> = [];
 
-    // 줌 레벨이 5 이하일 때는 화살표를 표시하지 않음 (오버헤드 방지 및 시인성 향상)
-    if (!navermaps || places.length < 2 || zoomLevel <= 5) return points;
+    if (!navermaps || places.length < 2) return points;
 
     places.forEach((place: any, idx: number) => {
       if (idx === places.length - 1) return;
@@ -134,7 +134,6 @@ export default function DirectionalStripes({
         return;
       }
 
-      // 특정 세그먼트가 선택(focus)되었을 때, 다른 세그먼트의 스트라이프는 표시하지 않음
       if (focusedSegment && !focusedStep) {
         const isCurrentSegment =
           focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
@@ -145,8 +144,6 @@ export default function DirectionalStripes({
         const stepPath = step.pathPoints || [];
         if (stepPath.length < 2 || step.type === 'walk') return;
 
-        // 특정 스텝(세부 노선) 포커스 로직 (스트라이프 숨김 제거)
-
         const isThisStepFocused = !!(
           focusedStep &&
           focusedStep.originId === place.id &&
@@ -154,7 +151,6 @@ export default function DirectionalStripes({
           focusedStep.stepIndex === sIdx
         );
 
-        // 포커스 세그먼트 매칭 여부 판별
         const isSegmentFocused = focusedSegment
           ? (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id)
           : true;
@@ -166,35 +162,15 @@ export default function DirectionalStripes({
             : (100 - idx);
 
         const arrowZIndex = baseZIndex + 2;
-
         const strokeColor = step.color || (activeRoute.type === 'public' ? '#3b82f6' : '#f59e0b');
         const stepLen = stepPath.length;
 
-        // 지도 줌 레벨(zoomLevel)에 비례하여 적절한 화살표 배치 누적 간격(D, 미터)을 결정
-        // 줌 레벨이 클수록(상세할수록) 간격을 좁혀 촘촘히 묘사하고, 작아질수록 넓혀 과밀화를 방지함
-        let D = 1000; // 기본 간격
-        if (zoomLevel >= 18) D = 60;
-        else if (zoomLevel === 17) D = 100;
-        else if (zoomLevel === 16) D = 200;
-        else if (zoomLevel === 15) D = 350;
-        else if (zoomLevel === 14) D = 600;
-        else if (zoomLevel === 13) D = 1200;
-        else if (zoomLevel === 12) D = 2400;
-        else if (zoomLevel === 11) D = 4800;
-        else if (zoomLevel === 10) D = 9600;
-        else if (zoomLevel === 9) D = 19200;
-        else if (zoomLevel === 8) D = 38400;
-        else if (zoomLevel <= 7) D = 76800;
-
-        // 대중교통 노선은 자차보다 살짝 더 촘촘하게(0.75배) 묘사하여 가독성 증대
-        if (activeRoute.type === 'public') {
-          D = Math.max(20, D * 0.75);
-        }
+        // Base distance spacing in meters for anchor calculation
+        let D = activeRoute.type === 'public' ? 150 : 200;
 
         const pointsBefore = points.length;
         let accumulatedDistance = 0;
 
-        // 경로의 모든 포인트를 따라 누적 거리를 계산하여 D미터 간격마다 화살표 배치 (선형 보간 적용하여 간격 정밀 핏)
         for (let i = 1; i < stepLen; i++) {
           const pPrev = stepPath[i - 1];
           const pCurr = stepPath[i];
@@ -210,7 +186,6 @@ export default function DirectionalStripes({
             const nextArrowPositionOnSegment = currentSegmentPosition + distanceToNextArrow;
             const t = nextArrowPositionOnSegment / segmentDist;
 
-            // pPrev와 pCurr 사이를 Mercator 투영 상 선형보간하여 정확한 직선 간격에 화살표 좌표 산출
             const lng = pPrev.lng + (pCurr.lng - pPrev.lng) * t;
             const yPrev = getMercatorY(pPrev.lat);
             const yCurr = getMercatorY(pCurr.lat);
@@ -235,8 +210,6 @@ export default function DirectionalStripes({
           accumulatedDistance += remainingSegmentDist;
         }
 
-        // 경로 전체 길이가 간격 D보다 짧아 화살표가 1개도 생기지 않았을 때
-        // 정가운데 지점에 화살표 1개 배치를 보장하여 방향 식별을 도움
         if (points.length === pointsBefore && stepLen >= 2) {
           const midIdx = Math.floor(stepLen / 2);
           const p1 = stepPath[midIdx];
@@ -264,20 +237,19 @@ export default function DirectionalStripes({
     });
 
     return points;
-  }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps, zoomLevel]);
+  }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps, hoveredAlternativeRoute, alternativeSegment]);
 
-  // 현재 보이는 지도 영역(뷰포트) 바운드에 여유 패딩(15%)을 주어 필터링함으로써 
-  // 화면 밖 불필요한 수백 개의 마커 렌더링 부하를 예방하고 줌/드래그 성능 최적화
-  // 렌더링 오버헤드를 완벽히 차단하기 위해 렌더링할 화살표 개수를 최대 120개로 제한
+  // 2. Filter points by viewport bounds
   const visiblePoints = useMemo(() => {
+    if (zoomLevel <= 5) return [];
     if (!mapBounds || !navermaps) {
-      return stripePoints.slice(0, 120);
+      return arrowAnchors.slice(0, 120);
     }
     try {
       const sw = mapBounds.getSW();
       const ne = mapBounds.getNE();
       if (!sw || !ne || typeof sw.lat !== 'function' || typeof ne.lat !== 'function') {
-        return stripePoints.slice(0, 120);
+        return arrowAnchors.slice(0, 120);
       }
 
       const latSpan = ne.lat() - sw.lat();
@@ -290,7 +262,7 @@ export default function DirectionalStripes({
       const minLng = sw.lng() - paddingLng;
       const maxLng = ne.lng() + paddingLng;
 
-      const filtered = stripePoints.filter(pt => {
+      const filtered = arrowAnchors.filter(pt => {
         const { lat, lng } = pt.position;
         return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
       });
@@ -298,11 +270,13 @@ export default function DirectionalStripes({
       return filtered.slice(0, 120);
     } catch (e) {
       console.warn('[DirectionalStripes] Failed to filter points by bounds:', e);
-      return stripePoints.slice(0, 120);
+      return arrowAnchors.slice(0, 120);
     }
-  }, [stripePoints, mapBounds, navermaps]);
+  }, [arrowAnchors, mapBounds, navermaps, zoomLevel]);
 
+  // 3. Compute chevron geometries using current zoomLevel
   const chevronPaths = useMemo(() => {
+    if (zoomLevel <= 5) return [];
     return visiblePoints.map((pt) => {
       const pathPoints = navermaps
         ? getChevronPath(pt.position, pt.bearing, zoomLevel).map(coord => new navermaps.LatLng(coord.lat, coord.lng))

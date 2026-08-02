@@ -43,6 +43,8 @@ export function useJourneyDirections() {
   const fetchSequentialDirections = async (places: Place[]) => {
     if (!places || places.length < 2) return;
 
+    const allPromises: Promise<any>[] = [];
+
     for (let i = 0; i < places.length - 1; i++) {
       const currentPlace = places[i];
       const nextPlace = places[i + 1];
@@ -57,26 +59,25 @@ export function useJourneyDirections() {
       const publicCached = queryClient.getQueryData(publicKey);
       const carCached = queryClient.getQueryData(carKey);
 
-      try {
-        const promises = [];
-        if (!publicCached) {
-          promises.push(queryClient.fetchQuery({
-            queryKey: publicKey,
-            queryFn: () => fetchPublicDirectionsApi(currentPlace, nextPlace),
-            staleTime: 1000 * 60 * 30,
-          }));
-        }
-        if (!carCached) {
-          promises.push(queryClient.fetchQuery({
-            queryKey: carKey,
-            queryFn: () => fetchCarWalkDirectionsApi(currentPlace, nextPlace),
-            staleTime: 1000 * 60 * 30,
-          }));
-        }
+      if (!publicCached) {
+        allPromises.push(queryClient.fetchQuery({
+          queryKey: publicKey,
+          queryFn: () => fetchPublicDirectionsApi(currentPlace, nextPlace),
+          staleTime: 1000 * 60 * 30,
+        }));
+      }
+      if (!carCached) {
+        allPromises.push(queryClient.fetchQuery({
+          queryKey: carKey,
+          queryFn: () => fetchCarWalkDirectionsApi(currentPlace, nextPlace),
+          staleTime: 1000 * 60 * 30,
+        }));
+      }
+    }
 
-        if (promises.length > 0) {
-          await Promise.allSettled(promises);
-        }
+    if (allPromises.length > 0) {
+      try {
+        await Promise.allSettled(allPromises);
       } catch (error) {
         console.error('[useJourneyDirections] Error fetching segment:', error);
       }

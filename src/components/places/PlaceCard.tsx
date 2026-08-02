@@ -187,9 +187,16 @@ export default function PlaceCard({
   const { isCacheRestored } = useJourneyStore();
   const publicQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentPublic(place.id, nextPlace.id)) : null;
   const carQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentCar(place.id, nextPlace.id)) : null;
-  const isSegmentLoading = !isCacheRestored || (
-    (publicQueryState?.status === 'pending' && publicQueryState?.fetchStatus !== 'paused') ||
-    (carQueryState?.status === 'pending' && carQueryState?.fetchStatus !== 'paused')
+  const hasSelectedRoute = place.selected_route && place.selected_route.destId === nextPlace?.id;
+  const isSegmentLoading = Boolean(
+    nextPlace &&
+    !hasSelectedRoute &&
+    (!isCacheRestored ||
+      (!segmentData && (
+        !publicQueryState || publicQueryState.status === 'pending' ||
+        !carQueryState || carQueryState.status === 'pending'
+      ))
+    )
   );
 
   const activeRoute = nextPlace 

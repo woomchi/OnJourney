@@ -29,6 +29,7 @@ export default function HorizontalJourneyTimelineBar({
     setAlternativeSegment,
     isAlternativeFromFocus,
     setIsAlternativeFromFocus,
+    isCacheRestored,
   } = useJourneyStore();
 
   const timelineContainerRef = useRef<HTMLDivElement>(null);
@@ -87,16 +88,54 @@ export default function HorizontalJourneyTimelineBar({
 
   const renderSegmentBadge = (origin: Place, dest: Place, sIdx: number) => {
     let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+    let isSegLoading = false;
 
     if (!route) {
+      const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id));
+      const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id));
       const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
       const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+
+      isSegLoading = !isCacheRestored || (
+        (!publicData && !carData) &&
+        (!publicQueryState || publicQueryState.status === 'pending' ||
+         !carQueryState || carQueryState.status === 'pending')
+      );
+
       const segmentData = {
         public: publicData?.public || [],
         car: carData?.car || [],
         walk: carData?.walk || []
       };
       route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk') || null;
+    }
+
+    if (isSegLoading) {
+      return (
+        <div
+          key={`segment-wrap-${origin.id}-${dest.id}`}
+          className="relative flex flex-col justify-between w-[140px] shrink-0 h-[104px] px-1 select-none"
+        >
+          <div className="h-[34px] w-full shrink-0" />
+          <div className="relative w-full flex items-center justify-center h-[28px] shrink-0">
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 rounded-full z-0" />
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex justify-center">
+              <div className="relative z-10 px-2.5 py-2 rounded-xl flex items-center justify-between gap-1.5 bg-white/95 text-zinc-800 border border-zinc-200 shadow-2xs w-[130px] h-[86px] animate-pulse">
+                <div className="flex flex-col items-start justify-center min-w-0 flex-1 gap-1.5">
+                  <div className="flex items-center gap-1.5 w-full">
+                    <div className="w-4 h-4 rounded-full bg-zinc-200 shrink-0" />
+                    <div className="h-3.5 bg-zinc-200 rounded-md w-14" />
+                  </div>
+                  <div className="h-3 bg-zinc-150 rounded-md w-10" />
+                  <div className="h-3 bg-zinc-150 rounded-md w-12" />
+                </div>
+                <div className="w-7.5 h-7.5 rounded-lg bg-zinc-100 border border-zinc-150 shrink-0" />
+              </div>
+            </div>
+          </div>
+          <div className="h-[36px] w-full shrink-0" />
+        </div>
+      );
     }
 
     const duration = route?.duration ? `${route.duration}분` : '';

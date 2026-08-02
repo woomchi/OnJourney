@@ -40,6 +40,7 @@ export default function FixedJourneyTimelineSheet({
     setEditMode,
     setDrawerSnapPoint,
     openSearchMode,
+    isCacheRestored,
   } = useJourneyStore();
 
   const dragControls = useDragControls();
@@ -169,6 +170,7 @@ export default function FixedJourneyTimelineSheet({
   let totalDurationMin = 0;
   let totalFareSum = 0;
   let hasFare = false;
+  let isAnySegmentLoading = false;
 
   if (places && places.length > 1) {
     for (let i = 0; i < places.length - 1; i++) {
@@ -178,8 +180,21 @@ export default function FixedJourneyTimelineSheet({
 
       let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
       if (!route) {
+        const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id));
+        const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id));
         const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
         const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+
+        const isSegLoading = !isCacheRestored || (
+          (!publicData && !carData) &&
+          (!publicQueryState || publicQueryState.status === 'pending' ||
+           !carQueryState || carQueryState.status === 'pending')
+        );
+
+        if (isSegLoading) {
+          isAnySegmentLoading = true;
+        }
+
         const segmentData = {
           public: publicData?.public || [],
           car: carData?.car || [],
@@ -271,16 +286,54 @@ export default function FixedJourneyTimelineSheet({
 
   const renderSegmentBadge = (origin: Place, dest: Place, sIdx: number) => {
     let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+    let isSegLoading = false;
 
     if (!route) {
+      const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id));
+      const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id));
       const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
       const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+
+      isSegLoading = !isCacheRestored || (
+        (!publicData && !carData) &&
+        (!publicQueryState || publicQueryState.status === 'pending' ||
+         !carQueryState || carQueryState.status === 'pending')
+      );
+
       const segmentData = {
         public: publicData?.public || [],
         car: carData?.car || [],
         walk: carData?.walk || []
       };
       route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk') || null;
+    }
+
+    if (isSegLoading) {
+      return (
+        <div
+          key={`segment-wrap-${origin.id}-${dest.id}`}
+          className="relative flex flex-col justify-between w-[140px] shrink-0 h-[100px] px-1 select-none"
+        >
+          <div className="h-[32px] w-full shrink-0" />
+          <div className="relative w-full flex items-center justify-center h-[26px] shrink-0">
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 rounded-full z-0" />
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex justify-center">
+              <div className="relative z-10 px-2.5 py-2 rounded-xl flex items-center justify-between gap-1.5 bg-white text-zinc-800 border border-zinc-200 shadow-2xs w-[130px] h-[86px] animate-pulse">
+                <div className="flex flex-col items-start justify-center min-w-0 flex-1 gap-1.5">
+                  <div className="flex items-center gap-1.5 w-full">
+                    <div className="w-4 h-4 rounded-full bg-zinc-200 shrink-0" />
+                    <div className="h-3.5 bg-zinc-200 rounded-md w-14" />
+                  </div>
+                  <div className="h-3 bg-zinc-150 rounded-md w-10" />
+                  <div className="h-3 bg-zinc-150 rounded-md w-12" />
+                </div>
+                <div className="w-7.5 h-7.5 rounded-lg bg-zinc-100 border border-zinc-150 shrink-0" />
+              </div>
+            </div>
+          </div>
+          <div className="h-[36px] w-full shrink-0" />
+        </div>
+      );
     }
 
     const duration = route?.duration ? `${route.duration}분` : '';
@@ -590,12 +643,21 @@ export default function FixedJourneyTimelineSheet({
       >
         {/* 좌측: 소요 시간 & 비용 (목록 폰트 크기 text-xs/text-sm로 확대) */}
         <div className="flex-1 flex flex-col items-start justify-center min-w-0 leading-tight">
-          <span className="font-extrabold text-sm text-zinc-900 truncate">
-            {totalDurationMin > 0 ? formatTotalDuration(totalDurationMin) : '0분'}
-          </span>
-          <span className="font-semibold text-xs text-zinc-600 truncate mt-0.5">
-            {(totalFareSum || 0).toLocaleString()}원
-          </span>
+          {isAnySegmentLoading ? (
+            <div className="flex flex-col gap-1 animate-pulse">
+              <div className="h-4 w-16 bg-zinc-200 rounded-md" />
+              <div className="h-3 w-12 bg-zinc-150 rounded-md" />
+            </div>
+          ) : (
+            <>
+              <span className="font-extrabold text-sm text-zinc-900 truncate">
+                {totalDurationMin > 0 ? formatTotalDuration(totalDurationMin) : '0분'}
+              </span>
+              <span className="font-semibold text-xs text-zinc-600 truncate mt-0.5">
+                {hasFare ? `${totalFareSum.toLocaleString()}원` : (totalFareSum > 0 ? `${totalFareSum.toLocaleString()}원` : '0원')}
+              </span>
+            </>
+          )}
         </div>
 
         {/* 중앙: 재생 플레이어 UI (정확히 중앙 정렬, 복원된 w-11 h-11 크기) */}

@@ -773,7 +773,19 @@ export default function AlternativeRoutePanel({
       {loading ? (
         <div className="animate-pulse flex flex-col gap-3 mt-2">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-[60px] bg-zinc-100 rounded-xl w-full border border-zinc-50"></div>
+            <div key={i} className="p-3.5 bg-white rounded-xl border border-zinc-150 shadow-2xs w-full flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-zinc-100 shrink-0" />
+                  <div className="flex flex-col gap-1.5">
+                    <div className="h-4 bg-zinc-200 rounded-md w-20" />
+                    <div className="h-3 bg-zinc-150 rounded-md w-14" />
+                  </div>
+                </div>
+                <div className="w-5 h-5 rounded-full bg-zinc-100 shrink-0" />
+              </div>
+              <div className="h-2.5 bg-zinc-100 rounded-full w-full mt-1" />
+            </div>
           ))}
         </div>
       ) : displayedRoutes.length === 0 ? (

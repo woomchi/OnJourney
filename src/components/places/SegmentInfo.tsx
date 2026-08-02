@@ -15,12 +15,16 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 // 1. 구간 이동 정보 뼈대 로딩 UI
 export function SegmentInfoSkeleton() {
   return (
-    <div className="w-full px-4 py-4 bg-white rounded-xl border border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] animate-pulse">
-      <div className="flex items-center justify-between mb-4">
-        <div className="h-5 bg-zinc-200 rounded w-24 animate-pulse"></div>
-        <div className="h-4 bg-zinc-200 rounded w-16 animate-pulse"></div>
+    <div className="w-full px-4 py-3.5 bg-white/95 rounded-2xl border border-zinc-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] animate-pulse flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-zinc-200" />
+          <div className="h-4 bg-zinc-200 rounded-md w-20" />
+          <div className="h-3.5 bg-zinc-150 rounded-md w-12" />
+        </div>
+        <div className="h-4 bg-zinc-200 rounded-md w-14" />
       </div>
-      <div className="h-3 bg-zinc-200 rounded-full w-full animate-pulse"></div>
+      <div className="h-2.5 bg-zinc-150 rounded-full w-full" />
     </div>
   );
 }

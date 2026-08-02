@@ -24,6 +24,8 @@ export function MapFloatingControls({
   const { gpsMode, isLocating } = useMapUIStore();
   const {
     activeJourney,
+    focusedSegment,
+    alternativeSegment,
     setFocusedSegment,
     setFocusedStep,
     setAlternativeSegment,
@@ -47,9 +49,10 @@ export function MapFloatingControls({
     }
 
     const findTarget = () => {
-      const target = 
-        document.getElementById('mobile-map-buttons-target') || 
-        document.getElementById('mobile-map-buttons-target-route');
+      const isRouteActive = !!focusedSegment || !!alternativeSegment;
+      const target = isRouteActive
+        ? (document.getElementById('mobile-map-buttons-target-route') || document.getElementById('mobile-map-buttons-target'))
+        : (document.getElementById('mobile-map-buttons-target') || document.getElementById('mobile-map-buttons-target-route'));
       setPortalTarget(target);
     };
 
@@ -59,7 +62,7 @@ export function MapFloatingControls({
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => observer.disconnect();
-  }, [mounted, isMobile]);
+  }, [mounted, isMobile, focusedSegment, alternativeSegment]);
 
   // Handle clicking "전체 여정 보기" (View full journey)
   const handleFullJourneyClick = () => {

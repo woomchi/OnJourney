@@ -165,6 +165,11 @@ export function useMapCamera({
 
     // 만약 이미 전체 화면 상태라면, 패딩 재적용 및 수동 핏팅 수행 (사용자 조작 복구용)
     if (!focusBounds) {
+      // 만약 상세(포커스) 상태에서 방금 해제된 경우라면, effect #3의 지연 처리가 동작하므로 중복 실행하지 않고 리턴합니다.
+      if (lastFocusStateRef.current) {
+        return;
+      }
+
       if (!map || places.length === 0) return;
       const padding = currentMapPaddingRef.current;
       map.setOptions({ padding });
@@ -276,6 +281,11 @@ export function useMapCamera({
     if (isInitialFitRef.current) {
       isInitialFitRef.current = false;
       setTimeout(doFit, 100);
+    } else if (wasFocused) {
+      // 상세(포커스) 상태에서 전체 여정 상태로 전환될 때는
+      // 바텀시트 퇴장 및 패딩 업데이트가 완료된 후(지도가 늘어난 후)에 fitBounds를 수행하도록 지연을 줍니다.
+      // 이렇게 함으로써 레이아웃 갱신 타이밍 차이로 인한 깜빡임 및 지도 찌그러짐 현상을 방지합니다.
+      setTimeout(doFit, 150);
     } else {
       doFit();
     }

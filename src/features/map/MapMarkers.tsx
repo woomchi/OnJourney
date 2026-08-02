@@ -75,13 +75,12 @@ export const MapMarkers = memo(function MapMarkers({
             anchorY={1}
           >
             <motion.div
-              initial={{ scale: 0, opacity: 0, y: -20 }}
+              initial={false}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               transition={{
                 type: 'spring',
                 stiffness: 400,
                 damping: 24,
-                delay: delayMs,
               }}
               whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 0.95 }}

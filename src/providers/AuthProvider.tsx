@@ -28,6 +28,9 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  signInWithNaver: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -152,6 +155,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [supabase]);
 
+  const resetPasswordForEmail = useCallback(
+    async (email: string) => {
+      const normalizedEmail = normalizeEmail(email);
+      const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo,
+      });
+
+      if (error) {
+        throw new Error(getAuthErrorMessage('reset_request', error));
+      }
+    },
+    [supabase],
+  );
+
+  const updatePassword = useCallback(
+    async (password: string) => {
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        throw new Error(passwordError);
+      }
+
+      const { error } = await supabase.auth.updateUser({ password });
+
+      if (error) {
+        throw new Error(getAuthErrorMessage('reset_password', error));
+      }
+    },
+    [supabase],
+  );
+
+  const signInWithNaver = useCallback(async () => {
+    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
+    if (!clientId) {
+      throw new Error('네이버 Client ID 설정(NEXT_PUBLIC_NAVER_CLIENT_ID)을 확인해주세요.');
+    }
+
+    const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/naver/callback`);
+    const state = Math.random().toString(36).substring(2, 15);
+    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}`;
+
+    window.location.href = naverAuthUrl;
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -162,8 +210,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      resetPasswordForEmail,
+      updatePassword,
+      signInWithNaver,
     }),
-    [user, loading, isAuthModalOpen, openAuthModal, closeAuthModal, signIn, signUp, signOut],
+    [
+      user,
+      loading,
+      isAuthModalOpen,
+      openAuthModal,
+      closeAuthModal,
+      signIn,
+      signUp,
+      signOut,
+      resetPasswordForEmail,
+      updatePassword,
+      signInWithNaver,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

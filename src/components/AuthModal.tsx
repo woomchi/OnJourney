@@ -16,10 +16,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 
-type AuthMode = 'login' | 'signup';
+type AuthMode = 'login' | 'signup' | 'reset_request';
 
 export default function AuthModal() {
-  const { isAuthModalOpen, closeAuthModal, signIn, signUp } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, signIn, signUp, resetPasswordForEmail, signInWithNaver } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,6 +52,18 @@ export default function AuthModal() {
     lockoutUntilRef.current = 0;
   };
 
+  const handleNaverSignIn = async () => {
+    setError('');
+    setInfo('');
+    setIsSubmitting(true);
+    try {
+      await signInWithNaver();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '네이버 로그인에 실패했습니다.');
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -71,7 +83,9 @@ export default function AuthModal() {
       if (mode === 'login') {
         await signIn(email, password);
         resetRateLimit();
-      } else {
+        setEmail('');
+        setPassword('');
+      } else if (mode === 'signup') {
         const result = await signUp(email, password);
         resetRateLimit();
 
@@ -80,15 +94,14 @@ export default function AuthModal() {
           setMode('login');
           setPassword('');
         }
-      }
-
-      if (mode === 'login') {
-        setEmail('');
-        setPassword('');
+      } else if (mode === 'reset_request') {
+        await resetPasswordForEmail(email);
+        resetRateLimit();
+        setInfo('입력하신 이메일로 비밀번호 재설정 링크를 발송했습니다. 메일함을 확인해주세요.');
       }
     } catch (err) {
       recordFailedAttempt();
-      setError(err instanceof Error ? err.message : '인증에 실패했습니다.');
+      setError(err instanceof Error ? err.message : '요청에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -97,11 +110,12 @@ export default function AuthModal() {
   const handleClose = () => {
     setError('');
     setInfo('');
+    setMode('login');
     closeAuthModal();
   };
 
-  const toggleMode = () => {
-    setMode((prev) => (prev === 'login' ? 'signup' : 'login'));
+  const switchMode = (newMode: AuthMode) => {
+    setMode(newMode);
     setError('');
     setInfo('');
   };
@@ -110,13 +124,42 @@ export default function AuthModal() {
     <Dialog open={isAuthModalOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="p-8">
         <DialogHeader>
-          <DialogTitle>{mode === 'login' ? '로그인' : '회원가입'}</DialogTitle>
+          <DialogTitle>
+            {mode === 'login' ? '로그인' : mode === 'signup' ? '회원가입' : '비밀번호 재설정'}
+          </DialogTitle>
           <DialogDescription>
-            여정을 저장하려면 계정이 필요합니다.
+            {mode === 'reset_request'
+              ? '가입하신 이메일 주소를 입력해주시면 재설정 링크를 보내드립니다.'
+              : '여정을 저장하려면 계정이 필요합니다.'}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-4">
+        {mode !== 'reset_request' && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleNaverSignIn}
+              disabled={isSubmitting}
+              className="w-full py-3.5 px-4 rounded-2xl bg-[#03C75A] text-white font-bold text-[15px] flex items-center justify-center gap-2.5 hover:bg-[#02b351] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+            >
+              <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                <path d="M16.273 12.845L7.376 0H0v24h7.726v-12.845L16.624 24H24V0h-7.727v12.845z" />
+              </svg>
+              <span>네이버로 시작하기</span>
+            </button>
+
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-3 text-zinc-400 font-semibold">또는 이메일로 로그인</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className={mode === 'reset_request' ? 'mt-4' : ''}>
           <label className="block mb-4">
             <span className="text-sm font-bold text-zinc-700 mb-2 block">이메일</span>
             <input
@@ -131,25 +174,40 @@ export default function AuthModal() {
             />
           </label>
 
-          <label className="block mb-2">
-            <span className="text-sm font-bold text-zinc-700 mb-2 block">비밀번호</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={`${MIN_PASSWORD_LENGTH}자 이상, 영문+숫자 포함`}
-              required
-              minLength={MIN_PASSWORD_LENGTH}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] text-zinc-900"
-            />
-          </label>
-          <p className="text-xs text-zinc-400 mb-6">
-            {MIN_PASSWORD_LENGTH}자 이상, 영문자와 숫자를 포함해주세요.
-          </p>
+          {mode !== 'reset_request' && (
+            <>
+              <div className="mb-2">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-zinc-700">비밀번호</span>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('reset_request')}
+                      className="text-xs font-semibold text-zinc-500 hover:text-blue-600 cursor-pointer"
+                    >
+                      비밀번호를 잊으셨나요?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={`${MIN_PASSWORD_LENGTH}자 이상, 영문+숫자 포함`}
+                  required
+                  minLength={MIN_PASSWORD_LENGTH}
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] text-zinc-900"
+                />
+              </div>
+              <p className="text-xs text-zinc-400 mb-6">
+                {MIN_PASSWORD_LENGTH}자 이상, 영문자와 숫자를 포함해주세요.
+              </p>
+            </>
+          )}
 
           {info && (
-            <p className="text-sm text-blue-600 mb-4" role="status">
+            <p className="text-sm text-blue-600 mb-4 bg-blue-50 p-3 rounded-xl border border-blue-100" role="status">
               {info}
             </p>
           )}
@@ -174,21 +232,54 @@ export default function AuthModal() {
               disabled={isSubmitting}
               className="flex-1 py-3.5 rounded-2xl bg-zinc-900 text-white font-bold text-[15px] hover:bg-zinc-800 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              {isSubmitting ? '로그인 중...' : mode === 'login' ? '로그인' : '가입하기'}
+              {isSubmitting
+                ? '처리 중...'
+                : mode === 'login'
+                ? '로그인'
+                : mode === 'signup'
+                ? '가입하기'
+                : '재설정 링크 발송'}
             </button>
           </div>
 
-          <p className="text-center text-sm text-zinc-500">
-            {mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
-            {' '}
-            <button
-              type="button"
-              onClick={toggleMode}
-              className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-            >
-              {mode === 'login' ? '회원가입' : '로그인'}
-            </button>
-          </p>
+          <div className="text-center text-sm text-zinc-500">
+            {mode === 'login' && (
+              <p>
+                계정이 없으신가요?{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode('signup')}
+                  className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                >
+                  회원가입
+                </button>
+              </p>
+            )}
+            {mode === 'signup' && (
+              <p>
+                이미 계정이 있으신가요?{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                >
+                  로그인
+                </button>
+              </p>
+            )}
+            {mode === 'reset_request' && (
+              <p>
+                생각나셨나요?{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                >
+                  로그인으로 돌아가기
+                </button>
+              </p>
+            )}
+          </div>
         </form>
       </DialogContent>
     </Dialog>

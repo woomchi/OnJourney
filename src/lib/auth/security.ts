@@ -40,7 +40,7 @@ interface AuthErrorLike {
 }
 
 export function getAuthErrorMessage(
-  mode: 'login' | 'signup',
+  mode: 'login' | 'signup' | 'reset_request' | 'reset_password',
   error: AuthErrorLike,
 ): string {
   const msg = error.message.toLowerCase();
@@ -56,6 +56,20 @@ export function getAuthErrorMessage(
 
   if (mode === 'login') {
     return '이메일 또는 비밀번호가 올바르지 않습니다.';
+  }
+
+  if (mode === 'reset_request') {
+    return '비밀번호 재설정 이메일 발송에 실패했습니다. 다시 시도해주세요.';
+  }
+
+  if (mode === 'reset_password') {
+    if (msg.includes('same password') || msg.includes('should be different')) {
+      return '새 비밀번호는 기존 비밀번호와 달라야 합니다.';
+    }
+    if (msg.includes('password')) {
+      return '비밀번호 형식을 확인해주세요.';
+    }
+    return '비밀번호 변경에 실패했습니다. 다시 시도해주세요.';
   }
 
   if (msg.includes('password')) {

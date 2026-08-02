@@ -100,25 +100,9 @@ function loadGeoJsonData() {
 
 /**
  * Checks if a given coordinate (lng, lat) is inside a non-walkable area (forest, water, cliff, etc.)
+ * [임시 비활성화] 속도 및 안정성을 위해 항상 false 반환
  */
 export function isNonWalkableArea(lng: number, lat: number): boolean {
-  if (!isLoaded) {
-    loadGeoJsonData();
-  }
-
-  const pt = point([lng, lat]);
-
-  for (const feature of walkableFeatures) {
-    if (!feature.bbox) continue;
-    const [minLng, minLat, maxLng, maxLat] = feature.bbox;
-    // Bbox quick check
-    if (lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat) {
-      // Precise Turf check
-      if (booleanPointInPolygon(pt, feature as any)) {
-        return true;
-      }
-    }
-  }
-
   return false;
 }
+

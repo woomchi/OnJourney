@@ -12,7 +12,7 @@ import { useAuth } from '@/providers/AuthProvider';
 type AuthMode = 'login' | 'signup';
 
 export default function LandingPage() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithNaver } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +22,23 @@ export default function LandingPage() {
 
   const failedAttemptsRef = useRef(0);
   const lockoutUntilRef = useRef(0);
+
+  const handleNaverSignIn = async () => {
+    const clientId = process.env.NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID;
+    if (!clientId) {
+      alert('[오류] .env.local에 NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID 가 등록되어 있지 않습니다.');
+    }
+
+    setError('');
+    setInfo('');
+    setIsSubmitting(true);
+    try {
+      await signInWithNaver();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '네이버 로그인에 실패했습니다.');
+      setIsSubmitting(false);
+    }
+  };
 
   const checkRateLimit = (): boolean => {
     const now = Date.now();
@@ -162,6 +179,27 @@ export default function LandingPage() {
                 {isSubmitting ? '처리 중...' : mode === 'login' ? '로그인' : '가입하기'}
               </button>
             </form>
+
+            <div className="relative my-5 md:my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-3 text-zinc-400 font-semibold">또는 네이버로 로그인</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleNaverSignIn}
+              disabled={isSubmitting}
+              className="w-full py-3 md:py-3.5 rounded-lg md:rounded-xl bg-[#03C75A] text-white font-bold text-sm md:text-base flex items-center justify-center gap-2.5 hover:bg-[#02b351] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+            >
+              <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                <path d="M16.273 12.845L7.376 0H0v24h7.726v-12.845L16.624 24H24V0h-7.727v12.845z" />
+              </svg>
+              <span>네이버로 시작하기</span>
+            </button>
 
             <div className="mt-6 md:mt-8 text-center">
               <p className="text-xs md:text-sm text-zinc-500">

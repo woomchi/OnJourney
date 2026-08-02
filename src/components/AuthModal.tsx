@@ -140,32 +140,7 @@ export default function AuthModal() {
           </DialogDescription>
         </DialogHeader>
 
-        {mode !== 'reset_request' && (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleNaverSignIn}
-              disabled={isSubmitting}
-              className="w-full py-3.5 px-4 rounded-2xl bg-[#03C75A] text-white font-bold text-[15px] flex items-center justify-center gap-2.5 hover:bg-[#02b351] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
-            >
-              <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
-                <path d="M16.273 12.845L7.376 0H0v24h7.726v-12.845L16.624 24H24V0h-7.727v12.845z" />
-              </svg>
-              <span>네이버로 시작하기</span>
-            </button>
-
-            <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-200" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-3 text-zinc-400 font-semibold">또는 이메일로 로그인</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className={mode === 'reset_request' ? 'mt-4' : ''}>
+        <form onSubmit={handleSubmit} className="mt-4">
           <label className="block mb-4">
             <span className="text-sm font-bold text-zinc-700 mb-2 block">이메일</span>
             <input
@@ -247,46 +222,71 @@ export default function AuthModal() {
                     : '재설정 링크 발송'}
             </button>
           </div>
-
-          <div className="text-center text-sm text-zinc-500">
-            {mode === 'login' && (
-              <p>
-                계정이 없으신가요?{' '}
-                <button
-                  type="button"
-                  onClick={() => switchMode('signup')}
-                  className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                >
-                  회원가입
-                </button>
-              </p>
-            )}
-            {mode === 'signup' && (
-              <p>
-                이미 계정이 있으신가요?{' '}
-                <button
-                  type="button"
-                  onClick={() => switchMode('login')}
-                  className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                >
-                  로그인
-                </button>
-              </p>
-            )}
-            {mode === 'reset_request' && (
-              <p>
-                생각나셨나요?{' '}
-                <button
-                  type="button"
-                  onClick={() => switchMode('login')}
-                  className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                >
-                  로그인으로 돌아가기
-                </button>
-              </p>
-            )}
-          </div>
         </form>
+
+        {mode !== 'reset_request' && (
+          <div className="mb-6">
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-3 text-zinc-400 font-semibold">또는 네이버로 로그인</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleNaverSignIn}
+              disabled={isSubmitting}
+              className="w-full py-3.5 px-4 rounded-2xl bg-[#03C75A] text-white font-bold text-[15px] flex items-center justify-center gap-2.5 hover:bg-[#02b351] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+            >
+              <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                <path d="M16.273 12.845L7.376 0H0v24h7.726v-12.845L16.624 24H24V0h-7.727v12.845z" />
+              </svg>
+              <span>네이버로 시작하기</span>
+            </button>
+          </div>
+        )}
+
+        <div className="text-center text-sm text-zinc-500">
+          {mode === 'login' && (
+            <p>
+              계정이 없으신가요?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('signup')}
+                className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+              >
+                회원가입
+              </button>
+            </p>
+          )}
+          {mode === 'signup' && (
+            <p>
+              이미 계정이 있으신가요?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+              >
+                로그인
+              </button>
+            </p>
+          )}
+          {mode === 'reset_request' && (
+            <p>
+              생각나셨나요?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className="font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+              >
+                로그인으로 돌아가기
+              </button>
+            </p>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -23,6 +23,7 @@ import { useGPSTracking } from './hooks/useGPSTracking';
 import { useGeocodeOnIdle } from './hooks/useGeocodeOnIdle';
 import { useMapPadding } from './hooks/useMapPadding';
 import { MapOverlays } from './MapOverlays';
+import { MapFloatingControls } from './MapFloatingControls';
 
 import type { Place, PlaceResult } from '@/types/journey';
 
@@ -200,7 +201,7 @@ export default function MapArea() {
   }, []);
 
   // Use extracted hooks
-  useGPSTracking({ map });
+  const { handleMyLocationClick } = useGPSTracking({ map });
   useGeocodeOnIdle({ map });
   const { currentMapPadding, windowWidth, windowHeight } = useMapPadding(isMobile);
 
@@ -560,6 +561,11 @@ export default function MapArea() {
       <MapOverlays
         handleAddRecommendedPlace={handleAddRecommendedPlace}
         handleRemoveRecommendedPlace={handleRemoveRecommendedPlace}
+      />
+
+      <MapFloatingControls
+        handleMyLocationClick={handleMyLocationClick}
+        handleResetBounds={handleResetBounds}
       />
     </div>
   );

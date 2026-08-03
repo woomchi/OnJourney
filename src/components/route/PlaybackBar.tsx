@@ -15,6 +15,7 @@ interface PlaybackBarProps {
   handleStepClick: (idx: number, step: any, subType?: 'start' | 'end' | 'dest') => void;
   onPrevSegment?: (jumpToDest?: boolean) => void;
   onNextSegment?: (jumpToStart?: boolean) => void;
+  currentCardIndex?: number;
 }
 
 export default function PlaybackBar({
@@ -27,6 +28,7 @@ export default function PlaybackBar({
   handleStepClick,
   onPrevSegment,
   onNextSegment,
+  currentCardIndex = 0,
 }: PlaybackBarProps) {
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
 
@@ -57,7 +59,9 @@ export default function PlaybackBar({
       setFocusBounds(bounds);
     } else {
       if (pages.length > 0) {
-        handleStepClick(pages[0].idx, pages[0].step, pages[0].subType);
+        const validIdx = currentCardIndex >= 0 && currentCardIndex < route.steps?.length ? currentCardIndex : 0;
+        const targetPage = pages.find(p => p.idx === validIdx && p.subType === 'start') || pages.find(p => p.idx === validIdx) || pages[0];
+        handleStepClick(targetPage.idx, targetPage.step, targetPage.subType || 'start');
       }
     }
   };

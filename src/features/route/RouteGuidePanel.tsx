@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
+import type { Place, SelectedRoute, DirectionResult, DirectionStep } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
+
 import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { motion, useTransform, AnimatePresence, useMotionValue } from 'framer-motion';
 import PlaybackBar from '@/components/route/PlaybackBar';
@@ -12,6 +13,12 @@ import CarGuideList from '@/components/route/CarGuideList';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 import { usePWA } from '@/components/PWAProvider';
+import RouteSegmentCardStack from '@/components/route/RouteSegmentCardStack';
+import RouteSegmentDetailSheet from '@/components/route/RouteSegmentDetailSheet';
+import { CustomOverlayView } from '@/components/map/CustomOverlayView';
+import { MapPin, ChevronLeft } from 'lucide-react';
+
+
 
 const FloatingButtonsContainer = () => {
   const bottomSheet = useOptionalBottomSheet();
@@ -20,9 +27,9 @@ const FloatingButtonsContainer = () => {
   const maxHeight = bottomSheet?.maxHeight ?? 800;
   const opacity = useTransform(y, [-maxHeight + 160, -maxHeight + 40], [1, 0]);
   const pointerEvents = useTransform(y, (latest: number) => latest < -maxHeight + 60 ? 'none' : 'auto');
-  
+
   return (
-    <motion.div 
+    <motion.div
       id="mobile-map-buttons-target-route"
       className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] *:pointer-events-auto"
       style={{ opacity, pointerEvents: pointerEvents as any }}
@@ -66,6 +73,7 @@ export default function RouteGuidePanel({
     () => typeof window !== 'undefined' ? window.innerHeight : 812
   );
   const [activeTooltip, setActiveTooltip] = useState<'origin' | 'dest' | null>(null);
+  const [selectedDetailStep, setSelectedDetailStep] = useState<DirectionStep | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -90,14 +98,30 @@ export default function RouteGuidePanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomSpacerRef = useRef<HTMLDivElement>(null);
   const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
+  const [unfocusedCardIndex, setUnfocusedCardIndex] = useState(0);
+
+  const isPanelFocused = !!(
+    focusedStep &&
+    focusedStep.originId === originPlace.id &&
+    focusedStep.destId === destPlace.id
+  );
+
+  const totalStepsCount = route.steps?.length || 0;
+  const isOriginHighlighted = isPanelFocused && (focusedStep.stepIndex === 0 || focusedStep.subType === 'start');
+  const isDestHighlighted = isPanelFocused && (
+    focusedStep.stepIndex === Math.max(0, totalStepsCount - 1) &&
+    (focusedStep.subType === 'dest' || focusedStep.subType === 'end')
+  );
+
+  const activeCardIndex = isPanelFocused ? focusedStep.stepIndex : unfocusedCardIndex;
 
   const [snap, setSnap] = useState<number | string | null>(370);
-  
+
   const parsedSnapForLog = parseSnapVal(snap);
   let currentSnapTypeForLog: 'min' | 'default' | 'max' = 'default';
   if (parsedSnapForLog === 200) currentSnapTypeForLog = 'min';
   else if (parsedSnapForLog === 1) currentSnapTypeForLog = 'max';
-  console.log('RouteGuidePanel render:', { snap, currentSnapType: currentSnapTypeForLog });
+  //console.log('RouteGuidePanel render:', { snap, currentSnapType: currentSnapTypeForLog });
 
   const collapse = () => {
     const parsedSnap = parseSnapVal(snap);
@@ -162,28 +186,28 @@ export default function RouteGuidePanel({
     }
 
     const elementId = `step-${originPlace.id}-${destPlace.id}-${focusedStep.stepIndex}`;
-    
+
     const timer = setTimeout(() => {
       const element = document.getElementById(elementId);
       const container = scrollContainerRef.current;
       if (element && container) {
         const containerRect = container.getBoundingClientRect();
         const elementRect = element.getBoundingClientRect();
-        
+
         // 동적 하단 여백 계산: (컨테이너 내부 실질적 높이) - 5px - (선택된 카드의 높이)
         const containerHeight = container.clientHeight;
         const cardHeight = element.clientHeight;
         const paddingNeeded = Math.max(112, containerHeight - 5 - cardHeight);
-        
+
         if (bottomSpacerRef.current) {
           bottomSpacerRef.current.style.height = `${paddingNeeded}px`;
         }
-        
+
         // 상단 스냅을 정렬하기 위해 offsetTop을 계산해 직접 scrollTo 처리합니다.
         // elementRect.top - containerRect.top은 컨테이너 내부 뷰포트 기준 상대 y좌표입니다.
         // 최상단 여백 5px을 만들기 위해 -5px 보정합니다.
         const targetScrollTop = container.scrollTop + (elementRect.top - containerRect.top) - 5;
-        
+
         container.scrollTo({
           top: Math.max(0, targetScrollTop),
           behavior: 'smooth'
@@ -366,8 +390,8 @@ export default function RouteGuidePanel({
   };
 
   const listContent = hasGuide ? (
-    <CarGuideList 
-      route={route} 
+    <CarGuideList
+      route={route}
       originPlace={originPlace}
       destPlace={destPlace}
       handleStepClick={handleStepClick}
@@ -389,32 +413,55 @@ export default function RouteGuidePanel({
     </div>
   );
 
+  const handleSelectOriginPoint = () => {
+    if (steps.length > 0) {
+      handleStepClick(0, steps[0], 'start');
+    }
+  };
+
+  const handleSelectDestPoint = () => {
+    if (steps.length > 0) {
+      const lastIdx = steps.length - 1;
+      const lastStep = steps[lastIdx];
+      const subType = (lastStep.type === 'car' || lastStep.type === 'taxi') ? 'dest' : 'end';
+      handleStepClick(lastIdx, lastStep, subType);
+    }
+  };
+
   const headerContent = (
     <div className="border-b border-zinc-100 flex-shrink-0 bg-white w-full">
-      {/* 첫 번째 행: 태그와 닫기 버튼을 우측 끝으로 밀어서 배치 */}
-      <div className="px-5 pt-3 pb-0.5 flex items-center justify-end gap-2">
+      {/* 첫 번째 행: 좌측 뒤로가기 버튼 & 우측 대중교통/승용차 태그 */}
+      <div className="px-5 pt-3 pb-0.5 flex items-center justify-between">
+        <button
+          onClick={onClose}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="w-8 h-8 rounded-full bg-white text-zinc-700 hover:text-zinc-950 flex items-center justify-center shadow-xs hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer"
+          aria-label="여정 상세로 돌아가기"
+          title="여정 상세로 돌아가기"
+        >
+          <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+        </button>
+
         <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full flex-shrink-0">
           {route.type === 'public' ? '대중교통' : '승용차'}
         </span>
-        <button 
-          onClick={onClose}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="p-1.5 -mr-1.5 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer flex-shrink-0"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </div>
 
-      {/* 두 번째 행: 출발지 → 도착지 */}
+      {/* 두 번째 행: 출발지 → 도착지 (클릭 시 상세 정보 말풍선 툴팁 표시) */}
       <div className="px-5 pb-3.5 pt-0.5">
-        <div className="flex items-center w-full min-w-0">
+        <div className="flex items-center w-full min-w-0 gap-2">
           {/* 출발지 */}
           <div className="flex-1 min-w-0 text-center relative tooltip-trigger">
-            <span 
-              onClick={() => setActiveTooltip(activeTooltip === 'origin' ? null : 'origin')}
-              className="block text-[15px] font-bold text-zinc-800 truncate cursor-pointer hover:text-blue-600 transition-colors select-none"
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTooltip(activeTooltip === 'origin' ? null : 'origin');
+              }}
+              className={`block px-3 py-1.5 rounded-xl text-[14px] truncate cursor-pointer transition-all duration-200 select-none ${
+                activeTooltip === 'origin'
+                  ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
+                  : 'bg-zinc-100/90 text-zinc-800 font-bold hover:bg-blue-50/60 hover:border-blue-200 hover:text-blue-600 border border-zinc-200/60'
+              }`}
               title={originPlace.place_name}
             >
               {originPlace.place_name}
@@ -449,7 +496,7 @@ export default function RouteGuidePanel({
           </div>
 
           {/* 화살표 */}
-          <div className="flex-shrink-0 px-3 flex justify-center items-center">
+          <div className="flex-shrink-0 px-1 flex justify-center items-center">
             <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>
@@ -457,9 +504,16 @@ export default function RouteGuidePanel({
 
           {/* 도착지 */}
           <div className="flex-1 min-w-0 text-center relative tooltip-trigger">
-            <span 
-              onClick={() => setActiveTooltip(activeTooltip === 'dest' ? null : 'dest')}
-              className="block text-[15px] font-bold text-zinc-800 truncate cursor-pointer hover:text-blue-600 transition-colors select-none"
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTooltip(activeTooltip === 'dest' ? null : 'dest');
+              }}
+              className={`block px-3 py-1.5 rounded-xl text-[14px] truncate cursor-pointer transition-all duration-200 select-none ${
+                activeTooltip === 'dest'
+                  ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
+                  : 'bg-zinc-100/90 text-zinc-800 font-bold hover:bg-blue-50/60 hover:border-blue-200 hover:text-blue-600 border border-zinc-200/60'
+              }`}
               title={destPlace.place_name}
             >
               {destPlace.place_name}
@@ -506,17 +560,17 @@ export default function RouteGuidePanel({
   );
 
   const playbackBar = (
-    <div 
-      style={{ 
+    <div
+      style={{
         zIndex: animate ? 105 : 40,
-        transition: animate 
+        transition: animate
           ? 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms ease-out'
           : 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms ease-out',
       }}
       className={`absolute z-[105] 
         bottom-4 left-4 right-4 
         md:bottom-10 md:left-8 md:right-auto md:w-[328px] 
-        ${animate 
+        ${animate
           ? 'translate-y-0 md:translate-x-0 opacity-100'
           : 'translate-y-[150%] md:-translate-x-[calc(100%+24px)] opacity-0'
         }
@@ -533,6 +587,7 @@ export default function RouteGuidePanel({
         handleStepClick={handleStepClick}
         onPrevSegment={onPrevSegment}
         onNextSegment={onNextSegment}
+        currentCardIndex={activeCardIndex}
       />
     </div>
   );
@@ -551,50 +606,196 @@ export default function RouteGuidePanel({
       ? `${snapPx - 110}px`
       : '100%';
 
+    if (!isOpen) return null;
+
+    const handleIndexChange = (newIndex: number) => {
+      if (!route.steps || !route.steps[newIndex]) return;
+      setUnfocusedCardIndex(newIndex);
+      if (isPanelFocused) {
+        const step = route.steps[newIndex];
+        setFocusedStep({
+          originId: originPlace.id,
+          destId: destPlace.id,
+          stepIndex: newIndex,
+          subType: 'start',
+        });
+        if (step.pathPoints && step.pathPoints.length > 0) {
+          const bounds = calculateStepBounds(step.pathPoints);
+          setFocusBounds(bounds);
+        }
+      }
+    };
+
+    const handleSelectStation = (station: { stationName: string; lat?: number; lng?: number }) => {
+      if (station.lat && station.lng) {
+        const bounds = calculateStepBounds([
+          { lat: station.lat - 0.002, lng: station.lng - 0.002 },
+          { lat: station.lat + 0.002, lng: station.lng + 0.002 },
+        ]);
+        if (bounds) setFocusBounds(bounds);
+      }
+    };
+
+
+
     return (
       <>
-        <CustomBottomSheet
-          isOpen={isOpen}
-          minHeight={190}
-          defaultHeight={370}
-          maxHeight={windowHeight - 16}
-          initialSnap={currentSnapType}
-          zIndex={45}
-          onSnap={(snapName) => {
-            if (snapName === 'min') setSnap(190);
-            else if (snapName === 'default') setSnap(370);
-            else if (snapName === 'max') setSnap(1);
-          }}
-          onClose={onClose}
-          onExited={onExited}
-          headerContent={headerContent}
-        >
-          <FloatingButtonsContainer />
-          <motion.div 
-            ref={scrollContainerRef}
-            variants={{
-              min: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.2, ease: 'easeOut' } },
-              default: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
-              max: { opacity: 1, y: 0, pointerEvents: 'auto' as const, transition: { duration: 0.3, ease: 'easeOut' } },
-            }}
-            animate={currentSnapType}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative w-full px-5 pt-[9px] bg-white snap-y snap-mandatory scroll-pt-[5px] scroll-pb-4" 
-            style={{ maxHeight: contentMaxHeight }}
-            onPointerDown={handlePointerDown}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onWheel={handleWheel}
-          >
-            {listContent}
-            {/* 하단 재생바 등에 의해 가려지지 않도록 여백 배치 */}
-            <div ref={bottomSpacerRef} className="h-28 w-full flex-shrink-0 pointer-events-none" />
-          </motion.div>
-        </CustomBottomSheet>
+        {/* Full Bottom Screen Soft Slate Gradient (Reverted to Slate with increased translucency) */}
+        <div className="fixed inset-x-0 bottom-0 h-[55vh] z-[90] bg-gradient-to-t from-slate-950/70 via-slate-950/25 to-transparent pointer-events-none" />
+
+        {/* Mobile Map Floating Buttons Target (Positioned Floating ABOVE the Card Stack & Header Pill & PlaybackBar) */}
+        <div
+          id="mobile-map-buttons-target-route"
+          className="fixed bottom-[calc(30vh+138px)] right-4 flex flex-col gap-3 z-[2000] pointer-events-auto"
+        />
+
+        {/* Mobile Segment Card Stack Overlay (Lifted above PlaybackBar: bottom-[88px]) */}
+        <div className="fixed bottom-[88px] left-0 right-0 z-[100] pb-2 pt-2 pointer-events-none">
+          <div className="relative w-full max-w-[480px] mx-auto pointer-events-auto">
+            {/* Header Back Button & Center Summary Pill (#FFFFFF Pure White Background) */}
+            <div className="relative flex items-center justify-center px-4 pb-2">
+              {/* Back Button on Left */}
+              <button
+                onClick={onClose}
+                className="absolute left-4 w-8 h-8 rounded-full bg-[#FFFFFF] text-zinc-700 hover:text-zinc-950 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer z-10"
+                aria-label="여정 상세로 돌아가기"
+                title="여정 상세로 돌아가기"
+              >
+                <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+              </button>
+
+              {/* Center Origin -> Destination Pill UI with Tooltip Popups */}
+              <div className="bg-[#FFFFFF] text-zinc-900 p-1 rounded-2xl shadow-md text-xs font-extrabold flex items-center gap-1.5 border border-zinc-200/80">
+                {/* 출발 지점 칩 */}
+                <div className="relative tooltip-trigger">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTooltip(activeTooltip === 'origin' ? null : 'origin');
+                    }}
+                    className={`px-3 py-1 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 max-w-[120px] cursor-pointer select-none ${
+                      activeTooltip === 'origin'
+                        ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
+                        : 'bg-zinc-100/90 text-zinc-800 font-bold border border-zinc-200/50 hover:bg-blue-50/60 hover:border-blue-200'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-sm shrink-0 bg-emerald-500" />
+                    <span className="truncate" title={originPlace.place_name}>{originPlace.place_name}</span>
+                  </div>
+
+                  <AnimatePresence>
+                    {activeTooltip === 'origin' && (
+                      <>
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.15, ease: 'easeOut' }}
+                          className="absolute z-[1000] left-0 bottom-full mb-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
+                        >
+                          <p className="font-bold text-[13px] mb-1">{originPlace.place_name}</p>
+                          {originPlace.address && (
+                            <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{originPlace.address}</p>
+                          )}
+                        </motion.div>
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          transition={{ duration: 0.15, ease: 'easeOut' }}
+                          className="absolute z-[1001] left-1/3 bottom-full mb-[4px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-indigo-500 pointer-events-none"
+                        />
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <span className="text-blue-600 font-black text-xs px-0.5">→</span>
+
+                {/* 도착 지점 칩 */}
+                <div className="relative tooltip-trigger">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTooltip(activeTooltip === 'dest' ? null : 'dest');
+                    }}
+                    className={`px-3 py-1 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 max-w-[120px] cursor-pointer select-none ${
+                      activeTooltip === 'dest'
+                        ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
+                        : 'bg-zinc-100/90 text-zinc-800 font-bold border border-zinc-200/50 hover:bg-blue-50/60 hover:border-blue-200'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-sm shrink-0 bg-rose-500" />
+                    <span className="truncate" title={destPlace.place_name}>{destPlace.place_name}</span>
+                  </div>
+
+                  <AnimatePresence>
+                    {activeTooltip === 'dest' && (
+                      <>
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.15, ease: 'easeOut' }}
+                          className="absolute z-[1000] right-0 bottom-full mb-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
+                        >
+                          <p className="font-bold text-[13px] mb-1">{destPlace.place_name}</p>
+                          {destPlace.address && (
+                            <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{destPlace.address}</p>
+                          )}
+                        </motion.div>
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          transition={{ duration: 0.15, ease: 'easeOut' }}
+                          className="absolute z-[1001] right-1/3 bottom-full mb-[4px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-indigo-500 pointer-events-none"
+                        />
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+
+            {/* 3D Depth Card Stack */}
+            <RouteSegmentCardStack
+              steps={route.steps || []}
+              currentIndex={activeCardIndex}
+              onIndexChange={handleIndexChange}
+              onOpenDetailSheet={(step) => setSelectedDetailStep(step)}
+              focusedStep={focusedStep}
+              onSelectStartPoint={(cardIdx) => {
+                if (steps[cardIdx]) {
+                  handleStepClick(cardIdx, steps[cardIdx], 'start');
+                }
+              }}
+              onSelectEndPoint={(cardIdx) => {
+                if (steps[cardIdx]) {
+                  const targetStep = steps[cardIdx];
+                  const subType = (targetStep.type === 'car' || targetStep.type === 'taxi') ? 'dest' : 'end';
+                  handleStepClick(cardIdx, targetStep, subType);
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Station Detail Bottom Sheet */}
+        <RouteSegmentDetailSheet
+          step={selectedDetailStep}
+          isOpen={!!selectedDetailStep}
+          onClose={() => setSelectedDetailStep(null)}
+          onSelectStation={handleSelectStation}
+        />
+
         {playbackBar}
       </>
     );
+
   }
+
+
 
   return (
     <>
@@ -604,9 +805,9 @@ export default function RouteGuidePanel({
             onExited();
           }
         }}
-        style={{ 
+        style={{
           zIndex: animate ? 45 : 40,
-          transition: animate 
+          transition: animate
             ? 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms ease-out'
             : 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms ease-out',
         }}
@@ -614,7 +815,7 @@ export default function RouteGuidePanel({
           bottom-0 left-0 right-0 w-full rounded-t-[20px] rounded-b-none shadow-[0_-8px_30px_rgba(0,0,0,0.15)] pb-[80px] md:pb-[88px]
           md:top-6 md:bottom-6 md:left-4 md:right-auto md:w-[360px] md:rounded-3xl md:border md:border-zinc-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.12)]
           md:h-[calc(100%-48px)]
-          ${animate 
+          ${animate
             ? 'md:translate-x-0 md:translate-y-0 opacity-100'
             : 'md:translate-y-0 md:-translate-x-[calc(100%+24px)] opacity-0'
           }
@@ -622,7 +823,7 @@ export default function RouteGuidePanel({
       >
         <div className="flex flex-col h-full bg-white relative">
           {headerContent}
-          <div 
+          <div
             ref={scrollContainerRef}
             className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar px-5 pt-[9px] relative bg-white snap-y snap-mandatory scroll-pt-[5px] scroll-pb-4"
           >

@@ -5,6 +5,9 @@ import { createPortal } from 'react-dom';
 import { useMapUIStore } from '@/stores/map-store';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/routeUtils';
+import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { Locate, LocateFixed, Compass, Loader2, Route } from 'lucide-react';
 
 interface MapFloatingControlsProps {
@@ -35,6 +38,7 @@ export function MapFloatingControls({
 
   const places = activeJourney?.places ?? [];
   const hasPlaces = places.length > 0;
+  const directionsCache = useJourneyDirectionsCache(places);
 
   // Set mounted status on client-side
   useEffect(() => {
@@ -64,15 +68,9 @@ export function MapFloatingControls({
     return () => observer.disconnect();
   }, [mounted, isMobile, focusedSegment, alternativeSegment]);
 
-  // Handle clicking "전체 여정 보기" (View full journey)
+  // Handle clicking "전체 여정 보기 / 해당 구간 전체 경로 보기"
   const handleFullJourneyClick = () => {
-    // Clear active segment/step/alternative route highlights
-    setFocusedSegment(null);
-    setFocusedStep(null);
-    setAlternativeSegment(null);
-    setFocusBounds(null);
-    
-    // Zoom out map camera to encompass all places in the current journey
+    // Force camera refit (fits current segment bounds if in route guide mode, or full journey if in list view)
     handleResetBounds(true);
   };
 

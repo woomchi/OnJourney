@@ -136,7 +136,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
     if (isFlick) {
       return SPRING_SNAP_FAST;
     }
-    
+
     // 최소 높이(-minHeight)로 안착할 때는 바운스 현상 원천 차단을 위해 높은 감쇠(35)를 적용
     const isMovingToMin = targetY === -minHeight;
     return {
@@ -147,7 +147,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
 
   // activeSnapY가 변경될 때 모션 밸류 y를 직접 애니메이션 제어
   useEffect(() => {
-    console.log('CustomBottomSheet activeSnapY useEffect animate to:', activeSnapY);
+    //console.log('CustomBottomSheet activeSnapY useEffect animate to:', activeSnapY);
     const initialVelocity = dragVelocityRef.current;
     dragVelocityRef.current = 0; // 사용 후 리셋
 
@@ -166,7 +166,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   }, [activeSnapY, y, getSpringConfig]);
 
   useEffect(() => {
-    console.log('CustomBottomSheet initialSnap useEffect:', { initialSnap, isOpen });
+    //console.log('CustomBottomSheet initialSnap useEffect:', { initialSnap, isOpen });
     if (isOpen) {
       setActiveSnapY(getTargetY(initialSnap));
     } else {
@@ -179,7 +179,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
     if (typeof window === 'undefined' || !isOpen) return;
 
     const stateKey = `bottomsheet-${Date.now()}`;
-    
+
     if (!window.history.state?.bottomSheet) {
       window.history.pushState({ bottomSheet: stateKey }, '');
     }

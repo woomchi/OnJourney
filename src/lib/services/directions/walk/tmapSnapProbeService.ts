@@ -90,11 +90,11 @@ export async function probeTMapSnapPoint(
       const snapErrorKm = distance(reqPt, tmapPt, { units: 'kilometers' });
 
       if (snapErrorKm < SNAP_THRESHOLD_KM) {
-        console.log(`[probeTMapSnapPoint] Probing success at step ${i + 1}: snap error = ${Math.round(snapErrorKm * 1000)}m (< 50m)`);
+        // console.log(`[probeTMapSnapPoint] Probing success at step ${i + 1}: snap error = ${Math.round(snapErrorKm * 1000)}m (< 50m)`);
         return { tmapData, snappedLng: snapLng, snappedLat: snapLat };
       }
 
-      console.warn(`[probeTMapSnapPoint] Probing step ${i + 1} failed: snap error = ${Math.round(snapErrorKm * 1000)}m (>= 50m). Advancing 40m towards destination.`);
+      // console.warn(`[probeTMapSnapPoint] Probing step ${i + 1} failed: snap error = ${Math.round(snapErrorKm * 1000)}m (>= 50m). Advancing 40m towards destination.`);
 
       const advanced = destination(point([snapLng, snapLat]), ADVANCE_STEP_KM, bearDeg, { units: 'kilometers' });
       const [nextLng, nextLat] = advanced.geometry.coordinates;
@@ -104,11 +104,11 @@ export async function probeTMapSnapPoint(
       snapLat = nextLat;
 
       if (remainingDistKm <= ADVANCE_STEP_KM) {
-        console.warn('[probeTMapSnapPoint] Reached destination vicinity during probing.');
+        // console.warn('[probeTMapSnapPoint] Reached destination vicinity during probing.');
         break;
       }
     } catch (err) {
-      console.error(`[probeTMapSnapPoint] Error during probing step ${i + 1}:`, err);
+      // console.error(`[probeTMapSnapPoint] Error during probing step ${i + 1}:`, err);
       break;
     }
   }

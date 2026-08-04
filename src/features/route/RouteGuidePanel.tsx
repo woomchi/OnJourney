@@ -222,22 +222,104 @@ export default function RouteGuidePanel({
   const hasGuide = (route.guide || []).length > 0;
 
   const getPages = () => {
-    const arr: { idx: number, step: any, subType?: 'start' | 'end' | 'dest' }[] = [];
+    const rawPages: { idx: number, step: any, subType?: 'start' | 'end' | 'dest' }[] = [];
+
     steps.forEach((step, idx) => {
-      if (step.type === 'car' || step.type === 'taxi') {
-        arr.push({ idx, step, subType: 'start' });
-        arr.push({ idx, step, subType: 'dest' });
-      } else if (step.type === 'walk' || (!step.startName && !step.endName)) {
-        arr.push({ idx, step, subType: 'start' });
-        arr.push({ idx, step, subType: 'end' });
+      const isLastStep = idx === steps.length - 1;
+      const isTransitOrVehicle =
+        step.type === 'car' ||
+        step.type === 'taxi' ||
+        step.type === 'subway' ||
+        step.type === 'bus' ||
+        step.type === 'train' ||
+        step.type === 'expressbus' ||
+        (step.startName && step.endName);
+
+      if (isTransitOrVehicle) {
+        if (step.type === 'car' || step.type === 'taxi') {
+          rawPages.push({ idx, step, subType: 'start' });
+          rawPages.push({ idx, step, subType: 'dest' });
+        } else {
+          if (step.startName || step.startLat) rawPages.push({ idx, step, subType: 'start' });
+          if (step.endName || step.endLat) rawPages.push({ idx, step, subType: 'end' });
+        }
       } else {
-        if (step.startName) arr.push({ idx, step, subType: 'start' });
-        if (step.endName) arr.push({ idx, step, subType: 'end' });
+        rawPages.push({ idx, step, subType: 'start' });
+        if (isLastStep) {
+          rawPages.push({ idx, step, subType: 'end' });
+        }
       }
     });
 
-    return arr;
+    const getPagePoint = (p: { idx: number, step: any, subType?: 'start' | 'end' | 'dest' }) => {
+      let lat: number | undefined;
+      let lng: number | undefined;
+      if (p.subType === 'dest') {
+        lat = destPlace.lat;
+        lng = destPlace.lng;
+      } else if (p.subType === 'start') {
+        lat = p.idx === 0 ? originPlace.lat : p.step.startLat;
+        lng = p.idx === 0 ? originPlace.lng : p.step.startLng;
+      } else if (p.subType === 'end') {
+        lat = p.idx === steps.length - 1 ? destPlace.lat : p.step.endLat;
+        lng = p.idx === steps.length - 1 ? destPlace.lng : p.step.endLng;
+      }
+
+      if (lat === undefined || lng === undefined) {
+        if (p.step && p.step.pathPoints && p.step.pathPoints.length > 0) {
+          if (p.subType === 'end' || p.subType === 'dest') {
+            lat = p.step.pathPoints[p.step.pathPoints.length - 1].lat;
+            lng = p.step.pathPoints[p.step.pathPoints.length - 1].lng;
+          } else {
+            lat = p.step.pathPoints[0].lat;
+            lng = p.step.pathPoints[0].lng;
+          }
+        }
+      }
+      return { lat, lng };
+    };
+
+    const getDistanceMeters = (lat1?: number, lng1?: number, lat2?: number, lng2?: number) => {
+      if (lat1 === undefined || lng1 === undefined || lat2 === undefined || lng2 === undefined) return Infinity;
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    const filteredPages: typeof rawPages = [];
+    rawPages.forEach((page) => {
+      if (filteredPages.length === 0) {
+        filteredPages.push(page);
+        return;
+      }
+
+      const lastPage = filteredPages[filteredPages.length - 1];
+      const p1 = getPagePoint(lastPage);
+      const p2 = getPagePoint(page);
+      const dist = getDistanceMeters(p1.lat, p1.lng, p2.lat, p2.lng);
+
+      if (dist < 20) {
+        if ((lastPage.subType === 'end' || lastPage.subType === 'dest') && page.subType === 'start') {
+          return;
+        }
+        if (lastPage.subType === 'start' && page.subType === 'start') {
+          filteredPages[filteredPages.length - 1] = page;
+          return;
+        }
+      }
+
+      filteredPages.push(page);
+    });
+
+    return filteredPages;
   };
+
 
   // 스크롤 시 화면 중앙의 세부 이동 정보를 자동으로 감지해서 focusedStep을 변경하는 기능 비활성화
 
@@ -755,6 +837,8 @@ export default function RouteGuidePanel({
             <RouteSegmentCardStack
               steps={route.steps || []}
               currentIndex={activeCardIndex}
+              originPlace={originPlace}
+              destPlace={destPlace}
               onIndexChange={handleIndexChange}
               focusedStep={focusedStep}
               onSelectStartPoint={(cardIdx) => {

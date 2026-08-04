@@ -7,6 +7,8 @@ import RouteSegmentCard from './RouteSegmentCard';
 interface RouteSegmentCardStackProps {
   steps: DirectionStep[];
   currentIndex?: number;
+  originPlace?: { place_name: string };
+  destPlace?: { place_name: string };
   onIndexChange?: (index: number) => void;
   onOpenDetailSheet?: (step: DirectionStep) => void;
   className?: string;
@@ -18,6 +20,8 @@ interface RouteSegmentCardStackProps {
 export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
   steps = [],
   currentIndex: externalIndex,
+  originPlace,
+  destPlace,
   onIndexChange,
   onOpenDetailSheet,
   className = '',
@@ -190,6 +194,8 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
                   totalSteps={totalSteps}
                   prevStep={steps[idx - 1]}
                   nextStep={steps[idx + 1]}
+                  originPlace={originPlace}
+                  destPlace={destPlace}
                   isActive={isActive}
                   isStartHighlighted={isStartHighlighted}
                   isEndHighlighted={isEndHighlighted}

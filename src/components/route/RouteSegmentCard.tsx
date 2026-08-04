@@ -10,6 +10,8 @@ interface RouteSegmentCardProps {
   totalSteps: number;
   prevStep?: DirectionStep;
   nextStep?: DirectionStep;
+  originPlace?: { place_name: string };
+  destPlace?: { place_name: string };
   isActive?: boolean;
   isStartHighlighted?: boolean;
   isEndHighlighted?: boolean;
@@ -25,6 +27,8 @@ export const RouteSegmentCard: React.FC<RouteSegmentCardProps> = ({
   totalSteps,
   prevStep,
   nextStep,
+  originPlace,
+  destPlace,
   isActive = false,
   isStartHighlighted = false,
   isEndHighlighted = false,
@@ -36,11 +40,11 @@ export const RouteSegmentCard: React.FC<RouteSegmentCardProps> = ({
   // Contextual Place/Station Name Resolution
   const displayStartName =
     step.startName ||
-    (index === 0 ? '출발지' : (prevStep?.endName || prevStep?.name || '이전 지점'));
+    (index === 0 ? (originPlace?.place_name || '출발지') : (prevStep?.endName || prevStep?.name || '이전 지점'));
 
   const displayEndName =
     step.endName ||
-    (index === totalSteps - 1 ? '도착지' : (nextStep?.startName || nextStep?.name || '다음 지점'));
+    (index === totalSteps - 1 ? (destPlace?.place_name || '도착지') : (nextStep?.startName || nextStep?.name || '다음 지점'));
 
   // Transport Icon Mapping
   const getTransportIcon = () => {
@@ -142,66 +146,118 @@ export const RouteSegmentCard: React.FC<RouteSegmentCardProps> = ({
 
       {/* Middle Direction / Station Detail with Top-Labeled Chips & Pure Place Names */}
       <div className="my-2 py-2 px-2.5 rounded-xl bg-zinc-50/80 border border-zinc-100 flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1 flex items-center gap-2">
-          {/* Left Block (Start / Previous Alighting) */}
+        {step.type === 'walk' ? (
+          /* 도보 전용 단일 통합 이동 칩 UI (대중교통 카드와 상단 라벨 문구 및 배치 100% 동기화) */
           <div className="min-w-0 flex-1 flex flex-col">
-            <span className="text-[10px] font-extrabold text-zinc-400 mb-0.5 tracking-tight flex items-center gap-1">
-              <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${isStartHighlighted
+            {/* 상단 각각 출발지 / 도착지 라벨 영역 (대중교통과 동일한 레이아웃 및 문구) */}
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-extrabold text-zinc-400 tracking-tight flex items-center gap-1">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${isStartHighlighted
+                      ? 'bg-blue-600'
+                      : index === 0
+                        ? 'bg-emerald-500'
+                        : 'bg-indigo-500'
+                      }`}
+                  />
+                  {index === 0 ? '출발' : '이전 하차'}
+                </span>
+              </div>
+
+              <span className="text-transparent font-extrabold text-xs shrink-0 select-none">➔</span>
+
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-extrabold text-zinc-400 tracking-tight flex items-center gap-1">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${isEndHighlighted
+                      ? 'bg-blue-600'
+                      : index === totalSteps - 1
+                        ? 'bg-rose-500'
+                        : 'bg-amber-500'
+                      }`}
+                  />
+                  {index === totalSteps - 1 ? '최종 도착' : '도착'}
+                </span>
+              </div>
+            </div>
+
+            {/* 통합 칩 박스 (대중교통 칩과 동일한 py-1.5 크기) */}
+            <div
+              onClick={handleStartClick}
+              className={`w-full flex items-center justify-between text-xs font-extrabold px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer ${(isStartHighlighted || isEndHighlighted || isActive)
+                ? 'bg-blue-50 text-blue-600 border border-blue-200/90 shadow-xs ring-2 ring-blue-500/20'
+                : 'bg-white text-zinc-800 border border-zinc-200/70 hover:bg-blue-50/50 hover:border-blue-200 shadow-2xs'
+                }`}
+            >
+              <div className="flex-1 min-w-0 text-center">
+                <span className="truncate block" title={displayStartName}>{displayStartName}</span>
+              </div>
+              <span className="text-blue-500 font-black text-xs shrink-0 px-2">➔</span>
+              <div className="flex-1 min-w-0 text-center">
+                <span className="truncate block" title={displayEndName}>{displayEndName}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* 기존 대중교통/차량용 독립된 2개 칩 UI */
+          <div className="min-w-0 flex-1 flex items-center gap-2">
+            {/* Left Block (Start / Previous Alighting) */}
+            <div className="min-w-0 flex-1 flex flex-col">
+              <span className="text-[10px] font-extrabold text-zinc-400 mb-0.5 tracking-tight flex items-center gap-1">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${isStartHighlighted
                     ? 'bg-blue-600'
                     : index === 0
                       ? 'bg-emerald-500'
                       : 'bg-indigo-500'
-                  }`}
-              />
-              {index === 0 ? '출발지' : '이전 하차'}
-            </span>
-            <div
-              onClick={handleStartClick}
-              className={`flex items-center gap-1.5 text-xs font-extrabold px-2.5 py-1.5 rounded-lg transition-all duration-200 truncate cursor-pointer ${isStartHighlighted
+                    }`}
+                />
+                {index === 0 ? '출발지' : '이전 하차'}
+              </span>
+              <div
+                onClick={handleStartClick}
+                className={`flex items-center gap-1.5 text-xs font-extrabold px-2.5 py-1.5 rounded-lg transition-all duration-200 truncate cursor-pointer ${isStartHighlighted
                   ? 'bg-blue-50 text-blue-600 border border-blue-200/90 shadow-xs ring-2 ring-blue-500/20'
                   : 'bg-white text-zinc-800 border border-zinc-200/70 hover:bg-blue-50/50 hover:border-blue-200 shadow-2xs'
-                }`}
-              title={displayStartName}
-            >
-              <span className="truncate">{displayStartName}</span>
+                  }`}
+                title={displayStartName}
+              >
+                <span className="truncate">{displayStartName}</span>
+              </div>
             </div>
-          </div>
 
-          {/* Arrow Icon Separator */}
-          <span className="text-zinc-300 font-extrabold text-xs shrink-0 self-end mb-2">➔</span>
+            {/* Arrow Icon Separator */}
+            <span className="text-zinc-300 font-extrabold text-xs shrink-0 self-end mb-2">➔</span>
 
-          {/* Right Block (End / Boarding / Destination) */}
-          <div className="min-w-0 flex-1 flex flex-col">
-            <span className="text-[10px] font-extrabold text-zinc-400 mb-0.5 tracking-tight flex items-center gap-1">
-              <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${isEndHighlighted
+            {/* Right Block (End / Boarding / Destination) */}
+            <div className="min-w-0 flex-1 flex flex-col">
+              <span className="text-[10px] font-extrabold text-zinc-400 mb-0.5 tracking-tight flex items-center gap-1">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${isEndHighlighted
                     ? 'bg-blue-600'
                     : index === totalSteps - 1
                       ? 'bg-rose-500'
-                      : step.type === 'walk'
-                        ? 'bg-amber-500'
-                        : 'bg-blue-500'
-                  }`}
-              />
-              {index === totalSteps - 1
-                ? '최종 도착'
-                : step.type === 'walk'
-                  ? '도보 도착'
+                      : 'bg-blue-500'
+                    }`}
+                />
+                {index === totalSteps - 1
+                  ? '최종 도착'
                   : '승차'}
-            </span>
-            <div
-              onClick={handleEndClick}
-              className={`flex items-center gap-1.5 text-xs font-extrabold px-2.5 py-1.5 rounded-lg transition-all duration-200 truncate cursor-pointer ${isEndHighlighted
+              </span>
+              <div
+                onClick={handleEndClick}
+                className={`flex items-center gap-1.5 text-xs font-extrabold px-2.5 py-1.5 rounded-lg transition-all duration-200 truncate cursor-pointer ${isEndHighlighted
                   ? 'bg-blue-50 text-blue-600 border border-blue-200/90 shadow-xs ring-2 ring-blue-500/20'
                   : 'bg-white text-zinc-800 border border-zinc-200/70 hover:bg-blue-50/50 hover:border-blue-200 shadow-2xs'
-                }`}
-              title={displayEndName}
-            >
-              <span className="truncate">{displayEndName}</span>
+                  }`}
+                title={displayEndName}
+              >
+                <span className="truncate">{displayEndName}</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {step.headsign && (
           <div className="text-[11px] font-medium text-zinc-500 text-right shrink-0 pl-1">
@@ -210,6 +266,8 @@ export const RouteSegmentCard: React.FC<RouteSegmentCardProps> = ({
           </div>
         )}
       </div>
+
+
 
       {/* Bottom Footer / Action Helper */}
       <div className="flex items-center justify-between text-xs text-zinc-500 pt-0.5">

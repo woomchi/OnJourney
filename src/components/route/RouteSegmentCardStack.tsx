@@ -152,15 +152,15 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
     <div
       ref={containerRef}
       className={`
-        relative w-full min-h-[220px] max-h-[420px]
-        flex flex-col justify-between items-center px-0 py-1 select-none pointer-events-auto
+        relative w-full h-auto
+        flex flex-col justify-between items-center px-0 py-0 select-none pointer-events-auto
         md:max-w-[460px] md:mx-auto
         ${className}
       `}
     >
 
       {/* Main Container & Pure Hardware Snap Slider */}
-      <div className="relative w-full flex-1 flex items-center overflow-hidden">
+      <div className="relative w-full h-auto flex items-start overflow-hidden">
         {/* 100% Pure Hardware Snap Container (Fixed Scale Size for Zero Vibration & Smooth 120fps Snap) */}
         <div
           ref={scrollRef}
@@ -169,7 +169,7 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
           onTouchEnd={handleTouchEnd}
           onMouseDown={handleTouchStart}
           onMouseUp={handleTouchEnd}
-          className="w-full h-full flex items-center overflow-x-auto snap-x snap-mandatory scrollbar-none py-1 px-6"
+          className="w-full h-auto flex items-start overflow-x-auto snap-x snap-mandatory scrollbar-none py-0 px-6"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {steps.map((step, idx) => {

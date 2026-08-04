@@ -565,9 +565,9 @@ export default function RouteGuidePanel({
           ? 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms ease-out'
           : 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms ease-out',
       }}
-      className={`absolute z-[105] 
-        bottom-4 left-4 right-4 
-        md:bottom-10 md:left-8 md:right-auto md:w-[328px] 
+      className={`fixed md:absolute z-[105] 
+        bottom-[25px] left-3 right-3 max-w-[480px] mx-auto
+        md:bottom-10 md:left-8 md:right-auto md:w-[328px] md:max-w-none md:mx-0
         ${animate
           ? 'translate-y-0 md:translate-x-0 opacity-100'
           : 'translate-y-[150%] md:-translate-x-[calc(100%+24px)] opacity-0'
@@ -638,20 +638,17 @@ export default function RouteGuidePanel({
 
     return (
       <>
-        {/* Soft Bottom Gradient Shadow (Minimal & Non-intrusive) */}
-        <div className="fixed inset-x-0 bottom-0 h-[25vh] z-[90] bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
-
-        {/* Mobile Map Floating Buttons Target */}
+        {/* Mobile Map Floating Buttons Target (Positioned cleanly above Header UI boundary line) */}
         <div
           id="mobile-map-buttons-target-route"
-          className="fixed bottom-[calc(28vh+20px)] right-4 flex flex-col gap-3 z-[2000] pointer-events-auto"
+          className="fixed bottom-[328px] right-4 flex flex-col gap-2.5 z-[2000] pointer-events-auto"
         />
 
         {/* All-in-One Mobile Segment Card Stack Container */}
-        <div className="fixed bottom-4 left-0 right-0 z-[100] pointer-events-none px-0">
+        <div className="fixed bottom-[97px] left-0 right-0 z-[100] pointer-events-none px-0">
           <div className="relative w-full max-w-[480px] mx-auto pointer-events-auto">
             {/* Header Back Button & Center Summary Pill (#FFFFFF Pure White Background) */}
-            <div className="relative flex items-center justify-center px-4 pb-2">
+            <div className="relative flex items-center justify-center px-4 pb-0 mb-2">
               {/* Back Button on Left */}
               <button
                 onClick={onClose}
@@ -775,6 +772,9 @@ export default function RouteGuidePanel({
             />
           </div>
         </div>
+
+        {/* 재생 플로팅바 복구 (최하단 고정) */}
+        {playbackBar}
       </>
     );
   }

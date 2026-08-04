@@ -457,11 +457,10 @@ export default function RouteGuidePanel({
                 e.stopPropagation();
                 setActiveTooltip(activeTooltip === 'origin' ? null : 'origin');
               }}
-              className={`block px-3 py-1.5 rounded-xl text-[14px] truncate cursor-pointer transition-all duration-200 select-none ${
-                activeTooltip === 'origin'
+              className={`block px-3 py-1.5 rounded-xl text-[14px] truncate cursor-pointer transition-all duration-200 select-none ${activeTooltip === 'origin'
                   ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
                   : 'bg-zinc-100/90 text-zinc-800 font-bold hover:bg-blue-50/60 hover:border-blue-200 hover:text-blue-600 border border-zinc-200/60'
-              }`}
+                }`}
               title={originPlace.place_name}
             >
               {originPlace.place_name}
@@ -509,11 +508,10 @@ export default function RouteGuidePanel({
                 e.stopPropagation();
                 setActiveTooltip(activeTooltip === 'dest' ? null : 'dest');
               }}
-              className={`block px-3 py-1.5 rounded-xl text-[14px] truncate cursor-pointer transition-all duration-200 select-none ${
-                activeTooltip === 'dest'
+              className={`block px-3 py-1.5 rounded-xl text-[14px] truncate cursor-pointer transition-all duration-200 select-none ${activeTooltip === 'dest'
                   ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
                   : 'bg-zinc-100/90 text-zinc-800 font-bold hover:bg-blue-50/60 hover:border-blue-200 hover:text-blue-600 border border-zinc-200/60'
-              }`}
+                }`}
               title={destPlace.place_name}
             >
               {destPlace.place_name}
@@ -640,17 +638,17 @@ export default function RouteGuidePanel({
 
     return (
       <>
-        {/* Full Bottom Screen Soft Slate Gradient (Reverted to Slate with increased translucency) */}
-        <div className="fixed inset-x-0 bottom-0 h-[55vh] z-[90] bg-gradient-to-t from-slate-950/70 via-slate-950/25 to-transparent pointer-events-none" />
+        {/* Soft Bottom Gradient Shadow (Minimal & Non-intrusive) */}
+        <div className="fixed inset-x-0 bottom-0 h-[25vh] z-[90] bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
 
-        {/* Mobile Map Floating Buttons Target (Positioned Floating ABOVE the Card Stack & Header Pill & PlaybackBar) */}
+        {/* Mobile Map Floating Buttons Target */}
         <div
           id="mobile-map-buttons-target-route"
-          className="fixed bottom-[calc(30vh+138px)] right-4 flex flex-col gap-3 z-[2000] pointer-events-auto"
+          className="fixed bottom-[calc(28vh+20px)] right-4 flex flex-col gap-3 z-[2000] pointer-events-auto"
         />
 
-        {/* Mobile Segment Card Stack Overlay (Lifted above PlaybackBar: bottom-[88px]) */}
-        <div className="fixed bottom-[88px] left-0 right-0 z-[100] pb-2 pt-2 pointer-events-none">
+        {/* All-in-One Mobile Segment Card Stack Container */}
+        <div className="fixed bottom-4 left-0 right-0 z-[100] pointer-events-none px-0">
           <div className="relative w-full max-w-[480px] mx-auto pointer-events-auto">
             {/* Header Back Button & Center Summary Pill (#FFFFFF Pure White Background) */}
             <div className="relative flex items-center justify-center px-4 pb-2">
@@ -673,11 +671,10 @@ export default function RouteGuidePanel({
                       e.stopPropagation();
                       setActiveTooltip(activeTooltip === 'origin' ? null : 'origin');
                     }}
-                    className={`px-3 py-1 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 max-w-[120px] cursor-pointer select-none ${
-                      activeTooltip === 'origin'
+                    className={`px-3 py-1 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 max-w-[120px] cursor-pointer select-none ${activeTooltip === 'origin'
                         ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
                         : 'bg-zinc-100/90 text-zinc-800 font-bold border border-zinc-200/50 hover:bg-blue-50/60 hover:border-blue-200'
-                    }`}
+                      }`}
                   >
                     <span className="w-1.5 h-1.5 rounded-sm shrink-0 bg-emerald-500" />
                     <span className="truncate" title={originPlace.place_name}>{originPlace.place_name}</span>
@@ -719,11 +716,10 @@ export default function RouteGuidePanel({
                       e.stopPropagation();
                       setActiveTooltip(activeTooltip === 'dest' ? null : 'dest');
                     }}
-                    className={`px-3 py-1 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 max-w-[120px] cursor-pointer select-none ${
-                      activeTooltip === 'dest'
+                    className={`px-3 py-1 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 max-w-[120px] cursor-pointer select-none ${activeTooltip === 'dest'
                         ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
                         : 'bg-zinc-100/90 text-zinc-800 font-bold border border-zinc-200/50 hover:bg-blue-50/60 hover:border-blue-200'
-                    }`}
+                      }`}
                   >
                     <span className="w-1.5 h-1.5 rounded-sm shrink-0 bg-rose-500" />
                     <span className="truncate" title={destPlace.place_name}>{destPlace.place_name}</span>
@@ -758,12 +754,11 @@ export default function RouteGuidePanel({
               </div>
             </div>
 
-            {/* 3D Depth Card Stack */}
+            {/* All-in-One Integrated Card Stack */}
             <RouteSegmentCardStack
               steps={route.steps || []}
               currentIndex={activeCardIndex}
               onIndexChange={handleIndexChange}
-              onOpenDetailSheet={(step) => setSelectedDetailStep(step)}
               focusedStep={focusedStep}
               onSelectStartPoint={(cardIdx) => {
                 if (steps[cardIdx]) {
@@ -780,19 +775,8 @@ export default function RouteGuidePanel({
             />
           </div>
         </div>
-
-        {/* Station Detail Bottom Sheet */}
-        <RouteSegmentDetailSheet
-          step={selectedDetailStep}
-          isOpen={!!selectedDetailStep}
-          onClose={() => setSelectedDetailStep(null)}
-          onSelectStation={handleSelectStation}
-        />
-
-        {playbackBar}
       </>
     );
-
   }
 
 

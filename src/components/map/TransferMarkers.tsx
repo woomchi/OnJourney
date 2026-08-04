@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { useJourneyStore } from '@/stores/journey-store';
@@ -95,20 +95,22 @@ export default function TransferMarkers({
         }
       };
 
-      // 1. 출발지 전용 마커 추가 (무조건 추가)
-      points.push({
-        key: `start-${place.id}-${nextPlace.id}`,
-        originId: place.id,
-        destId: nextPlace.id,
-        position: { lat: place.lat, lng: place.lng },
-        busName: place.place_name,
-        type: 'start',
-        color: startColor,
-        stationName: '출발지',
-        isStart: true,
-        isSegmentStart: true,
-        stepIndex: -1,
-      });
+      // 1. 출발지 전용 마커 추가 (무조건 추가 - 유효한 좌표 확인)
+      if (place.lat !== undefined && place.lng !== undefined && !isNaN(place.lat) && !isNaN(place.lng)) {
+        points.push({
+          key: `start-${place.id}-${nextPlace.id}`,
+          originId: place.id,
+          destId: nextPlace.id,
+          position: { lat: Number(place.lat), lng: Number(place.lng) },
+          busName: place.place_name,
+          type: 'start',
+          color: startColor,
+          stationName: '출발지',
+          isStart: true,
+          isSegmentStart: true,
+          stepIndex: -1,
+        });
+      }
 
       // 모든 도보 스텝에 대해 도보 출발 마커 추가
       activeRoute.steps.forEach((step: any, sIdx: number) => {
@@ -296,6 +298,7 @@ export default function TransferMarkers({
         if (focusedStep.subType === 'end') {
           return pt.stepIndex === focusedStep.stepIndex && !!pt.isAlighting;
         }
+
         return pt.stepIndex === focusedStep.stepIndex;
       });
 
@@ -310,7 +313,7 @@ export default function TransferMarkers({
       }
     }
 
-    // 중복 마커 분리를 위한 오프셋(offsetX) 할당 로직
+    // 중복 마커 병합 및 그룹화 로직 (오프셋 대신 단일 알약으로 통합)
     const groups: { [key: string]: typeof filteredPoints } = {};
     filteredPoints.forEach((pt) => {
       const key = `${pt.position.lat.toFixed(5)},${pt.position.lng.toFixed(5)}`;
@@ -320,26 +323,40 @@ export default function TransferMarkers({
       groups[key].push(pt);
     });
 
+    const finalPoints: Array<any> = [];
+
     Object.values(groups).forEach((group) => {
-      if (group.length > 1) {
+      if (group.length === 1) {
+        const pt = group[0];
+        pt.offsetX = 0;
+        finalPoints.push(pt);
+      } else {
         group.sort((a, b) => {
           const scoreA = a.isSegmentStart ? 1 : (a.isSegmentDest ? 3 : 2);
           const scoreB = b.isSegmentStart ? 1 : (b.isSegmentDest ? 3 : 2);
           return scoreA - scoreB;
         });
 
-        const N = group.length;
-        const spacing = 80; // 좌우 마커 간의 중심 간격 (픽셀)
-        group.forEach((pt, i) => {
-          pt.offsetX = (i - (N - 1) / 2) * spacing;
+        const primaryPt = group[0];
+        const mergedKey = group.map((p) => p.key).join('--');
+
+        finalPoints.push({
+          ...primaryPt,
+          key: `merged-${mergedKey}`,
+          isMergedGroup: true,
+          subPoints: group,
+          offsetX: 0,
         });
       }
     });
 
-    return filteredPoints;
+    return finalPoints;
   }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps]);
 
-  const handleTransferMarkerClick = (pt: any) => {
+  const handleTransferMarkerClick = (targetPt: any) => {
+    const pt = targetPt.isMergedGroup
+      ? (targetPt.subPoints.find((p: any) => !p.isSegmentStart && !p.isSegmentDest) || targetPt.subPoints[0])
+      : targetPt;
     const originPlace = places.find(p => p.id === pt.originId);
     const destPlace = places.find(p => p.id === pt.destId);
     if (!originPlace || !destPlace) return;
@@ -390,47 +407,32 @@ export default function TransferMarkers({
   return (
     <>
       {transferPoints.map((pt: any) => {
-        const displayBusName = pt.isAlighting
-          ? pt.busName
-          : ((pt.isSegmentDest || pt.isSegmentStart) ? pt.busName : (pt.type === 'walk' ? '도보 이동' : pt.busName.replace(' 버스', '')));
-        const labelText = pt.isSegmentStart 
-          ? '출발' 
-          : (pt.isSegmentDest 
-              ? '도착' 
-              : (pt.isAlighting ? '하차' : (pt.type === 'walk' ? '도보' : (pt.isFirst ? '탑승' : '환승'))));
-        
-        const siteIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 11px; height: 11px; color: white;"><path d="M8 5v14l11-7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>`;
-        const iconEmoji = pt.isSegmentDest 
-          ? '🚩' 
-          : (pt.isSegmentStart ? siteIconSvg : (pt.type === 'walk' ? '🚶' : (pt.type === 'subway' ? '🚇' : (pt.type === 'train' ? '🚄' : '🚌'))));
-        
-        // 출발 마커가 항상 탑승 마커(최대 15000) 위에 나타나도록 zIndex를 23000으로 조정
-        const zIndex = pt.isSegmentStart ? 23000 : ((pt.isSegmentDest || pt.isAlighting) ? 22000 : (pt.type === 'walk' ? 12000 : (pt.isFirst ? 14000 : 15000)));
+        const isMergedGroup = !!pt.isMergedGroup;
+        const subPoints: any[] = isMergedGroup ? pt.subPoints : [pt];
+        const primaryColor = (subPoints.find((p: any) => p.isSegmentStart || p.isSegmentDest) || subPoints[0]).color;
 
-        const isThisStepFocused = (() => {
+        const checkIsStepFocused = (point: any) => {
           if (!focusedStep) return false;
-          if (focusedStep.originId !== pt.originId || focusedStep.destId !== pt.destId) return false;
+          if (focusedStep.originId !== point.originId || focusedStep.destId !== point.destId) return false;
 
-          // 도착 페이지 포커스 시
           if (focusedStep.subType === 'dest') {
-            return !!(pt.isSegmentDest || pt.stepIndex === focusedStep.stepIndex - 1);
+            return !!(point.isSegmentDest || point.stepIndex === focusedStep.stepIndex - 1);
           }
-
-          // 승차(탑승/환승) 페이지 포커스 시
           if (focusedStep.subType === 'start') {
-            return pt.stepIndex === focusedStep.stepIndex && !pt.isAlighting && !pt.isSegmentDest;
+            return point.stepIndex === focusedStep.stepIndex && !point.isAlighting && !point.isSegmentDest;
           }
-
-          // 하차 페이지 포커스 시
           if (focusedStep.subType === 'end') {
-            return pt.stepIndex === focusedStep.stepIndex && !!pt.isAlighting;
+            return point.stepIndex === focusedStep.stepIndex && !!point.isAlighting;
           }
 
-          // 도보 등 기타 페이지 포커스 시
-          return pt.stepIndex === focusedStep.stepIndex;
-        })();
+          return point.stepIndex === focusedStep.stepIndex;
+        };
 
-        const offsetX = pt.offsetX || 0;
+        const isThisStepFocused = subPoints.some(checkIsStepFocused);
+
+        const zIndex = isMergedGroup
+          ? Math.max(...subPoints.map((p: any) => p.isSegmentStart ? 23000 : ((p.isSegmentDest || p.isAlighting) ? 22000 : (p.type === 'walk' ? 12000 : (p.isFirst ? 14000 : 15000)))))
+          : (pt.isSegmentStart ? 23000 : ((pt.isSegmentDest || pt.isAlighting) ? 22000 : (pt.type === 'walk' ? 12000 : (pt.isFirst ? 14000 : 15000))));
 
         return (
           <CustomOverlayView
@@ -440,7 +442,7 @@ export default function TransferMarkers({
             onClick={() => handleTransferMarkerClick(pt)}
             anchorX={0.5}
             anchorY={1}
-            offsetX={offsetX}
+            offsetX={0}
             offsetY={-8}
           >
             <motion.div
@@ -451,68 +453,86 @@ export default function TransferMarkers({
                 y: 0,
               }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="relative flex items-center bg-white border-2 rounded-full px-2 py-1 shadow-md font-sans whitespace-nowrap cursor-pointer select-none"
+              className="relative flex items-center bg-white border-2 rounded-full px-2.5 py-1 shadow-md font-sans whitespace-nowrap cursor-pointer select-none gap-2"
               style={{
-                borderColor: pt.color,
+                borderColor: primaryColor,
                 boxShadow: isThisStepFocused
-                  ? `0 0 0 4px ${pt.color}40, 0 6px 20px ${pt.color}50`
+                  ? `0 0 0 4px ${primaryColor}40, 0 6px 20px ${primaryColor}50`
                   : '0 4px 14px rgba(0, 0, 0, 0.16)',
               }}
             >
-              {/* 아이콘 원형 */}
-              <div
-                className="flex items-center justify-center text-white rounded-full w-[18px] h-[18px] text-[10px] mr-1.5 shadow-inner shrink-0"
-                style={{ backgroundColor: pt.color }}
-              >
-                {pt.isSegmentDest ? (
-                  '🚩'
-                ) : pt.isSegmentStart ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="w-2.5 h-2.5 text-white"
-                  >
-                    <path
-                      d="M8 5v14l11-7z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                ) : pt.type === 'walk' ? (
-                  '🚶'
-                ) : pt.type === 'subway' ? (
-                  '🚇'
-                ) : pt.type === 'train' ? (
-                  '🚄'
-                ) : (
-                  '🚌'
-                )}
-              </div>
+              {subPoints.map((subPt: any, idx: number) => {
+                const displayBusName = subPt.isAlighting
+                  ? subPt.busName
+                  : ((subPt.isSegmentDest || subPt.isSegmentStart) ? subPt.busName : (subPt.type === 'walk' ? '도보 이동' : subPt.busName.replace(' 버스', '')));
+                const labelText = subPt.isSegmentStart 
+                  ? '출발' 
+                  : (subPt.isSegmentDest 
+                      ? '도착' 
+                      : (subPt.isAlighting ? '하차' : (subPt.type === 'walk' ? '도보' : (subPt.isFirst ? '탑승' : '환승'))));
 
-              {/* 정보 텍스트 */}
-              <div className="flex flex-col justify-center max-w-[130px]">
-                {pt.isSegmentStart || pt.isSegmentDest ? (
-                  <span className="text-[10.5px] font-black text-zinc-900 leading-tight">
-                    {labelText}
-                  </span>
-                ) : (
-                  <>
-                    <span className="text-[8px] color-zinc-500 font-bold uppercase tracking-wider leading-none">
-                      {labelText}
-                    </span>
-                    <span className="text-[10.5px] font-black text-zinc-900 leading-tight mt-0.5 truncate block">
-                      {displayBusName}
-                    </span>
-                  </>
-                )}
-              </div>
+                return (
+                  <Fragment key={subPt.key || idx}>
+                    {idx > 0 && <div className="w-[1px] h-3.5 bg-zinc-200 shrink-0 my-auto mx-0.5" />}
+                    <div className="flex items-center">
+                      {/* 아이콘 원형 */}
+                      <div
+                        className="flex items-center justify-center text-white rounded-full w-[18px] h-[18px] text-[10px] mr-1.5 shadow-inner shrink-0"
+                        style={{ backgroundColor: subPt.color }}
+                      >
+                        {subPt.isSegmentDest ? (
+                          '🚩'
+                        ) : subPt.isSegmentStart ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="w-2.5 h-2.5 text-white"
+                          >
+                            <path
+                              d="M8 5v14l11-7z"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        ) : subPt.type === 'walk' ? (
+                          '🚶'
+                        ) : subPt.type === 'subway' ? (
+                          '🚇'
+                        ) : subPt.type === 'train' ? (
+                          '🚄'
+                        ) : (
+                          '🚌'
+                        )}
+                      </div>
+
+                      {/* 정보 텍스트 */}
+                      <div className="flex flex-col justify-center max-w-[130px]">
+                        {subPt.isSegmentStart || subPt.isSegmentDest ? (
+                          <span className="text-[10.5px] font-black text-zinc-900 leading-tight">
+                            {labelText}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider leading-none">
+                              {labelText}
+                            </span>
+                            <span className="text-[10.5px] font-black text-zinc-900 leading-tight mt-0.5 truncate block">
+                              {displayBusName}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </Fragment>
+                );
+              })}
 
               {/* 아래쪽 꼭지점 화살표 */}
               <div
                 className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent"
-                style={{ borderTopColor: pt.color }}
+                style={{ borderTopColor: primaryColor }}
               />
             </motion.div>
           </CustomOverlayView>
@@ -521,3 +541,4 @@ export default function TransferMarkers({
     </>
   );
 }
+

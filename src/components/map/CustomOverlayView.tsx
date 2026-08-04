@@ -38,6 +38,9 @@ export function CustomOverlayView({
     el.style.position = 'absolute';
     el.style.zIndex = String(zIndex);
     el.style.pointerEvents = 'auto';
+    // 크기가 측정되어 위치가 계산될 때까지 순간적인 튀는 현상을 막기 위해 초기에는 숨김 처리
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.15s ease-out';
     setContainer(el);
 
     class ReactOverlayView extends navermaps.OverlayView {
@@ -47,6 +50,8 @@ export function CustomOverlayView({
       private ancY: number;
       private offX: number;
       private offY: number;
+      private resizeObserver: ResizeObserver | null = null;
+      private hasPositioned = false;
 
       constructor(
         element: HTMLDivElement,
@@ -68,6 +73,13 @@ export function CustomOverlayView({
       onAdd() {
         const overlayLayer = this.getPanes().overlayLayer;
         overlayLayer.appendChild(this.element);
+
+        if (typeof ResizeObserver !== 'undefined') {
+          this.resizeObserver = new ResizeObserver(() => {
+            this.draw();
+          });
+          this.resizeObserver.observe(this.element);
+        }
       }
 
       draw() {
@@ -88,9 +100,26 @@ export function CustomOverlayView({
 
         this.element.style.left = `${left}px`;
         this.element.style.top = `${top}px`;
+
+        // 요새 크기가 유효하거나 측정이 이루어졌을 때 화면에 노출
+        if (width > 0 || height > 0 || this.hasPositioned) {
+          this.hasPositioned = true;
+          this.element.style.opacity = '1';
+        } else {
+          // 크기가 아직 0인 경우 다음 프레임에 한번 더 체크
+          requestAnimationFrame(() => {
+            if (this.element && !this.hasPositioned) {
+              this.draw();
+            }
+          });
+        }
       }
 
       onRemove() {
+        if (this.resizeObserver) {
+          this.resizeObserver.disconnect();
+          this.resizeObserver = null;
+        }
         if (this.element && this.element.parentNode) {
           this.element.parentNode.removeChild(this.element);
         }

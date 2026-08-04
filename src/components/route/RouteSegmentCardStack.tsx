@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DirectionStep } from '@/types/journey';
 import RouteSegmentCard from './RouteSegmentCard';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface RouteSegmentCardStackProps {
   steps: DirectionStep[];
@@ -29,7 +28,7 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
   const [internalIndex, setInternalIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  
+
   // Flags for Pure DOM Direct Switch & Zero Vibration
   const isProgrammaticScroll = useRef(false);
   const isUserInteracting = useRef(false);
@@ -82,11 +81,10 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
     isUserInteracting.current = false;
   };
 
-  // Pure DOM Direct Switch Handler for BOTH Card & Node Progress Line (0ms Instant Sync!)
+  // Pure DOM Direct Switch Handler for Card Highlight
   const handleScroll = () => {
     if (isProgrammaticScroll.current) return;
     const container = scrollRef.current;
-    const parentContainer = containerRef.current;
     if (!container) return;
 
     // 1. Calculate Closest Card Index to Center 0ms
@@ -104,11 +102,10 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
       }
     });
 
-    // 2. Direct DOM Switching for Cards AND Top Timeline Nodes (0ms Instant Highlight!)
+    // 2. Direct DOM Switching for Cards (0ms Instant Highlight!)
     if (closestIndex !== activeDomIndexRef.current) {
       activeDomIndexRef.current = closestIndex;
 
-      // 2A. Card Highlight Direct DOM
       cardItems.forEach((card, idx) => {
         const innerCard = card.querySelector<HTMLElement>('.timeline-card-inner');
         if (!innerCard) return;
@@ -121,30 +118,6 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
           innerCard.classList.add('border-zinc-200/80', 'shadow-sm', 'opacity-80');
         }
       });
-
-      // 2B. Top Timeline Active Progress Line Direct DOM (0ms Instant Width Update!)
-      if (parentContainer) {
-        const progressLine = parentContainer.querySelector<HTMLElement>('.timeline-progress-active-line');
-        if (progressLine) {
-          progressLine.style.width = `${(closestIndex / Math.max(1, totalSteps - 1)) * 100}%`;
-        }
-
-        // 2C. Top Timeline Nodes Direct DOM (0ms Instant Active Node Switching!)
-        const timelineNodes = parentContainer.querySelectorAll<HTMLElement>('.timeline-node-item');
-        timelineNodes.forEach((node, idx) => {
-          const dotSpan = node.querySelector<HTMLElement>('.node-center-dot');
-          if (idx === closestIndex) {
-            node.className = 'timeline-node-item relative z-10 w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 bg-blue-600 dark:bg-blue-400 ring-4 ring-blue-500/20 scale-125';
-            if (dotSpan) dotSpan.style.display = 'block';
-          } else if (idx < closestIndex) {
-            node.className = 'timeline-node-item relative z-10 w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 bg-blue-600 dark:bg-blue-400 scale-100';
-            if (dotSpan) dotSpan.style.display = 'none';
-          } else {
-            node.className = 'timeline-node-item relative z-10 w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 bg-zinc-300 dark:bg-zinc-700 scale-100';
-            if (dotSpan) dotSpan.style.display = 'none';
-          }
-        });
-      }
     }
 
     // 3. Debounce Heavy Map Sync & React State Settle ONLY after scroll finishes (100ms)
@@ -179,88 +152,15 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
     <div
       ref={containerRef}
       className={`
-        relative w-full h-[30vh] min-h-[220px] max-h-[280px]
+        relative w-full min-h-[220px] max-h-[420px]
         flex flex-col justify-between items-center px-0 py-1 select-none pointer-events-auto
         md:max-w-[460px] md:mx-auto
         ${className}
       `}
     >
-      {/* Top Connected Timeline Progress Nodes Header */}
-      <div className="w-full px-6 mb-1.5 flex items-center justify-between z-30">
-        <div className="relative w-full flex items-center justify-between">
-          {/* Connecting Background Line */}
-          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-zinc-300 dark:bg-zinc-700 -translate-y-1/2 z-0" />
-          {/* Active Highlighted Progress Line */}
-          <div
-            className="timeline-progress-active-line absolute top-1/2 left-0 h-0.5 bg-blue-600 dark:bg-blue-400 -translate-y-1/2 z-0 transition-all duration-300"
-            style={{
-              width: `${(activeIndex / Math.max(1, totalSteps - 1)) * 100}%`,
-            }}
-          />
-
-          {/* Timeline Nodes */}
-          {steps.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSelectIndex(idx)}
-              className={`
-                timeline-node-item relative z-10 w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300
-                ${
-                  idx === activeIndex
-                    ? 'bg-blue-600 dark:bg-blue-400 ring-4 ring-blue-500/20 scale-125'
-                    : idx < activeIndex
-                    ? 'bg-blue-600 dark:bg-blue-400'
-                    : 'bg-zinc-300 dark:bg-zinc-700'
-                }
-              `}
-              aria-label={`구간 ${idx + 1}`}
-            >
-              <span
-                className="node-center-dot w-1.5 h-1.5 rounded-full bg-white"
-                style={{ display: idx === activeIndex ? 'block' : 'none' }}
-              />
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Main Container & Pure Hardware Snap Slider */}
       <div className="relative w-full flex-1 flex items-center overflow-hidden">
-        {/* Left / Right Vertical Center 100% Transparent Navigation Buttons */}
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-30 flex items-center justify-between pointer-events-none px-1">
-          <button
-            onClick={() => handleSelectIndex(activeIndex - 1)}
-            disabled={isFirst}
-            className={`
-              p-2 rounded-full bg-transparent transition-all pointer-events-auto
-              ${
-                isFirst
-                  ? 'opacity-0 cursor-not-allowed'
-                  : 'text-zinc-800 dark:text-white hover:scale-125 active:scale-95 drop-shadow-md'
-              }
-            `}
-            aria-label="이전 구간"
-          >
-            <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
-          </button>
-
-          <button
-            onClick={() => handleSelectIndex(activeIndex + 1)}
-            disabled={isLast}
-            className={`
-              p-2 rounded-full bg-transparent transition-all pointer-events-auto
-              ${
-                isLast
-                  ? 'opacity-0 cursor-not-allowed'
-                  : 'text-zinc-800 dark:text-white hover:scale-125 active:scale-95 drop-shadow-md'
-              }
-            `}
-            aria-label="다음 구간"
-          >
-            <ChevronRight className="w-6 h-6 stroke-[2.5]" />
-          </button>
-        </div>
-
         {/* 100% Pure Hardware Snap Container (Fixed Scale Size for Zero Vibration & Smooth 120fps Snap) */}
         <div
           ref={scrollRef}
@@ -269,7 +169,7 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
           onTouchEnd={handleTouchEnd}
           onMouseDown={handleTouchStart}
           onMouseUp={handleTouchEnd}
-          className="w-full h-full flex items-center overflow-x-auto snap-x snap-mandatory scrollbar-none py-1 px-[10%]"
+          className="w-full h-full flex items-center overflow-x-auto snap-x snap-mandatory scrollbar-none py-1 px-6"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {steps.map((step, idx) => {
@@ -282,12 +182,14 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
               <div
                 key={idx}
                 onClick={() => handleSelectIndex(idx)}
-                className="timeline-card-item shrink-0 snap-center snap-always mx-2.5 h-[94%] cursor-pointer w-[80vw] max-w-[330px] rounded-2xl overflow-hidden"
+                className="timeline-card-item shrink-0 snap-center snap-always mx-1.5 h-auto self-start cursor-pointer w-[84vw] max-w-[340px] rounded-2xl overflow-hidden"
               >
                 <RouteSegmentCard
                   step={step}
                   index={idx}
                   totalSteps={totalSteps}
+                  prevStep={steps[idx - 1]}
+                  nextStep={steps[idx + 1]}
                   isActive={isActive}
                   isStartHighlighted={isStartHighlighted}
                   isEndHighlighted={isEndHighlighted}

@@ -118,7 +118,6 @@ export default function HorizontalJourneyTimelineBar({
         >
           <div className="h-[34px] w-full shrink-0" />
           <div className="relative w-full flex items-center justify-center h-[28px] shrink-0">
-            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 rounded-full z-0" />
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex justify-center">
               <div className="relative z-10 px-2.5 py-2 rounded-xl flex items-center justify-between gap-1.5 bg-white/95 text-zinc-800 border border-zinc-200 shadow-2xs w-[130px] h-[86px] animate-pulse">
                 <div className="flex flex-col items-start justify-center min-w-0 flex-1 gap-1.5">
@@ -155,25 +154,9 @@ export default function HorizontalJourneyTimelineBar({
         key={`segment-wrap-${origin.id}-${dest.id}`}
         className="relative flex flex-col justify-between w-[140px] shrink-0 h-[104px] px-1 select-none"
       >
-        {/* 1. 상단 스페이서 (34px) */}
         <div className="h-[34px] w-full shrink-0" />
 
-        {/* 2. 중앙 노선선 및 요약 카드 영역 (28px) */}
         <div className="relative w-full flex items-center justify-center h-[28px] shrink-0">
-          {/* 배경 트랙 라인 */}
-          <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 rounded-full z-0" />
-          {/* 포커스 시 활성화되는 테마 글로우 선 */}
-          {isFocused && (
-            <div
-              className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3.5px] rounded-full z-0 transition-all duration-300"
-              style={{
-                backgroundColor: theme.hex,
-                boxShadow: `0 0 10px ${theme.hex}a0`,
-              }}
-            />
-          )}
-
-          {/* 요약 카드 컨테이너 (부모 h-[28px]에 맞춰 수평 정렬, 내부 요약 카드는 overflow 노출) */}
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex justify-center">
             <div
               ref={(el) => {
@@ -192,7 +175,7 @@ export default function HorizontalJourneyTimelineBar({
               {/* 좌측 정보 영역 (수직으로 쌓음) */}
               <div className="flex flex-col items-start justify-center min-w-0 flex-1 leading-tight gap-1">
                 {/* 1행: 수단 아이콘 + 소요 시간 */}
-                <div className="flex items-center gap-1 font-extrabold text-[13px] w-full">
+                <div className="flex items-center gap-1 font-extrabold text-[15px] w-full">
                   <span 
                     style={{ color: isFocused ? '#FFFFFF' : theme.hex }}
                     className="shrink-0"
@@ -222,7 +205,7 @@ export default function HorizontalJourneyTimelineBar({
                 </div>
                 
                 {/* 2행: 환승 정보 */}
-                <span className={`text-[10.5px] font-extrabold leading-none truncate max-w-full ${isFocused ? 'text-white/70' : 'text-zinc-500'}`}>
+                <span className={`text-[13px] font-extrabold leading-none truncate max-w-full ${isFocused ? 'text-white/70' : 'text-zinc-500'}`}>
                   {type === 'public' ? (
                     route?.steps ? `환승 ${Math.max(0, route.steps.filter((s: any) => s.type !== 'walk').length - 1)}회` : '대중교통'
                   ) : type === 'car' ? (
@@ -233,7 +216,7 @@ export default function HorizontalJourneyTimelineBar({
                 </span>
 
                 {/* 3행: 요금 정보 */}
-                <span className={`text-[10.5px] font-bold leading-none truncate max-w-full ${isFocused ? 'text-white/60' : 'text-zinc-400'}`}>
+                <span className={`text-[13px] font-bold leading-none truncate max-w-full ${isFocused ? 'text-white/60' : 'text-zinc-400'}`}>
                   {type === 'car' ? (
                     route?.taxiFare ? `택시 ${Math.round(route.taxiFare / 1000)}k` : '비용 미정'
                   ) : type === 'walk' ? (
@@ -321,17 +304,8 @@ export default function HorizontalJourneyTimelineBar({
                 {/* 상단 핀 위 영역 (상단 트랙 칩 수평 맞춤용) */}
                 <div className="h-[34px] w-full" />
 
-                {/* 중앙: 노선선과 결합된 원형 핀 노드 (컬러스킴 적용) */}
+                {/* 중앙: 원형 핀 노드 (컬러스킴 적용) */}
                 <div className="relative w-full flex items-center justify-center h-[28px]">
-                  {/* 노선 트랙 연결선 (첫 장소가 아닌 경우 좌측 잇기) */}
-                  {idx > 0 && (
-                    <div className="absolute left-0 w-1/2 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 z-0" />
-                  )}
-                  {/* 노선 트랙 연결선 (마지막 장소가 아닌 경우 우측 잇기) */}
-                  {idx < places.length - 1 && (
-                    <div className="absolute right-0 w-1/2 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 z-0" />
-                  )}
-
                   {/* 핀 버튼 (노드 테마 컬러스킴 적용) */}
                   <button
                     ref={(el) => {

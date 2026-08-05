@@ -36,13 +36,19 @@ export async function getRouteCache(params: RouteCacheParams): Promise<Direction
 export async function saveRouteCache(params: RouteCacheParams, routeData: DirectionsApiResponse): Promise<void> {
   const supabase = await createClient();
   
-  const { error } = await supabase.from('route_cache').insert({
-    origin_lat: params.rsy,
-    origin_lng: params.rsx,
-    dest_lat: params.rey,
-    dest_lng: params.rex,
-    route_data: routeData
-  });
+  const { error } = await supabase.from('route_cache').upsert(
+    {
+      origin_lat: params.rsy,
+      origin_lng: params.rsx,
+      dest_lat: params.rey,
+      dest_lng: params.rex,
+      route_data: routeData,
+      created_at: new Date().toISOString(),
+    },
+    {
+      onConflict: 'origin_lat,origin_lng,dest_lat,dest_lng',
+    }
+  );
 
   if (error) {
     console.error('[routeCacheRepository] saveRouteCache error:', error);
@@ -51,6 +57,7 @@ export async function saveRouteCache(params: RouteCacheParams, routeData: Direct
 
 export async function updateRouteCache(params: RouteCacheParams, partialData: Partial<DirectionsApiResponse>): Promise<void> {
   const existing = await getRouteCache(params);
-  const newData = { ...existing, ...partialData } as DirectionsApiResponse;
+  const baseData = existing || { public: [], car: [], walk: [] };
+  const newData = { ...baseData, ...partialData } as DirectionsApiResponse;
   await saveRouteCache(params, newData);
 }

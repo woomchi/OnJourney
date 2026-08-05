@@ -123,10 +123,20 @@ export async function fetchJourneys(): Promise<Journey[]> {
 export async function deleteJourneys(ids: string[]): Promise<void> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error('로그인이 필요합니다.');
+  }
+
   const { error } = await supabase
     .from('journeys')
     .delete()
-    .in('id', ids);
+    .in('id', ids)
+    .eq('user_id', user.id); // 본인 소유 여정만 삭제
 
   if (error) {
     throw new Error(toJourneyErrorMessage(error));
@@ -143,6 +153,15 @@ export async function updateJourney(
 ): Promise<Journey> {
   const supabase = createClient();
 
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error('로그인이 필요합니다.');
+  }
+
   const { data, error } = await supabase
     .from('journeys')
     .update({
@@ -150,6 +169,7 @@ export async function updateJourney(
       updated_at: new Date().toISOString(),
     })
     .eq('id', journeyId)
+    .eq('user_id', user.id) // 본인 소유 여정만 수정
     .select()
     .single();
 

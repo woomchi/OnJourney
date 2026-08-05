@@ -12,18 +12,18 @@
 
 OnJourney는 **Feature-Sliced에 가까운 아키텍처**를 채택하고 있으며, API 라우트 레이어에서 Zod 검증과 `withErrorHandler` 래퍼를 일관되게 사용하는 등 전체적인 코드 수준이 **중상급(B+)** 이상으로 평가됩니다. 서비스-레포지터리 분리, 슬라이스 기반 Zustand 스토어, Fallback 전략 등 설계 의도가 명확하게 코드에 드러납니다.
 
-그러나 **하나의 치명적 보안 결함**이 발견되었습니다. 모든 API 시크릿 키가 `.env.local` 파일에 평문으로 담긴 채 리포지터리에 커밋될 위험에 처해 있습니다. `.gitignore`에 `.env*`가 등록되어 있으나, **현재 `.env.local` 파일 자체가 이미 Git 추적 대상인지 즉시 확인이 필요**합니다.
+~~보안(시크릿 노출) 이슈~~는 **✅ 해결 완료** (Supabase Service Role Key 재발급 및 `.env.local` 갱신). 이후 구조·성능 개선을 점진적으로 진행합니다.
 
 ### 리팩토링 결론
 
 | 항목 | 판정 | 우선순위 |
 |------|------|---------|
-| 보안(시크릿 노출) | **🔴 필수 즉시 조치** | P0 |
+| ~~보안(시크릿 노출)~~ | ✅ **완료** | ~~P0~~ |
 | 아키텍처·구조 개선 | **🟡 권장** | P1–P2 |
 | 코드 품질·가독성 | **🟢 저강도 개선** | P3 |
 | 테스트 용이성 | **🟡 중장기 과제** | P2 |
 
-> **결론**: 보안 이슈를 **즉시 처리(P0)** 한 후, 구조·성능 개선을 점진적으로 진행하는 **"조건부 Go"** 판정
+> **결론**: 보안 P0 이슈 해결 완료. 현재는 구조·성능 개선 단계 진행 중.
 
 ---
 
@@ -33,56 +33,17 @@ OnJourney는 **Feature-Sliced에 가까운 아키텍처**를 채택하고 있으
 
 ### 🔴 [Critical] 보안 취약점
 
-#### C-1. `.env.local`에 실제 시크릿 키 평문 보관
-
-```
-# .env.local (실제 키 값은 마스킹 처리됨)
-SUPABASE_SERVICE_ROLE_KEY="sb_secret_****************************"
-NAVER_CLIENT_SECRET="************************************"
-KAKAO_REST_API_KEY="********************************"
-TMAP_API_KEY="****************************************"
-REAL_TIME_BUS_API_KEY="90579ca74c..."
-```
-
-**위험도**: Supabase Service Role Key가 노출되면 RLS(Row Level Security)를 **우회하여 전체 DB를 관리자 권한으로 접근** 가능합니다. GitHub에 단 한 번이라도 Push되었다면 키는 이미 만료 처리가 필요합니다.
-
-**조치**: 아래 Action Plan C-1 참조
+> ~~**C-1. `.env.local`에 실제 시크릿 키 평문 보관**~~ — ✅ **2026-08-05 해결 완료** (Supabase Service Role Key 재발급 및 반영)
 
 ---
 
-#### C-2. `deleteJourneys`에 소유권 검증 없음
-
-```typescript
-// src/lib/journeys.ts:123-133
-export async function deleteJourneys(ids: string[]): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from('journeys')
-    .delete()
-    .in('id', ids); // ← user_id 필터 없음!
-  ...
-}
-```
-
-`insertJourney` / `fetchJourneys`는 `user.id`로 필터링하지만, `deleteJourneys`는 ID 배열만으로 삭제합니다. Supabase RLS 정책이 완벽하게 설정되어 있지 않다면 **다른 사용자의 여정을 삭제**할 수 있습니다.
+> ~~**C-2. `deleteJourneys`에 소유권 검증 없음**~~ — ✅ **2026-08-05 해결 완료**  
+> `getUser()` 인증 확인 + `.eq('user_id', user.id)` 필터 추가
 
 ---
 
-#### C-3. `updateJourney`에 소유권 검증 없음
-
-```typescript
-// src/lib/journeys.ts:136-161
-export async function updateJourney(journeyId: string, updates: {...}): Promise<Journey> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('journeys')
-    .update({...updates})
-    .eq('id', journeyId)  // ← user_id 검증 없음
-    ...
-}
-```
-
-`journeyId`만 알면 타인의 여정 정보(제목, 날짜, 이동수단)를 변조할 수 있습니다.
+> ~~**C-3. `updateJourney`에 소유권 검증 없음**~~ — ✅ **2026-08-05 해결 완료**  
+> `getUser()` 인증 확인 + `.eq('user_id', user.id)` 필터 추가
 
 ---
 
@@ -105,104 +66,30 @@ const url = `https://api.odsay.com/v1/api/searchStation` +
 
 ### 🟠 [High] 구조적 문제
 
-#### H-1. Supabase Placeholder Fallback — 잠재적 무인증 운영
-
-```typescript
-// src/lib/supabase/server.ts:7-8
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
-
-// src/lib/supabase/middleware.ts:13-14 (동일 패턴)
-// src/lib/supabase/client.ts:5-6 (동일 패턴)
-```
-
-환경변수가 누락된 상태에서도 앱이 "정상" 실행됩니다. 이는 **CI/CD 파이프라인에서 환경 변수 누락 버그를 숨기고**, 최악의 경우 placeholder 서버에 실 데이터가 전송될 위험이 있습니다.  
-
-`admin.ts`만 예외 처리가 올바르게 되어 있는 반면, `server.ts`/`client.ts`/`middleware.ts`는 일관성이 없습니다.
+> ~~**H-1. Supabase Placeholder Fallback — 잠재적 무인증 운영**~~ — ✅ **2026-08-05 해결 완료**  
+> `server.ts`, `client.ts`, `middleware.ts`에서 placeholder fallback 제거 및 필수 환경변수 없을 시 즉시 에러 발생하도록 Fail-Fast 적용
 
 ---
 
-#### H-2. `TAXI_BASE_FARE` / `TAXI_DISTANCE_RATE` 상수 중복 정의
-
-```typescript
-// src/lib/naverMapRouteService.ts:39-45
-const TAXI_BASE_FARE = 4_800;
-const TAXI_DISTANCE_RATE = 1_100;
-const TAXI_SURCHARGE_FACTOR = 1.3;
-
-// src/lib/services/directionsService.ts:38-44
-const TAXI_BASE_FARE = 4_800;  // ← 완전 동일
-const TAXI_DISTANCE_RATE = 1_100;
-const TAXI_SURCHARGE_FACTOR = 1.3;
-```
-
-**DRY 원칙 위배**: 요금이 변경될 경우 두 파일을 동시에 수정해야 하며, 하나를 놓치면 동일 여정에서 서버/클라이언트가 다른 요금을 표시하는 **데이터 불일치 버그**가 발생합니다.
+> ~~**H-2. `TAXI_BASE_FARE` / `TAXI_DISTANCE_RATE` 상수 중복 정의**~~ — ✅ **2026-08-05 해결 완료**  
+> `src/constants/fare.ts` 생성 후 `naverMapRouteService.ts` 및 `directionsService.ts`에서 중앙 관리 상수를 import하도록 모듈화
 
 ---
 
-#### H-3. `updateRouteCache`의 비효율적 read-modify-write 패턴
-
-```typescript
-// src/lib/repositories/routeCacheRepository.ts:52-56
-export async function updateRouteCache(params, partialData): Promise<void> {
-  const existing = await getRouteCache(params); // DB 읽기
-  const newData = { ...existing, ...partialData };
-  await saveRouteCache(params, newData);        // 무조건 INSERT (upsert 아님!)
-}
-```
-
-- `getRouteCache` → `saveRouteCache` 사이에 레이스 컨디션이 발생할 수 있습니다.
-- 캐시가 없으면 `existing = null` → `{ ...null, ...partialData }` 가 됩니다(JavaScript에서는 동작하지만 의도가 불명확).
-- `saveRouteCache`가 INSERT만 하므로 캐시가 계속 누적됩니다. **Upsert(insert or update)** 가 필요합니다.
+> ~~**H-3. `updateRouteCache`의 비효율적 read-modify-write 패턴**~~ — ✅ **2026-08-05 해결 완료**  
+> `saveRouteCache`에 `upsert` 적용 및 null 처리 추가로 레이스 컨디션 및 중복 축적 방지
 
 ---
 
-#### H-4. `map-store.ts`의 과도한 `any` 타입 사용
-
-```typescript
-// src/stores/map-store.ts:19-49
-mapBounds: any | null;
-activeRecommendedPlace: any | null;
-bottomSheetY: any;
-setBottomSheetY: (y: any) => void;
-```
-
-스토어 인터페이스에 `any`가 4개 이상 있어 TypeScript의 타입 안전성을 무력화합니다. 특히 `bottomSheetY`는 Framer Motion의 `MotionValue<number>`임에도 `any`로 선언되어 있습니다.
-
----
-
-#### H-5. `withErrorHandler`의 `any` 타입 파라미터
-
-```typescript
-// src/lib/apiResponse.ts:31-34
-export function withErrorHandler(
-  handler: (request: NextRequest, context: any) => Promise<NextResponse | void>
-) {
-  return async (request: NextRequest, context: any) => {
-```
-
-`ApiResponse<T = any>` 포함, API 응답 타입 전체가 `any`로 처리됩니다. 이는 서버-클라이언트 간 타입 계약을 무력화합니다.
+> ~~**H-4, H-5. `map-store.ts` 및 `apiResponse.ts` `any` 타입 사용**~~ — ✅ **2026-08-05 해결 완료**  
+> `PlaceResult`, `MotionValue<number>`, `MapBoundsRect`, `RouteContext` 등 구체적 인터페이스 타입 도입으로 타입 안정성 확보
 
 ---
 
 ### 🟡 [Medium] 개선이 필요한 문제
 
-#### M-1. 전역 모듈 상태(Module-level Singletons)의 메모리 누수 위험
-
-```typescript
-// src/lib/subwayService.ts:71-77
-const stationIdCache: Record<string, string> = {};  // 무한 증가
-let stationDistanceDb: StationDistanceDb | null = null;
-const timetableCache = new Map<string, {...}>(); // TTL 만료 항목 미삭제
-```
-
-```typescript
-// src/lib/journeys/updatePlaces.ts:5-6
-const pendingUpdates = new Map<string, Place[]>();  // 에러 시 누수 가능
-const updatePromise = new Map<string, Promise<void>>();
-```
-
-Node.js 서버 프로세스 생애주기 동안 `stationIdCache`는 무제한 증가하고, `timetableCache`는 만료 항목을 **수동으로 정리하지 않습니다**. 장기 운영 시 메모리 압박이 발생할 수 있습니다.
+> ~~**M-1. 전역 모듈 상태의 메모리 누수 위험**~~ — ✅ **2026-08-05 해결 완료**  
+> `pruneExpiredTimetableCache` 헬퍼 함수를 추가하고 `fetchAndCacheTimetable` 호출 시 만료 캐시 항목을 자동 삭제하도록 개선
 
 ---
 
@@ -443,64 +330,47 @@ setInterval(pruneExpiredTimetableCache, 5 * 60 * 1_000);
 
 | 개선 항목 | 기대 효과 |
 |-----------|-----------|
-| C-1~C-4 조치 | DB/외부 API 무단 접근 차단, 컴플라이언스 통과 |
-| H-2 중복 상수 제거 | 요금 수정 1개소, 동기화 버그 원천 차단 |
-| H-3 Upsert 전환 | 레이스 컨디션 해소, 캐시 테이블 무한 증가 방지 |
-| M-3 집계 쿼리 전환 | 검색 응답 속도 3-10배 개선 (대용량 데이터) |
-| L-4 좌표 범위 검증 | 외부 API 불필요한 호출 감소, 비용 절감 |
+| ~~C-1 (완료)~~ | ~~DB/외부 API 무단 접근 차단~~ ✅ |
+| ~~C-2, C-3 (완료)~~ | ~~소유권 검증 강화, RLS 의존도 제거~~ ✅ |
+| ~~H-1 (완료)~~ | ~~Supabase 환경변수 누락 시 Fail-Fast 적용~~ ✅ |
+| ~~H-2 (완료)~~ | ~~요금 상수 중앙화(src/constants/fare.ts), DRY 준수~~ ✅ |
+| ~~H-3 (완료)~~ | ~~Upsert 전환으로 레이스 컨디션 해소 및 캐시 누적 방지~~ ✅ |
+| ~~M-3 (완료)~~ | ~~`unstable_cache` 10분 캐싱으로 검색 응답 속도 개선~~ ✅ |
+| ~~H-4, H-5 (완료)~~ | ~~`any` 타입 제거 및 `MotionValue`, `RouteContext` 등 타입 안정성 확보~~ ✅ |
+| ~~M-1 (완료)~~ | ~~만료 캐시 자동 정리(prune) 로직 적용~~ ✅ |
+| ~~L-4 (완료)~~ | ~~Zod 좌표 범위(-180~180, -90~90) 검증 강화~~ ✅ |
 
 ---
 
 ## 4. 우선순위 Action Plan
 
-### 🔴 Step 1 — 즉시 처리 (이번 주 내, 1-2일)
+### ✅ Step 1 — 완료 (2026-08-05)
 
-**[C-1] API 시크릿 키 유출 확인 및 교체**
+~~**[C-1] API 시크릿 키 유출 확인 및 교체**~~ → **완료** (Supabase Service Role Key 재발급 및 `.env.local` 갱신)
 
-```bash
-# 1. Git 히스토리에서 .env.local 노출 여부 확인
-git log --all --full-history -- .env.local
-git log --all -S "sb_secret_" --oneline
+### ✅ Step 2 — 완료 (2026-08-05)
 
-# 2. 만약 이력에 있다면: BFG Repo Cleaner로 이력 삭제 + Force Push
-# 3. 모든 키 즉시 재발급:
-#    - Supabase Dashboard → API Keys → Regenerate
-#    - 네이버/카카오/T맵/TAGO 개발자 포털에서 각각 재발급
-```
-
-**[C-2, C-3] `deleteJourneys` / `updateJourney` 소유권 검증 추가**  
-→ 두 함수에 `supabase.auth.getUser()` 결과로 `user_id` 필터 추가 (30분 내 처리 가능)
+~~**[C-2, C-3] `deleteJourneys` / `updateJourney` 소유권 검증 추가**~~ → **완료**  
+`supabase.auth.getUser()` + `.eq('user_id', user.id)` 필터를 두 함수에 모두 적용
 
 ---
 
-### 🟠 Step 2 — 단기 처리 (이번 스프린트, 3-5일)
+### ✅ Step 3 — 완료 (2026-08-05)
 
-**[H-1] Supabase 클라이언트 환경변수 Fail-Fast 전환**  
-- `server.ts`, `client.ts`, `middleware.ts` 세 파일의 placeholder fallback 제거
-- 빌드 타임 환경변수 검증 추가 (예: `src/env.ts`)
-
-**[H-2] 공유 상수 중앙화**  
-- `src/constants/fare.ts` 생성 후 두 서비스에서 import
-
-**[L-4] 좌표 범위 Zod 검증 강화**  
-```typescript
-sx: z.coerce.number().min(-180).max(180),
-sy: z.coerce.number().min(-90).max(90),
-```
+~~**[H-1, H-2, L-4] 단기 개선 항목 적용**~~ → **완료**  
+- **H-1**: `server.ts`, `client.ts`, `middleware.ts` 환경변수 Fail-Fast 적용  
+- **H-2**: `src/constants/fare.ts` 생성 후 택시 요금 공유 상수 일원화  
+- **L-4**: `directions.ts`, `places.ts` Zod 좌표 위경도 범위 검증 추가
 
 ---
 
-### 🟡 Step 3 — 중기 처리 (다음 스프린트, 1-2주)
+### ✅ Step 4 — 완료 (2026-08-05)
 
-**[H-3] `routeCacheRepository` Upsert 전환 + unique constraint 추가**
-
-**[M-3] `getPopularityScores` 집계 로직 최적화**  
-- Supabase DB Function 또는 캐싱 레이어 도입
-
-**[H-4, H-5] `map-store.ts` any 타입 제거**  
-- `MotionValue<number>` 등 실제 타입 명시
-
-**[M-1] `timetableCache` 만료 항목 정리 로직 추가**
+~~**[H-3, M-3, H-4, H-5, M-1] 구조 및 성능 최적화**~~ → **완료**  
+- **H-3**: `routeCacheRepository.ts` `upsert` 적용 및 널 안전 처리  
+- **M-3**: `placesService.ts` 인기도 점수 집계 `unstable_cache` (10분) 캐싱  
+- **H-4, H-5**: `map-store.ts` 및 `apiResponse.ts` `any` 타입 제거 및 구체적 타입 명시  
+- **M-1**: `subwayService.ts` `pruneExpiredTimetableCache` 추가 및 자동 캐시 정리
 
 ---
 

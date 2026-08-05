@@ -76,6 +76,18 @@ let stationDistanceDb: StationDistanceDb | null = null;
 /** 시간표 캐시 (역명_방향 → { expires, schedule }) */
 const timetableCache = new Map<string, { expires: number; schedule: ScheduleItem[] }>();
 
+/**
+ * 만료된 시간표 캐시 항목을 정리합니다.
+ */
+function pruneExpiredTimetableCache(): void {
+  const now = Date.now();
+  for (const [key, value] of timetableCache.entries()) {
+    if (value.expires < now) {
+      timetableCache.delete(key);
+    }
+  }
+}
+
 // ─── 내부 헬퍼 ───────────────────────────────────────────────────────────────
 
 /**
@@ -386,6 +398,8 @@ export async function fetchAndCacheTimetable(
   stationName: string,
   updnLine: string
 ): Promise<ScheduleItem[]> {
+  pruneExpiredTimetableCache();
+
   const cleanName = normalizeStationName(stationName);
   const upDownTypeCode = resolveUpDownTypeCode(updnLine);
   const cacheKey = `${cleanName}_${upDownTypeCode}`;

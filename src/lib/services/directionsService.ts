@@ -16,6 +16,7 @@ import type {
 } from '@/types/journey';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import { TRANSIT_SPEEDS } from '@/constants/transit';
+import { TAXI_BASE_FARE, TAXI_DISTANCE_RATE, TAXI_SURCHARGE_FACTOR } from '@/constants/fare';
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -33,15 +34,6 @@ const PUBLIC_FALLBACK_DURATION_MULTIPLIER = 1.3;
 
 /** 대중교통 Fallback 기본 요금 (원) */
 const PUBLIC_FALLBACK_FARE = 1_500;
-
-/** 택시 기본 요금 (원) */
-const TAXI_BASE_FARE = 4_800;
-
-/** 택시 거리 요금 계수 (원/km) */
-const TAXI_DISTANCE_RATE = 1_100;
-
-/** 택시 할증 계수 */
-const TAXI_SURCHARGE_FACTOR = 1.3;
 
 // ─── 공개 유틸리티 ────────────────────────────────────────────────────────────
 

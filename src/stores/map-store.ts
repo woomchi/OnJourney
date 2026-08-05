@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import type { PlaceResult } from '@/types/journey';
+import type { MotionValue } from 'framer-motion';
 
 interface MapCoord {
   lat: number;
@@ -10,18 +12,23 @@ interface MapClickedPlace extends MapCoord {
   place_name: string;
 }
 
+export interface MapBoundsRect {
+  sw: MapCoord;
+  ne: MapCoord;
+}
+
 interface MapUIState {
   // Center & Zoom
   mapCenter: MapCoord;
   setMapCenter: (center: MapCoord) => void;
   zoomLevel: number;
   setZoomLevel: (zoom: number) => void;
-  mapBounds: any | null;
-  setMapBounds: (bounds: any | null) => void;
+  mapBounds: MapBoundsRect | unknown | null;
+  setMapBounds: (bounds: MapBoundsRect | unknown | null) => void;
 
   // Selected Places on Map
-  activeRecommendedPlace: any | null; // using any for PlaceResult compatibility
-  setActiveRecommendedPlace: (place: any | null) => void;
+  activeRecommendedPlace: PlaceResult | null;
+  setActiveRecommendedPlace: (place: PlaceResult | null) => void;
   
   mapClickedPlace: MapClickedPlace | null;
   setMapClickedPlace: (place: MapClickedPlace | null) => void;
@@ -45,8 +52,8 @@ interface MapUIState {
   setForceLoad: (force: boolean) => void;
 
   // Bottom Sheet Motion Value Sharing
-  bottomSheetY: any;
-  setBottomSheetY: (y: any) => void;
+  bottomSheetY: MotionValue<number> | number | null;
+  setBottomSheetY: (y: MotionValue<number> | number | ((prev: MotionValue<number> | number | null) => MotionValue<number> | number | null) | null) => void;
 }
 
 export const useMapUIStore = create<MapUIState>((set) => ({

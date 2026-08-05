@@ -11,6 +11,7 @@
 // ─── 외부 의존성 ────────────────────────────────────────────────────────────
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { Place, DirectionResult, SelectedRoute } from '@/types/journey';
+import { TAXI_BASE_FARE, TAXI_DISTANCE_RATE, TAXI_SURCHARGE_FACTOR } from '@/constants/fare';
 
 // ─── 내부 상수 ──────────────────────────────────────────────────────────────
 
@@ -34,15 +35,6 @@ const FALLBACK_AVG_SPEED_MS = 9.72;
 
 /** Fallback 경로 구간당 최소 소요 시간 (밀리초, 3분) */
 const FALLBACK_MIN_DURATION_MS = 180_000;
-
-/** Fallback 택시 기본 요금 (원) */
-const TAXI_BASE_FARE = 4_800;
-
-/** Fallback 택시 거리 요금 계수 (원/km) */
-const TAXI_DISTANCE_RATE = 1_100;
-
-/** Fallback 택시 할증 계수 */
-const TAXI_SURCHARGE_FACTOR = 1.3;
 
 /** 폴리라인 기본 투명도 */
 const POLYLINE_STROKE_OPACITY = 0.85;

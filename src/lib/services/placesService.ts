@@ -7,6 +7,7 @@
  * @see https://developers.kakao.com/docs/latest/ko/local/dev-guide
  */
 
+import { unstable_cache } from 'next/cache';
 import { PlacesQueryType } from '../validations/places';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -190,6 +191,41 @@ function getCategoryScore(
 // ─── 내부 헬퍼: 인기도 점수 ──────────────────────────────────────────────────
 
 /**
+ * 여정 데이터에서 모든 장소의 등록 빈도를 가져오며 10분간 캐시합니다.
+ */
+const fetchPopularityCountsMap = unstable_cache(
+  async () => {
+    const counts: Record<string, number> = {};
+    let maxCount = 0;
+    try {
+      const supabase = await createClient();
+      const { data: journeys, error } = await supabase.from('journeys').select('places');
+
+      if (error || !journeys) {
+        console.error('[placesService] 인기도 점수 DB 조회 실패:', error);
+        return { counts, maxCount };
+      }
+
+      for (const journey of journeys) {
+        if (!Array.isArray(journey.places)) continue;
+        for (const place of journey.places) {
+          if (place && typeof place === 'object' && 'id' in place) {
+            const pId = String(place.id);
+            counts[pId] = (counts[pId] || 0) + 1;
+            if (counts[pId] > maxCount) maxCount = counts[pId];
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[placesService] 인기도 점수 조회 중 예외 발생:', err);
+    }
+    return { counts, maxCount };
+  },
+  ['popularity-counts-map'],
+  { revalidate: 600 }
+);
+
+/**
  * 내부 journeys 테이블 기반 인기도 점수(S_pop)를 조회합니다.
  *
  * - 특정 장소가 여정에 등록된 횟수를 집계하고, 최고 빈도 기준으로 0.1~1.0 범위로 정규화합니다.
@@ -200,39 +236,14 @@ async function getPopularityScores(
 ): Promise<Record<string, number>> {
   const scores: Record<string, number> = Object.fromEntries(placeIds.map((id) => [id, 0.0]));
 
-  try {
-    const supabase = await createClient();
-    const { data: journeys, error } = await supabase.from('journeys').select('places');
+  const { counts, maxCount } = await fetchPopularityCountsMap();
 
-    if (error || !journeys) {
-      console.error('[placesService] 인기도 점수 DB 조회 실패:', error);
-      return scores;
+  placeIds.forEach((id) => {
+    const count = counts[id] || 0;
+    if (count > 0) {
+      scores[id] = maxCount > 0 ? MIN_POPULARITY_SCORE + (count / maxCount) * (1 - MIN_POPULARITY_SCORE) : MIN_POPULARITY_SCORE;
     }
-
-    const counts: Record<string, number> = {};
-    let maxCount = 0;
-
-    for (const journey of journeys) {
-      if (!Array.isArray(journey.places)) continue;
-      for (const place of journey.places) {
-        if (place && typeof place === 'object' && 'id' in place) {
-          const pId = String(place.id);
-          counts[pId] = (counts[pId] || 0) + 1;
-          if (counts[pId] > maxCount) maxCount = counts[pId];
-        }
-      }
-    }
-
-    // 0.0 ~ 1.0 범위로 정규화 (등록된 장소 최소값: 0.1)
-    placeIds.forEach((id) => {
-      const count = counts[id] || 0;
-      if (count > 0) {
-        scores[id] = maxCount > 0 ? MIN_POPULARITY_SCORE + (count / maxCount) * (1 - MIN_POPULARITY_SCORE) : MIN_POPULARITY_SCORE;
-      }
-    });
-  } catch (err) {
-    console.error('[placesService] 인기도 점수 조회 중 예외 발생:', err);
-  }
+  });
 
   return scores;
 }

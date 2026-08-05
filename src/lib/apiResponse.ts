@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: {
@@ -26,28 +26,34 @@ export function errorResponse(message: string, code = 'INTERNAL_SERVER_ERROR', s
   );
 }
 
+export type RouteContext = {
+  params?: Promise<Record<string, string | string[]>> | Record<string, string | string[]>;
+};
+
 // Global API Wrapper for Route Handlers
-export function withErrorHandler(
-  handler: (request: NextRequest, context: any) => Promise<NextResponse | void>
+export function withErrorHandler<T = unknown>(
+  handler: (request: NextRequest, context: RouteContext) => Promise<NextResponse<ApiResponse<T>> | NextResponse | void>
 ) {
-  return async (request: NextRequest, context: any) => {
+  return async (request: NextRequest, context: RouteContext): Promise<NextResponse> => {
     try {
       const response = await handler(request, context);
       if (response) {
         return response;
       }
       return successResponse(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[API Error] ${request.method} ${request.url}:`, error);
 
+      const errObj = error as { name?: string; errors?: Array<{ message?: string }>; status?: number; message?: string; code?: string };
+
       // Handle custom or standard errors
-      if (error.name === 'ZodError') {
-        return errorResponse(`Invalid parameters: ${error.errors?.[0]?.message || 'Validation Failed'}`, 'VALIDATION_ERROR', 400);
+      if (errObj?.name === 'ZodError') {
+        return errorResponse(`Invalid parameters: ${errObj.errors?.[0]?.message || 'Validation Failed'}`, 'VALIDATION_ERROR', 400);
       }
 
-      const status = error.status || 500;
-      const message = error.message || 'Internal Server Error';
-      const code = error.code || 'INTERNAL_SERVER_ERROR';
+      const status = errObj?.status || 500;
+      const message = errObj?.message || 'Internal Server Error';
+      const code = errObj?.code || 'INTERNAL_SERVER_ERROR';
 
       return errorResponse(message, code, status);
     }

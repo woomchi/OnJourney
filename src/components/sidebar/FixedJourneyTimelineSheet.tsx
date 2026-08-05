@@ -756,7 +756,7 @@ export default function FixedJourneyTimelineSheet({
                           y2="50%"
                           stroke={prevInfo.isFocused ? '#09090b' : '#e4e4e7'}
                           strokeWidth="2.5"
-                          strokeDasharray={prevInfo.type === 'walk' ? '4 4' : undefined}
+                          strokeDasharray={prevInfo.type === 'walk' ? '4 7' : undefined}
                           strokeLinecap="round"
                         />
                       </svg>
@@ -775,7 +775,7 @@ export default function FixedJourneyTimelineSheet({
                           y2="50%"
                           stroke={nextInfo.isFocused ? '#09090b' : '#e4e4e7'}
                           strokeWidth="2.5"
-                          strokeDasharray={nextInfo.type === 'walk' ? '4 4' : undefined}
+                          strokeDasharray={nextInfo.type === 'walk' ? '4 7' : undefined}
                           strokeLinecap="round"
                         />
                       </svg>

@@ -203,6 +203,8 @@ export default function PlaceCard({
     ? getDefaultRoute(place, nextPlace, segmentData, transportType)
     : undefined;
 
+  const theme = getSequenceTheme(index, places.length);
+
   const style = {
     transform: CSS.Translate.toString(transform),
     transition: transition ? 'transform 150ms cubic-bezier(0.2, 0, 0, 1)' : undefined,
@@ -213,7 +215,7 @@ export default function PlaceCard({
     <li
       ref={setRefs}
       style={style}
-      className={`relative pt-3 pb-3 require-drag-handle ${isDragging ? 'z-20' : ''} ${
+      className={`relative pt-1 pb-1 require-drag-handle ${isDragging ? 'z-20' : ''} ${
         !isDrawerMaximized && !isMobile ? 'snap-start snap-always' : ''
       }`}
     >
@@ -228,6 +230,7 @@ export default function PlaceCard({
           place={place}
           nextPlace={nextPlace}
           activeRoute={activeRoute}
+          transportType={(activeRoute?.type as 'public' | 'car' | 'walk') || transportType}
         />
 
         <div
@@ -238,7 +241,7 @@ export default function PlaceCard({
               : 'border-zinc-100 group-hover:border-blue-100 group-hover:shadow-[0_2px_12px_rgba(59,130,246,0.08)]'
           } ${isDragging ? 'border-blue-400 bg-blue-50/40' : ''}`}
         >
-          <div className="flex items-center px-4 py-3 gap-2">
+          <div className="flex items-center px-3.5 py-2.5 gap-2">
             {editMode && (
               <div className="flex-shrink-0 flex items-center justify-center mr-1">
                 <input
@@ -251,9 +254,20 @@ export default function PlaceCard({
             )}
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-zinc-800 truncate leading-tight">
-                {place.place_name}
-              </p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="text-sm font-bold text-zinc-800 truncate leading-tight flex-1 min-w-0">
+                  {place.place_name}
+                </p>
+                {place.category && (() => {
+                  const categoryTheme = getCategoryTheme(place.category);
+                  const classes = themeClasses[categoryTheme.type] || themeClasses.etc;
+                  return (
+                    <span className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-md ${classes.badge}`}>
+                      {place.category.split('>').pop()?.trim() || place.category}
+                    </span>
+                  );
+                })()}
+              </div>
               {place.address && (
                 <p className="text-xs text-zinc-400 truncate mt-0.5">{place.address}</p>
               )}
@@ -270,28 +284,54 @@ export default function PlaceCard({
               </div>
             )}
           </div>
-
-          {place.category && (() => {
-            const theme = getCategoryTheme(place.category);
-            const classes = themeClasses[theme.type] || themeClasses.etc;
-            return (
-              <div className="px-4 pb-2.5">
-                <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${classes.badge}`}>
-                  {place.category.split('>').pop()?.trim() || place.category}
-                </span>
-              </div>
-            );
-          })()}
         </div>
       </div>
 
       {!editMode && !isLast && (() => {
+        const currentTransport = (activeRoute?.type as string) || transportType;
+        const isWalk = currentTransport === 'walk';
+
         return (
-          <div className="pl-16 mt-1 pr-6 relative">
+          <div className="relative mt-1 flex items-center">
+            {/* 세로 연결선 (SegmentInfo 옆 64px 영역을 지나 다음 순서 노드까지 이어지도록 연장) */}
+            <div className="absolute left-0 top-0 bottom-0 w-16 flex justify-center pointer-events-none z-0">
+              <svg className="w-full h-full overflow-visible pointer-events-none z-0">
+                <line
+                  x1="50%"
+                  y1="-6px"
+                  x2="50%"
+                  y2="calc(100% + 12px)"
+                  stroke={isFocused ? (theme.color || '#09090b') : '#e4e4e7'}
+                  strokeWidth="2.5"
+                  strokeDasharray={isWalk ? '4 7' : undefined}
+                  strokeLinecap="round"
+                />
+              </svg>
+              {(isFocused || isSegmentPlaying) && (
+                <svg className="absolute inset-0 w-full h-full overflow-visible pointer-events-none z-10">
+                  <line
+                    x1="50%"
+                    y1="-6px"
+                    x2="50%"
+                    y2="calc(100% + 12px)"
+                    stroke={theme.color || '#09090b'}
+                    strokeWidth="3.5"
+                    strokeDasharray={isWalk ? '4 7' : undefined}
+                    strokeLinecap="round"
+                    className={isSegmentPlaying ? 'animate-pulse' : ''}
+                  />
+                </svg>
+              )}
+            </div>
+
+            {/* TimelineNode(64px) 폭 맞춤용 Spacer */}
+            <div className="w-16 flex-shrink-0" />
+
+            {/* 이동 정보 카드 (장소 카드와 100% 동일한 flex-1 min-w-0 mx-2 레이아웃 배치) */}
             <div
               role="button"
               tabIndex={0}
-              className="w-full text-left focus:outline-none cursor-pointer"
+              className="flex-1 min-w-0 mx-2 text-left focus:outline-none cursor-pointer"
               onClick={() => {
                 if (nextPlace) {
                   if (isFocused) {

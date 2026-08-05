@@ -15,6 +15,7 @@ interface TimelineNodeProps {
   place: Place;
   nextPlace: Place | null;
   activeRoute: any;
+  transportType?: 'public' | 'car' | 'walk';
 }
 
 export default function TimelineNode({
@@ -27,6 +28,7 @@ export default function TimelineNode({
   place,
   nextPlace,
   activeRoute,
+  transportType,
 }: TimelineNodeProps) {
   const {
     setFocusedStep,
@@ -198,40 +200,43 @@ export default function TimelineNode({
         )}
       </div>
 
-      {/* 세로 연결선 (오디오 케이블 / 네온 트랙 라인 느낌) */}
-      {!isLast && (
-        <div className="flex-1 w-full flex justify-center py-0.5 relative z-0">
-          {/* 배경 라인 */}
-          <div className="absolute inset-y-0 w-2 bg-zinc-100/80 rounded-full shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] border border-zinc-200/50" />
+      {/* 세로 연결선 (PWA 가로 타임라인바 연결선과 동일한 SVG 엣지 스타일) */}
+      {!isLast && (() => {
+        const currentTransport = transportType || (activeRoute?.type as string) || 'public';
+        const isWalk = currentTransport === 'walk';
 
-          {/* 기본 그라데이션 선 */}
-          <div
-            className="absolute inset-y-0 w-2 rounded-full opacity-50"
-            style={{
-              background: `linear-gradient(180deg, ${theme.color} 0%, transparent 90%)`
-            }}
-          />
-
-          {/* 활성화 상태 (네온 글로우 및 흐르는 빛 효과) */}
-          {(isFocused || isSegmentPlaying) && (
-            <div
-              className={`absolute inset-y-0 w-[3px] rounded-full ${
-                isSegmentPlaying ? 'animate-[flow-down_1.2s_linear_infinite]' : 'animate-pulse'
-              }`}
-              style={{
-                backgroundImage: isSegmentPlaying
-                  ? `linear-gradient(180deg, ${theme.color} 0%, ${theme.color}40 25%, #ffffff 50%, ${theme.color}40 75%, ${theme.color} 100%)`
-                  : undefined,
-                backgroundColor: isSegmentPlaying ? undefined : theme.color,
-                backgroundSize: isSegmentPlaying ? '100% 200%' : undefined,
-                boxShadow: isSegmentPlaying 
-                  ? `0 0 10px ${theme.color}cc, 0 0 4px #ffffff`
-                  : `0 0 12px ${theme.color}a0, 0 0 4px ${theme.color}`
-              }}
-            />
-          )}
-        </div>
-      )}
+        return (
+          <div className="flex-1 w-full flex justify-center py-0.5 relative z-0 min-h-[24px]">
+            <svg className="absolute inset-y-0 w-full h-full pointer-events-none z-0 overflow-visible">
+              <line
+                x1="50%"
+                y1="0"
+                x2="50%"
+                y2="calc(100% + 8px)"
+                stroke={isFocused ? (theme.color || '#09090b') : '#e4e4e7'}
+                strokeWidth="2.5"
+                strokeDasharray={isWalk ? '4 7' : undefined}
+                strokeLinecap="round"
+              />
+            </svg>
+            {(isFocused || isSegmentPlaying) && (
+              <svg className="absolute inset-y-0 w-full h-full pointer-events-none z-10 overflow-visible">
+                <line
+                  x1="50%"
+                  y1="0"
+                  x2="50%"
+                  y2="calc(100% + 8px)"
+                  stroke={theme.color || '#09090b'}
+                  strokeWidth="3.5"
+                  strokeDasharray={isWalk ? '4 7' : undefined}
+                  strokeLinecap="round"
+                  className={isSegmentPlaying ? 'animate-pulse' : ''}
+                />
+              </svg>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

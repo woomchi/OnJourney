@@ -268,6 +268,24 @@ export default function FixedJourneyTimelineSheet({
     scrollToElement(`segment-${origin.id}-${dest.id}`);
   };
 
+  const getSegmentInfo = (origin?: Place, dest?: Place) => {
+    if (!origin || !dest) return { type: transportType, isFocused: false };
+    let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+    if (!route) {
+      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
+      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+      const segmentData = {
+        public: publicData?.public || [],
+        car: carData?.car || [],
+        walk: carData?.walk || []
+      };
+      route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk') || null;
+    }
+    const type = route?.type || transportType;
+    const isFocused = focusedSegment?.originId === origin.id && focusedSegment?.destId === dest.id;
+    return { type, isFocused };
+  };
+
   const renderSegmentBadge = (origin: Place, dest: Place, sIdx: number) => {
     let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
     let isSegLoading = false;
@@ -300,7 +318,6 @@ export default function FixedJourneyTimelineSheet({
         >
           <div className="h-[32px] w-full shrink-0" />
           <div className="relative w-full flex items-center justify-center h-[26px] shrink-0">
-            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-zinc-200/90 rounded-full z-0" />
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex justify-center">
               <div className="relative z-10 px-2.5 py-2 rounded-xl flex items-center justify-between gap-1.5 bg-white text-zinc-800 border border-zinc-200 shadow-2xs w-[130px] h-[86px] animate-pulse">
                 <div className="flex flex-col items-start justify-center min-w-0 flex-1 gap-1.5">
@@ -713,6 +730,44 @@ export default function FixedJourneyTimelineSheet({
 
                 {/* 중앙: 원형 핀 노드 (컬러스킴 적용) */}
                 <div className="relative w-full flex items-center justify-center h-[26px]">
+                  {/* 이전 구간 연결 엣지 선 (노드 핀 좌측, 8px 여백 적용) */}
+                  {idx > 0 && (() => {
+                    const prevInfo = getSegmentInfo(places[idx - 1], place);
+                    return (
+                      <svg className="absolute left-0 w-1/2 top-1/2 -translate-y-1/2 h-[4px] pointer-events-none z-0">
+                        <line
+                          x1="3px"
+                          y1="50%"
+                          x2="calc(100% - 22px)"
+                          y2="50%"
+                          stroke={prevInfo.isFocused ? '#09090b' : '#e4e4e7'}
+                          strokeWidth="2.5"
+                          strokeDasharray={prevInfo.type === 'walk' ? '4 4' : undefined}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    );
+                  })()}
+
+                  {/* 다음 구간 연결 엣지 선 (노드 핀 우측, 8px 여백 적용) */}
+                  {idx < places.length - 1 && (() => {
+                    const nextInfo = getSegmentInfo(place, places[idx + 1]);
+                    return (
+                      <svg className="absolute right-0 w-1/2 top-1/2 -translate-y-1/2 h-[4px] pointer-events-none z-0">
+                        <line
+                          x1="22px"
+                          y1="50%"
+                          x2="calc(100% - 3px)"
+                          y2="50%"
+                          stroke={nextInfo.isFocused ? '#09090b' : '#e4e4e7'}
+                          strokeWidth="2.5"
+                          strokeDasharray={nextInfo.type === 'walk' ? '4 4' : undefined}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    );
+                  })()}
+
                   {/* 핀 버튼 (노드 테마 컬러스킴 적용) */}
                   <button
                     ref={(el) => {

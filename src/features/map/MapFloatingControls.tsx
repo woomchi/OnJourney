@@ -12,7 +12,7 @@ import { Locate, LocateFixed, Compass, Loader2, Route } from 'lucide-react';
 
 interface MapFloatingControlsProps {
   handleMyLocationClick: () => void;
-  handleResetBounds: (forceRefit?: boolean) => void;
+  handleResetBounds: (forceRefit?: boolean, resetToFullJourney?: boolean) => void;
 }
 
 export function MapFloatingControls({
@@ -70,8 +70,13 @@ export function MapFloatingControls({
 
   // Handle clicking "전체 여정 보기 / 해당 구간 전체 경로 보기"
   const handleFullJourneyClick = () => {
-    // Force camera refit (fits current segment bounds if in route guide mode, or full journey if in list view)
-    handleResetBounds(true);
+    if (focusedSegment || alternativeSegment) {
+      // 이동 상세 상태일 때는 해당 이동 구간 전체 경로로 줌 정렬
+      handleResetBounds(true, false);
+    } else {
+      // 전체 여정 상태일 때는 전체 여정으로 줌 정렬
+      handleResetBounds(true, true);
+    }
   };
 
   if (!mounted) return null;
@@ -119,15 +124,18 @@ export function MapFloatingControls({
     );
   };
 
-  // 2. 전체 여정 보기 Button Content
+  // 2. 전체 여정 보기 / 해당 구간 전체 경로 보기 Button Content
   const renderFullJourneyButton = () => {
     if (!hasPlaces) return null;
+
+    const isRouteActive = !!focusedSegment || !!alternativeSegment;
+    const buttonTitle = isRouteActive ? "해당 구간 전체 경로 보기" : "전체 여정 보기";
 
     return (
       <button
         type="button"
         onClick={handleFullJourneyClick}
-        title="전체 여정 보기"
+        title={buttonTitle}
         className="
           w-12 h-12 rounded-2xl bg-white/95 text-zinc-700 border border-zinc-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.08)]
           flex items-center justify-center transition-all duration-300 hover:scale-[1.03] active:scale-95 cursor-pointer backdrop-blur-md hover:bg-white

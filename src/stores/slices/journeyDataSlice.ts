@@ -48,6 +48,7 @@ const RESET_FOCUS_STATE = {
   focusBounds: null,
   focusedSegment: null,
   focusedStep: null,
+  focusedPlaceId: null,
   alternativeSegment: null,
   hoveredAlternativeRoute: null,
 } as const;

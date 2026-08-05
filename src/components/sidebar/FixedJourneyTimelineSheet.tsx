@@ -5,7 +5,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon, AlternativeRouteIcon } from '@/components/ui/icons';
@@ -354,9 +354,32 @@ export default function FixedJourneyTimelineSheet({
     const duration = route?.duration ? `${route.duration}분` : '';
     const type = route?.type || transportType;
 
-    const distanceVal = route?.distance;
-    const formattedDistance = distanceVal != null
-      ? (distanceVal >= 1 ? `${distanceVal.toFixed(1)}km` : `${Math.round(distanceVal * 1000)}m`)
+    const getDistanceKm = (): number | null => {
+      if (route?.distance != null && route.distance > 0) {
+        return route.distance > 100 ? route.distance / 1000 : route.distance;
+      }
+      if (route?.pathPoints && route.pathPoints.length > 1) {
+        let totalMeters = 0;
+        for (let i = 0; i < route.pathPoints.length - 1; i++) {
+          totalMeters += calculateHaversineDistance(
+            route.pathPoints[i].lat,
+            route.pathPoints[i].lng,
+            route.pathPoints[i + 1].lat,
+            route.pathPoints[i + 1].lng
+          );
+        }
+        if (totalMeters > 0) return totalMeters / 1000;
+      }
+      if (origin && dest) {
+        const meters = calculateHaversineDistance(origin.lat, origin.lng, dest.lat, dest.lng);
+        if (meters > 0) return meters / 1000;
+      }
+      return null;
+    };
+
+    const distKm = getDistanceKm();
+    const formattedDistance = distKm != null
+      ? (distKm >= 1 ? `${distKm.toFixed(1)}km` : `${Math.round(distKm * 1000)}m`)
       : '';
 
     const fareVal = route?.fare || route?.taxiFare;
@@ -393,14 +416,14 @@ export default function FixedJourneyTimelineSheet({
               {/* 좌측 정보 영역 (수직으로 쌓음) */}
               <div className="flex flex-col items-start justify-center min-w-0 flex-1 leading-tight gap-1">
                 {/* 1행: 수단 아이콘 + 소요 시간 */}
-                <div className="flex items-center gap-1 font-extrabold text-[15px] w-full">
+                <div className="flex items-center gap-1 font-extrabold text-[14px] w-full leading-none">
                   <span 
                     style={{ color: isFocused ? '#FFFFFF' : theme.hex }}
                     className="shrink-0"
                   >
                     {(() => {
-                      if (type === 'car') return <Car className="w-4 h-4" />;
-                      if (type === 'walk') return <Footprints className="w-4 h-4" />;
+                      if (type === 'car') return <Car className="w-3.5 h-3.5" />;
+                      if (type === 'walk') return <Footprints className="w-3.5 h-3.5" />;
 
                       const steps = route?.steps || [];
                       const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
@@ -409,21 +432,26 @@ export default function FixedJourneyTimelineSheet({
                       if (hasSubway && hasBus) {
                         return (
                           <div className="flex items-center gap-0.5">
-                            <Bus className="w-3.5 h-3.5" />
-                            <Train className="w-3.5 h-3.5" />
+                            <Bus className="w-3 h-3" />
+                            <Train className="w-3 h-3" />
                           </div>
                         );
                       }
-                      if (hasSubway) return <Train className="w-4 h-4" />;
-                      if (hasBus) return <Bus className="w-4 h-4" />;
-                      return <Bus className="w-4 h-4" />;
+                      if (hasSubway) return <Train className="w-3.5 h-3.5" />;
+                      if (hasBus) return <Bus className="w-3.5 h-3.5" />;
+                      return <Bus className="w-3.5 h-3.5" />;
                     })()}
                   </span>
                   <span className="truncate">{duration || '이동'}</span>
                 </div>
                 
-                {/* 2행: 환승 정보 */}
-                <span className={`text-[13px] font-extrabold leading-none truncate max-w-full ${isFocused ? 'text-white/70' : 'text-zinc-500'}`}>
+                {/* 2행: 이동 거리 */}
+                <span className={`text-[12px] font-bold leading-none truncate max-w-full ${isFocused ? 'text-white/80' : 'text-zinc-600'}`}>
+                  {formattedDistance || '거리 미정'}
+                </span>
+
+                {/* 3행: 환승 횟수 */}
+                <span className={`text-[11.5px] font-medium leading-none truncate max-w-full ${isFocused ? 'text-white/65' : 'text-zinc-500'}`}>
                   {type === 'public' ? (
                     route?.steps ? `환승 ${Math.max(0, route.steps.filter((s: any) => s.type !== 'walk').length - 1)}회` : '대중교통'
                   ) : type === 'car' ? (
@@ -433,8 +461,8 @@ export default function FixedJourneyTimelineSheet({
                   )}
                 </span>
 
-                {/* 3행: 요금 정보 */}
-                <span className={`text-[13px] font-bold leading-none truncate max-w-full ${isFocused ? 'text-white/60' : 'text-zinc-400'}`}>
+                {/* 4행: 요금 정보 */}
+                <span className={`text-[11px] font-medium leading-none truncate max-w-full ${isFocused ? 'text-white/55' : 'text-zinc-400'}`}>
                   {type === 'car' ? (
                     route?.taxiFare ? `택시 ${Math.round(route.taxiFare / 1000)}k` : '비용 미정'
                   ) : type === 'walk' ? (
@@ -791,7 +819,9 @@ export default function FixedJourneyTimelineSheet({
                     }}
                     type="button"
                     onClick={() => handlePlaceClick(place)}
-                    className="relative z-10 w-7 h-7 rounded-full text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+                    className={`relative z-10 w-7 h-7 rounded-full text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95 ${
+                      focusedPlaceId === place.id ? 'ring-4 ring-indigo-500/40 scale-110 shadow-lg z-20' : ''
+                    }`}
                     style={{ backgroundColor: placeTheme.color }}
                     title={`${place.place_name} (${place.address || ''})`}
                   >

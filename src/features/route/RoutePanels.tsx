@@ -16,6 +16,7 @@ export function RoutePanels() {
     setFocusedSegment,
     focusedStep,
     setFocusedStep,
+    setFocusedPlaceId,
     alternativeSegment,
     setAlternativeSegment,
     isAlternativeFromFocus,
@@ -126,6 +127,8 @@ export function RoutePanels() {
             setFocusedSegment(null);
             setFocusBounds(null);
             setFocusedStep(null);
+            setFocusedPlaceId(null);
+            setAlternativeSegment(null);
           }}
           onNextSegment={cachedRouteGuide.nextSegmentInfo ? (jumpToDest?: boolean) => {
             const { nextOriginPlace, nextDestPlace } = cachedRouteGuide.nextSegmentInfo!;

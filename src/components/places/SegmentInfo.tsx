@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { DirectionResult } from '@/types/journey';
-import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import { SEQUENCE_COLORS } from '@/constants/colors';
 import FittedDuration from './FittedDuration';
 import { Car, Footprints, Bus, Train, RotateCw } from 'lucide-react';
@@ -44,6 +44,12 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [isTimedOut, setIsTimedOut] = useState(false);
+
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
   const {
     focusedStep,
@@ -140,10 +146,53 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   const duration = data.duration ? `${data.duration}분` : '';
   const type = data.type || 'public';
 
-  const distanceVal = data.distance;
-  const formattedDistance = distanceVal != null
-    ? (distanceVal >= 1 ? `${distanceVal.toFixed(1)}km` : `${Math.round(distanceVal * 1000)}m`)
+  // Get active Places for Alternative route prefetching & distance calculation
+  const places = activeJourney?.places || [];
+  const originPlace = places.find(p => p.id === placeId);
+  const destPlace = places.find(p => p.id === destId);
+
+  const getDistanceKm = (): number | null => {
+    if (data?.distance != null && data.distance > 0) {
+      return data.distance > 100 ? data.distance / 1000 : data.distance;
+    }
+    if (data?.pathPoints && data.pathPoints.length > 1) {
+      let totalMeters = 0;
+      for (let i = 0; i < data.pathPoints.length - 1; i++) {
+        totalMeters += calculateHaversineDistance(
+          data.pathPoints[i].lat,
+          data.pathPoints[i].lng,
+          data.pathPoints[i + 1].lat,
+          data.pathPoints[i + 1].lng
+        );
+      }
+      if (totalMeters > 0) return totalMeters / 1000;
+    }
+    if (originPlace && destPlace) {
+      const meters = calculateHaversineDistance(
+        originPlace.lat,
+        originPlace.lng,
+        destPlace.lat,
+        destPlace.lng
+      );
+      if (meters > 0) return meters / 1000;
+    }
+    return null;
+  };
+
+  const distKm = getDistanceKm();
+  const formattedDistance = distKm != null
+    ? (distKm >= 1 ? `${distKm.toFixed(1)}km` : `${Math.round(distKm * 1000)}m`)
     : '';
+
+  const getArrivalTimeStr = () => {
+    if (!now || !data?.duration) return '';
+    const arrTime = new Date(now.getTime() + data.duration * 60 * 1000);
+    const arrHours = String(arrTime.getHours()).padStart(2, '0');
+    const arrMins = String(arrTime.getMinutes()).padStart(2, '0');
+    return `${arrHours}:${arrMins}`;
+  };
+
+  const arrStr = getArrivalTimeStr();
 
   const fareVal = data.fare || data.taxiFare;
   const formattedFare = fareVal
@@ -165,11 +214,6 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   } else if (type === 'walk') {
     transferLabel = '도보';
   }
-
-  // Get active Places for Alternative route prefetching
-  const places = activeJourney?.places || [];
-  const originPlace = places.find(p => p.id === placeId);
-  const destPlace = places.find(p => p.id === destId);
 
   const getTransportIcon = (tType: string, steps: any[] = []) => {
     if (tType === 'car' || tType === 'taxi') return <Car className="w-7 h-7" />;
@@ -195,8 +239,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     return (
       <div
         className={`w-full px-4 py-3 rounded-xl transition-all duration-200 border select-none ${isThisSegmentFocused
-            ? 'bg-blue-50/50 border-blue-400 shadow-[0_4px_16px_rgba(59,130,246,0.12)]'
-            : 'bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]'
+          ? 'bg-blue-50/50 border-blue-400 shadow-[0_4px_16px_rgba(59,130,246,0.12)]'
+          : 'bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]'
           }`}
       >
         {/* 1. 이동 요약 정보 (가로형 요약 바 스타일 + 요약 카드 내 버튼 포함) */}
@@ -214,35 +258,52 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               {getTransportIcon(type, data.steps)}
             </div>
 
-            {/* 소요 시간, 환승 정보, 요금 요약 */}
-            <div className="flex flex-col min-w-0 leading-tight">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold tracking-tight text-[24px] text-zinc-800">
+            {/* 소요 시간(좌: 시간/도착예정) & 상세 정보(우: 수단·거리 뱃지/요금) Split 구조 (대안 2) */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {/* 좌: 시간 & 도착예정 (수직 정렬) */}
+              <div className="flex flex-col justify-center min-w-0 pr-3 border-r border-zinc-100 shrink-0">
+                <span className="font-extrabold tracking-tight text-[20px] text-zinc-800 leading-none">
                   {duration || '이동'}
                 </span>
-                {formattedDistance && (
-                  <span className="text-[19px] text-zinc-400 font-semibold border-l border-zinc-200 pl-2">
-                    {formattedDistance}
+                {arrStr && (
+                  <span className="text-[12px] font-medium text-zinc-400 mt-1 whitespace-nowrap">
+                    {arrStr} 도착
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 text-[17.5px] font-bold text-zinc-400 mt-1">
-                <span className={isThisSegmentFocused ? 'text-blue-600/90' : 'text-zinc-500'}>
-                  {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
-                </span>
-                <span className="opacity-40">·</span>
-                <span className={isThisSegmentFocused ? 'text-zinc-600' : 'text-zinc-500'}>
-                  {type === 'car' ? (
-                    data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원` : '비용 정보 없음'
-                  ) : type === 'walk' ? (
-                    '무료'
-                  ) : fareVal ? (
-                    formattedFare
-                  ) : (
-                    '요금 정보 없음'
+              {/* 우: 요금 뱃지 + 거리 뱃지 (상단) + 수단/환승 횟수 텍스트 (하단) */}
+              <div className="flex flex-col min-w-0 flex-1 leading-tight gap-1">
+                {/* 상단: 요금 뱃지 + 거리 뱃지 */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`inline-block text-[12px] font-bold px-1.5 py-0.5 rounded-md ${
+                    isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-800'
+                  }`}>
+                    {type === 'car' ? (
+                      data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원` : '비용 정보 없음'
+                    ) : type === 'walk' ? (
+                      '무료'
+                    ) : fareVal ? (
+                      formattedFare
+                    ) : (
+                      '요금 정보 없음'
+                    )}
+                  </span>
+                  {formattedDistance && (
+                    <span className="text-[12px] font-semibold text-zinc-500 bg-zinc-50 border border-zinc-100 px-1.5 py-0.5 rounded-md">
+                      {formattedDistance}
+                    </span>
                   )}
-                </span>
+                </div>
+
+                {/* 하단: 이동 수단 / 환승 횟수 뱃지 */}
+                <div>
+                  <span className={`inline-block text-[12px] font-medium px-1.5 py-0.5 rounded-md ${
+                    isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700'
+                  }`}>
+                    {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -475,33 +536,62 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   return (
     <div
       className={`w-full px-4 py-3 rounded-xl transition-all duration-200 border select-none cursor-pointer ${isThisSegmentFocused
-          ? 'bg-blue-50/50 border-blue-400 shadow-[0_4px_16px_rgba(59,130,246,0.12)]'
-          : 'bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]'
+        ? 'bg-blue-50/50 border-blue-400 shadow-[0_4px_16px_rgba(59,130,246,0.12)]'
+        : 'bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]'
         }`}
     >
-      {/* 상단 정보: 총 이동 시간, 요금, 대안 경로 탐색 버튼 */}
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex-1 min-w-0 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-          <span className="text-[15px] font-extrabold text-zinc-800 leading-none tracking-tight">
+      {/* 대안 2: 좌/우 Split 구조 (좌: 시간 & 도착예정 수직배치 / 우: 수단·거리 뱃지/요금) */}
+      <div className="flex items-center justify-between gap-3 mb-2.5">
+        {/* 좌측 영역: 소요시간(대형) + 아래 도착예정시간 */}
+        <div className="flex flex-col justify-center min-w-0 pr-3 border-r border-zinc-100 shrink-0">
+          <span className="text-[17px] font-extrabold text-zinc-900 leading-tight tracking-tight">
             {duration || '이동'}
           </span>
-          <span className="text-[11.5px] font-medium text-zinc-400 pb-[0.5px] leading-tight">
-            {type === 'car' || type === 'taxi' ? (
-              `택시 ${data.taxiFare?.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}`
-            ) : type === 'walk' || type === 'bicycle' ? (
-              '무료'
-            ) : (data.isIntercity || data.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && data.fare === 0 ? (
-              '예매처 확인'
-            ) : data.fare > 0 ? (
-              data.isFareEstimated ? `약 ${data.fare.toLocaleString()}원` : `${data.fare.toLocaleString()}원`
-            ) : (
-              '요금 정보 없음'
-            )}
-            {formattedDistance && ` · ${formattedDistance}`}
-          </span>
+          {arrStr && (
+            <span className="text-[11px] font-medium text-zinc-400 mt-0.5 whitespace-nowrap">
+              {arrStr} 도착
+            </span>
+          )}
         </div>
 
-        {/* 대안 경로 탐색 버튼 */}
+        {/* 우측 영역: 요금 뱃지 · 거리 뱃지 (상단) 및 이동 수단/환승 횟수 텍스트 (하단), 대안 경로 버튼 */}
+        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+          <div className="flex flex-col min-w-0 leading-tight gap-1">
+            {/* 상단: 요금 뱃지 + 거리 뱃지 */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`inline-block text-[11px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-800'
+              }`}>
+                {type === 'car' || type === 'taxi' ? (
+                  data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}` : '비용 정보 없음'
+                ) : type === 'walk' || type === 'bicycle' ? (
+                  '무료'
+                ) : (data.isIntercity || data.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && data.fare === 0 ? (
+                  '예매처 확인'
+                ) : data.fare > 0 ? (
+                  data.isFareEstimated ? `약 ${data.fare.toLocaleString()}원` : `${data.fare.toLocaleString()}원`
+                ) : (
+                  '요금 정보 없음'
+                )}
+              </span>
+              {formattedDistance && (
+                <span className="text-[11px] font-semibold text-zinc-500 bg-zinc-50 border border-zinc-100 px-1.5 py-0.5 rounded-md">
+                  {formattedDistance}
+                </span>
+              )}
+            </div>
+
+            {/* 하단: 이동 수단 / 환승 횟수 뱃지 */}
+            <div>
+              <span className={`inline-block text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
+                isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700'
+              }`}>
+                {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
+              </span>
+            </div>
+          </div>
+
+          {/* 대안 경로 탐색 버튼 */}
         <button
           type="button"
           onClick={(e) => {
@@ -561,6 +651,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
             className="w-3 h-3"
           />
         </button>
+        </div>
       </div>
 
       {/* 동적 타임라인 바 및 하단 노선 정보 */}

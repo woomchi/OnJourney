@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult } from '@/types/journey';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 
 interface AlternativeSegmentInfoProps {
   place: Place;
@@ -162,27 +162,51 @@ export default function AlternativeSegmentInfo({
                         );
                       })}
                     </div>
-                    {activeTab === 'car' ? (
-                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                        택시 {route.taxiFare?.toLocaleString()}원 {route.fare > 0 ? `(통행료 ${route.fare.toLocaleString()}원)` : '(통행료 무료)'}
-                      </span>
-                    ) : activeTab === 'walk' ? (
-                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                        무료
-                      </span>
-                    ) : (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? (
-                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                        예매처 확인
-                      </span>
-                    ) : route.fare > 0 ? (
-                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                        {route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}
-                      </span>
-                    ) : (
-                      <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                        요금 정보 없음
-                      </span>
-                    )}
+                    {(() => {
+                      const getRouteDistKm = (): number | null => {
+                        if (route.distance != null && route.distance > 0) {
+                          return route.distance > 100 ? route.distance / 1000 : route.distance;
+                        }
+                        if (route.pathPoints && route.pathPoints.length > 1) {
+                          let totalMeters = 0;
+                          for (let i = 0; i < route.pathPoints.length - 1; i++) {
+                            totalMeters += calculateHaversineDistance(
+                              route.pathPoints[i].lat,
+                              route.pathPoints[i].lng,
+                              route.pathPoints[i + 1].lat,
+                              route.pathPoints[i + 1].lng
+                            );
+                          }
+                          if (totalMeters > 0) return totalMeters / 1000;
+                        }
+                        if (place && nextPlace) {
+                          const meters = calculateHaversineDistance(place.lat, place.lng, nextPlace.lat, nextPlace.lng);
+                          if (meters > 0) return meters / 1000;
+                        }
+                        return null;
+                      };
+                      const altDistKm = getRouteDistKm();
+                      const altDistance = altDistKm != null
+                        ? (altDistKm >= 1 ? `${altDistKm.toFixed(1)}km` : `${Math.round(altDistKm * 1000)}m`)
+                        : '';
+
+                      return (
+                        <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                          {activeTab === 'car' ? (
+                            `택시 ${route.taxiFare?.toLocaleString() || '0'}원 ${route.fare > 0 ? `(통행료 ${route.fare.toLocaleString()}원)` : '(통행료 무료)'}`
+                          ) : activeTab === 'walk' ? (
+                            '무료'
+                          ) : (route.isIntercity || route.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? (
+                            '예매처 확인'
+                          ) : route.fare > 0 ? (
+                            route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`
+                          ) : (
+                            '요금 정보 없음'
+                          )}
+                          {altDistance && ` · ${altDistance}`}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
 

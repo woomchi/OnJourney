@@ -43,6 +43,8 @@ export default function MapArea() {
     setFocusedSegment,
     focusedStep,
     setFocusedStep,
+    focusedPlaceId,
+    setFocusedPlaceId,
     alternativeSegment,
     hoveredAlternativeRoute,
     recommendedPlaces,
@@ -253,6 +255,7 @@ export default function MapArea() {
   }, [places, directionsCache]);
 
   const handleMapClick = useCallback((e: any) => {
+    setFocusedPlaceId(null);
     if (!isSearchMode) return;
     const lat = e.coord.y;
     const lng = e.coord.x;
@@ -282,7 +285,25 @@ export default function MapArea() {
         place_name: '지도에서 선택한 장소',
       });
     }
-  }, [isSearchMode, setMapClickedPlace]);
+  }, [isSearchMode, setMapClickedPlace, setFocusedPlaceId]);
+
+  useEffect(() => {
+    if (!map) return;
+    const navermapsObj = typeof window !== 'undefined' && window.naver?.maps;
+    if (!navermapsObj) return;
+
+    const dragListener = navermapsObj.Event.addListener(map, 'dragstart', () => {
+      setFocusedPlaceId(null);
+    });
+    const clickListener = navermapsObj.Event.addListener(map, 'click', () => {
+      setFocusedPlaceId(null);
+    });
+
+    return () => {
+      navermapsObj.Event.removeListener(dragListener);
+      navermapsObj.Event.removeListener(clickListener);
+    };
+  }, [map, setFocusedPlaceId]);
 
   const logoControlOptions = useMemo(() => {
     const navermapsObj = typeof window !== 'undefined' && window.naver?.maps;
@@ -399,6 +420,13 @@ export default function MapArea() {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
+
+    if (focusedPlaceId === place.id) {
+      setFocusedPlaceId(null);
+      return;
+    }
+
+    setFocusedPlaceId(place.id);
 
     if (panTimeoutRef.current) clearTimeout(panTimeoutRef.current);
     if (stateTimeoutRef.current) clearTimeout(stateTimeoutRef.current);

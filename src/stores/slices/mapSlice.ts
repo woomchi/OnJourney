@@ -6,6 +6,7 @@ export interface MapSlice {
   focusBounds: LatLngBoundsLiteral | null;
   focusedSegment: FocusedSegment | null;
   focusedStep: FocusedStep | null;
+  focusedPlaceId: string | null;
   alternativeSegment: FocusedSegment | null;
   hoveredAlternativeRoute: DirectionResult | null;
   isAlternativeFromFocus: boolean;
@@ -17,6 +18,7 @@ export interface MapSlice {
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
   setFocusedStep: (step: FocusedStep | null) => void;
+  setFocusedPlaceId: (id: string | null) => void;
   setAlternativeSegment: (segment: FocusedSegment | null) => void;
   setHoveredAlternativeRoute: (route: DirectionResult | null) => void;
   setIsAlternativeFromFocus: (val: boolean) => void;
@@ -45,6 +47,7 @@ export const createMapSlice: StateCreator<
   focusBounds: null,
   focusedSegment: null,
   focusedStep: null,
+  focusedPlaceId: null,
   alternativeSegment: null,
   hoveredAlternativeRoute: null,
   isAlternativeFromFocus: false,
@@ -59,15 +62,16 @@ export const createMapSlice: StateCreator<
   setFocusBounds: (bounds) => set({ focusBounds: bounds }),
   setFocusedSegment: (segment) => set(() => ({ 
     focusedSegment: segment,
-    ...(segment ? { alternativeSegment: null, hoveredAlternativeRoute: null } : {})
+    ...(segment ? { alternativeSegment: null, hoveredAlternativeRoute: null, focusedPlaceId: null } : {})
   })),
   setFocusedStep: (step) => set(() => ({ 
     focusedStep: step,
-    ...(step ? { alternativeSegment: null, hoveredAlternativeRoute: null } : {})
+    ...(step ? { alternativeSegment: null, hoveredAlternativeRoute: null, focusedPlaceId: null } : {})
   })),
+  setFocusedPlaceId: (id) => set({ focusedPlaceId: id }),
   setAlternativeSegment: (segment) => set(() => ({ 
     alternativeSegment: segment,
-    ...(segment ? { focusedSegment: null, focusedStep: null } : { hoveredAlternativeRoute: null })
+    ...(segment ? { focusedSegment: null, focusedStep: null, focusedPlaceId: null } : { hoveredAlternativeRoute: null })
   })),
   setHoveredAlternativeRoute: (route) => set({ hoveredAlternativeRoute: route }),
   setIsAlternativeFromFocus: (val) => set({ isAlternativeFromFocus: val }),

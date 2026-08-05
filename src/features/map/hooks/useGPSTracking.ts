@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useMapUIStore } from '@/stores/map-store';
+import { useJourneyStore } from '@/stores/journey-store';
 import { useDialog } from '@/providers/DialogProvider';
 
 interface UseGPSTrackingProps {
@@ -17,6 +18,8 @@ export function useGPSTracking({ map }: UseGPSTrackingProps) {
     setGpsMode,
     setDeviceHeading,
   } = useMapUIStore();
+  const setFocusedPlaceId = useJourneyStore((state) => state.setFocusedPlaceId);
+  const setFocusBounds = useJourneyStore((state) => state.setFocusBounds);
 
   const lastKnownLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const gpsModeRef = useRef(gpsMode);

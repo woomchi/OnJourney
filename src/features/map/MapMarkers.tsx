@@ -6,6 +6,7 @@ import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { getSequenceTheme } from '@/constants/colors';
 import { getCategoryTheme } from '@/lib/categoryUtils';
 import { useMapUIStore } from '@/stores/map-store';
+import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, PlaceResult } from '@/types/journey';
 
 export interface MapMarkersProps {
@@ -46,22 +47,24 @@ export const MapMarkers = memo(function MapMarkers({
   handleRecommendedMarkerClick,
 }: MapMarkersProps) {
   const deviceHeading = useMapUIStore((state) => state.deviceHeading);
+  const focusedPlaceId = useJourneyStore((state) => state.focusedPlaceId);
 
   return (
     <>
       {/* ── 1. 여정 장소 핀 마커 ── */}
       {places.map((place, idx) => {
+        const isPlaceFocused = focusedPlaceId === place.id;
         const isSegmentMarker = !!(
           activeSegment &&
           (place.id === activeSegment.originId || place.id === activeSegment.destId)
         );
-        const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0);
+        const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0) + (isPlaceFocused ? 20000 : 0);
         const isVisible = !activeSegment || isSegmentMarker;
 
         if (!isVisible) return null;
 
-        const markerWidth = isSegmentMarker ? 30 : 24;
-        const markerHeight = isSegmentMarker ? 40 : 32;
+        const markerWidth = isSegmentMarker || isPlaceFocused ? 32 : 28;
+        const markerHeight = isSegmentMarker || isPlaceFocused ? 42 : 36;
         const theme = getSequenceTheme(idx, places.length);
         const delayMs = (delays.markerDelays[place.id] ?? idx * 800) / 1000;
 
@@ -76,7 +79,7 @@ export const MapMarkers = memo(function MapMarkers({
           >
             <motion.div
               initial={false}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
+              animate={{ scale: isPlaceFocused ? 1.15 : 1, opacity: 1, y: 0 }}
               transition={{
                 type: 'spring',
                 stiffness: 400,
@@ -84,7 +87,7 @@ export const MapMarkers = memo(function MapMarkers({
               }}
               whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 0.95 }}
-              className="cursor-pointer select-none"
+              className="cursor-pointer select-none relative flex flex-col items-center"
               style={{
                 filter: `drop-shadow(0 3px 8px ${theme.color}70) drop-shadow(0 2px 4px rgba(0,0,0,0.15))`,
               }}
@@ -113,9 +116,9 @@ export const MapMarkers = memo(function MapMarkers({
                 <circle cx="12" cy="12" r="7.5" fill={`url(#glassShine-${idx})`} />
                 <text
                   x="12"
-                  y="16.5"
+                  y="16.2"
                   fill="white"
-                  fontSize={isSegmentMarker ? 11.5 : 10.5}
+                  fontSize={isSegmentMarker || isPlaceFocused ? 10 : 9}
                   fontWeight="900"
                   fontFamily="Pretendard, -apple-system, sans-serif"
                   textAnchor="middle"
@@ -124,6 +127,27 @@ export const MapMarkers = memo(function MapMarkers({
                   {idx + 1}
                 </text>
               </svg>
+
+              {/* ── 하이라이트 시 마커 밑 장소 풀네임 및 상세 주소 UI (로고 그라데이션 적용) ── */}
+              {isPlaceFocused && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.9 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                  className="absolute top-[100%] left-1/2 -translate-x-1/2 mt-1.5 px-3 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white border border-white/20 rounded-2xl shadow-2xl backdrop-blur-md flex flex-col items-center justify-center gap-0.5 pointer-events-none z-50 min-w-[120px] max-w-[240px] text-center"
+                >
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/90 shrink-0 animate-pulse" />
+                    <span className="text-xs font-black tracking-tight">{place.place_name}</span>
+                  </div>
+                  {place.address && (
+                    <span className="text-[10.5px] font-medium text-white/85 truncate max-w-full leading-tight">
+                      {place.address}
+                    </span>
+                  )}
+                </motion.div>
+              )}
             </motion.div>
           </CustomOverlayView>
         );

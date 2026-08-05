@@ -32,6 +32,8 @@ export default function FixedJourneyTimelineSheet({
     setFocusedStep,
     focusedSegment,
     setFocusedSegment,
+    focusedPlaceId,
+    setFocusedPlaceId,
     setFocusBounds,
     isSyncing,
     alternativeSegment,
@@ -108,10 +110,11 @@ export default function FixedJourneyTimelineSheet({
       const container = timelineContainerRef.current;
       const targetEl = cardRefs.current.get(key);
       if (container && targetEl) {
+        const itemWrapper = (targetEl.closest('.shrink-0') as HTMLElement) || targetEl;
         const containerLeft = container.getBoundingClientRect().left;
-        const targetLeft = targetEl.getBoundingClientRect().left;
-        const relativeLeft = targetLeft - containerLeft;
-        const newScrollLeft = container.scrollLeft + relativeLeft - 16;
+        const itemLeft = itemWrapper.getBoundingClientRect().left;
+        const relativeLeft = itemLeft - containerLeft;
+        const newScrollLeft = container.scrollLeft + relativeLeft - 20;
         container.scrollTo({
           left: Math.max(0, newScrollLeft),
           behavior: 'smooth',
@@ -211,6 +214,7 @@ export default function FixedJourneyTimelineSheet({
       setIsGlobalPlaying(false);
       setFocusedStep(null);
       setFocusedSegment(null);
+      setFocusedPlaceId(null);
       setAlternativeSegment(null);
       setFocusBounds(null);
     } else {
@@ -231,6 +235,7 @@ export default function FixedJourneyTimelineSheet({
         if (activeRoute) {
           setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
           setFocusedStep(null);
+          setFocusedPlaceId(null);
           const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
           setFocusBounds(bounds);
         }
@@ -241,6 +246,7 @@ export default function FixedJourneyTimelineSheet({
   const handleAddPlaceClick = () => {
     setFocusedStep(null);
     setFocusedSegment(null);
+    setFocusedPlaceId(null);
     setAlternativeSegment(null);
     setFocusBounds(null);
     openSearchMode();
@@ -250,16 +256,24 @@ export default function FixedJourneyTimelineSheet({
     setFocusedStep(null);
     setFocusedSegment(null);
     setAlternativeSegment(null);
-    setFocusBounds({
-      sw: { lat: place.lat - 0.003, lng: place.lng - 0.003 },
-      ne: { lat: place.lat + 0.003, lng: place.lng + 0.003 },
-    });
-    scrollToElement(`place-${place.id}`);
+
+    if (focusedPlaceId === place.id) {
+      setFocusedPlaceId(null);
+      setFocusBounds(null);
+    } else {
+      setFocusedPlaceId(place.id);
+      setFocusBounds({
+        sw: { lat: place.lat - 0.003, lng: place.lng - 0.003 },
+        ne: { lat: place.lat + 0.003, lng: place.lng + 0.003 },
+      });
+      scrollToElement(`place-${place.id}`);
+    }
   };
 
   const handleSegmentClick = (origin: Place, dest: Place, route: any) => {
     setFocusedStep(null);
     setFocusedSegment({ originId: origin.id, destId: dest.id });
+    setFocusedPlaceId(null);
     setAlternativeSegment(null);
     if (route) {
       const bounds = calculateSegmentBounds(origin, dest, route);
@@ -791,10 +805,16 @@ export default function FixedJourneyTimelineSheet({
                   onClick={() => handlePlaceClick(place)}
                   className="flex flex-col items-center justify-start h-[36px] w-full text-center px-0.5 cursor-pointer group"
                 >
-                  <span className="truncate text-[12px] font-bold text-zinc-900 group-hover:text-blue-600 transition-colors leading-tight max-w-full">
+                  <span className={`truncate text-[12px] transition-colors leading-tight max-w-full ${
+                    focusedPlaceId === place.id
+                      ? 'font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600'
+                      : 'font-bold text-zinc-900 group-hover:text-blue-600'
+                  }`}>
                     {place.place_name}
                   </span>
-                  <span className="truncate text-[9.5px] text-zinc-400 font-medium leading-tight max-w-full mt-0.5">
+                  <span className={`truncate text-[9.5px] font-medium leading-tight max-w-full mt-0.5 ${
+                    focusedPlaceId === place.id ? 'text-indigo-600 font-bold' : 'text-zinc-400'
+                  }`}>
                     {categoryLabel || shortAddress || '장소'}
                   </span>
                 </button>

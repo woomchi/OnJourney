@@ -10,6 +10,8 @@ export function useMapState() {
     setFocusedSegment: state.setFocusedSegment,
     focusedStep: state.focusedStep,
     setFocusedStep: state.setFocusedStep,
+    focusedPlaceId: state.focusedPlaceId,
+    setFocusedPlaceId: state.setFocusedPlaceId,
     alternativeSegment: state.alternativeSegment,
     setAlternativeSegment: state.setAlternativeSegment,
     hoveredAlternativeRoute: state.hoveredAlternativeRoute,

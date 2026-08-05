@@ -34,6 +34,7 @@ export function useMapCamera({
     setFocusedSegment,
     focusedStep,
     setFocusedStep,
+    setFocusedPlaceId,
     alternativeSegment,
     setAlternativeSegment,
     hoveredAlternativeRoute,
@@ -198,8 +199,9 @@ export function useMapCamera({
     setFocusBounds(null);
     setFocusedSegment(null);
     setFocusedStep(null);
+    setFocusedPlaceId(null);
     setAlternativeSegment(null);
-  }, [places, map, focusBounds, focusedSegment, directionsCache, activeJourney?.transport_type, setFocusBounds, setFocusedSegment, setFocusedStep, setAlternativeSegment]);
+  }, [places, map, focusBounds, focusedSegment, directionsCache, activeJourney?.transport_type, setFocusBounds, setFocusedSegment, setFocusedStep, setFocusedPlaceId, setAlternativeSegment]);
 
   const lastFittedDataStringRef = useRef<string>('');
   const lastFocusStateRef = useRef<boolean>(false);

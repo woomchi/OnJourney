@@ -1,6 +1,6 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+/**
+ * @fileoverview utils 하위 호환성 re-export 모듈
+ * 실제 유틸 구현은 @/lib/utils/index 에 위치합니다.
+ */
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+export * from '@/lib/utils/index';

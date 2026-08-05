@@ -23,8 +23,8 @@ interface MapUIState {
   setMapCenter: (center: MapCoord) => void;
   zoomLevel: number;
   setZoomLevel: (zoom: number) => void;
-  mapBounds: MapBoundsRect | unknown | null;
-  setMapBounds: (bounds: MapBoundsRect | unknown | null) => void;
+  mapBounds: MapBoundsRect | any | null;
+  setMapBounds: (bounds: MapBoundsRect | any | null) => void;
 
   // Selected Places on Map
   activeRecommendedPlace: PlaceResult | null;

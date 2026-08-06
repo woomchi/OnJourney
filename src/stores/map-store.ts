@@ -51,6 +51,10 @@ interface MapUIState {
   forceLoad: boolean;
   setForceLoad: (force: boolean) => void;
 
+  // Dragging State
+  isMapDragging: boolean;
+  setIsMapDragging: (isDragging: boolean) => void;
+
   // Bottom Sheet Motion Value Sharing
   bottomSheetY: MotionValue<number> | number | null;
   setBottomSheetY: (y: MotionValue<number> | number | ((prev: MotionValue<number> | number | null) => MotionValue<number> | number | null) | null) => void;
@@ -65,6 +69,9 @@ export const useMapUIStore = create<MapUIState>((set) => ({
 
   mapBounds: null,
   setMapBounds: (bounds) => set({ mapBounds: bounds }),
+
+  isMapDragging: false,
+  setIsMapDragging: (isDragging) => set({ isMapDragging: isDragging }),
 
   activeRecommendedPlace: null,
   setActiveRecommendedPlace: (place) => set({ activeRecommendedPlace: place }),

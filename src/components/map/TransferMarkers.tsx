@@ -16,6 +16,8 @@ interface TransferMarkersProps {
   alternativeSegment?: any;
 }
 
+import { useMapUIStore } from '@/stores/map-store';
+
 export default function TransferMarkers({
   places,
   directionsCache,
@@ -25,6 +27,7 @@ export default function TransferMarkers({
   hoveredAlternativeRoute,
   alternativeSegment,
 }: TransferMarkersProps) {
+  const isMapDragging = useMapUIStore((state) => state.isMapDragging);
   const { focusedStep, setFocusedStep, setFocusBounds, setFocusedSegment } = useJourneyStore();
 
   const transferPoints = useMemo(() => {
@@ -452,7 +455,11 @@ export default function TransferMarkers({
                 opacity: 1,
                 y: 0,
               }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              transition={
+                isMapDragging
+                  ? { duration: 0 }
+                  : { type: 'spring', stiffness: 400, damping: 25 }
+              }
               className="relative flex items-center bg-white border-2 rounded-full px-2.5 py-1 shadow-md font-sans whitespace-nowrap cursor-pointer select-none gap-2"
               style={{
                 borderColor: primaryColor,

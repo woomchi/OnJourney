@@ -292,16 +292,26 @@ export default function MapArea() {
     const navermapsObj = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermapsObj) return;
 
-    const dragListener = navermapsObj.Event.addListener(map, 'dragstart', () => {
+    const dragStartListener = navermapsObj.Event.addListener(map, 'dragstart', () => {
       setFocusedPlaceId(null);
+      useMapUIStore.getState().setIsMapDragging(true);
+    });
+    const dragEndListener = navermapsObj.Event.addListener(map, 'dragend', () => {
+      useMapUIStore.getState().setIsMapDragging(false);
+    });
+    const idleListener = navermapsObj.Event.addListener(map, 'idle', () => {
+      useMapUIStore.getState().setIsMapDragging(false);
     });
     const clickListener = navermapsObj.Event.addListener(map, 'click', () => {
       setFocusedPlaceId(null);
     });
 
     return () => {
-      navermapsObj.Event.removeListener(dragListener);
+      navermapsObj.Event.removeListener(dragStartListener);
+      navermapsObj.Event.removeListener(dragEndListener);
+      navermapsObj.Event.removeListener(idleListener);
       navermapsObj.Event.removeListener(clickListener);
+      useMapUIStore.getState().setIsMapDragging(false);
     };
   }, [map, setFocusedPlaceId]);
 
@@ -400,7 +410,7 @@ export default function MapArea() {
     };
   }, [handleResetBounds]);
 
-  const handleRecommendedMarkerClick = (recPlace: PlaceResult) => {
+  const handleRecommendedMarkerClick = useCallback((recPlace: PlaceResult) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
@@ -414,9 +424,9 @@ export default function MapArea() {
         panToWithOffset(map, { lat: recPlace.lat, lng: recPlace.lng });
       }, 50);
     }
-  };
+  }, [setActiveRecommendedPlace, map, panToWithOffset]);
 
-  const handleMarkerClick = (place: SelectedPlace & { id: string }, idx: number) => {
+  const handleMarkerClick = useCallback((place: SelectedPlace & { id: string }, idx: number) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
@@ -473,7 +483,7 @@ export default function MapArea() {
         setFocusedStep(null);
       }
     }, 80);
-  };
+  }, [focusedPlaceId, setFocusedPlaceId, map, currentMapPadding, setMapCenter, panToWithOffset, places, directionsCache, activeJourney?.transport_type, focusedSegment, setFocusBounds, setFocusedStep, setFocusedSegment]);
 
   if (!clientId) {
     return (

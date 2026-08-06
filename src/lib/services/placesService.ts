@@ -1,6 +1,6 @@
 import { unstable_cache } from 'next/cache';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { PlacesQueryType } from '../validations/places';
-import { createClient } from '@/lib/supabase/server';
 import {
   analyzeQuery,
   getCategoryPatternScore,
@@ -227,7 +227,12 @@ const fetchPopularityCountsMap = unstable_cache(
     const counts: Record<string, number> = {};
     let maxCount = 0;
     try {
-      const supabase = await createClient();
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('NEXT_PUBLIC_SUPABASE_URL 또는 NEXT_PUBLIC_SUPABASE_ANON_KEY 환경변수가 설정되지 않았습니다.');
+      }
+      const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
       const { data: journeys, error } = await supabase.from('journeys').select('places');
 
       if (error || !journeys) {

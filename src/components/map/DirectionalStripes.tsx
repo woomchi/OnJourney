@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Polyline } from 'react-naver-maps';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
@@ -92,6 +92,8 @@ interface DirectionalStripesProps {
   alternativeSegment?: any;
 }
 
+import { useMapUIStore } from '@/stores/map-store';
+
 // 폴리라인 내부에 화살표 스트라이프 패턴을 렌더링하는 정적 마커 컴포넌트
 export default function DirectionalStripes({
   places,
@@ -105,6 +107,7 @@ export default function DirectionalStripes({
   hoveredAlternativeRoute,
   alternativeSegment,
 }: DirectionalStripesProps) {
+  const isMapDragging = useMapUIStore((state) => state.isMapDragging);
   // 1. Calculate anchor points along path (independent of zoomLevel)
   const arrowAnchors = useMemo(() => {
     const points: Array<{
@@ -239,8 +242,13 @@ export default function DirectionalStripes({
     return points;
   }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps, hoveredAlternativeRoute, alternativeSegment]);
 
+  const lastVisiblePointsRef = useRef<any[]>([]);
+
   // 2. Filter points by viewport bounds & apply zoom-based stride sampling
   const visiblePoints = useMemo(() => {
+    if (isMapDragging && lastVisiblePointsRef.current.length > 0) {
+      return lastVisiblePointsRef.current;
+    }
     if (zoomLevel <= 7) return [];
 
     let stride = 1;
@@ -254,13 +262,17 @@ export default function DirectionalStripes({
     const sampledAnchors = arrowAnchors.filter((_, idx) => idx % stride === 0);
 
     if (!mapBounds || !navermaps) {
-      return sampledAnchors.slice(0, 80);
+      const res = sampledAnchors.slice(0, 80);
+      lastVisiblePointsRef.current = res;
+      return res;
     }
     try {
       const sw = mapBounds.getSW();
       const ne = mapBounds.getNE();
       if (!sw || !ne || typeof sw.lat !== 'function' || typeof ne.lat !== 'function') {
-        return sampledAnchors.slice(0, 80);
+        const res = sampledAnchors.slice(0, 80);
+        lastVisiblePointsRef.current = res;
+        return res;
       }
 
       const latSpan = ne.lat() - sw.lat();
@@ -278,42 +290,54 @@ export default function DirectionalStripes({
         return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
       });
 
-      return filtered.slice(0, 80);
+      const res = filtered.slice(0, 50);
+      lastVisiblePointsRef.current = res;
+      return res;
     } catch (e) {
       console.warn('[DirectionalStripes] Failed to filter points by bounds:', e);
-      return sampledAnchors.slice(0, 80);
+      const res = sampledAnchors.slice(0, 50);
+      lastVisiblePointsRef.current = res;
+      return res;
     }
-  }, [arrowAnchors, mapBounds, navermaps, zoomLevel]);
+  }, [arrowAnchors, mapBounds, navermaps, zoomLevel, isMapDragging]);
 
-  // 3. Compute chevron geometries using current zoomLevel
-  const chevronPaths = useMemo(() => {
-    if (zoomLevel <= 7) return [];
-    return visiblePoints.map((pt) => {
-      const pathPoints = navermaps
-        ? getChevronPath(pt.position, pt.bearing, zoomLevel).map(coord => new navermaps.LatLng(coord.lat, coord.lng))
-        : getChevronPath(pt.position, pt.bearing, zoomLevel);
-      return {
-        key: pt.key,
-        path: pathPoints,
-        transportType: pt.transportType,
-        zIndex: pt.zIndex,
-      };
+  // 3. Batch chevron geometries by transportType & zIndex to reduce Polyline React nodes from 80+ to 1~3
+  const batchedChevrons = useMemo(() => {
+    if (zoomLevel <= 7 || visiblePoints.length === 0) return [];
+
+    const groups: Record<string, { key: string; paths: any[]; transportType: string; zIndex: number }> = {};
+
+    visiblePoints.forEach((pt) => {
+      const pathPoints = getChevronPath(pt.position, pt.bearing, zoomLevel);
+
+      const groupKey = `${pt.transportType}-${pt.zIndex}`;
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          key: `chevron-batch-${groupKey}`,
+          paths: [],
+          transportType: pt.transportType,
+          zIndex: pt.zIndex,
+        };
+      }
+      groups[groupKey].paths.push(pathPoints);
     });
-  }, [visiblePoints, zoomLevel, navermaps]);
+
+    return Object.values(groups);
+  }, [visiblePoints, zoomLevel]);
 
   return (
     <>
-      {chevronPaths.map((pt) => (
+      {batchedChevrons.map((batch) => (
         <Polyline
-          key={pt.key}
-          path={pt.path}
+          key={batch.key}
+          path={batch.paths}
           strokeColor="#FFFFFF"
-          strokeOpacity={pt.transportType === 'public' ? 0.95 : 0.55}
+          strokeOpacity={batch.transportType === 'public' ? 0.95 : 0.55}
           strokeWeight={getChevronStrokeWeight(zoomLevel)}
           strokeStyle="solid"
           strokeLineCap="round"
           strokeLineJoin="round"
-          zIndex={pt.zIndex}
+          zIndex={batch.zIndex}
         />
       ))}
     </>

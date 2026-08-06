@@ -36,6 +36,9 @@ export function CustomOverlayView({
     // Create container element for React portal
     const el = document.createElement('div');
     el.style.position = 'absolute';
+    el.style.left = '0px';
+    el.style.top = '0px';
+    el.style.willChange = 'transform';
     el.style.zIndex = String(zIndex);
     el.style.pointerEvents = 'auto';
     // 크기가 측정되어 위치가 계산될 때까지 순간적인 튀는 현상을 막기 위해 초기에는 숨김 처리
@@ -70,12 +73,24 @@ export function CustomOverlayView({
         this.offY = offY;
       }
 
+      private cachedWidth = 0;
+      private cachedHeight = 0;
+
       onAdd() {
         const overlayLayer = this.getPanes().overlayLayer;
         overlayLayer.appendChild(this.element);
 
         if (typeof ResizeObserver !== 'undefined') {
-          this.resizeObserver = new ResizeObserver(() => {
+          this.resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+              if (entry.borderBoxSize && entry.borderBoxSize.length > 0) {
+                this.cachedWidth = entry.borderBoxSize[0].inlineSize;
+                this.cachedHeight = entry.borderBoxSize[0].blockSize;
+              } else {
+                this.cachedWidth = entry.contentRect.width;
+                this.cachedHeight = entry.contentRect.height;
+              }
+            }
             this.draw();
           });
           this.resizeObserver.observe(this.element);
@@ -92,14 +107,15 @@ export function CustomOverlayView({
         const latLng = new mapsObj.LatLng(this.pos.lat, this.pos.lng);
         const pixelPosition = projection.fromCoordToOffset(latLng);
 
-        const width = this.element.offsetWidth || 0;
-        const height = this.element.offsetHeight || 0;
+        const width = this.cachedWidth || this.element.offsetWidth || 0;
+        const height = this.cachedHeight || this.element.offsetHeight || 0;
+        if (width > 0 && !this.cachedWidth) this.cachedWidth = width;
+        if (height > 0 && !this.cachedHeight) this.cachedHeight = height;
 
         const left = pixelPosition.x - width * this.ancX + this.offX;
         const top = pixelPosition.y - height * this.ancY + this.offY;
 
-        this.element.style.left = `${left}px`;
-        this.element.style.top = `${top}px`;
+        this.element.style.transform = `translate3d(${left}px, ${top}px, 0)`;
 
         // 요새 크기가 유효하거나 측정이 이루어졌을 때 화면에 노출
         if (width > 0 || height > 0 || this.hasPositioned) {

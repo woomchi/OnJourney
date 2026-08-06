@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDialog } from '@/providers/DialogProvider';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useMapUIStore } from '@/stores/map-store';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { deleteJourneys } from '@/lib/journeys';
@@ -327,9 +328,11 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     }
   };
 
+  const isMapDragging = useMapUIStore((state) => state.isMapDragging);
+
   const innerContent = (
     <>
-      <header className={`hidden md:block px-8 py-7 border-b border-zinc-100/80 flex-shrink-0 ${isListEditMode ? 'bg-white' : 'bg-white/50 backdrop-blur-md'}`}>
+      <header className={`hidden md:block px-8 py-7 border-b border-zinc-100/80 flex-shrink-0 ${isListEditMode || isMapDragging ? 'bg-white backdrop-blur-none' : 'bg-white/50 backdrop-blur-md'}`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
@@ -369,7 +372,7 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
                   bottomSheet.dragControls.start(e);
                 }
               }}
-              className={`flex flex-col flex-shrink-0 border-b border-zinc-100/80 cursor-grab active:cursor-grabbing touch-none ${isListEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}
+              className={`flex flex-col flex-shrink-0 border-b border-zinc-100/80 cursor-grab active:cursor-grabbing touch-none ${isListEditMode || isMapDragging ? 'bg-white backdrop-blur-none' : 'bg-white/80 backdrop-blur-xl'}`}
             >
               <div className={`px-8 pb-3.5 flex items-center justify-between text-xs font-semibold pt-1`}>
                 {isListEditMode ? (

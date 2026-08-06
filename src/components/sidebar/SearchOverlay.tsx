@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useMapUIStore } from '@/stores/map-store';
 import { getCategoryTheme } from '@/lib/categoryUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
@@ -40,7 +41,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     removePlace,
     mapCenterAddress,
     mapCenterCoord,
-    mapBounds,
     setRecommendedPlaces,
     clearRecommendedPlaces,
     activeSearchPlace,
@@ -60,7 +60,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     removePlace: state.removePlace,
     mapCenterAddress: state.mapCenterAddress,
     mapCenterCoord: state.mapCenterCoord,
-    mapBounds: state.mapBounds,
     setRecommendedPlaces: state.setRecommendedPlaces,
     clearRecommendedPlaces: state.clearRecommendedPlaces,
     activeSearchPlace: state.activeSearchPlace,
@@ -76,6 +75,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     isDrawerMaximized: state.isDrawerMaximized,
   })));
 
+  const isMapDragging = useMapUIStore((state) => state.isMapDragging);
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -250,8 +250,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     }
     setIsSuggestionsLoading(true);
     try {
-      const boundsParam = mapBounds
-        ? `&minLat=${mapBounds.minLat}&maxLat=${mapBounds.maxLat}&minLng=${mapBounds.minLng}&maxLng=${mapBounds.maxLng}`
+      const currentBounds = useJourneyStore.getState().mapBounds;
+      const boundsParam = currentBounds
+        ? `&minLat=${currentBounds.minLat}&maxLat=${currentBounds.maxLat}&minLng=${currentBounds.minLng}&maxLng=${currentBounds.maxLng}`
         : '';
       const coordParam = mapCenterCoord ? `&lat=${mapCenterCoord.lat}&lng=${mapCenterCoord.lng}` : '';
       const transportParam = activeJourney?.transport_type
@@ -284,7 +285,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSuggestionsLoading(false);
       }
     }
-  }, [mapBounds, mapCenterCoord, activeJourney?.transport_type]);
+  }, [mapCenterCoord, activeJourney?.transport_type]);
 
   const debouncedFetchSuggestions = useDebouncedCallback((val: string) => {
     fetchSuggestions(val);
@@ -309,8 +310,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setHasSearched(true);
 
     try {
-      const boundsParam = mapBounds
-        ? `&minLat=${mapBounds.minLat}&maxLat=${mapBounds.maxLat}&minLng=${mapBounds.minLng}&maxLng=${mapBounds.maxLng}`
+      const currentBounds = useJourneyStore.getState().mapBounds;
+      const boundsParam = currentBounds
+        ? `&minLat=${currentBounds.minLat}&maxLat=${currentBounds.maxLat}&minLng=${currentBounds.minLng}&maxLng=${currentBounds.maxLng}`
         : '';
       const coordParam = mapCenterCoord ? `&lat=${mapCenterCoord.lat}&lng=${mapCenterCoord.lng}` : '';
       const transportParam = activeJourney?.transport_type
@@ -393,7 +395,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, mapBounds, activeJourney?.transport_type, setDrawerSnapPoint, debouncedFetchSuggestions]);
+  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, activeJourney?.transport_type, setDrawerSnapPoint, debouncedFetchSuggestions]);
 
   const dismissKeyboard = useCallback(() => {
     if (searchInputRef.current) {
@@ -555,17 +557,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
             ) : null}
           </form>
 
-          {/* ── 추천 검색어 드롭다운 팝오버 (검색바 하단 배치) ── */}
           {isDropdownOpen && suggestions.length > 0 && (
             <div
-              className="
-                absolute top-full left-4 right-4 mt-1 z-[100]
-                bg-white/95 backdrop-blur-xl
-                rounded-2xl border border-zinc-200/80
-                shadow-[0_12px_36px_rgba(0,0,0,0.14)]
-                overflow-hidden
-                animate-in fade-in slide-in-from-top-2 duration-150
-              "
+              className={`absolute top-full left-4 right-4 mt-1 z-[100] ${isMapDragging ? 'bg-white backdrop-blur-none' : 'bg-white/95 backdrop-blur-xl'} rounded-2xl border border-zinc-200/80 shadow-[0_12px_36px_rgba(0,0,0,0.14)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150`}
             >
               <ul className="max-h-64 overflow-y-auto divide-y divide-zinc-50 scrollbar-sleek">
                 {suggestions.map((item) => {

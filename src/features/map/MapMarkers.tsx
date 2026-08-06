@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { getSequenceTheme } from '@/constants/colors';
@@ -47,7 +47,14 @@ export const MapMarkers = memo(function MapMarkers({
   handleRecommendedMarkerClick,
 }: MapMarkersProps) {
   const deviceHeading = useMapUIStore((state) => state.deviceHeading);
+  const isMapDragging = useMapUIStore((state) => state.isMapDragging);
   const focusedPlaceId = useJourneyStore((state) => state.focusedPlaceId);
+
+  const unaddedRecommendedPlaces = useMemo(() => {
+    if (!isSearchMode || !recommendedPlaces || recommendedPlaces.length === 0) return [];
+    const placeIdSet = new Set(places.map((p) => p.id));
+    return recommendedPlaces.filter((rec) => !placeIdSet.has(rec.id));
+  }, [isSearchMode, recommendedPlaces, places]);
 
   return (
     <>
@@ -80,12 +87,16 @@ export const MapMarkers = memo(function MapMarkers({
             <motion.div
               initial={false}
               animate={{ scale: isPlaceFocused ? 1.15 : 1, opacity: 1, y: 0 }}
-              transition={{
-                type: 'spring',
-                stiffness: 400,
-                damping: 24,
-              }}
-              whileHover={{ scale: 1.15 }}
+              transition={
+                isMapDragging
+                  ? { duration: 0 }
+                  : {
+                      type: 'spring',
+                      stiffness: 400,
+                      damping: 24,
+                    }
+              }
+              whileHover={isMapDragging ? undefined : { scale: 1.15 }}
               whileTap={{ scale: 0.95 }}
               className="cursor-pointer select-none relative flex flex-col items-center"
               style={{
@@ -154,64 +165,60 @@ export const MapMarkers = memo(function MapMarkers({
       })}
 
       {/* ── 2. 추천 장소 마커 ── */}
-      {isSearchMode &&
-        recommendedPlaces &&
-        recommendedPlaces
-          .filter((recPlace) => !places.some((p) => p.id === recPlace.id))
-          .map((recPlace) => {
-            const isActive = activeSearchPlace?.id === recPlace.id;
-            const theme = getCategoryTheme(recPlace.category);
-            const emoji = categoryEmojis[theme.type] || categoryEmojis.etc;
-            const zIndex = isActive ? 9999 : 9000;
+      {unaddedRecommendedPlaces.map((recPlace) => {
+        const isActive = activeSearchPlace?.id === recPlace.id;
+        const theme = getCategoryTheme(recPlace.category);
+        const emoji = categoryEmojis[theme.type] || categoryEmojis.etc;
+        const zIndex = isActive ? 9999 : 9000;
 
-            const dropShadow = isActive
-              ? `drop-shadow(0 0 10px ${theme.color}) drop-shadow(0 6px 14px rgba(0,0,0,0.35))`
-              : 'drop-shadow(0 4px 10px rgba(0,0,0,0.18))';
+        const dropShadow = isActive
+          ? `drop-shadow(0 0 8px ${theme.color}) drop-shadow(0 4px 10px rgba(0,0,0,0.3))`
+          : undefined;
 
-            return (
-              <CustomOverlayView
-                key={`rec-${recPlace.id}`}
-                position={{ lat: recPlace.lat, lng: recPlace.lng }}
-                zIndex={zIndex}
-                onClick={() => handleRecommendedMarkerClick(recPlace)}
-                anchorX={0.5}
-                anchorY={1}
+        return (
+          <CustomOverlayView
+            key={`rec-${recPlace.id}`}
+            position={{ lat: recPlace.lat, lng: recPlace.lng }}
+            zIndex={zIndex}
+            onClick={() => handleRecommendedMarkerClick(recPlace)}
+            anchorX={0.5}
+            anchorY={1}
+          >
+            <motion.div
+              initial={false}
+              animate={{ scale: isActive ? 1.2 : 1, opacity: 1 }}
+              whileHover={isMapDragging ? undefined : { scale: 1.15 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+              className="cursor-pointer select-none"
+              style={dropShadow ? { filter: dropShadow } : undefined}
+            >
+              <svg
+                width="28"
+                height="36"
+                viewBox="0 0 24 32"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
               >
-                <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: isActive ? 1.25 : 1, opacity: 1 }}
-                  whileHover={{ scale: 1.15 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className="cursor-pointer select-none"
-                  style={{ filter: dropShadow }}
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z"
+                  fill={theme.color}
+                />
+                <text
+                  x="12"
+                  y="17"
+                  fill="white"
+                  fontSize="11"
+                  fontFamily="Pretendard, sans-serif"
+                  textAnchor="middle"
                 >
-                  <svg
-                    width="28"
-                    height="36"
-                    viewBox="0 0 24 32"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M12 2C6.48 2 2 6.48 2 12C2 19 12 30 12 30C12 30 22 19 22 12C22 6.48 17.52 2 12 2Z"
-                      fill={theme.color}
-                    />
-                    <text
-                      x="12"
-                      y="17"
-                      fill="white"
-                      fontSize="11"
-                      fontFamily="Pretendard, sans-serif"
-                      textAnchor="middle"
-                    >
-                      {emoji}
-                    </text>
-                  </svg>
-                </motion.div>
-              </CustomOverlayView>
-            );
-          })}
+                  {emoji}
+                </text>
+              </svg>
+            </motion.div>
+          </CustomOverlayView>
+        );
+      })}
 
       {/* ── 3. 지도 직접 클릭 마커 ── */}
       {mapClickedPlace && (
@@ -223,8 +230,8 @@ export const MapMarkers = memo(function MapMarkers({
           anchorY={1}
         >
           <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
+            animate={isMapDragging ? { y: 0 } : { y: [0, -10, 0] }}
+            transition={isMapDragging ? { duration: 0 } : { repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
             className="cursor-pointer select-none"
             style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.25))' }}
           >

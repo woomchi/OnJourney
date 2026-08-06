@@ -25,14 +25,20 @@ export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
 
     const idleListener = navermaps.Event.addListener(map, 'idle', () => {
       const newZoom = map.getZoom();
-      const prevZoom = useMapUIStore.getState().zoomLevel;
-      setZoomLevel(prevZoom === newZoom ? prevZoom : newZoom);
-
       const newBounds = map.getBounds() as naver.maps.LatLngBounds;
-      const prevBounds = useMapUIStore.getState().mapBounds;
+
+      // 단일 setState 호출로 배치 처리하여 연속 리렌더링 차단
+      const currentUIState = useMapUIStore.getState();
+      const updates: Partial<ReturnType<typeof useMapUIStore.getState>> = {};
+
+      if (currentUIState.zoomLevel !== newZoom) {
+        updates.zoomLevel = newZoom;
+      }
+
+      const prevBounds = currentUIState.mapBounds;
       if (!prevBounds || !newBounds) {
-        setMapBounds(newBounds);
-      } else {
+        updates.mapBounds = newBounds;
+      } else if (typeof prevBounds.getSW === 'function' && typeof newBounds.getSW === 'function') {
         const prevSW = prevBounds.getSW();
         const prevNE = prevBounds.getNE();
         const newSW = newBounds.getSW();
@@ -43,11 +49,15 @@ export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
           prevNE.lat() !== newNE.lat() ||
           prevNE.lng() !== newNE.lng()
         ) {
-          setMapBounds(newBounds);
+          updates.mapBounds = newBounds;
         }
       }
 
-      if (newBounds) {
+      if (Object.keys(updates).length > 0) {
+        useMapUIStore.setState(updates);
+      }
+
+      if (newBounds && typeof newBounds.getSW === 'function') {
         const sw = newBounds.getSW();
         const ne = newBounds.getNE();
         setGlobalMapBounds({

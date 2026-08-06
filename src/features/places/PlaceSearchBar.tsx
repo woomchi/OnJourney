@@ -6,11 +6,22 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDialog } from '@/providers/DialogProvider';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
-import type { Journey, Place } from '@/types/journey';
+import type { Journey, Place, ServiceCategoryTag } from '@/types/journey';
 import { getCategoryTheme } from '@/lib/categoryUtils';
-import { usePlaceSearch, PlaceResult } from '@/features/places/usePlaceSearch';
+import { usePlaceSearch, CategoryFilterType } from '@/features/places/usePlaceSearch';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import { Search, Loader2, Plus, MapPin, X } from 'lucide-react';
+
+const CATEGORY_CHIPS: { label: string; value: CategoryFilterType }[] = [
+  { label: '전체', value: 'all' },
+  { label: '관광명소', value: 'attraction' },
+  { label: '음식점', value: 'restaurant' },
+  { label: '카페', value: 'cafe' },
+  { label: '숙소', value: 'accommodation' },
+  { label: '교통', value: 'transit' },
+  { label: '편의시설', value: 'convenience' },
+  { label: '기타', value: 'etc' },
+];
 
 const themeClasses = {
   cafe: 'text-amber-700 bg-amber-50 border border-amber-100',
@@ -22,7 +33,7 @@ const themeClasses = {
 };
 
 interface PlaceSearchBarProps {
-  onPlaceSelect?: (place: PlaceResult) => void;
+  onPlaceSelect?: (place: any) => void;
 }
 
 
@@ -31,6 +42,9 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     query,
     setQuery,
     results,
+    filteredResults,
+    activeCategory,
+    setActiveCategory,
     setResults,
     isLoading,
     isOpen,
@@ -45,7 +59,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   // 선택한 장소를 추가할 여정 선택 모달 관련 상태
-  const [selectedPlaceToAssign, setSelectedPlaceToAssign] = useState<PlaceResult | null>(null);
+  const [selectedPlaceToAssign, setSelectedPlaceToAssign] = useState<any | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -145,7 +159,7 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     }
   };
 
-  const handleAddPlace = async (item: PlaceResult) => {
+  const handleAddPlace = async (item: any) => {
     if (!user) {
       openAuthModal();
       return;
@@ -317,6 +331,31 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
             animate-in fade-in slide-in-from-top-2 duration-150
           "
         >
+          {/* 카테고리 칩 필터 바 */}
+          {results.length > 0 && (
+            <div className="px-4 py-2 border-b border-zinc-100 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+              {CATEGORY_CHIPS.map((chip) => {
+                const isActive = activeCategory === chip.value;
+                return (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    onClick={() => setActiveCategory(chip.value)}
+                    className={`
+                      px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-colors duration-150 cursor-pointer
+                      ${isActive
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                      }
+                    `}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {error ? (
             <div className="px-5 py-4 text-sm text-red-500 flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0">
@@ -324,13 +363,13 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
               </svg>
               {error}
             </div>
-          ) : results.length === 0 ? (
+          ) : filteredResults.length === 0 ? (
             <div className="px-5 py-6 text-sm text-zinc-400 text-center">
-              검색 결과가 없습니다.
+              {results.length > 0 ? '선택한 카테고리의 검색 결과가 없습니다.' : '검색 결과가 없습니다.'}
             </div>
           ) : (
             <ul className="max-h-72 overflow-y-auto divide-y divide-zinc-50 scrollbar-sleek">
-              {results.map((item) => {
+              {filteredResults.map((item) => {
                 const isAdded = activeJourney ? addedIds.has(item.id) : false;
                 return (
                   <li key={item.id}>
@@ -381,10 +420,11 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
           )}
 
           {results.length > 0 && (
-            <div className="px-5 py-2.5 border-t border-zinc-50 bg-zinc-50/50">
-              <p className="text-[11px] text-zinc-400">
-                네이버 장소 검색 결과 {results.length}개
-              </p>
+            <div className="px-5 py-2.5 border-t border-zinc-50 bg-zinc-50/50 flex justify-between items-center text-[11px] text-zinc-400">
+              <span>장소 검색 결과 {results.length}개</span>
+              {activeCategory !== 'all' && (
+                <span className="font-medium text-blue-600">필터 적용: {filteredResults.length}개</span>
+              )}
             </div>
           )}
         </div>

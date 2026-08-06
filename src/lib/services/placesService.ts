@@ -1,12 +1,3 @@
-/**
- * @fileoverview 장소 검색 서비스
- *
- * 카카오 로컬 API를 호출하여 검색어에 가장 적합한 장소 목록을 반환합니다.
- * 복합 점수 공식(매칭·카테고리·거리·인기도)을 사용해 결과를 랭킹합니다.
- *
- * @see https://developers.kakao.com/docs/latest/ko/local/dev-guide
- */
-
 import { unstable_cache } from 'next/cache';
 import { PlacesQueryType } from '../validations/places';
 import { createClient } from '@/lib/supabase/server';
@@ -16,7 +7,7 @@ import {
   hasExplicitRegionKeyword,
 } from './searchPatternService';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
-import type { PlaceResult } from '@/types/journey';
+import type { PlaceResult, ServiceCategoryTag } from '@/types/journey';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 
@@ -25,9 +16,6 @@ const KAKAO_API_BASE_URL = 'https://dapi.kakao.com/v2/local/search/keyword.json'
 
 /** 1회 요청당 최대 결과 수 */
 const RESULTS_PER_PAGE = 15;
-
-/** 병렬로 호출할 페이지 수 (총 후보군: RESULTS_PER_PAGE × MAX_PAGES) */
-const MAX_PAGES = 3;
 
 /** 최종 반환 결과 최대 개수 */
 const MAX_RESULTS = 20;
@@ -59,7 +47,7 @@ const COLD_START_POPULARITY_BONUS = 0.3;
 /** 인기도 정규화 시 최소 하한값 (0.0 제외, 최소 등록된 경우) */
 const MIN_POPULARITY_SCORE = 0.1;
 
-// ─── 카테고리 분류 상수 (함수 호출마다 재생성 방지) ───────────────────────────
+// ─── 카테고리 분류 상수 ───────────────────────────────────────────────────
 
 /** Tier 1: 관광·숙박·문화 (여행 목적에 가장 직결) */
 const CATEGORY_TIER_1_CODES = ['AT4', 'AD5', 'CT1'];
@@ -73,7 +61,7 @@ const CATEGORY_TIER_3_CODES = ['CS2', 'PM9', 'MT1', 'OL7', 'SW8', 'PO3', 'BK9'];
 /** 외곽 지역 식별 키워드 */
 const SUBURBAN_KEYWORDS = ['제주', '강원', '울릉', '독도', '가평', '양평', '강화', '태안', '남해'];
 
-/** 여행/이동 목적과 거리가 먼 특수 카페 유형 (제외 대상) */
+/** 특수 카페 유형 (Drop 대신 etc 태그 부여) */
 const EXCLUDED_CAFE_TYPES_REGEX =
   /(만화카페|키즈카페|보드게임카페|룸카페|스터디카페|애견카페|고양이카페)/i;
 
@@ -117,7 +105,6 @@ interface KakaoDocument {
 
 /**
  * 두 좌표 사이의 거리를 km 단위로 반환합니다.
- * naverMapRouteService의 Haversine 구현을 재사용합니다 (m → km 환산).
  */
 function getDistanceKm(
   lat1: number,
@@ -128,17 +115,10 @@ function getDistanceKm(
   return calculateHaversineDistance(lat1, lng1, lat2, lng2) / 1_000;
 }
 
-// ─── 내부 헬퍼: 점수 계산 ────────────────────────────────────────────────────
+// ─── 내부 헬퍼: 점수 및 서비스 카테고리 태깅 ───────────────────────────────
 
 /**
  * 거리 감쇠 점수(S_dist)를 계산합니다 (Gaussian Decay).
- *
- * 기준 위치가 없으면 0.0을 반환합니다.
- * @param refLat   기준 위도 (사용자 현재 위치 등)
- * @param refLng   기준 경도
- * @param placeLat 장소 위도
- * @param placeLng 장소 경도
- * @param scale    Gaussian scale 파라미터 (작을수록 가까운 장소 선호)
  */
 function getDistanceDecayScore(
   refLat: number | undefined,
@@ -155,37 +135,86 @@ function getDistanceDecayScore(
 }
 
 /**
- * 카테고리 적합도 점수(S_cat)를 계산합니다.
- *
- * - 카카오 카테고리 그룹 코드(groupCode)를 우선 사용합니다.
- * - 코드가 없으면 categoryName 키워드로 역매핑합니다.
- * - 여행/이동과 무관한 카테고리는 0.0을 반환하여 필터링합니다.
+ * 카카오 그룹 코드 및 카테고리명을 기준으로 ServiceCategoryTag를 판별합니다.
  */
-function getCategoryScore(
+function getServiceCategoryTag(
   groupCode: string | null | undefined,
   categoryName: string | null | undefined
-): number {
+): ServiceCategoryTag {
   if (groupCode) {
-    if (CATEGORY_TIER_1_CODES.includes(groupCode)) return 1.0;
-    if (CATEGORY_TIER_2_CODES.includes(groupCode)) return 0.8;
-    if (CATEGORY_TIER_3_CODES.includes(groupCode)) return 0.4;
-    // 그 외 카카오 그룹 코드는 노이즈로 간주하여 제외
-    return 0.0;
+    if (CATEGORY_TIER_1_CODES.includes(groupCode)) {
+      if (groupCode === 'AD5') return 'accommodation';
+      return 'attraction';
+    }
+    if (groupCode === 'FD6') return 'restaurant';
+    if (groupCode === 'CE7') return 'cafe';
+    if (groupCode === 'PK6') return 'parking';
+    if (groupCode === 'SW8') return 'transit';
+    if (CATEGORY_TIER_3_CODES.includes(groupCode)) return 'convenience';
   }
 
-  if (!categoryName) return 0.0;
+  if (!categoryName) return 'etc';
 
   const catLower = categoryName.toLowerCase();
 
-  // 2차 정밀 필터링: 여행 목적과 거리가 먼 특수 카페 유형 제외
-  if (EXCLUDED_CAFE_TYPES_REGEX.test(catLower)) return 0.0;
+  // 특수 목적 카페는 etc 태그로 분류 (제거 없이 보존)
+  if (EXCLUDED_CAFE_TYPES_REGEX.test(catLower)) return 'etc';
 
-  if (TIER_1_KEYWORDS.some((kw) => catLower.includes(kw))) return 1.0;
-  if (TIER_2_KEYWORDS.some((kw) => catLower.includes(kw))) return 0.8;
-  if (TIER_3_KEYWORDS.some((kw) => catLower.includes(kw))) return 0.4;
+  if (TIER_1_KEYWORDS.some((kw) => catLower.includes(kw))) {
+    if (
+      catLower.includes('숙박') ||
+      catLower.includes('호텔') ||
+      catLower.includes('펜션') ||
+      catLower.includes('콘도') ||
+      catLower.includes('리조트') ||
+      catLower.includes('게스트하우스') ||
+      catLower.includes('민박')
+    ) {
+      return 'accommodation';
+    }
+    return 'attraction';
+  }
 
-  // 매칭되지 않는 기타 카테고리 제외
-  return 0.0;
+  if (catLower.includes('카페') || catLower.includes('커피') || catLower.includes('디저트') || catLower.includes('빵집') || catLower.includes('제과점')) {
+    return 'cafe';
+  }
+
+  if (TIER_2_KEYWORDS.some((kw) => catLower.includes(kw))) {
+    if (catLower.includes('주차장')) return 'parking';
+    return 'restaurant';
+  }
+
+  if (catLower.includes('역') || catLower.includes('터미널') || catLower.includes('공항') || catLower.includes('정류장') || catLower.includes('지하철')) {
+    return 'transit';
+  }
+
+  if (TIER_3_KEYWORDS.some((kw) => catLower.includes(kw))) {
+    return 'convenience';
+  }
+
+  return 'etc';
+}
+
+/**
+ * ServiceCategoryTag에 따른 카테고리 적합도 점수(S_cat)를 산출합니다.
+ * 탈락(Drop) 없이 최소 0.2점을 보장합니다.
+ */
+function getCategoryScoreByTag(tag: ServiceCategoryTag): number {
+  switch (tag) {
+    case 'attraction':
+    case 'accommodation':
+      return 1.0;
+    case 'restaurant':
+    case 'cafe':
+    case 'transit':
+      return 0.8;
+    case 'parking':
+    case 'convenience':
+      return 0.5;
+    case 'etc':
+    default:
+      return 0.2;
+  }
 }
 
 // ─── 내부 헬퍼: 인기도 점수 ──────────────────────────────────────────────────
@@ -227,9 +256,6 @@ const fetchPopularityCountsMap = unstable_cache(
 
 /**
  * 내부 journeys 테이블 기반 인기도 점수(S_pop)를 조회합니다.
- *
- * - 특정 장소가 여정에 등록된 횟수를 집계하고, 최고 빈도 기준으로 0.1~1.0 범위로 정규화합니다.
- * - 한 번도 등록되지 않은 장소는 0.0을 반환합니다 (Tier1 콜드 스타트 보정은 상위에서 처리).
  */
 async function getPopularityScores(
   placeIds: string[]
@@ -250,10 +276,6 @@ async function getPopularityScores(
 
 // ─── 내부 헬퍼: 외곽 지역 판별 ───────────────────────────────────────────────
 
-/**
- * 주소 문자열에 외곽/관광지 키워드가 포함되어 있는지 확인합니다.
- * 외곽 지역은 거리 컷오프와 Gaussian scale이 더 관대하게 적용됩니다.
- */
 function isSuburbanAddress(address: string | undefined): boolean {
   if (!address) return false;
   return SUBURBAN_KEYWORDS.some((kw) => address.includes(kw));
@@ -262,15 +284,15 @@ function isSuburbanAddress(address: string | undefined): boolean {
 // ─── 공개 API ────────────────────────────────────────────────────────────────
 
 /**
- * 검색어와 위치 정보를 기반으로 랭킹된 장소 목록을 반환합니다.
+ * 검색어와 위치 정보를 기반으로 랭킹된 장소 목록을 반환합니다 (v3).
  *
  * 처리 흐름:
- * 1. 카카오 API 3페이지 병렬 호출 (최대 45개 후보 확보)
+ * 1. 이중 파이프라인 수집 (Pipeline A: accuracy/전국 랜드마크 보장, Pipeline B: distance/현위치)
  * 2. 중복 제거
- * 3. 카테고리 적합도 필터링 (S_cat = 0.0 제거)
+ * 3. 서비스 카테고리 태깅 (Drop 없이 모든 결과 보존)
  * 4. 쿼리 패턴 분석 및 거리 하드 컷오프 적용
  * 5. 복합 점수 산출 및 내림차순 정렬
- * 6. 상위 MAX_RESULTS(20)개 반환
+ * 6. 상위 MAX_RESULTS(20)개 반환 (serviceCategory 포함)
  */
 export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[]> {
   const apiKey = process.env.KAKAO_REST_API_KEY;
@@ -280,31 +302,14 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
 
   const { query, lat, lng, minLat, maxLat, minLng, maxLng, sort, transport_type } = params;
 
-  // ─ 카카오 API 쿼리 파라미터 구성 ─
-  const baseUrlParams = new URLSearchParams();
-  baseUrlParams.set('query', query);
-  baseUrlParams.set('size', String(RESULTS_PER_PAGE));
-  // 설계 요구사항에 따라 기본 정렬은 accuracy(정확도) 고정
-  baseUrlParams.set('sort', sort || 'accuracy');
-
-  if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
-    baseUrlParams.set('y', lat.toString());
-    baseUrlParams.set('x', lng.toString());
-  }
-
-  if (
-    minLat !== undefined && maxLat !== undefined &&
-    minLng !== undefined && maxLng !== undefined &&
-    !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLng) && !isNaN(maxLng)
-  ) {
-    baseUrlParams.set('rect', `${minLng},${minLat},${maxLng},${maxLat}`);
-  }
-
-  // ─ 단일 페이지 Fetch 헬퍼 ─
-  const fetchPage = async (page: number): Promise<PlaceResult[]> => {
-    const pageParams = new URLSearchParams(baseUrlParams);
-    pageParams.set('page', page.toString());
-    const url = `${KAKAO_API_BASE_URL}?${pageParams.toString()}`;
+  // ─ 파이프라인 Fetch 헬퍼 ─
+  const fetchApiPage = async (
+    pageParams: URLSearchParams,
+    page: number
+  ): Promise<PlaceResult[]> => {
+    const p = new URLSearchParams(pageParams);
+    p.set('page', page.toString());
+    const url = `${KAKAO_API_BASE_URL}?${p.toString()}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -319,63 +324,92 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
       if (!res.ok) {
         const text = await res.text();
         console.error(`[placesService] 카카오 API 페이지 ${page} 오류:`, res.status, text);
-        // 파싱 가능한 오류 메시지를 상위로 전달
-        try {
-          const errData = JSON.parse(text) as { message?: string };
-          if (errData.message) throw new Error(`카카오 API 오류: ${errData.message}`);
-        } catch (parseErr) {
-          if (parseErr instanceof Error && parseErr.message.startsWith('카카오 API 오류')) {
-            throw parseErr;
-          }
-        }
-        throw new Error(`카카오 API 호출에 실패했습니다. (Status: ${res.status})`);
+        return [];
       }
 
-      const data = await res.json() as { documents?: KakaoDocument[] };
+      const data = (await res.json()) as { documents?: KakaoDocument[] };
       if (!data.documents) return [];
 
-      return data.documents.map((doc) => ({
-        id: doc.id,
-        place_name: doc.place_name,
-        address: doc.road_address_name || doc.address_name,
-        category: doc.category_name,
-        lat: parseFloat(doc.y),
-        lng: parseFloat(doc.x),
-        category_group_code: doc.category_group_code,
-      }));
+      return data.documents.map((doc) => {
+        const serviceCategory = getServiceCategoryTag(doc.category_group_code, doc.category_name);
+        return {
+          id: doc.id,
+          place_name: doc.place_name,
+          address: doc.road_address_name || doc.address_name,
+          category: doc.category_name,
+          lat: parseFloat(doc.y),
+          lng: parseFloat(doc.x),
+          category_group_code: doc.category_group_code,
+          serviceCategory,
+        };
+      });
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        throw new Error('카카오 API 호출 시간이 초과되었습니다.');
+        console.error('[placesService] 카카오 API 호출 타임아웃');
       }
-      throw err;
+      return [];
     } finally {
       clearTimeout(timeoutId);
     }
   };
 
-  // ─ 3페이지 병렬 호출 ─
-  const pages = await Promise.all(
-    Array.from({ length: MAX_PAGES }, (_, i) => fetchPage(i + 1))
-  );
-  const combinedItems = pages.flat();
+  // ─ Pipeline A: 정확도 기반 (전국 범위 랜드마크 보장) ─
+  const pipelineAParams = new URLSearchParams();
+  pipelineAParams.set('query', query);
+  pipelineAParams.set('size', String(RESULTS_PER_PAGE));
+  pipelineAParams.set('sort', 'accuracy');
 
-  // ─ 중복 제거 ─
+  // ─ Pipeline B: 현재 위치/거리 기반 주변 탐색 ─
+  const pipelineBParams = new URLSearchParams();
+  pipelineBParams.set('query', query);
+  pipelineBParams.set('size', String(RESULTS_PER_PAGE));
+  pipelineBParams.set('sort', sort || 'distance');
+
+  if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
+    pipelineBParams.set('y', lat.toString());
+    pipelineBParams.set('x', lng.toString());
+  }
+
+  if (
+    minLat !== undefined && maxLat !== undefined &&
+    minLng !== undefined && maxLng !== undefined &&
+    !isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLng) && !isNaN(maxLng)
+  ) {
+    pipelineBParams.set('rect', `${minLng},${minLat},${maxLng},${maxLat}`);
+  }
+
+  // 이중 파이프라인 병렬 수집 (A: 1~2p, B: 1~2p)
+  const [pipelineAPages, pipelineBPages] = await Promise.all([
+    Promise.all([fetchApiPage(pipelineAParams, 1), fetchApiPage(pipelineAParams, 2)]),
+    Promise.all([fetchApiPage(pipelineBParams, 1), fetchApiPage(pipelineBParams, 2)]),
+  ]);
+
+  const combinedItems = [...pipelineAPages.flat(), ...pipelineBPages.flat()];
+
+  // 중복 제거 (Pipeline A 항목 우선 유지)
   const seen = new Set<string>();
-  const uniqueItems = combinedItems.filter((item) => {
-    if (seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
+  const uniqueItems: PlaceResult[] = [];
+  for (const item of combinedItems) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      uniqueItems.push(item);
+    }
+  }
+
+  if (uniqueItems.length === 0) return [];
+
+  // ─ 카테고리 태깅 및 적합도 평가 (Drop 없이 모든 결과 유지!) ─
+  const categoryEvaluated = uniqueItems.map((item) => {
+    const serviceCategory = item.serviceCategory || getServiceCategoryTag(item.category_group_code, item.category);
+    const sCat = getCategoryScoreByTag(serviceCategory);
+    return {
+      item: {
+        ...item,
+        serviceCategory,
+      },
+      sCat,
+    };
   });
-
-  // ─ 카테고리 적합도 평가 및 필터링 (S_cat = 0.0 제거) ─
-  const categoryEvaluated = uniqueItems
-    .map((item) => ({
-      item,
-      sCat: getCategoryScore(item.category_group_code, item.category),
-    }))
-    .filter((entry) => entry.sCat > 0.0);
-
-  if (categoryEvaluated.length === 0) return [];
 
   // ─ 쿼리 패턴 분석 ─
   const queryAnalysis = analyzeQuery(query);
@@ -400,12 +434,6 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
   const scoredItems: PlaceResult[] = [];
 
   for (const { item, sCat } of categoryEvaluated) {
-    // 거리 하드 컷오프 (명시적 지역명이 없으면 반경 검증)
-    if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
-      const d = getDistanceKm(lat, lng, item.lat, item.lng);
-      if (!isExplicitRegion && d > maxDistanceKm) continue;
-    }
-
     // 기본 단어(baseWord) 매칭 점수 (S_match)
     const placeNameLower = item.place_name.toLowerCase();
     const itemCategoryLower = (item.category || '').toLowerCase();
@@ -413,9 +441,9 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
 
     let sMatch = 0.1;
     if (placeNameLower.includes(baseWordLower)) {
-      sMatch = 1.0; // 장소명에 포함: 100점
+      sMatch = 1.0;
     } else if (itemCategoryLower.includes(baseWordLower)) {
-      sMatch = 0.6; // 카테고리에 포함: 60점
+      sMatch = 0.6;
     }
 
     // 패턴별 카테고리 점수 (S_pattern)
@@ -427,22 +455,17 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
 
     // 인기도 점수 + Tier1 콜드 스타트 보정
     let sPop = popularityScores[item.id] || 0.0;
-    if (sPop === 0.0 && item.category_group_code && CATEGORY_TIER_1_CODES.includes(item.category_group_code)) {
-      // Tier1 카테고리는 한 번도 등록되지 않아도 기본 가산점 부여
+    if (sPop === 0.0 && item.serviceCategory && ['attraction', 'accommodation'].includes(item.serviceCategory)) {
       sPop = COLD_START_POPULARITY_BONUS;
     }
 
-    /**
-     * 복합 점수 공식:
-     * - 패턴 감지 시: (S_match × 0.40) + (S_pattern × 0.25) + (S_cat × 0.15) + (S_dist × 0.10) + (S_pop × 0.10)
-     * - 일반 키워드: (S_match × 0.40) + (S_cat × 0.30) + (S_dist × 0.20) + (S_pop × 0.10)
-     */
     const totalScore = queryAnalysis.pattern
       ? sMatch * 0.40 + sPattern * 0.25 + sCat * 0.15 + sDist * 0.10 + sPop * 0.10
       : sMatch * 0.40 + sCat * 0.30 + sDist * 0.20 + sPop * 0.10;
 
     scoredItems.push({
       ...item,
+      serviceCategory: item.serviceCategory,
       score: Number(totalScore.toFixed(4)),
     });
   }
@@ -451,3 +474,4 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
   scoredItems.sort((a, b) => (b.score || 0) - (a.score || 0));
   return scoredItems.slice(0, MAX_RESULTS);
 }
+

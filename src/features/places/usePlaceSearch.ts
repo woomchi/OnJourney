@@ -1,21 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
+import type { PlaceResult, ServiceCategoryTag } from '@/types/journey';
 
-export interface PlaceResult {
-  id: string;
-  place_name: string;
-  address: string;
-  category: string;
-  lat: number;
-  lng: number;
-}
+export type CategoryFilterType = ServiceCategoryTag | 'all';
 
 export function usePlaceSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceResult[]>([]);
+  const [activeCategory, setActiveCategory] = useState<CategoryFilterType>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const filteredResults = useMemo(() => {
+    if (activeCategory === 'all') return results;
+    return results.filter((item) => item.serviceCategory === activeCategory);
+  }, [results, activeCategory]);
 
   const searchPlaces = useCallback(async (q: string) => {
     if (q.trim().length < 1) {
@@ -60,6 +60,7 @@ export function usePlaceSearch() {
   const handleClear = () => {
     setQuery('');
     setResults([]);
+    setActiveCategory('all');
     setIsOpen(false);
     setError(null);
   };
@@ -72,6 +73,9 @@ export function usePlaceSearch() {
     query,
     setQuery,
     results,
+    filteredResults,
+    activeCategory,
+    setActiveCategory,
     setResults,
     isLoading,
     isOpen,

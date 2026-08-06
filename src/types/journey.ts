@@ -184,7 +184,15 @@ export interface BusArrival {
   isApproaching2?: boolean;
 }
 
-// ─── 장소 검색 결과 ──────────────────────────────────────────────────────────
+export type ServiceCategoryTag =
+  | 'attraction'
+  | 'accommodation'
+  | 'restaurant'
+  | 'cafe'
+  | 'transit'
+  | 'parking'
+  | 'convenience'
+  | 'etc';
 
 /** 장소 검색 API 반환 결과 (placesService의 canonical 타입) */
 export interface PlaceResult {
@@ -196,6 +204,7 @@ export interface PlaceResult {
   lng: number;
   score?: number;
   category_group_code?: string;
+  serviceCategory?: ServiceCategoryTag;
 }
 
 // ─── 도로 스냅 관련 ──────────────────────────────────────────────────────────

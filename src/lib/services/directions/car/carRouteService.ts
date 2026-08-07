@@ -11,7 +11,8 @@ export async function fetchCarRoute(
   sy: number,
   ex: number,
   ey: number,
-  departureTime?: number
+  departureTime?: number,
+  origCoords?: { sx: number; sy: number; ex: number; ey: number }
 ): Promise<DirectionResult[]> {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
@@ -25,6 +26,11 @@ export async function fetchCarRoute(
   const rex = ex.toFixed(6);
   const rey = ey.toFixed(6);
   const cacheDuration = getCacheDuration(departureTime);
+
+  const origSx = origCoords?.sx ?? sx;
+  const origSy = origCoords?.sy ?? sy;
+  const origEx = origCoords?.ex ?? ex;
+  const origEy = origCoords?.ey ?? ey;
 
   const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${rsx},${rsy}&goal=${rex},${rey}&option=trafast:traoptimal:traavoidtoll`;
 
@@ -72,7 +78,9 @@ export async function fetchCarRoute(
       const route = routeArray[0];
       const summary = route.summary;
       const durationMin = Math.max(1, Math.round(summary.duration / 1000 / 60)); // ms -> min
-      const pathPoints = route.path ? route.path.map(([lng, lat]: [number, number]) => ({ lat, lng })) : [];
+      const pathPoints: { lat: number; lng: number }[] = route.path
+        ? route.path.map(([lng, lat]: [number, number]) => ({ lat, lng }))
+        : [];
       const guide = route.guide
         ? route.guide.map((g: any) => ({
             instructions: g.instructions,
@@ -81,6 +89,32 @@ export async function fetchCarRoute(
           }))
         : [];
 
+      let startWalkSection: { lat: number; lng: number }[] | undefined;
+      let endWalkSection: { lat: number; lng: number }[] | undefined;
+
+      if (pathPoints.length > 0) {
+        const firstPt = pathPoints[0];
+        const lastPt = pathPoints[pathPoints.length - 1];
+
+        // 1. 출발지 ↔ 도로 진입점 지도 전용 도보 구간 (5m 이상 시)
+        const startWalkDistKm = haversineDistance(origSy, origSx, firstPt.lat, firstPt.lng);
+        if (startWalkDistKm >= 0.005) {
+          startWalkSection = [
+            { lat: origSy, lng: origSx },
+            { lat: firstPt.lat, lng: firstPt.lng },
+          ];
+        }
+
+        // 2. 도로 탈출점 ↔ 도착지 지도 전용 도보 구간 (5m 이상 시)
+        const endWalkDistKm = haversineDistance(origEy, origEx, lastPt.lat, lastPt.lng);
+        if (endWalkDistKm >= 0.005) {
+          endWalkSection = [
+            { lat: lastPt.lat, lng: lastPt.lng },
+            { lat: origEy, lng: origEx },
+          ];
+        }
+      }
+
       results.push({
         id: `car-${option.key}`,
         type: 'car' as const,
@@ -88,17 +122,19 @@ export async function fetchCarRoute(
         duration: durationMin,
         fare: summary.tollFare || 0,
         taxiFare: summary.taxiFare || 0,
-        distance: summary.distance / 1000,
+        distance: Number((summary.distance / 1000).toFixed(2)),
         steps: [
           {
             type: 'car',
-            name: '차량',
+            name: option.name,
             duration: durationMin,
             color: '#F59E0B',
             pathPoints,
           },
         ],
         pathPoints,
+        startWalkSection,
+        endWalkSection,
         guide,
       });
     }

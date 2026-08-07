@@ -335,7 +335,7 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
 
   let carResults: DirectionResult[];
   try {
-    carResults = await fetchCarRoute(csx, csy, cex, cey);
+    carResults = await fetchCarRoute(csx, csy, cex, cey, undefined, { sx, sy, ex, ey });
   } catch (error: any) {
     console.error('[directionsOrchestrator] 차량 경로 API 실패, Fallback 적용:', error?.message || error);
     carResults = [calculateCarFallback(sx, sy, ex, ey)];

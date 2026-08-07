@@ -35,6 +35,8 @@ export interface BaseRouteData {
   detailedPathPoints?: { lat: number; lng: number }[];
   snappedStart?: { lng: number; lat: number };
   snappedEnd?: { lng: number; lat: number };
+  startWalkSection?: { lat: number; lng: number }[];
+  endWalkSection?: { lat: number; lng: number }[];
   tags?: string[];
 }
 

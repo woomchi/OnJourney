@@ -302,6 +302,42 @@ export const MapRoutes = memo(function MapRoutes({
                   onClick={() => handlePolylineClick(place, nextPlace, route)}
                   visible={isVisible}
                 />
+                {sIdx === 0 && route.startWalkSection && route.startWalkSection.length >= 2 && (
+                  <AnimatedPolyline
+                    path={route.startWalkSection}
+                    delay={stepDelay}
+                    duration={300}
+                    skipAnimation={true}
+                    resetKey={animationVersion}
+                    strokeColor={segmentColor}
+                    strokeOpacity={0.8}
+                    strokeWeight={3.5}
+                    strokeStyle="shortdash"
+                    strokeLineCap="round"
+                    strokeLineJoin="round"
+                    zIndex={baseZIndex + 2}
+                    onClick={() => handlePolylineClick(place, nextPlace, route)}
+                    visible={isVisible}
+                  />
+                )}
+                {sIdx === route.steps.length - 1 && route.endWalkSection && route.endWalkSection.length >= 2 && (
+                  <AnimatedPolyline
+                    path={route.endWalkSection}
+                    delay={stepDelay}
+                    duration={300}
+                    skipAnimation={true}
+                    resetKey={animationVersion}
+                    strokeColor={segmentColor}
+                    strokeOpacity={0.8}
+                    strokeWeight={3.5}
+                    strokeStyle="shortdash"
+                    strokeLineCap="round"
+                    strokeLineJoin="round"
+                    zIndex={baseZIndex + 2}
+                    onClick={() => handlePolylineClick(place, nextPlace, route)}
+                    visible={isVisible}
+                  />
+                )}
               </Fragment>
             );
           });

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useClickAway } from '@uidotdev/usehooks';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDialog } from '@/providers/DialogProvider';
-import PlaceSearchBar from '@/features/places/PlaceSearchBar';
 import MapCategoryChips from '@/components/map/MapCategoryChips';
 import { User, Settings, LogOut, ArrowLeft } from 'lucide-react';
 
@@ -46,11 +45,7 @@ export default function MapHeaderOverlay() {
   }
 
   return (
-    <div className="absolute top-4 left-4 right-4 z-10 flex items-start gap-2 pointer-events-none md:hidden">
-      <div className="flex-1 pointer-events-auto">
-        <PlaceSearchBar />
-      </div>
-
+    <div className="absolute top-4 right-4 z-10 pointer-events-none md:hidden">
       <div className="relative pointer-events-auto" ref={menuRef}>
         <button
           onClick={handleProfileClick}

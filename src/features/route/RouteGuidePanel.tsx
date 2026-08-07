@@ -16,7 +16,7 @@ import { usePWA } from '@/components/PWAProvider';
 import RouteSegmentCardStack from '@/components/route/RouteSegmentCardStack';
 import RouteSegmentDetailSheet from '@/components/route/RouteSegmentDetailSheet';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
-import { MapPin, ChevronLeft } from 'lucide-react';
+import { MapPin, ChevronLeft, Pencil } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 
 
@@ -104,8 +104,17 @@ export default function RouteGuidePanel({
     setFocusBounds,
     setAlternativeSegment,
     setIsAlternativeFromFocus,
+    setTargetChangePlaceId,
+    openSearchMode,
   } = useJourneyStore();
   const [unfocusedCardIndex, setUnfocusedCardIndex] = useState(0);
+
+  const handleChangePlace = (placeId: string, e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    setActiveTooltip(null);
+    setTargetChangePlaceId(placeId);
+    openSearchMode();
+  };
 
   const handleOpenAlternative = () => {
     setIsAlternativeFromFocus(true);
@@ -799,21 +808,21 @@ export default function RouteGuidePanel({
                 </button>
 
                 {/* Center Origin -> Destination Pill UI with Tooltip Popups */}
-                <div className="bg-[#FFFFFF] text-zinc-900 p-1 rounded-2xl shadow-md text-xs font-extrabold flex items-center gap-1.5 border border-zinc-200/80">
+                <div className="w-full max-w-[calc(100%-80px)] bg-[#FFFFFF] text-zinc-900 p-1 rounded-2xl shadow-md text-xs font-extrabold flex items-center justify-between gap-1.5 border border-zinc-200/80 min-w-0">
                 {/* 출발 지점 칩 */}
-                <div className="relative tooltip-trigger">
+                <div className="relative tooltip-trigger min-w-0 flex-1">
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       setActiveTooltip(activeTooltip === 'origin' ? null : 'origin');
                     }}
-                    className={`px-3 py-1 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 max-w-[120px] cursor-pointer select-none ${activeTooltip === 'origin'
+                    className={`px-2.5 py-1 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-1 min-w-0 w-full cursor-pointer select-none ${activeTooltip === 'origin'
                         ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
                         : 'bg-zinc-100/90 text-zinc-800 font-bold border border-zinc-200/50 hover:bg-blue-50/60 hover:border-blue-200'
                       }`}
                   >
                     <span className="w-1.5 h-1.5 rounded-sm shrink-0 bg-emerald-500" />
-                    <span className="truncate" title={originPlace.place_name}>{originPlace.place_name}</span>
+                    <span className="truncate min-w-0" title={originPlace.place_name}>{originPlace.place_name}</span>
                   </div>
 
                   <AnimatePresence>
@@ -824,12 +833,22 @@ export default function RouteGuidePanel({
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -6, scale: 0.95 }}
                           transition={{ duration: 0.15, ease: 'easeOut' }}
-                          className="absolute z-[1000] left-0 top-full mt-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
+                          className="absolute z-[1000] left-0 top-full mt-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto flex flex-col gap-2"
                         >
-                          <p className="font-bold text-[13px] mb-1">{originPlace.place_name}</p>
-                          {originPlace.address && (
-                            <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{originPlace.address}</p>
-                          )}
+                          <div>
+                            <p className="font-bold text-[13px] mb-0.5">{originPlace.place_name}</p>
+                            {originPlace.address && (
+                              <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{originPlace.address}</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleChangePlace(originPlace.id, e)}
+                            className="w-full py-1.5 px-3 rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/30"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            <span>출발지 변경</span>
+                          </button>
                         </motion.div>
                         <motion.div
                           initial={{ opacity: 0, y: -6 }}
@@ -843,23 +862,33 @@ export default function RouteGuidePanel({
                   </AnimatePresence>
                 </div>
 
-                <span className="text-blue-600 font-black text-xs px-0.5">→</span>
+                <span className="text-blue-600 font-black text-xs px-0.5 shrink-0">→</span>
 
-                {/* 도착 지점 칩 */}
-                <div className="relative tooltip-trigger">
+                {/* 도착 지점 칩 및 미니 변경 아이콘 */}
+                <div className="relative tooltip-trigger flex items-center gap-1 min-w-0 flex-1">
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       setActiveTooltip(activeTooltip === 'dest' ? null : 'dest');
                     }}
-                    className={`px-3 py-1 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 max-w-[120px] cursor-pointer select-none ${activeTooltip === 'dest'
+                    className={`px-2.5 py-1 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-1 min-w-0 w-full cursor-pointer select-none ${activeTooltip === 'dest'
                         ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
                         : 'bg-zinc-100/90 text-zinc-800 font-bold border border-zinc-200/50 hover:bg-blue-50/60 hover:border-blue-200'
                       }`}
                   >
                     <span className="w-1.5 h-1.5 rounded-sm shrink-0 bg-rose-500" />
-                    <span className="truncate" title={destPlace.place_name}>{destPlace.place_name}</span>
+                    <span className="truncate min-w-0" title={destPlace.place_name}>{destPlace.place_name}</span>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleChangePlace(destPlace.id, e)}
+                    className="p-1 rounded-lg bg-zinc-100/90 hover:bg-blue-50 text-zinc-500 hover:text-blue-600 border border-zinc-200/60 transition-colors cursor-pointer shrink-0"
+                    title="도착지 장소 변경"
+                    aria-label="도착지 장소 변경"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
 
                   <AnimatePresence>
                     {activeTooltip === 'dest' && (
@@ -869,12 +898,22 @@ export default function RouteGuidePanel({
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 0, scale: 1 }}
                           transition={{ duration: 0.15, ease: 'easeOut' }}
-                          className="absolute z-[1000] right-0 top-full mt-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
+                          className="absolute z-[1000] right-0 top-full mt-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto flex flex-col gap-2"
                         >
-                          <p className="font-bold text-[13px] mb-1">{destPlace.place_name}</p>
-                          {destPlace.address && (
-                            <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{destPlace.address}</p>
-                          )}
+                          <div>
+                            <p className="font-bold text-[13px] mb-0.5">{destPlace.place_name}</p>
+                            {destPlace.address && (
+                              <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{destPlace.address}</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleChangePlace(destPlace.id, e)}
+                            className="w-full py-1.5 px-3 rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/30"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            <span>도착지 변경</span>
+                          </button>
                         </motion.div>
                         <motion.div
                           initial={{ opacity: 0, y: -6 }}

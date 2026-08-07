@@ -9,10 +9,12 @@ export interface UISlice {
   isDrawerMaximized: boolean;
   drawerSnapPoint: string | number | null;
   departureTime: number | null;
+  targetChangePlaceId: string | null;
   openCreateForm: () => void;
   closeCreateForm: () => void;
   openSearchMode: () => void;
   closeSearchMode: () => void;
+  setTargetChangePlaceId: (id: string | null) => void;
   setEditMode: (isEdit: boolean) => void;
   setCacheRestored: (isRestored: boolean) => void;
   setDrawerMaximized: (isMaximized: boolean) => void;
@@ -36,10 +38,12 @@ export const createUISlice: StateCreator<
   drawerSnapPoint: '294px',
   departureTime: null,
   guidePanelState: 'default',
+  targetChangePlaceId: null,
   openCreateForm: () => set({ isCreateFormOpen: true }),
   closeCreateForm: () => set({ isCreateFormOpen: false }),
   openSearchMode: () => set({ isSearchMode: true, searchQuery: '', searchTriggerCount: 0, activeSearchPlace: null }),
-  closeSearchMode: () => set({ isSearchMode: false, recommendedPlaces: [], searchQuery: '', searchTriggerCount: 0, activeSearchPlace: null }),
+  closeSearchMode: () => set({ isSearchMode: false, recommendedPlaces: [], searchQuery: '', searchTriggerCount: 0, activeSearchPlace: null, targetChangePlaceId: null }),
+  setTargetChangePlaceId: (id) => set({ targetChangePlaceId: id }),
   setEditMode: (isEdit) => set((state) => ({ 
     isEditMode: isEdit,
     ...(isEdit ? {

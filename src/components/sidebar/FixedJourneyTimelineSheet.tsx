@@ -7,7 +7,7 @@ import { directionKeys } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place } from '@/types/journey';
-import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins } from 'lucide-react';
+import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins, RefreshCw } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon, AlternativeRouteIcon } from '@/components/ui/icons';
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
@@ -46,6 +46,7 @@ export default function FixedJourneyTimelineSheet({
     setDrawerSnapPoint,
     openSearchMode,
     isCacheRestored,
+    setTargetChangePlaceId,
   } = useJourneyStore();
 
   const dragControls = useDragControls();
@@ -506,7 +507,7 @@ export default function FixedJourneyTimelineSheet({
                   }
                 }}
                 className={`
-                  flex items-center justify-center w-7.5 h-7.5 rounded-lg border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
+                  flex items-center justify-center w-6.5 h-6.5 rounded-md border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
                   ${alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id
                     ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
                     : isFocused
@@ -518,7 +519,7 @@ export default function FixedJourneyTimelineSheet({
               >
                 <AlternativeRouteIcon 
                   isActive={alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id}
-                  className="w-4 h-4"
+                  className="w-3.5 h-3.5"
                 />
               </button>
             </div>
@@ -767,8 +768,21 @@ export default function FixedJourneyTimelineSheet({
             <div key={place.id} className="flex items-center shrink-0">
               {/* 장소 노드 항목 (수직 정렬: 상단 스페이서, 중앙 핀 노드, 하단 장소명 & 태그) */}
               <div className="flex flex-col items-center justify-between w-[96px] shrink-0 h-[100px] relative">
-                {/* 상단 핀 위 영역 (상단 트랙 칩 수평 맞춤용) */}
-                <div className="h-[32px] w-full" />
+                {/* 상단 핀 위 영역 (장소 정보 변경 버튼 배치) */}
+                <div className="h-[32px] w-full flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTargetChangePlaceId(place.id);
+                      openSearchMode();
+                    }}
+                    className="w-7.5 h-7.5 rounded-lg text-zinc-500 hover:text-blue-600 bg-zinc-50 hover:bg-blue-50/80 border border-zinc-200 hover:border-blue-300 flex items-center justify-center transition-all duration-300 cursor-pointer shadow-2xs active:scale-95 group/mobile-change-btn shrink-0"
+                    title="장소 정보 변경"
+                  >
+                    <RefreshCw className="w-4 h-4 text-zinc-500 group-hover/mobile-change-btn:text-blue-600 transition-colors" strokeWidth={2.2} />
+                  </button>
+                </div>
 
                 {/* 중앙: 원형 핀 노드 (컬러스킴 적용) */}
                 <div className="relative w-full flex items-center justify-center h-[26px]">

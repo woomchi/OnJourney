@@ -15,7 +15,7 @@ import { getCategoryTheme } from '@/lib/categoryUtils';
 import { getSequenceTheme } from '@/constants/colors';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, RefreshCw } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 
 const themeClasses = {
@@ -87,6 +87,8 @@ export default function PlaceCard({
     isDrawerMaximized,
     alternativeSegment,
     setAlternativeSegment,
+    setTargetChangePlaceId,
+    openSearchMode,
   } = useJourneyStore();
 
   const isMobile = useMediaQuery('(max-width: 767px)');
@@ -272,6 +274,21 @@ export default function PlaceCard({
                 <p className="text-xs text-zinc-400 truncate mt-0.5">{place.address}</p>
               )}
             </div>
+
+            {!editMode && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTargetChangePlaceId(place.id);
+                  openSearchMode();
+                }}
+                className="flex-shrink-0 w-6.5 h-6.5 rounded-md bg-zinc-50 hover:bg-blue-50/80 border border-zinc-200 hover:border-blue-300 text-zinc-500 hover:text-blue-600 flex items-center justify-center transition-all duration-300 shadow-2xs cursor-pointer active:scale-95 group/change-btn"
+                title="장소 정보 변경"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-zinc-500 group-hover/change-btn:text-blue-600 transition-colors" strokeWidth={2.2} />
+              </button>
+            )}
 
             {editMode && (
               <div

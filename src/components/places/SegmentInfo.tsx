@@ -276,9 +276,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               <div className="flex flex-col min-w-0 flex-1 leading-tight gap-1">
                 {/* 상단: 요금 뱃지 + 거리 뱃지 */}
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className={`inline-block text-[12px] font-bold px-1.5 py-0.5 rounded-md ${
-                    isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-800'
-                  }`}>
+                  <span className={`inline-block text-[12px] font-bold px-1.5 py-0.5 rounded-md ${isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-800'
+                    }`}>
                     {type === 'car' ? (
                       data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원` : '비용 정보 없음'
                     ) : type === 'walk' ? (
@@ -298,9 +297,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
                 {/* 하단: 이동 수단 / 환승 횟수 뱃지 */}
                 <div>
-                  <span className={`inline-block text-[12px] font-medium px-1.5 py-0.5 rounded-md ${
-                    isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700'
-                  }`}>
+                  <span className={`inline-block text-[12px] font-medium px-1.5 py-0.5 rounded-md ${isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700'
+                    }`}>
                     {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
                   </span>
                 </div>
@@ -355,7 +353,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               }
             }}
             className={`
-              flex items-center justify-center w-7.5 h-7.5 rounded-lg border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
+              flex items-center justify-center w-6.5 h-6.5 rounded-md border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
               ${alternativeSegment?.originId === placeId && alternativeSegment?.destId === destId
                 ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
                 : 'bg-zinc-50 border-zinc-200 hover:border-blue-300 text-zinc-500 hover:text-blue-600'
@@ -559,9 +557,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
           <div className="flex flex-col min-w-0 leading-tight gap-1">
             {/* 상단: 요금 뱃지 + 거리 뱃지 */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className={`inline-block text-[11px] font-extrabold px-1.5 py-0.5 rounded-md ${
-                isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-800'
-              }`}>
+              <span className={`inline-block text-[11px] font-extrabold px-1.5 py-0.5 rounded-md ${isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-800'
+                }`}>
                 {type === 'car' || type === 'taxi' ? (
                   data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}` : '비용 정보 없음'
                 ) : type === 'walk' || type === 'bicycle' ? (
@@ -583,74 +580,73 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
             {/* 하단: 이동 수단 / 환승 횟수 뱃지 */}
             <div>
-              <span className={`inline-block text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
-                isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700'
-              }`}>
+              <span className={`inline-block text-[11px] font-medium px-1.5 py-0.5 rounded-md ${isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700'
+                }`}>
                 {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
               </span>
             </div>
           </div>
 
           {/* 대안 경로 탐색 버튼 */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!placeId || !destId) return;
-            const isCurrentlyOpen = alternativeSegment?.originId === placeId && alternativeSegment?.destId === destId;
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!placeId || !destId) return;
+              const isCurrentlyOpen = alternativeSegment?.originId === placeId && alternativeSegment?.destId === destId;
 
-            if (!isCurrentlyOpen && originPlace && destPlace) {
-              const wasFocused = focusedSegment?.originId === placeId && focusedSegment?.destId === destId;
-              setIsAlternativeFromFocus(wasFocused);
-              setAlternativeSegment({ originId: placeId, destId: destId });
-              setFocusedSegment(null);
-              setFocusedStep(null);
-              if (data) {
-                const bounds = calculateSegmentBounds(originPlace, destPlace, data);
-                setFocusBounds(bounds);
-              }
-              // prefetch alternate routes data
-              const cacheKey = `${placeId}-${destId}`;
-              const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId));
-              if (!segmentDataInCache) {
-                Promise.allSettled([
-                  queryClient.fetchQuery({
-                    queryKey: directionKeys.segmentPublic(placeId, destId),
-                    queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
-                  }),
-                  queryClient.fetchQuery({
-                    queryKey: directionKeys.segmentCar(placeId, destId),
-                    queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
-                  })
-                ]).catch(console.error);
-              }
-            } else {
-              setAlternativeSegment(null);
-              if (isAlternativeFromFocus && originPlace && destPlace) {
-                setFocusedSegment({ originId: placeId, destId: destId });
+              if (!isCurrentlyOpen && originPlace && destPlace) {
+                const wasFocused = focusedSegment?.originId === placeId && focusedSegment?.destId === destId;
+                setIsAlternativeFromFocus(wasFocused);
+                setAlternativeSegment({ originId: placeId, destId: destId });
+                setFocusedSegment(null);
+                setFocusedStep(null);
                 if (data) {
                   const bounds = calculateSegmentBounds(originPlace, destPlace, data);
                   setFocusBounds(bounds);
                 }
+                // prefetch alternate routes data
+                const cacheKey = `${placeId}-${destId}`;
+                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId));
+                if (!segmentDataInCache) {
+                  Promise.allSettled([
+                    queryClient.fetchQuery({
+                      queryKey: directionKeys.segmentPublic(placeId, destId),
+                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
+                    }),
+                    queryClient.fetchQuery({
+                      queryKey: directionKeys.segmentCar(placeId, destId),
+                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
+                    })
+                  ]).catch(console.error);
+                }
               } else {
-                setFocusBounds(null);
+                setAlternativeSegment(null);
+                if (isAlternativeFromFocus && originPlace && destPlace) {
+                  setFocusedSegment({ originId: placeId, destId: destId });
+                  if (data) {
+                    const bounds = calculateSegmentBounds(originPlace, destPlace, data);
+                    setFocusBounds(bounds);
+                  }
+                } else {
+                  setFocusBounds(null);
+                }
               }
-            }
-          }}
-          className={`
-            flex items-center justify-center w-6 h-6 rounded-lg border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
+            }}
+            className={`
+            flex items-center justify-center w-6.5 h-6.5 rounded-md border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
             ${alternativeSegment?.originId === placeId && alternativeSegment?.destId === destId
-              ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
-              : 'bg-zinc-50 border-zinc-200 hover:border-blue-300 text-zinc-500 hover:text-blue-600'
-            }
+                ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                : 'bg-zinc-50 border-zinc-200 hover:border-blue-300 text-zinc-500 hover:text-blue-600'
+              }
           `}
-          title="대안 경로 탐색"
-        >
-          <AlternativeRouteIcon
-            isActive={alternativeSegment?.originId === placeId && alternativeSegment?.destId === destId}
-            className="w-3 h-3"
-          />
-        </button>
+            title="대안 경로 탐색"
+          >
+            <AlternativeRouteIcon
+              isActive={alternativeSegment?.originId === placeId && alternativeSegment?.destId === destId}
+              className="w-3.5 h-3.5"
+            />
+          </button>
         </div>
       </div>
 

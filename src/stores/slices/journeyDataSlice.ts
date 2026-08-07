@@ -33,6 +33,7 @@ export interface JourneyDataSlice {
   setActiveJourney: (journey: Journey | null) => void;
   clearJourney: () => void;
   addPlace: (place: Place) => Promise<void>;
+  updatePlace: (targetPlaceId: string, newPlace: Place) => Promise<void>;
   removePlace: (placeId: string) => Promise<void>;
   reorderPlaces: (places: Place[]) => Promise<void>;
   selectSegmentRoute: (placeId: string, route: SelectedRoute | null) => Promise<void>;
@@ -195,6 +196,41 @@ export const createJourneyDataSlice: StateCreator<
         j.id === journeyId ? updatedActiveJourney : j
       ),
       ...RESET_FOCUS_STATE,
+    }));
+
+    // 백그라운드 DB 동기화
+    set({ isSyncing: true });
+    try {
+      await updateJourneyPlaces(journeyId, places);
+    } finally {
+      set({ isSyncing: false });
+    }
+  },
+
+  // ─ 기존 장소 정보 변경 (교체) ─
+  updatePlace: async (targetPlaceId, newPlace) => {
+    const { activeJourney } = get();
+    if (!activeJourney) return;
+
+    const currentPlaces = activeJourney.places ?? [];
+    const targetIndex = currentPlaces.findIndex((p) => p.id === targetPlaceId);
+    if (targetIndex === -1) return;
+
+    const rawPlaces = [...currentPlaces];
+    rawPlaces[targetIndex] = newPlace;
+
+    const updatedPlaces = verifyAndCleanRoutes(rawPlaces);
+    const { activeJourney: updatedActiveJourney, journeyId, places } =
+      buildOptimisticPlacesUpdate(activeJourney, updatedPlaces);
+
+    // 낙관적 업데이트: UI 먼저 반영
+    set((state) => ({
+      activeJourney: updatedActiveJourney,
+      journeys: state.journeys.map((j) =>
+        j.id === journeyId ? updatedActiveJourney : j
+      ),
+      ...RESET_FOCUS_STATE,
+      targetChangePlaceId: null,
     }));
 
     // 백그라운드 DB 동기화

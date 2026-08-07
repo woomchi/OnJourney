@@ -8,7 +8,7 @@ import { getCategoryTheme } from '@/lib/categoryUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
-import { MapPin, Search, X, Check, Clock, Plus, Loader2 } from 'lucide-react';
+import { MapPin, Search, X, Check, Clock, Plus, Loader2, RefreshCw } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
@@ -54,6 +54,10 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     drawerSnapPoint,
     setDrawerSnapPoint,
     isDrawerMaximized,
+    targetChangePlaceId,
+    setTargetChangePlaceId,
+    updatePlace,
+    closeSearchMode,
   } = useJourneyStore(useShallow((state) => ({
     isSearchMode: state.isSearchMode,
     addPlace: state.addPlace,
@@ -73,6 +77,10 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     drawerSnapPoint: state.drawerSnapPoint,
     setDrawerSnapPoint: state.setDrawerSnapPoint,
     isDrawerMaximized: state.isDrawerMaximized,
+    targetChangePlaceId: state.targetChangePlaceId,
+    setTargetChangePlaceId: state.setTargetChangePlaceId,
+    updatePlace: state.updatePlace,
+    closeSearchMode: state.closeSearchMode,
   })));
 
   const isMapDragging = useMapUIStore((state) => state.isMapDragging);
@@ -476,7 +484,28 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     searchInputRef.current?.focus();
   };
 
+  const targetChangePlace = activeJourney?.places.find(p => p.id === targetChangePlaceId);
+
   const handleToggleSearchResult = async (item: PlaceResult) => {
+    const place: Place = {
+      id: item.id,
+      place_name: item.place_name,
+      address: item.address,
+      category: item.category,
+      lat: item.lat,
+      lng: item.lng,
+    };
+
+    if (targetChangePlaceId) {
+      try {
+        await updatePlace(targetChangePlaceId, place);
+        closeSearchMode();
+      } catch (err) {
+        console.error('장소 변경 실패:', err);
+      }
+      return;
+    }
+
     if (addedIds.has(item.id)) {
       setAddedIds(prev => { const n = new Set(prev); n.delete(item.id); return n; });
       try {
@@ -487,14 +516,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       return;
     }
 
-    const place: Place = {
-      id: item.id,
-      place_name: item.place_name,
-      address: item.address,
-      category: item.category,
-      lat: item.lat,
-      lng: item.lng,
-    };
     setAddedIds(prev => new Set([...prev, item.id]));
     try {
       await addPlace(place);
@@ -516,6 +537,23 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         onTouchStart={handleHeaderTouchStart}
         className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-20 cursor-grab active:cursor-grabbing relative"
       >
+        {targetChangePlace && (
+          <div className="bg-blue-50/90 border-b border-blue-100 px-4 py-2 flex items-center justify-between text-xs text-blue-700 font-semibold">
+            <div className="flex items-center gap-1.5 truncate min-w-0">
+              <RefreshCw className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="truncate">
+                ‘<strong className="font-extrabold text-blue-900">{targetChangePlace.place_name}</strong>’ 장소를 변경하는 중입니다
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTargetChangePlaceId(null)}
+              className="ml-2 px-2 py-0.5 rounded-md bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 text-[11px] font-bold shrink-0 transition-colors cursor-pointer"
+            >
+              취소
+            </button>
+          </div>
+        )}
         {/* 검색 입력 바 */}
         <div className="flex items-center gap-2.5 px-4 pt-3 pb-2 relative">
           <form
@@ -712,13 +750,21 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleToggleSearchResult(item); }}
-                      className={`group/btn flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all font-bold text-xs cursor-pointer ${isAdded
-                        ? 'bg-green-50 text-green-600 hover:bg-red-50 hover:text-red-500'
-                        : 'bg-blue-100 hover:bg-blue-500 hover:text-white text-blue-600 active:scale-90'
-                        }`}
-                      title={isAdded ? '여정에서 제거' : '여정에 추가'}
+                      className={`group/btn flex-shrink-0 transition-all font-bold text-xs cursor-pointer ${
+                        targetChangePlaceId
+                          ? 'px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 active:scale-95 shadow-xs'
+                          : isAdded
+                          ? 'w-8 h-8 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-red-50 hover:text-red-500'
+                          : 'w-8 h-8 rounded-full flex items-center justify-center bg-blue-100 hover:bg-blue-500 hover:text-white text-blue-600 active:scale-90'
+                      }`}
+                      title={targetChangePlaceId ? '이 장소로 변경' : isAdded ? '여정에서 제거' : '여정에 추가'}
                     >
-                      {isAdded ? (
+                      {targetChangePlaceId ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>변경</span>
+                        </>
+                      ) : isAdded ? (
                         <>
                           <Check className="w-3.5 h-3.5 block group-hover/btn:hidden" strokeWidth={2.5} />
                           <X className="w-3.5 h-3.5 hidden group-hover/btn:block" strokeWidth={2.5} />

@@ -316,7 +316,7 @@ export default function HorizontalJourneyTimelineBar({
                   }
                 }}
                 className={`
-                  flex items-center justify-center w-7.5 h-7.5 rounded-lg border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
+                  flex items-center justify-center w-6.5 h-6.5 rounded-md border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
                   ${alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id
                     ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
                     : isFocused
@@ -328,7 +328,7 @@ export default function HorizontalJourneyTimelineBar({
               >
                 <AlternativeRouteIcon 
                   isActive={alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id}
-                  className="w-4 h-4"
+                  className="w-3.5 h-3.5"
                 />
               </button>
             </div>

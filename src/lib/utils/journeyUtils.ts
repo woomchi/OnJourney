@@ -154,6 +154,28 @@ export function formatDistance(meters: number): string {
 }
 
 /**
+ * km 단위 거리를 사람이 읽기 쉬운 형식으로 변환합니다.
+ *
+ * - null/undefined/0 이하: 빈 문자열 반환
+ * - 1km 미만: "Xm" 형식
+ * - 1km 이상: "X.Xkm" 형식
+ *
+ * @param km 거리 (킬로미터)
+ *
+ * @example
+ * formatKmDistance(0.5)   // → "500m"
+ * formatKmDistance(137.4) // → "137.4km"
+ */
+export function formatKmDistance(km?: number | null): string {
+  if (km == null || km <= 0) return '';
+  if (km >= 1) return `${km.toFixed(1)}km`;
+  const meters = Math.round(km * 1000);
+  if (meters < DISTANCE_DISPLAY_MIN_METERS) return '';
+  return `${meters}m`;
+}
+
+
+/**
  * 밀리초 단위 소요 시간을 사람이 읽기 쉬운 형식으로 변환합니다.
  *
  * - 1초 미만: 빈 문자열 반환

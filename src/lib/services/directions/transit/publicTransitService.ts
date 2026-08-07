@@ -408,6 +408,7 @@ export async function fetchPublicTransitOptions(
         name: displayTitle,
         duration: info.totalTime,
         fare,
+        distance: info.totalDistance ? info.totalDistance / 1000 : undefined,
         isFareEstimated: isFareEstimated ? true : undefined,
         isIntercity: isIntercity ? true : undefined,
         steps,

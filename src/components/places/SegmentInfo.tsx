@@ -12,6 +12,7 @@ import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { formatKmDistance } from '@/lib/utils/journeyUtils';
 
 // 1. 구간 이동 정보 뼈대 로딩 UI
 export function SegmentInfoSkeleton() {
@@ -153,7 +154,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
   const getDistanceKm = (): number | null => {
     if (data?.distance != null && data.distance > 0) {
-      return data.distance > 100 ? data.distance / 1000 : data.distance;
+      return data.distance;
     }
     if (data?.pathPoints && data.pathPoints.length > 1) {
       let totalMeters = 0;
@@ -180,9 +181,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   };
 
   const distKm = getDistanceKm();
-  const formattedDistance = distKm != null
-    ? (distKm >= 1 ? `${distKm.toFixed(1)}km` : `${Math.round(distKm * 1000)}m`)
-    : '';
+  const formattedDistance = formatKmDistance(distKm);
 
   const getArrivalTimeStr = () => {
     if (!now || !data?.duration) return '';

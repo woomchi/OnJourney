@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult } from '@/types/journey';
 import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { formatKmDistance } from '@/lib/utils/journeyUtils';
 
 interface AlternativeSegmentInfoProps {
   place: Place;
@@ -165,7 +166,7 @@ export default function AlternativeSegmentInfo({
                     {(() => {
                       const getRouteDistKm = (): number | null => {
                         if (route.distance != null && route.distance > 0) {
-                          return route.distance > 100 ? route.distance / 1000 : route.distance;
+                          return route.distance;
                         }
                         if (route.pathPoints && route.pathPoints.length > 1) {
                           let totalMeters = 0;
@@ -186,9 +187,7 @@ export default function AlternativeSegmentInfo({
                         return null;
                       };
                       const altDistKm = getRouteDistKm();
-                      const altDistance = altDistKm != null
-                        ? (altDistKm >= 1 ? `${altDistKm.toFixed(1)}km` : `${Math.round(altDistKm * 1000)}m`)
-                        : '';
+                      const altDistance = formatKmDistance(altDistKm);
 
                       return (
                         <span className="text-[9px] text-zinc-400 font-medium mt-0.5">

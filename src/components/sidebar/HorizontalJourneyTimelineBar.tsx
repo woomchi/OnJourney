@@ -11,6 +11,7 @@ import { MapPin, ArrowRight, Footprints, Car, Bus, Train } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
+import { formatKmDistance } from '@/lib/utils/journeyUtils';
 
 interface HorizontalJourneyTimelineBarProps {
   activeJourney: Journey;
@@ -169,7 +170,7 @@ export default function HorizontalJourneyTimelineBar({
     const type = route?.type || transportType;
     const getDistanceKm = (): number | null => {
       if (route?.distance != null && route.distance > 0) {
-        return route.distance > 100 ? route.distance / 1000 : route.distance;
+        return route.distance;
       }
       if (route?.pathPoints && route.pathPoints.length > 1) {
         let totalMeters = 0;
@@ -191,9 +192,7 @@ export default function HorizontalJourneyTimelineBar({
     };
 
     const distKm = getDistanceKm();
-    const formattedDistance = distKm != null
-      ? (distKm >= 1 ? `${distKm.toFixed(1)}km` : `${Math.round(distKm * 1000)}m`)
-      : '';
+    const formattedDistance = formatKmDistance(distKm);
 
     const fareVal = route?.fare || route?.taxiFare;
 

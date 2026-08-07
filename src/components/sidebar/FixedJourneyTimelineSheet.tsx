@@ -11,6 +11,7 @@ import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, 
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon, AlternativeRouteIcon } from '@/components/ui/icons';
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
+import { formatKmDistance } from '@/lib/utils/journeyUtils';
 
 import { usePWA } from '@/components/PWAProvider';
 
@@ -357,7 +358,7 @@ export default function FixedJourneyTimelineSheet({
 
     const getDistanceKm = (): number | null => {
       if (route?.distance != null && route.distance > 0) {
-        return route.distance > 100 ? route.distance / 1000 : route.distance;
+        return route.distance;
       }
       if (route?.pathPoints && route.pathPoints.length > 1) {
         let totalMeters = 0;
@@ -379,9 +380,7 @@ export default function FixedJourneyTimelineSheet({
     };
 
     const distKm = getDistanceKm();
-    const formattedDistance = distKm != null
-      ? (distKm >= 1 ? `${distKm.toFixed(1)}km` : `${Math.round(distKm * 1000)}m`)
-      : '';
+    const formattedDistance = formatKmDistance(distKm);
 
     const fareVal = route?.fare || route?.taxiFare;
 

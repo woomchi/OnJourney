@@ -5,13 +5,13 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
-import { directionKeys } from '@/hooks/queries/useDirections';
+import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import { MAX_JOURNEY_PLACES } from '@/constants/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey } from '@/types/journey';
-import { Loader2, ChevronLeft, Pencil, Check } from 'lucide-react';
+import { Loader2, ChevronLeft, Pencil, Check, Bus, Car, Footprints, Calendar, MapPin } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
 
 interface JourneyPlayerHeaderProps {
@@ -43,8 +43,7 @@ export default function JourneyPlayerHeader({
     isEditMode,
     setEditMode,
     setDrawerSnapPoint,
-    closeSearchMode,
-    targetChangePlaceId,
+    isCacheRestored,
   } = useJourneyStore();
 
   const bottomSheet = useOptionalBottomSheet();
@@ -65,44 +64,68 @@ export default function JourneyPlayerHeader({
   const isMobile = useMediaQuery('(max-width: 767px)');
   const HeaderComponent = 'header';
 
+  const places = activeJourney?.places || [];
+  const directionsCache = useJourneyDirectionsCache(places);
+  const transportType = activeJourney?.transport_type || 'public';
+
+  const formattedDate = activeJourney?.journey_date
+    ? activeJourney.journey_date.replace(/-/g, '.').slice(2)
+    : '미지정';
+
+  const transportTypeLabel =
+    activeJourney?.transport_type === 'car' ? '차량' :
+      activeJourney?.transport_type === 'walk' ? '도보' : '대중교통';
+
   let totalDistanceKm = 0;
   let totalDurationMin = 0;
-  let hasRouteStats = false;
+  let totalFareSum = 0;
+  let hasFare = false;
+  let isAnySegmentLoading = false;
 
-  if (activeJourney?.places && activeJourney.places.length > 1) {
-    const transportType = activeJourney.transport_type || 'public';
-    for (let i = 0; i < activeJourney.places.length - 1; i++) {
-      const origin = activeJourney.places[i];
-      const dest = activeJourney.places[i + 1];
+  if (places && places.length > 1) {
+    for (let i = 0; i < places.length - 1; i++) {
+      const origin = places[i];
+      const dest = places[i + 1];
       if (!origin || !dest) continue;
 
-      if (origin.selected_route && origin.selected_route.destId === dest.id) {
-        if (typeof origin.selected_route.distance === 'number') {
-          totalDistanceKm += origin.selected_route.distance;
-          hasRouteStats = true;
+      let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+      if (!route) {
+        const cacheKey = `${origin.id}-${dest.id}`;
+        const cachedData = directionsCache[cacheKey];
+
+        const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id));
+        const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id));
+        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
+        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+
+        const hasData = (cachedData && (cachedData.public.length > 0 || cachedData.car.length > 0 || cachedData.walk.length > 0)) || !!publicData || !!carData;
+
+        const isSegLoading = !isCacheRestored || (
+          !hasData &&
+          (!publicQueryState || publicQueryState.status === 'pending' ||
+           !carQueryState || carQueryState.status === 'pending')
+        );
+
+        if (isSegLoading) {
+          isAnySegmentLoading = true;
         }
-        if (typeof origin.selected_route.duration === 'number') {
-          totalDurationMin += origin.selected_route.duration;
-          hasRouteStats = true;
-        }
-      } else {
-        const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
-        const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
-        const segmentData = {
+
+        const segmentData = cachedData || {
           public: publicData?.public || [],
           car: carData?.car || [],
           walk: carData?.walk || []
         };
-        const route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk');
-        if (route) {
-          if (typeof route.distance === 'number') {
-            totalDistanceKm += route.distance;
-            hasRouteStats = true;
-          }
-          if (typeof route.duration === 'number') {
-            totalDurationMin += route.duration;
-            hasRouteStats = true;
-          }
+
+        route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk');
+      }
+
+      if (route) {
+        if (typeof route.distance === 'number') totalDistanceKm += route.distance;
+        if (typeof route.duration === 'number') totalDurationMin += route.duration;
+        const fareVal = route.fare || route.taxiFare;
+        if (fareVal) {
+          totalFareSum += fareVal;
+          hasFare = true;
         }
       }
     }
@@ -206,11 +229,12 @@ export default function JourneyPlayerHeader({
           bottomSheet.dragControls.start(e);
         }
       }}
-      className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-0.5' : 'pt-1'}`}
+      className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'}`}
     >
-      {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 / 목록 */}
+      {/* 1. 슬림 상단 컨트롤 헤더 (여정 제목 + 날짜 & 이동 수단 설정 정보) */}
       {!isSearchMode && (
-        <div className="absolute top-1 left-2 z-20">
+        <div className="w-full px-4 pt-3 pb-1 flex items-center justify-between gap-2 shrink-0 select-none">
+          {/* 좌측: 목록 / 취소 / 뒤로가기 버튼 */}
           <button
             type="button"
             onClick={() => {
@@ -226,7 +250,7 @@ export default function JourneyPlayerHeader({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 cursor-pointer"
+            className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 shrink-0 cursor-pointer"
             title={isEditMode ? "편집 취소" : (focusedSegment || alternativeSegment) ? "이동 상세 닫기" : "여정 목록으로 돌아가기"}
             aria-label={isEditMode ? "편집 취소" : (focusedSegment || alternativeSegment) ? "이동 상세 닫기" : "여정 목록으로 돌아가기"}
           >
@@ -241,189 +265,211 @@ export default function JourneyPlayerHeader({
               </>
             )}
           </button>
-        </div>
-      )}
 
-      {/* 오른쪽 상단 모서리: 편집 및 동기화 */}
-      {!isSearchMode && (
-        <div className={`absolute top-1 right-2 z-20 flex justify-end items-center gap-1`}>
-          {isSyncing && (
-            <div className="flex items-center" title="클라우드 동기화 중">
-              <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={
-              isEditMode
-                ? handleDoneEdit
-                : () => {
-                  setEditMode(true);
-                  setDrawerSnapPoint(1);
-                }
-            }
-            onPointerDown={(e) => e.stopPropagation()}
-            className={`flex items-center gap-0.5 text-xs font-semibold transition-colors px-1 py-0.5 ${isEditMode ? 'text-blue-600 font-bold' : 'text-zinc-400 hover:text-zinc-700'
-              }`}
-          >
-            {isEditMode ? (
-              <>
-                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                완료
-              </>
-            ) : (
-              <>
-                <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                편집
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* 중앙 바: 여정 정보 수정 영역 (제목, 날짜, 이동수단 정보 전체 포함 수정 영역) */}
-      <div className="w-full flex justify-center px-14 pt-0 min-w-0">
-        <button
-          type="button"
-          onClick={() => setIsEditModalOpen(true)}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="inline-flex flex-col items-center max-w-full px-2.5 py-1 rounded-xl hover:bg-zinc-100/90 active:bg-zinc-200/80 transition-all cursor-pointer group border border-transparent hover:border-zinc-200/80 shrink"
-          title="여정 정보 수정"
-        >
-          {/* 1행: [Pencil 아이콘] 여정 제목 & 이동 수단 설정 */}
-          <div className="flex items-center gap-1.5 max-w-full">
-            <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors shrink-0" strokeWidth={2} />
-            <h2 className="text-xs font-bold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
-              {activeJourney.title}
-            </h2>
-            <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
-            <span className="shrink-0 text-[10px] font-semibold text-zinc-600">
-              {activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}
-            </span>
-          </div>
-
-          {/* 2행: 요약 정보 (날짜, 장소 수, 거리, 시간 등) */}
-          <p className="text-[9px] font-medium text-zinc-900 mt-0.5 flex items-center gap-1 truncate max-w-full transition-colors">
-            <span className="truncate">{formatJourneyDate(activeJourney.journey_date)}</span>
-            <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
-            <span className="shrink-0 text-zinc-900 font-bold">장소 {activeJourney.places?.length || 0}/{MAX_JOURNEY_PLACES}</span>
-            {hasRouteStats && totalDistanceKm > 0 && (
-              <>
-                <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
-                <span className="shrink-0">{totalDistanceKm.toFixed(1)}km</span>
-              </>
-            )}
-            {hasRouteStats && totalDurationMin > 0 && (
-              <>
-                <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
-                <span className="shrink-0">{formatTotalDuration(totalDurationMin)}</span>
-              </>
-            )}
-          </p>
-        </button>
-      </div>
-
-      {/* 하단: 여정 이동 및 재생 조절 컨트롤 */}
-      {!isEditMode && (
-        <div className="flex items-center justify-center gap-4 pt-0.5 pb-1.5 w-full">
-          {/* 이전 여정 (<<) */}
-          <button
-            type="button"
-            disabled={!prevJourney}
-            onClick={() => {
-              if (prevJourney) {
-                setFocusedStep(null);
-                setFocusedSegment(null);
-                setAlternativeSegment(null);
-                setFocusBounds(null);
-                setActiveJourney(prevJourney);
-              }
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
-            title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
-          >
-            <SkipBackIcon className="w-5 h-5" />
-          </button>
-
-          {/* 여정 재생/정지 */}
-          {activeJourney.places.length >= 2 ? (
+          {/* 중앙: 여정 정보 수정 영역 (제목, 날짜, 이동수단 설정 정보 전체 포함 버튼) */}
+          <div className="flex-1 flex justify-center min-w-0 px-1">
             <button
               type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="inline-flex flex-col items-center max-w-full px-2.5 py-1 rounded-xl hover:bg-zinc-100/90 active:bg-zinc-200/80 transition-all cursor-pointer group shrink border border-transparent hover:border-zinc-200/80"
+              title="여정 정보 수정"
+            >
+              {/* 1행: [Pencil 아이콘] 여정 제목 & 이동 수단 설정 정보 */}
+              <div className="flex items-center gap-1.5 max-w-full">
+                <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors shrink-0" strokeWidth={2} />
+                <h2 className="text-sm font-extrabold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
+                  {activeJourney.title}
+                </h2>
+                <span className="text-zinc-300 font-light select-none shrink-0">·</span>
+                <div className="flex items-center gap-1 shrink-0 text-xs font-semibold text-zinc-600">
+                  {activeJourney.transport_type === 'car' ? (
+                    <Car className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  ) : activeJourney.transport_type === 'walk' ? (
+                    <Footprints className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <Bus className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  )}
+                  <span>{transportTypeLabel}</span>
+                </div>
+              </div>
+
+              {/* 2행: 여정 제목 밑: 날짜 */}
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900 mt-0.5 truncate max-w-full transition-colors">
+                <div className="flex items-center gap-1 shrink-0">
+                  <Calendar className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 shrink-0 transition-colors" />
+                  <span>{formattedDate}</span>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* 우측: 동기화 & 편집 버튼 */}
+          <div className="flex items-center gap-1 shrink-0">
+            {isSyncing && (
+              <div className="flex items-center mr-0.5" title="클라우드 동기화 중">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={
+                isEditMode
+                  ? handleDoneEdit
+                  : () => {
+                    setEditMode(true);
+                    setDrawerSnapPoint(1);
+                  }
+              }
+              onPointerDown={(e) => e.stopPropagation()}
+              className={`flex items-center gap-0.5 text-xs font-semibold transition-colors px-1 py-0.5 rounded-md cursor-pointer ${isEditMode ? 'text-blue-600 font-bold' : 'text-zinc-500 hover:text-zinc-800'
+                }`}
+            >
+              {isEditMode ? (
+                <>
+                  <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  완료
+                </>
+              ) : (
+                <>
+                  <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
+                  편집
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 2. 가로 연결형 타임라인 바로 위에 붙은 재생 플레이어 & 요약 정보 헤더 바 */}
+      <div className="w-full px-4 pt-1.5 pb-2 flex items-center justify-between gap-2 shrink-0 border-b border-zinc-100/80 select-none">
+        {/* 좌측: 소요 시간 & 비용 */}
+        <div className="flex-1 flex flex-col items-start justify-center min-w-0 leading-tight">
+          {isAnySegmentLoading ? (
+            <div className="flex flex-col gap-1 animate-pulse">
+              <div className="h-4 w-16 bg-zinc-200 rounded-md" />
+              <div className="h-3 w-12 bg-zinc-150 rounded-md" />
+            </div>
+          ) : (
+            <>
+              <span className="font-extrabold text-sm text-zinc-900 truncate">
+                {totalDurationMin > 0 ? formatTotalDuration(totalDurationMin) : '0분'}
+              </span>
+              <span className="font-semibold text-xs text-zinc-600 truncate mt-0.5">
+                {hasFare ? `${totalFareSum.toLocaleString()}원` : (totalFareSum > 0 ? `${totalFareSum.toLocaleString()}원` : '0원')}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* 중앙: 재생 플레이어 UI */}
+        {!isEditMode ? (
+          <div className="flex items-center justify-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              disabled={!prevJourney}
               onClick={() => {
-                if (isPlaying) {
-                  setIsGlobalPlaying(false);
+                if (prevJourney) {
                   setFocusedStep(null);
                   setFocusedSegment(null);
                   setAlternativeSegment(null);
                   setFocusBounds(null);
-                } else {
-                  setIsGlobalPlaying(true);
-                  if (!focusedSegment && !focusedStep) {
-                    const firstPlace = activeJourney.places[0];
-                    const secondPlace = activeJourney.places[1];
-
-                    const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id));
-                    const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id));
-                    const segmentData = {
-                      public: publicData?.public || [],
-                      car: carData?.car || [],
-                      walk: carData?.walk || []
-                    };
-                    const transportType = activeJourney.transport_type || 'public';
-                    const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-
-                    if (activeRoute) {
-                      setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
-                      setFocusedStep(null);
-
-                      const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
-                      setFocusBounds(bounds);
-                    }
-                  }
+                  setActiveJourney(prevJourney);
                 }
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 flex-shrink-0 group overflow-hidden ${isPlaying
-                ? 'bg-white border border-zinc-200 hover:border-transparent text-zinc-950 shadow-sm'
-                : 'bg-zinc-950 border border-zinc-800 hover:border-transparent text-white shadow-md'
-                }`}
-              title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
+              className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 active:scale-90 disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+              title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              {isPlaying ? (
-                <PauseBarsIcon className="w-5 h-5 relative z-10 group-hover:text-white transition-colors duration-300" />
-              ) : (
-                <PlayTriangleIcon className="w-5 h-5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
-              )}
+              <SkipBackIcon className="w-5 h-5" />
             </button>
-          ) : (
-            <div className="w-11 h-11 rounded-full flex items-center justify-center bg-zinc-100 flex-shrink-0">
-              <PlayTriangleIcon className="w-5 h-5 ml-0.5 text-zinc-300" />
-            </div>
-          )}
 
-          {/* 다음 여정 (>>) */}
-          <button
-            type="button"
-            disabled={!nextJourney}
-            onClick={() => {
-              if (nextJourney) {
-                setFocusedStep(null);
-                setFocusedSegment(null);
-                setAlternativeSegment(null);
-                setFocusBounds(null);
-                setActiveJourney(nextJourney);
-              }
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 disabled:opacity-30 disabled:cursor-default disabled:pointer-events-none transition-colors"
-            title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
-          >
-            <SkipForwardIcon className="w-5 h-5" />
-          </button>
+            {places.length >= 2 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isPlaying) {
+                    setIsGlobalPlaying(false);
+                    setFocusedStep(null);
+                    setFocusedSegment(null);
+                    setAlternativeSegment(null);
+                    setFocusBounds(null);
+                  } else {
+                    setIsGlobalPlaying(true);
+                    if (!focusedSegment && !focusedStep && places.length >= 2) {
+                      const firstPlace = places[0];
+                      const secondPlace = places[1];
+
+                      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id));
+                      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id));
+                      const segmentData = {
+                        public: publicData?.public || [],
+                        car: carData?.car || [],
+                        walk: carData?.walk || []
+                      };
+                      const activeRoute = getDefaultRoute(firstPlace, secondPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+
+                      if (activeRoute) {
+                        setFocusedSegment({ originId: firstPlace.id, destId: secondPlace.id });
+                        setFocusedStep(null);
+
+                        const bounds = calculateSegmentBounds(firstPlace, secondPlace, activeRoute);
+                        setFocusBounds(bounds);
+                      }
+                    }
+                  }
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-95 shrink-0 group overflow-hidden cursor-pointer shadow-sm ${isPlaying
+                  ? 'bg-white border border-zinc-200 text-zinc-950 shadow-xs'
+                  : 'bg-zinc-950 text-white shadow-xs'
+                  }`}
+                title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {isPlaying ? (
+                  <PauseBarsIcon className="w-5 h-5 relative z-10 group-hover:text-white transition-colors duration-300" />
+                ) : (
+                  <PlayTriangleIcon className="w-5 h-5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
+                )}
+              </button>
+            ) : (
+              <div
+                className="w-11 h-11 rounded-full flex items-center justify-center bg-zinc-100 border border-zinc-200/60 text-zinc-300 shrink-0 cursor-not-allowed"
+                title="장소를 2개 이상 등록해주세요"
+              >
+                <PlayTriangleIcon className="w-5 h-5 ml-0.5 text-zinc-300" />
+              </div>
+            )}
+
+            <button
+              type="button"
+              disabled={!nextJourney}
+              onClick={() => {
+                if (nextJourney) {
+                  setFocusedStep(null);
+                  setFocusedSegment(null);
+                  setAlternativeSegment(null);
+                  setFocusBounds(null);
+                  setActiveJourney(nextJourney);
+                }
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 active:scale-90 disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+              title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
+            >
+              <SkipForwardIcon className="w-5 h-5" />
+            </button>
+          </div>
+        ) : null}
+
+        {/* 우측 끝: 목적지 N개 */}
+        <div className="flex-1 flex items-center justify-end gap-1 text-xs font-bold text-zinc-900 min-w-0">
+          <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          <span className="shrink-0 text-zinc-900 font-bold">장소 {places.length}/{MAX_JOURNEY_PLACES}</span>
         </div>
-      )}
+      </div>
 
       {/* 플레이어 하단 디자인 요소 (재생 바 같은 느낌) */}
       {!isEditMode && (() => {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useQueryClient } from '@tanstack/react-query';
-import { directionKeys } from '@/hooks/queries/useDirections';
+import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place } from '@/types/journey';
@@ -63,6 +63,7 @@ export default function HorizontalJourneyTimelineBar({
   }, [focusedSegment]);
 
   const places = activeJourney?.places || [];
+  const directionsCache = useJourneyDirectionsCache(places);
   if (places.length === 0) return null;
 
   const transportType = activeJourney.transport_type || 'public';
@@ -120,18 +121,23 @@ export default function HorizontalJourneyTimelineBar({
     let isSegLoading = false;
 
     if (!route) {
+      const cacheKey = `${origin.id}-${dest.id}`;
+      const cachedData = directionsCache[cacheKey];
+
       const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id));
       const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id));
-      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
-      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+      const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
+      const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+
+      const hasData = (cachedData && (cachedData.public.length > 0 || cachedData.car.length > 0 || cachedData.walk.length > 0)) || !!publicData || !!carData;
 
       isSegLoading = !isCacheRestored || (
-        (!publicData && !carData) &&
+        !hasData &&
         (!publicQueryState || publicQueryState.status === 'pending' ||
          !carQueryState || carQueryState.status === 'pending')
       );
 
-      const segmentData = {
+      const segmentData = cachedData || {
         public: publicData?.public || [],
         car: carData?.car || [],
         walk: carData?.walk || []

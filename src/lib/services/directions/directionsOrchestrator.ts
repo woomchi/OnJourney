@@ -14,18 +14,13 @@ import { getCachedTMapWalkingRoute, parseTMapResponse } from './walk/tmapWalking
 export async function fetchCarWalkDirections(params: DirectionsQueryType): Promise<CarWalkDirectionsResult> {
   const { sx, sy, ex, ey } = params;
 
-  // 1. 거리 제한 검증 (직선거리 10km 이상시 API 호출 금지)
+  // 1. 거리 제한 계산 (도보 탐색은 10km 미만만 지원)
   const straightDistKm = haversineDistance(sy, sx, ey, ex);
-  if (straightDistKm >= 10.0) {
-    return {
-      status: 'EXCEED_LIMIT',
-      message: '도보 탐색 거리는 10km 이내만 지원합니다.',
-    };
-  }
+  const isWalkExceedLimit = straightDistKm >= 10.0;
 
   // 2. 지형 기반 좌표 보정 및 TMAP API 지연 호출 (On-Demand) 결정
-  const isStartNonWalkable = isNonWalkableArea(sx, sy);
-  const isEndNonWalkable = isNonWalkableArea(ex, ey);
+  const isStartNonWalkable = !isWalkExceedLimit && isNonWalkableArea(sx, sy);
+  const isEndNonWalkable = !isWalkExceedLimit && isNonWalkableArea(ex, ey);
 
   let snappedStartCoords: { lng: number; lat: number } | undefined;
   let snappedEndCoords: { lng: number; lat: number } | undefined;
@@ -33,7 +28,7 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   let walkResults: DirectionResult[] = [];
 
   const roundCoordWalk = (val: number) => roundCoord(val, 4);
-  const roundCoordCar = (val: number) => roundCoord(val, 4);
+  const roundCoordCar = (val: number) => roundCoord(val, 6);
 
   // 차량용 Snap 좌표 (기존 도로 좌표 스냅)
   let effectiveSx = sx;
@@ -84,8 +79,10 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
     message = '도착지 근처 산림청 등산로 및 도로를 기준으로 경로를 탐색했습니다.';
   }
 
-  // 등산로가 있을 때 - On-Demand: TMAP API 호출 없이 예상 경로(Fast Return) 구성
-  if (isStartNonWalkable || isEndNonWalkable) {
+  // 4. 도보 탐색 (10km 미만인 경우만 수행)
+  if (isWalkExceedLimit) {
+    walkResults = [];
+  } else if (isStartNonWalkable || isEndNonWalkable) {
     const startOptions = isStartNonWalkable
       ? getHikingTrailPolyline({ lng: sx, lat: sy }, { lng: ex, lat: ey })
       : [];
@@ -340,6 +337,7 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   try {
     carResults = await fetchCarRoute(csx, csy, cex, cey);
   } catch (error: any) {
+    console.error('[directionsOrchestrator] 차량 경로 API 실패, Fallback 적용:', error?.message || error);
     carResults = [calculateCarFallback(sx, sy, ex, ey)];
   }
 

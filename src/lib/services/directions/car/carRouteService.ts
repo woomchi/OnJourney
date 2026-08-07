@@ -20,13 +20,13 @@ export async function fetchCarRoute(
     throw new Error('Naver Directions API ID/Secret이 설정되지 않았습니다.');
   }
 
-  const rsx = sx.toFixed(4);
-  const rsy = sy.toFixed(4);
-  const rex = ex.toFixed(4);
-  const rey = ey.toFixed(4);
+  const rsx = sx.toFixed(6);
+  const rsy = sy.toFixed(6);
+  const rex = ex.toFixed(6);
+  const rey = ey.toFixed(6);
   const cacheDuration = getCacheDuration(departureTime);
 
-  const url = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${rsx},${rsy}&goal=${rex},${rey}&option=trafast:traoptimal:traavoidtoll`;
+  const url = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${rsx},${rsy}&goal=${rex},${rey}&option=trafast:traoptimal:traavoidtoll`;
 
   let res;
   try {
@@ -45,6 +45,13 @@ export async function fetchCarRoute(
   }
 
   const data = await res.json();
+
+  if (data.code !== undefined && data.code !== 0) {
+    console.error(`[carRouteService] Naver Directions API error code: ${data.code}, message: ${data.message}`);
+    const err = new Error(`[Naver Directions API Error ${data.code}] ${data.message || '차량 경로를 찾을 수 없습니다.'}`);
+    err.name = 'NaverApiError';
+    throw err;
+  }
 
   if (!data.route) {
     const err = new Error('차량 경로를 찾을 수 없습니다.');

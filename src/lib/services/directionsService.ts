@@ -199,13 +199,8 @@ export async function fetchCarWalkDirectionsApi(
 
   const data = payload.data!;
 
-  // 도보 탐색 거리 초과 응답을 명시적 에러로 변환
-  if ('status' in data && data.status === 'EXCEED_LIMIT') {
-    throw new Error(data.message || '도보 탐색 거리는 10km 이내만 지원합니다.');
-  }
-
   const successData = data as { car: DirectionResult[]; walk: DirectionResult[]; snapMeta: SnapMeta };
-  return { car: successData.car, walk: successData.walk, snapMeta: successData.snapMeta };
+  return { car: successData.car || [], walk: successData.walk || [], snapMeta: successData.snapMeta };
 }
 
 /**

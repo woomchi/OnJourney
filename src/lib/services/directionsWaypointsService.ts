@@ -10,7 +10,7 @@ export async function fetchDirectionsWaypoints(params: DirectionsWaypointsQueryT
     throw new Error('서버에 네이버 API 인증 키 설정이 누락되었습니다.');
   }
 
-  let naverApiUrl = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${start}&goal=${goal}&option=${option}`;
+  let naverApiUrl = `https://maps.apigw.ntruss.com/map-direction/v1/driving?start=${start}&goal=${goal}&option=${option}`;
 
   if (waypoints) {
     naverApiUrl += `&waypoints=${waypoints}`;

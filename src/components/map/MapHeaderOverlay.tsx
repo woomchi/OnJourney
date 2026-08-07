@@ -13,7 +13,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();
   const { alert } = useDialog();
-  const { isSearchMode, closeSearchMode } = useJourneyStore();
+  const { isSearchMode, closeSearchMode, targetChangePlaceId } = useJourneyStore();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -28,14 +28,16 @@ export default function MapHeaderOverlay() {
   if (isSearchMode) {
     return (
       <div className="absolute top-4 left-4 right-4 z-20 flex items-center gap-2 pointer-events-none md:right-auto md:max-w-xl">
-        <button
-          type="button"
-          onClick={closeSearchMode}
-          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/95 backdrop-blur-xl border border-zinc-200 shadow-[0_4px_20px_rgba(0,0,0,0.1)] text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950 transition-all pointer-events-auto flex-shrink-0 cursor-pointer active:scale-95 md:hidden"
-          title="검색 종료"
-        >
-          <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
-        </button>
+        {!targetChangePlaceId && (
+          <button
+            type="button"
+            onClick={closeSearchMode}
+            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/95 backdrop-blur-xl border border-zinc-200 shadow-[0_4px_20px_rgba(0,0,0,0.1)] text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950 transition-all pointer-events-auto flex-shrink-0 cursor-pointer active:scale-95 md:hidden"
+            title="검색 종료"
+          >
+            <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+          </button>
+        )}
         <div className="flex-1 min-w-0 overflow-hidden pointer-events-auto">
           <MapCategoryChips />
         </div>

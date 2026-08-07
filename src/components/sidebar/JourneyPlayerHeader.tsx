@@ -43,6 +43,7 @@ export default function JourneyPlayerHeader({
     setEditMode,
     setDrawerSnapPoint,
     closeSearchMode,
+    targetChangePlaceId,
   } = useJourneyStore();
 
   const bottomSheet = useOptionalBottomSheet();
@@ -125,16 +126,18 @@ export default function JourneyPlayerHeader({
       >
         {/* 왼쪽: 목록 / 취소 / 여정 상세 */}
         {isSearchMode ? (
-          <button
-            type="button"
-            onClick={closeSearchMode}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-[11px] font-semibold rounded-md px-1.5 py-0.5 cursor-pointer"
-            title="여정 상세로 돌아가기"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
-            여정 상세
-          </button>
+          targetChangePlaceId ? null : (
+            <button
+              type="button"
+              onClick={closeSearchMode}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-[11px] font-semibold rounded-md px-1.5 py-0.5 cursor-pointer"
+              title="여정 상세로 돌아가기"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+              여정 상세
+            </button>
+          )
         ) : (
           <button
             type="button"
@@ -204,18 +207,20 @@ export default function JourneyPlayerHeader({
     >
       {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 / 여정 상세 */}
       {isSearchMode ? (
-        <div className="absolute top-1 left-2 z-20">
-          <button
-            type="button"
-            onClick={closeSearchMode}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 cursor-pointer"
-            title="닫기"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
-            닫기
-          </button>
-        </div>
+        targetChangePlaceId ? null : (
+          <div className="absolute top-1 left-2 z-20">
+            <button
+              type="button"
+              onClick={closeSearchMode}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 cursor-pointer"
+              title="닫기"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+              닫기
+            </button>
+          </div>
+        )
       ) : (
         <div className="absolute top-1 left-2 z-20">
           <button

@@ -549,25 +549,21 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         onTouchStart={handleHeaderTouchStart}
         className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-20 cursor-grab active:cursor-grabbing relative"
       >
-        {targetChangePlace && (
-          <div className="bg-blue-50/90 border-b border-blue-100 px-4 py-2 flex items-center justify-between text-xs text-blue-700 font-semibold">
-            <div className="flex items-center gap-1.5 truncate min-w-0">
-              <RefreshCw className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span className="truncate">
-                ‘<strong className="font-extrabold text-blue-900">{targetChangePlace.place_name}</strong>’ 장소를 변경하는 중입니다
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setTargetChangePlaceId(null)}
-              className="ml-2 px-2 py-0.5 rounded-md bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 text-[11px] font-bold shrink-0 transition-colors cursor-pointer"
-            >
-              취소
-            </button>
-          </div>
-        )}
         {/* 검색 입력 바 */}
         <div className="flex items-center gap-2.5 px-4 pt-3 pb-2 relative">
+          {targetChangePlaceId && (
+            <button
+              type="button"
+              onClick={closeSearchMode}
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              className="px-3 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors cursor-pointer shrink-0"
+              title="장소 검색 닫기"
+              aria-label="장소 검색 닫기"
+            >
+              닫기
+            </button>
+          )}
           <form
             action=""
             onSubmit={handleSearchSubmit}
@@ -658,65 +654,67 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
         {/* 가로형 최근 검색 내역 태그 (검색바 바로 아래 배치) */}
         {recentQueries.length > 0 && (
-          <div
-            ref={recentTagsRef}
-            onPointerDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onWheel={(e) => {
-              if (recentTagsRef.current && e.deltaY !== 0) {
-                recentTagsRef.current.scrollLeft += e.deltaY;
-              }
-            }}
-            onMouseDown={(e) => {
-              if (!recentTagsRef.current) return;
-              setIsMouseDown(true);
-              setHasDragged(false);
-              setStartX(e.pageX - recentTagsRef.current.offsetLeft);
-              setScrollLeftPos(recentTagsRef.current.scrollLeft);
-            }}
-            onMouseLeave={() => setIsMouseDown(false)}
-            onMouseUp={() => setIsMouseDown(false)}
-            onMouseMove={(e) => {
-              if (!isMouseDown || !recentTagsRef.current) return;
-              const x = e.pageX - recentTagsRef.current.offsetLeft;
-              const walk = (x - startX) * 1.2;
-              if (Math.abs(walk) > 5) setHasDragged(true);
-              recentTagsRef.current.scrollLeft = scrollLeftPos - walk;
-            }}
-            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-4 pb-3 pt-0.5 select-none [touch-action:pan-x] overscroll-x-contain cursor-grab active:cursor-grabbing"
-          >
+          <div className="flex items-center px-4 pb-3 pt-0.5 select-none relative">
             <button
               type="button"
               onClick={clearRecentQueries}
-              className="flex-shrink-0 sticky left-0 z-10 text-[11px] font-semibold text-zinc-400 hover:text-red-500 bg-white py-1 pr-2 transition-colors cursor-pointer whitespace-nowrap shadow-[6px_0_8px_white]"
+              className="flex-shrink-0 text-[11px] font-semibold text-zinc-400 hover:text-red-500 bg-white py-1 pr-3 transition-colors cursor-pointer whitespace-nowrap z-10"
               title="최근 검색어 전체 삭제"
             >
               전체 삭제
             </button>
-            {recentQueries.map((q, idx) => (
-              <div
-                key={`rq-tag-${idx}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleTagClick(q);
-                }}
-                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-blue-50 hover:text-blue-600 border border-zinc-200/60 hover:border-blue-200 text-zinc-700 text-xs font-bold rounded-full transition-all cursor-pointer group"
-              >
-                <Clock className="w-3 h-3 text-zinc-400 group-hover:text-blue-500 flex-shrink-0" strokeWidth={2.2} />
-                <span>{q}</span>
-                <button
-                  type="button"
+            <div
+              ref={recentTagsRef}
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onWheel={(e) => {
+                if (recentTagsRef.current && e.deltaY !== 0) {
+                  recentTagsRef.current.scrollLeft += e.deltaY;
+                }
+              }}
+              onMouseDown={(e) => {
+                if (!recentTagsRef.current) return;
+                setIsMouseDown(true);
+                setHasDragged(false);
+                setStartX(e.pageX - recentTagsRef.current.offsetLeft);
+                setScrollLeftPos(recentTagsRef.current.scrollLeft);
+              }}
+              onMouseLeave={() => setIsMouseDown(false)}
+              onMouseUp={() => setIsMouseDown(false)}
+              onMouseMove={(e) => {
+                if (!isMouseDown || !recentTagsRef.current) return;
+                const x = e.pageX - recentTagsRef.current.offsetLeft;
+                const walk = (x - startX) * 1.2;
+                if (Math.abs(walk) > 5) setHasDragged(true);
+                recentTagsRef.current.scrollLeft = scrollLeftPos - walk;
+              }}
+              className="flex-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none [touch-action:pan-x] overscroll-x-contain cursor-grab active:cursor-grabbing min-w-0"
+            >
+              {recentQueries.map((q, idx) => (
+                <div
+                  key={`rq-tag-${idx}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteRecentQuery(q);
+                    handleTagClick(q);
                   }}
-                  className="w-3.5 h-3.5 rounded-full hover:bg-zinc-200 hover:text-zinc-600 flex items-center justify-center text-zinc-400 transition-colors cursor-pointer -mr-0.5"
-                  title="기록 삭제"
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-blue-50 hover:text-blue-600 border border-zinc-200/60 hover:border-blue-200 text-zinc-700 text-xs font-bold rounded-full transition-all cursor-pointer group"
                 >
-                  <X className="w-2.5 h-2.5" strokeWidth={2.5} />
-                </button>
-              </div>
-            ))}
+                  <Clock className="w-3 h-3 text-zinc-400 group-hover:text-blue-500 flex-shrink-0" strokeWidth={2.2} />
+                  <span>{q}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteRecentQuery(q);
+                    }}
+                    className="w-3.5 h-3.5 rounded-full hover:bg-zinc-200 hover:text-zinc-600 flex items-center justify-center text-zinc-400 transition-colors cursor-pointer -mr-0.5"
+                    title="기록 삭제"
+                  >
+                    <X className="w-2.5 h-2.5" strokeWidth={2.5} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -788,13 +786,12 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleToggleSearchResult(item); }}
-                      className={`group/btn flex-shrink-0 transition-all font-bold text-xs cursor-pointer ${
-                        targetChangePlaceId
+                      className={`group/btn flex-shrink-0 transition-all font-bold text-xs cursor-pointer ${targetChangePlaceId
                           ? 'px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 active:scale-95 shadow-xs'
                           : isAdded
-                          ? 'w-8 h-8 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-red-50 hover:text-red-500'
-                          : 'w-8 h-8 rounded-full flex items-center justify-center bg-blue-100 hover:bg-blue-500 hover:text-white text-blue-600 active:scale-90'
-                      }`}
+                            ? 'w-8 h-8 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-red-50 hover:text-red-500'
+                            : 'w-8 h-8 rounded-full flex items-center justify-center bg-blue-100 hover:bg-blue-500 hover:text-white text-blue-600 active:scale-90'
+                        }`}
                       title={targetChangePlaceId ? '이 장소로 변경' : isAdded ? '여정에서 제거' : '여정에 추가'}
                     >
                       {targetChangePlaceId ? (

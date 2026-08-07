@@ -594,11 +594,11 @@ export default function RouteGuidePanel({
                 <>
                   {/* Tooltip Body: 서비스 시그니처 그라데이션 테마 적용 */}
                   <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    initial={{ opacity: 0, y: -6, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.95 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute z-[1000] left-0 bottom-full mb-2.5 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15"
+                    className="absolute z-[1000] left-0 top-full mt-2.5 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15"
                   >
                     <p className="font-bold text-[13px] mb-1">{originPlace.place_name}</p>
                     {originPlace.address && (
@@ -607,11 +607,11 @@ export default function RouteGuidePanel({
                   </motion.div>
                   {/* Tooltip Arrow: 그라데이션 중앙 색상인 indigo-500 적용 */}
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
+                    exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute z-[1001] left-1/2 -translate-x-1/2 bottom-full mb-[4px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-indigo-500 pointer-events-none"
+                    className="absolute z-[1001] left-1/2 -translate-x-1/2 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-blue-500 pointer-events-none"
                   />
                 </>
               )}
@@ -645,11 +645,11 @@ export default function RouteGuidePanel({
                 <>
                   {/* Tooltip Body: 서비스 시그니처 그라데이션 테마 적용 */}
                   <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    initial={{ opacity: 0, y: -6, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.95 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute z-[1000] right-0 bottom-full mb-2.5 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15"
+                    className="absolute z-[1000] right-0 top-full mt-2.5 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15"
                   >
                     <p className="font-bold text-[13px] mb-1">{destPlace.place_name}</p>
                     {destPlace.address && (
@@ -658,11 +658,11 @@ export default function RouteGuidePanel({
                   </motion.div>
                   {/* Tooltip Arrow: 그라데이션 중앙 색상인 indigo-500 적용 */}
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
+                    exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute z-[1001] left-1/2 -translate-x-1/2 bottom-full mb-[4px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-indigo-500 pointer-events-none"
+                    className="absolute z-[1001] left-1/2 -translate-x-1/2 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-violet-500 pointer-events-none"
                   />
                 </>
               )}
@@ -820,11 +820,11 @@ export default function RouteGuidePanel({
                     {activeTooltip === 'origin' && (
                       <>
                         <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          initial={{ opacity: 0, y: -6, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          exit={{ opacity: 0, y: -6, scale: 0.95 }}
                           transition={{ duration: 0.15, ease: 'easeOut' }}
-                          className="absolute z-[1000] left-0 bottom-full mb-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
+                          className="absolute z-[1000] left-0 top-full mt-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
                         >
                           <p className="font-bold text-[13px] mb-1">{originPlace.place_name}</p>
                           {originPlace.address && (
@@ -832,11 +832,11 @@ export default function RouteGuidePanel({
                           )}
                         </motion.div>
                         <motion.div
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: -6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 10 }}
+                          exit={{ opacity: 0, y: -6 }}
                           transition={{ duration: 0.15, ease: 'easeOut' }}
-                          className="absolute z-[1001] left-1/3 bottom-full mb-[4px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-indigo-500 pointer-events-none"
+                          className="absolute z-[1001] left-1/3 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-blue-500 pointer-events-none"
                         />
                       </>
                     )}
@@ -865,11 +865,11 @@ export default function RouteGuidePanel({
                     {activeTooltip === 'dest' && (
                       <>
                         <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          initial={{ opacity: 0, y: -6, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          exit={{ opacity: 0, y: 0, scale: 1 }}
                           transition={{ duration: 0.15, ease: 'easeOut' }}
-                          className="absolute z-[1000] right-0 bottom-full mb-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
+                          className="absolute z-[1000] right-0 top-full mt-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
                         >
                           <p className="font-bold text-[13px] mb-1">{destPlace.place_name}</p>
                           {destPlace.address && (
@@ -877,11 +877,11 @@ export default function RouteGuidePanel({
                           )}
                         </motion.div>
                         <motion.div
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: -6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 10 }}
+                          exit={{ opacity: 0, y: -6 }}
                           transition={{ duration: 0.15, ease: 'easeOut' }}
-                          className="absolute z-[1001] right-1/3 bottom-full mb-[4px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-indigo-500 pointer-events-none"
+                          className="absolute z-[1001] right-1/3 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-violet-500 pointer-events-none"
                         />
                       </>
                     )}

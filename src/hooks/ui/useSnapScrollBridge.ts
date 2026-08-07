@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import type { Journey } from '@/types/journey';
 import { animate } from 'framer-motion';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const parseSnapVal = (s: any): number => {
   if (s === 1 || s === '1') return 1;
@@ -32,6 +33,8 @@ export function useSnapScrollBridge({
   defaultSnap: defaultSnapOpt
 }: UseSnapScrollBridgeOptions) {
   const bottomSheet = useOptionalBottomSheet();
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isBridgeDisabled = disabled || !isMobile;
 
   const touchStartRef = useRef<{
     y: number;
@@ -47,7 +50,7 @@ export function useSnapScrollBridge({
   });
 
   const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
-    if (disabled) return;
+    if (isBridgeDisabled) return;
     const target = scrollRef.current || e.currentTarget;
     const maxScroll = target.scrollHeight - target.clientHeight;
     const isScrollable = maxScroll > 5;
@@ -63,7 +66,7 @@ export function useSnapScrollBridge({
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
-    if (disabled) return;
+    if (isBridgeDisabled) return;
     const target = scrollRef.current || e.currentTarget;
     const startSnapY = bottomSheet ? bottomSheet.y.get() : 0;
     touchStartRef.current = {
@@ -78,7 +81,7 @@ export function useSnapScrollBridge({
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || disabled) return;
+    if (!el || isBridgeDisabled) return;
 
     const handleNativeTouchMove = (e: TouchEvent) => {
       if (!touchStartRef.current) return;
@@ -122,7 +125,7 @@ export function useSnapScrollBridge({
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
-    if (disabled) {
+    if (isBridgeDisabled) {
       touchStartRef.current = null;
       return;
     }
@@ -237,7 +240,7 @@ export function useSnapScrollBridge({
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLElement>) => {
-    if (disabled) return;
+    if (isBridgeDisabled) return;
     const target = scrollRef.current || e.currentTarget;
     const now = Date.now();
 

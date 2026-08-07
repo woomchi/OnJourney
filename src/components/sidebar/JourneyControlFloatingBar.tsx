@@ -261,9 +261,9 @@ export default function JourneyControlFloatingBar({
               <span>{formattedDate}</span>
             </div>
             <span className="text-zinc-300 text-[10px]">·</span>
-            <div className="flex items-center gap-1 text-zinc-700 font-semibold shrink-0">
+            <div className="flex items-center gap-1 text-zinc-900 font-bold shrink-0">
               <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
-              <span>장소 {activeJourney.places.length}/{MAX_JOURNEY_PLACES}</span>
+              <span className="text-zinc-900 font-bold">장소 {activeJourney.places.length}/{MAX_JOURNEY_PLACES}</span>
             </div>
 
             {/* 장소 개수 UI 바로 오른쪽: 장소 추가 버튼 */}

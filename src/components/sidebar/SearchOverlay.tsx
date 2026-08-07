@@ -8,7 +8,7 @@ import { getCategoryTheme } from '@/lib/categoryUtils';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place, PlaceResult } from '@/types/journey';
 import { useShallow } from 'zustand/react/shallow';
-import { MapPin, Search, X, Check, Clock, Plus, Loader2, RefreshCw } from 'lucide-react';
+import { MapPin, Search, X, Check, Clock, Plus, Loader2, RefreshCw, ChevronLeft } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
@@ -550,20 +550,18 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         className="flex-shrink-0 bg-white border-b border-zinc-100 flex flex-col select-none z-20 cursor-grab active:cursor-grabbing relative"
       >
         {/* 검색 입력 바 */}
-        <div className="flex items-center gap-2.5 px-4 pt-3 pb-2 relative">
-          {targetChangePlaceId && (
-            <button
-              type="button"
-              onClick={closeSearchMode}
-              onPointerDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              className="px-3 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors cursor-pointer shrink-0"
-              title="장소 검색 닫기"
-              aria-label="장소 검색 닫기"
-            >
-              닫기
-            </button>
-          )}
+        <div className="flex items-center gap-2 px-3.5 pt-3 pb-2 relative">
+          <button
+            type="button"
+            onClick={closeSearchMode}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            className="flex items-center justify-center p-1.5 text-zinc-600 hover:text-zinc-900 bg-zinc-100/90 hover:bg-zinc-200/90 rounded-xl transition-colors cursor-pointer shrink-0"
+            title="뒤로가기"
+            aria-label="뒤로가기"
+          >
+            <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
+          </button>
           <form
             action=""
             onSubmit={handleSearchSubmit}

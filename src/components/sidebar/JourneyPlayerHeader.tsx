@@ -37,6 +37,7 @@ export default function JourneyPlayerHeader({
     setFocusedSegment,
     setFocusBounds,
     isSyncing,
+    alternativeSegment,
     setAlternativeSegment,
     setActiveJourney,
     isEditMode,
@@ -124,35 +125,37 @@ export default function JourneyPlayerHeader({
         }}
         className="w-full h-8 flex items-center justify-between px-3 border-b border-zinc-100/80 bg-white flex-shrink-0 relative drawer-drag-area cursor-grab active:cursor-grabbing touch-none"
       >
-        {/* 왼쪽: 목록 / 취소 / 여정 상세 */}
-        {isSearchMode ? (
-          targetChangePlaceId ? null : (
-            <button
-              type="button"
-              onClick={closeSearchMode}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-[11px] font-semibold rounded-md px-1.5 py-0.5 cursor-pointer"
-              title="여정 상세로 돌아가기"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
-              여정 상세
-            </button>
-          )
-        ) : (
+        {/* 왼쪽: 뒤로가기 / 취소 / 목록 */}
+        {!isSearchMode && (
           <button
             type="button"
             onClick={() => {
               if (isEditMode) {
                 setEditMode(false);
+              } else if (focusedSegment || alternativeSegment) {
+                setFocusedSegment(null);
+                setAlternativeSegment(null);
+                setFocusedStep(null);
+                setFocusBounds(null);
               } else {
                 clearJourney();
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-[11px] font-semibold rounded-md px-1.5 py-0.5"
+            className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-[11px] font-semibold rounded-md px-1.5 py-0.5 cursor-pointer"
+            title={isEditMode ? "편집 취소" : (focusedSegment || alternativeSegment) ? "이동 상세 닫기" : "여정 목록으로 돌아가기"}
+            aria-label={isEditMode ? "편집 취소" : (focusedSegment || alternativeSegment) ? "이동 상세 닫기" : "여정 목록으로 돌아가기"}
           >
-            {!isEditMode && <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />}
-            {isEditMode ? '취소' : '목록'}
+            {isEditMode ? (
+              '취소'
+            ) : (focusedSegment || alternativeSegment) ? (
+              <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
+            ) : (
+              <>
+                <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+                <span>목록</span>
+              </>
+            )}
           </button>
         )}
 
@@ -205,42 +208,38 @@ export default function JourneyPlayerHeader({
       }}
       className={`flex flex-col border-b border-zinc-100/80 flex-shrink-0 relative overflow-hidden drawer-drag-area cursor-grab active:cursor-grabbing touch-none ${isEditMode ? 'bg-white' : 'bg-white/80 backdrop-blur-xl'} ${isMobile ? 'pt-0.5' : 'pt-1'}`}
     >
-      {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 / 여정 상세 */}
-      {isSearchMode ? (
-        targetChangePlaceId ? null : (
-          <div className="absolute top-1 left-2 z-20">
-            <button
-              type="button"
-              onClick={closeSearchMode}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 cursor-pointer"
-              title="닫기"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
-              닫기
-            </button>
-          </div>
-        )
-      ) : (
+      {/* 왼쪽 상단 모서리: 뒤로가기 / 취소 / 목록 */}
+      {!isSearchMode && (
         <div className="absolute top-1 left-2 z-20">
           <button
             type="button"
             onClick={() => {
               if (isEditMode) {
                 setEditMode(false);
+              } else if (focusedSegment || alternativeSegment) {
+                setFocusedSegment(null);
+                setAlternativeSegment(null);
+                setFocusedStep(null);
+                setFocusBounds(null);
               } else {
                 clearJourney();
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold rounded-md px-1 py-0.5"
+            className="flex items-center gap-0.5 text-zinc-400 hover:text-zinc-700 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 cursor-pointer"
+            title={isEditMode ? "편집 취소" : (focusedSegment || alternativeSegment) ? "이동 상세 닫기" : "여정 목록으로 돌아가기"}
+            aria-label={isEditMode ? "편집 취소" : (focusedSegment || alternativeSegment) ? "이동 상세 닫기" : "여정 목록으로 돌아가기"}
           >
             {isEditMode ? (
-              <div className="w-3.5 h-3.5" />
+              '취소'
+            ) : (focusedSegment || alternativeSegment) ? (
+              <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
             ) : (
-              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+              <>
+                <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+                <span>목록</span>
+              </>
             )}
-            {isEditMode ? '취소' : '목록'}
           </button>
         </div>
       )}
@@ -291,21 +290,23 @@ export default function JourneyPlayerHeader({
           className="inline-flex flex-col items-center max-w-full px-2.5 py-1 rounded-xl hover:bg-zinc-100/90 active:bg-zinc-200/80 transition-all cursor-pointer group border border-transparent hover:border-zinc-200/80 shrink"
           title="여정 정보 수정"
         >
-          {/* 1행: [Pencil 아이콘] 여정 제목 */}
+          {/* 1행: [Pencil 아이콘] 여정 제목 & 이동 수단 설정 */}
           <div className="flex items-center gap-1.5 max-w-full">
             <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors shrink-0" strokeWidth={2} />
             <h2 className="text-xs font-bold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
               {activeJourney.title}
             </h2>
+            <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
+            <span className="shrink-0 text-[10px] font-semibold text-zinc-600">
+              {activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}
+            </span>
           </div>
 
-          {/* 2행: 요약 정보 (날짜, 대표 이동수단 등) */}
-          <p className="text-[9px] font-medium text-zinc-400/80 group-hover:text-zinc-600 mt-0.5 flex items-center gap-1 truncate max-w-full transition-colors">
+          {/* 2행: 요약 정보 (날짜, 장소 수, 거리, 시간 등) */}
+          <p className="text-[9px] font-medium text-zinc-900 mt-0.5 flex items-center gap-1 truncate max-w-full transition-colors">
             <span className="truncate">{formatJourneyDate(activeJourney.journey_date)}</span>
             <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
-            <span className="shrink-0">{activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}</span>
-            <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
-            <span className="shrink-0 text-zinc-600 font-semibold">장소 {activeJourney.places?.length || 0}/{MAX_JOURNEY_PLACES}</span>
+            <span className="shrink-0 text-zinc-900 font-bold">장소 {activeJourney.places?.length || 0}/{MAX_JOURNEY_PLACES}</span>
             {hasRouteStats && totalDistanceKm > 0 && (
               <>
                 <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>

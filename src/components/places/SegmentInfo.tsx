@@ -237,21 +237,14 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   if (isMobile) {
     return (
       <div
-        className={`w-full px-4 py-3 rounded-xl transition-all duration-200 border select-none ${isThisSegmentFocused
-          ? 'bg-blue-50/50 border-blue-400 shadow-[0_4px_16px_rgba(59,130,246,0.12)]'
-          : 'bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]'
-          }`}
+        className="w-full px-4 py-3 rounded-xl transition-all duration-200 border select-none bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]"
       >
         {/* 1. 이동 요약 정보 (가로형 요약 바 스타일 + 요약 카드 내 버튼 포함) */}
         <div className="flex items-center justify-between w-full min-w-0 gap-2">
           <div className="flex items-center gap-3.5 min-w-0 flex-1">
             {/* 수단 아이콘 (구간 별 테마 컬러스킴 적용) */}
             <div
-              style={
-                isThisSegmentFocused
-                  ? { backgroundColor: segmentColor, color: '#FFFFFF' }
-                  : { backgroundColor: `${segmentColor}12`, color: segmentColor }
-              }
+              style={{ backgroundColor: `${segmentColor}12`, color: segmentColor }}
               className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-colors duration-200"
             >
               {getTransportIcon(type, data.steps)}
@@ -271,36 +264,29 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 )}
               </div>
 
-              {/* 우: 요금 뱃지 + 거리 뱃지 (상단) + 수단/환승 횟수 텍스트 (하단) */}
-              <div className="flex flex-col min-w-0 flex-1 leading-tight gap-1">
-                {/* 상단: 요금 뱃지 + 거리 뱃지 */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className={`inline-block text-[12px] font-bold px-1.5 py-0.5 rounded-md ${isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-800'
-                    }`}>
-                    {type === 'car' ? (
-                      data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원` : '비용 정보 없음'
-                    ) : type === 'walk' ? (
-                      '무료'
-                    ) : fareVal ? (
-                      formattedFare
-                    ) : (
-                      '요금 정보 없음'
-                    )}
-                  </span>
-                  {formattedDistance && (
-                    <span className="text-[12px] font-semibold text-zinc-500 bg-zinc-50 border border-zinc-100 px-1.5 py-0.5 rounded-md">
-                      {formattedDistance}
-                    </span>
+              {/* 우: 정보 텍스트 3개 나란히 배치 (박스 제거) */}
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1 text-[12px] font-medium text-zinc-500">
+                <span className="shrink-0">
+                  {type === 'car' ? (
+                    data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원` : '비용 정보 없음'
+                  ) : type === 'walk' ? (
+                    '무료'
+                  ) : fareVal ? (
+                    formattedFare
+                  ) : (
+                    '요금 정보 없음'
                   )}
-                </div>
-
-                {/* 하단: 이동 수단 / 환승 횟수 뱃지 */}
-                <div>
-                  <span className={`inline-block text-[12px] font-medium px-1.5 py-0.5 rounded-md ${isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700'
-                    }`}>
-                    {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
-                  </span>
-                </div>
+                </span>
+                <span className="text-zinc-300 select-none shrink-0">·</span>
+                {formattedDistance && (
+                  <>
+                    <span className="shrink-0">{formattedDistance}</span>
+                    <span className="text-zinc-300 select-none shrink-0">·</span>
+                  </>
+                )}
+                <span className="shrink-0">
+                  {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
+                </span>
               </div>
             </div>
           </div>
@@ -532,10 +518,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
   return (
     <div
-      className={`w-full px-4 py-3 rounded-xl transition-all duration-200 border select-none cursor-pointer ${isThisSegmentFocused
-        ? 'bg-blue-50/50 border-blue-400 shadow-[0_4px_16px_rgba(59,130,246,0.12)]'
-        : 'bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]'
-        }`}
+      className="w-full px-4 py-3 rounded-xl transition-all duration-200 border select-none cursor-pointer bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]"
     >
       {/* 대안 2: 좌/우 Split 구조 (좌: 시간 & 도착예정 수직배치 / 우: 수단·거리 뱃지/요금) */}
       <div className="flex items-center justify-between gap-3 mb-2.5">
@@ -553,37 +536,30 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
         {/* 우측 영역: 요금 뱃지 · 거리 뱃지 (상단) 및 이동 수단/환승 횟수 텍스트 (하단), 대안 경로 버튼 */}
         <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-          <div className="flex flex-col min-w-0 leading-tight gap-1">
-            {/* 상단: 요금 뱃지 + 거리 뱃지 */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className={`inline-block text-[11px] font-extrabold px-1.5 py-0.5 rounded-md ${isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-800'
-                }`}>
-                {type === 'car' || type === 'taxi' ? (
-                  data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}` : '비용 정보 없음'
-                ) : type === 'walk' || type === 'bicycle' ? (
-                  '무료'
-                ) : (data.isIntercity || data.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && data.fare === 0 ? (
-                  '예매처 확인'
-                ) : data.fare > 0 ? (
-                  data.isFareEstimated ? `약 ${data.fare.toLocaleString()}원` : `${data.fare.toLocaleString()}원`
-                ) : (
-                  '요금 정보 없음'
-                )}
-              </span>
-              {formattedDistance && (
-                <span className="text-[11px] font-semibold text-zinc-500 bg-zinc-50 border border-zinc-100 px-1.5 py-0.5 rounded-md">
-                  {formattedDistance}
-                </span>
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1 text-[11px] font-medium text-zinc-500">
+            <span className="shrink-0">
+              {type === 'car' || type === 'taxi' ? (
+                data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}` : '비용 정보 없음'
+              ) : type === 'walk' || type === 'bicycle' ? (
+                '무료'
+              ) : (data.isIntercity || data.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && data.fare === 0 ? (
+                '예매처 확인'
+              ) : data.fare > 0 ? (
+                data.isFareEstimated ? `약 ${data.fare.toLocaleString()}원` : `${data.fare.toLocaleString()}원`
+              ) : (
+                '요금 정보 없음'
               )}
-            </div>
-
-            {/* 하단: 이동 수단 / 환승 횟수 뱃지 */}
-            <div>
-              <span className={`inline-block text-[11px] font-medium px-1.5 py-0.5 rounded-md ${isThisSegmentFocused ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700'
-                }`}>
-                {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
-              </span>
-            </div>
+            </span>
+            <span className="text-zinc-300 select-none shrink-0">·</span>
+            {formattedDistance && (
+              <>
+                <span className="shrink-0">{formattedDistance}</span>
+                <span className="text-zinc-300 select-none shrink-0">·</span>
+              </>
+            )}
+            <span className="shrink-0">
+              {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
+            </span>
           </div>
 
           {/* 대안 경로 탐색 버튼 */}

@@ -121,7 +121,7 @@ function SortableJourneyCard({
         </div>
         <div className="flex justify-between items-center text-[11px] text-zinc-400 border-t border-zinc-50 pt-2.5 mt-1 w-full">
           <span>{formatJourneyDate(journey.journey_date)}</span>
-          <span>장소 {journey.places?.length ?? 0}개</span>
+          <span className="text-zinc-900 font-bold">장소 {journey.places?.length ?? 0}개</span>
         </div>
       </button>
       {isListEditMode && (

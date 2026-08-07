@@ -95,9 +95,15 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recentTagsRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchHeaderRef = useRef<HTMLDivElement>(null);
   const [windowHeight, setWindowHeight] = useState(0);
+
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeftPos, setScrollLeftPos] = useState(0);
+  const [hasDragged, setHasDragged] = useState(false);
 
   useEffect(() => {
     setWindowHeight(window.innerHeight);
@@ -370,23 +376,15 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       if (triggerMapHighlight) {
         setRecommendedPlaces(items);
 
-        let exactMatchItem: PlaceResult | null = null;
-        const searchQ = q.replace(/\s+/g, '').toLowerCase();
-        exactMatchItem = items.find(item => item.place_name.replace(/\s+/g, '').toLowerCase() === searchQ) || null;
-
-        if (exactMatchItem) {
-          setActiveSearchPlace(exactMatchItem);
+        if (items.length > 0) {
+          const bestItem = items[0];
+          setFocusBounds({
+            sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
+            ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
+          });
+          setActiveSearchPlace(bestItem);
         } else {
           setActiveSearchPlace(null);
-
-          if (items.length > 0) {
-            const bestItem = items[0];
-            setFocusBounds({
-              sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
-              ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
-            });
-            setActiveSearchPlace(bestItem);
-          }
         }
       } else {
         clearRecommendedPlaces();
@@ -428,6 +426,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   };
 
   const handleTagClick = useCallback((q: string) => {
+    if (hasDragged) return;
     dismissKeyboard();
     setSearchQuery(q);
     debouncedFetchSuggestions.cancel();
@@ -436,7 +435,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     if (typeof window !== 'undefined') {
       setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
     }
-  }, [dismissKeyboard, setSearchQuery, debouncedFetchSuggestions, runSearch, saveRecentQuery, setDrawerSnapPoint]);
+  }, [hasDragged, dismissKeyboard, setSearchQuery, debouncedFetchSuggestions, runSearch, saveRecentQuery, setDrawerSnapPoint]);
 
   const handleSelectSuggestion = (item: PlaceResult) => {
     dismissKeyboard();
@@ -646,7 +645,33 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
         {/* 가로형 최근 검색 내역 태그 (검색바 바로 아래 배치) */}
         {recentQueries.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-4 pb-3 pt-0.5 select-none">
+          <div
+            ref={recentTagsRef}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onWheel={(e) => {
+              if (recentTagsRef.current && e.deltaY !== 0) {
+                recentTagsRef.current.scrollLeft += e.deltaY;
+              }
+            }}
+            onMouseDown={(e) => {
+              if (!recentTagsRef.current) return;
+              setIsMouseDown(true);
+              setHasDragged(false);
+              setStartX(e.pageX - recentTagsRef.current.offsetLeft);
+              setScrollLeftPos(recentTagsRef.current.scrollLeft);
+            }}
+            onMouseLeave={() => setIsMouseDown(false)}
+            onMouseUp={() => setIsMouseDown(false)}
+            onMouseMove={(e) => {
+              if (!isMouseDown || !recentTagsRef.current) return;
+              const x = e.pageX - recentTagsRef.current.offsetLeft;
+              const walk = (x - startX) * 1.2;
+              if (Math.abs(walk) > 5) setHasDragged(true);
+              recentTagsRef.current.scrollLeft = scrollLeftPos - walk;
+            }}
+            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-4 pb-3 pt-0.5 select-none [touch-action:pan-x] overscroll-x-contain cursor-grab active:cursor-grabbing"
+          >
             <button
               type="button"
               onClick={clearRecentQueries}

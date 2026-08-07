@@ -163,68 +163,14 @@ export const MapRoutes = memo(function MapRoutes({
               }
 
               if (route.isEstimated) {
-                let trailPath: { lat: number; lng: number }[] = [];
-                let flatPath: { lat: number; lng: number }[] = [];
-
-                if (route.detailedPathPoints && route.detailedPathPoints.length >= 2) {
-                  flatPath = route.detailedPathPoints;
-                } else {
-                  if (route.snappedStart && !route.snappedEnd) {
-                    flatPath = route.pathPoints.slice(-2);
-                  } else if (route.snappedEnd && !route.snappedStart) {
-                    flatPath = route.pathPoints.slice(0, 2);
-                  } else if (route.snappedStart && route.snappedEnd) {
-                    flatPath = [
-                      { lat: route.snappedStart.lat, lng: route.snappedStart.lng },
-                      { lat: route.snappedEnd.lat, lng: route.snappedEnd.lng }
-                    ];
-                  } else {
-                    flatPath = pathPoints;
-                  }
-                }
-
-                if (route.snappedStart && !route.snappedEnd) {
-                  trailPath = route.pathPoints.slice(0, -1);
-                } else if (route.snappedEnd && !route.snappedStart) {
-                  trailPath = route.pathPoints.slice(1);
-                } else if (route.snappedStart && route.snappedEnd) {
-                  const midStartIdx = route.pathPoints.findIndex(p => Math.abs(p.lat - route.snappedStart!.lat) < 1e-6 && Math.abs(p.lng - route.snappedStart!.lng) < 1e-6);
-                  const midEndIdx = route.pathPoints.findIndex(p => Math.abs(p.lat - route.snappedEnd!.lat) < 1e-6 && Math.abs(p.lng - route.snappedEnd!.lng) < 1e-6);
-                  if (midStartIdx !== -1 && midEndIdx !== -1) {
-                    trailPath = [
-                      ...route.pathPoints.slice(0, midStartIdx + 1),
-                      ...route.pathPoints.slice(midEndIdx)
-                    ];
-                  } else {
-                    trailPath = route.pathPoints;
-                  }
-                }
+                const flatPath = (route.detailedPathPoints && route.detailedPathPoints.length >= 2)
+                  ? route.detailedPathPoints
+                  : pathPoints;
 
                 const hasDetailed = !!(route.detailedPathPoints && route.detailedPathPoints.length >= 2);
 
                 return (
                   <Fragment key={`estimated-polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}>
-                    {/* Hiking Trail: Dashed Green Line */}
-                    {trailPath.length >= 2 && (
-                      <AnimatedPolyline
-                        path={trailPath}
-                        delay={stepDelay}
-                        duration={stepDuration}
-                        skipAnimation={true}
-                        resetKey={animationVersion}
-                        strokeColor="#10B981"
-                        strokeOpacity={walkOpacity}
-                        strokeWeight={walkWeight + 1}
-                        strokeStyle="dash"
-                        strokeLineCap="round"
-                        strokeLineJoin="round"
-                        zIndex={baseZIndex + 2}
-                        onClick={() => handlePolylineClick(place, nextPlace, route)}
-                        visible={isVisible}
-                      />
-                    )}
-
-                    {/* Flat Land segment: Solid Blue if detailed, zinc shortdash if estimated */}
                     {flatPath.length >= 2 && (
                       <AnimatedPolyline
                         path={flatPath}

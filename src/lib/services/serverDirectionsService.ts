@@ -16,7 +16,7 @@ export { fetchPublicTransitOptions, fetchPublicDirections } from './directions/t
 // 3. 차량 도메인 서비스
 export { fetchCarRoute, calculateCarFallback } from './directions/car/carRouteService';
 
-// 4. 도보/등산 도메인 서비스
+// 4. 도보 도메인 서비스
 export { buildWalkFallbackResults } from './directions/walk/walkFallbackService';
 export { getCachedTMapWalkingRoute, parseTMapResponse, fetchTmapDetailRoute } from './directions/walk/tmapWalkingService';
 export { probeTMapSnapPoint } from './directions/walk/tmapSnapProbeService';

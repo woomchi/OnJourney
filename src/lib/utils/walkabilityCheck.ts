@@ -24,10 +24,10 @@ function loadGeoJsonData() {
   try {
     const dataDir = path.join(process.cwd(), 'data');
     const naturalPath = path.join(dataDir, 'naturalData.json');
-    const landUsePath = path.join(dataDir, 'landUseData.json');
+    const landUsePath = path.join(dataDir, 'landUseData_processed.json');
 
-    const naturalRaw = fs.readFileSync(naturalPath, 'utf8');
-    const landUseRaw = fs.readFileSync(landUsePath, 'utf8');
+    const naturalRaw = fs.existsSync(naturalPath) ? fs.readFileSync(naturalPath, 'utf8') : '{"features":[]}';
+    const landUseRaw = fs.existsSync(landUsePath) ? fs.readFileSync(landUsePath, 'utf8') : '{"features":[]}';
 
     const naturalData = JSON.parse(naturalRaw);
     const landUseData = JSON.parse(landUseRaw);
@@ -42,8 +42,6 @@ function loadGeoJsonData() {
 
       const fclass = feature.properties?.fclass || '';
       
-      // Filter relevant non-walkable categories:
-      // forest (산/숲), cliff (절벽), spring (샘/물길), beach (해변 - 보행 불가/불편 구역)
       const isTargetClass = [
         'forest',
         'wood',
@@ -58,24 +56,15 @@ function loadGeoJsonData() {
 
       if (!isTargetClass) continue;
 
-      // Compute bounding box for optimization
-      let minLng = Infinity;
-      let maxLng = -Infinity;
-      let minLat = Infinity;
-      let maxLat = -Infinity;
+      // Compute bounding box for optimization if not pre-computed
+      if (!feature.bbox) {
+        let minLng = Infinity;
+        let maxLng = -Infinity;
+        let minLat = Infinity;
+        let maxLat = -Infinity;
 
-      if (feature.geometry.type === 'Polygon') {
-        for (const ring of feature.geometry.coordinates) {
-          for (const pt of ring) {
-            if (pt[0] < minLng) minLng = pt[0];
-            if (pt[0] > maxLng) maxLng = pt[0];
-            if (pt[1] < minLat) minLat = pt[1];
-            if (pt[1] > maxLat) maxLat = pt[1];
-          }
-        }
-      } else if (feature.geometry.type === 'MultiPolygon') {
-        for (const poly of feature.geometry.coordinates) {
-          for (const ring of poly) {
+        if (feature.geometry.type === 'Polygon') {
+          for (const ring of feature.geometry.coordinates) {
             for (const pt of ring) {
               if (pt[0] < minLng) minLng = pt[0];
               if (pt[0] > maxLng) maxLng = pt[0];
@@ -83,10 +72,21 @@ function loadGeoJsonData() {
               if (pt[1] > maxLat) maxLat = pt[1];
             }
           }
+        } else if (feature.geometry.type === 'MultiPolygon') {
+          for (const poly of feature.geometry.coordinates) {
+            for (const ring of poly) {
+              for (const pt of ring) {
+                if (pt[0] < minLng) minLng = pt[0];
+                if (pt[0] > maxLng) maxLng = pt[0];
+                if (pt[1] < minLat) minLat = pt[1];
+                if (pt[1] > maxLat) maxLat = pt[1];
+              }
+            }
+          }
         }
+        feature.bbox = [minLng, minLat, maxLng, maxLat];
       }
 
-      feature.bbox = [minLng, minLat, maxLng, maxLat];
       tempFeatures.push(feature);
     }
 
@@ -98,11 +98,44 @@ function loadGeoJsonData() {
   }
 }
 
+export type TerrainCheckResult = 'mountain' | 'beach' | false;
+
 /**
- * Checks if a given coordinate (lng, lat) is inside a non-walkable area (forest, water, cliff, etc.)
- * [임시 비활성화] 속도 및 안정성을 위해 항상 false 반환
+ * Checks if a given coordinate (lng, lat) is inside a non-walkable/special terrain area.
+ * Phase 1: O(1) BBox 1차 검사 -> PIP 2차 검증
  */
-export function isNonWalkableArea(lng: number, lat: number): boolean {
+export function isNonWalkableArea(lng: number, lat: number): TerrainCheckResult {
+  if (!isLoaded) {
+    loadGeoJsonData();
+  }
+
+  const pt = point([lng, lat]);
+
+  for (const feature of walkableFeatures) {
+    if (!feature.bbox) continue;
+    const [minLng, minLat, maxLng, maxLat] = feature.bbox;
+
+    // 1차 Phase 1: O(1) BBox 검사
+    if (lng < minLng || lng > maxLng || lat < minLat || lat > maxLat) {
+      continue;
+    }
+
+    // 2차 Phase 1: PIP 2차 검증
+    try {
+      const isInside = booleanPointInPolygon(pt, feature as any);
+      if (isInside) {
+        const fclass = feature.properties?.fclass || '';
+        if (fclass === 'beach') {
+          return 'beach';
+        }
+        return 'mountain';
+      }
+    } catch {
+      // ignore polygon math errors
+    }
+  }
+
   return false;
 }
+
 

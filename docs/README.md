@@ -1,4 +1,4 @@
-﻿# 온저니(On-Journey) 문서 인덱스
+# 온저니(On-Journey) 문서 인덱스
 
 > `docs/` 폴더 내 문서의 분류 체계 및 빠른 탐색을 위한 인덱스입니다.
 > 새 문서를 추가할 때는 이 README도 함께 업데이트해주세요.
@@ -14,7 +14,8 @@ docs/
 ├── 📐 architecture/  (아키텍처 & 기술 분석)
 │   ├── full_api_and_cache_architecture.md   ← 전체 API 호출 및 캐싱 아키텍처
 │   ├── odsay_api_architecture.md            ← ODsay API 서킷 브레이커 & 캐시 구조
-│   └── naver_map_guide.md                   ← 네이버 지도 React 최적화 수칙 & 무한 루프 분석
+│   ├── naver_map_guide.md                   ← 네이버 지도 React 최적화 수칙 & 무한 루프 분석
+│   └── hiking_trail_module_architecture.md  ← 등산로 모듈 아키텍처 & Tmap 하이브리드 라우팅 설계서
 │
 ├── 🧮 algorithm/  (알고리즘 & 로직 설계)
 │   └── travel_search_algorithm_v2.md        ← 장소 검색 랭킹 알고리즘 설계서 v2
@@ -55,6 +56,9 @@ ODsay API 기반 대중교통 경로 조회에서 Rate Limiter, 서킷 브레이
 
 ### [naver_map_guide.md](./architecture/naver_map_guide.md)
 **두 문서 통합** — React 환경 네이버 지도 렌더링 최적화 수칙 (useRef 활용, 애니메이션 분리, fitBounds 패턴) + `MapArea.tsx`에서 실제 발생한 무한 루프 원인 분석 및 수정 방향.
+
+### [hiking_trail_module_architecture.md](./architecture/hiking_trail_module_architecture.md)
+Tmap 도로 경로와 등산로 경로를 통합한 하이브리드 경로 제공 모듈 아키텍처 명세서 (Data, Algorithm, Integration, Service 계층 및 데이터 흐름 다이어그램).
 
 ---
 

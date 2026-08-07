@@ -171,7 +171,17 @@ export default function AlternativeRoutePanel({
         });
 
       } catch (err) {
-        console.error('Failed to load detailed pedestrian path:', err);
+        console.warn('TMAP 상세 경로 조회 실패, 기본 경로 폴리라인으로대체합니다:', err);
+        // Fallback: Use existing pathPoints as detailedPathPoints so UI renders safely
+        setHoveredPreviewRoute(prev => {
+          if (prev && prev.id === route.id) {
+            return {
+              ...prev,
+              detailedPathPoints: prev.pathPoints,
+            };
+          }
+          return prev;
+        });
       } finally {
         setIsDetailLoading(prev => ({ ...prev, [route.id]: false }));
       }

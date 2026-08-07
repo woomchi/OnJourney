@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { formatJourneyDate } from '@/lib/journeyUtils';
+import { MAX_JOURNEY_PLACES } from '@/constants/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import type { Journey } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check } from 'lucide-react';
@@ -299,7 +300,7 @@ export default function JourneyPlayerHeader({
             <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
             <span className="shrink-0">{activeJourney.transport_type === 'public' ? '대중교통' : activeJourney.transport_type === 'car' ? '차량' : '도보'}</span>
             <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>
-            <span className="shrink-0 text-zinc-600 font-semibold">장소 {activeJourney.places?.length || 0}개</span>
+            <span className="shrink-0 text-zinc-600 font-semibold">장소 {activeJourney.places?.length || 0}/{MAX_JOURNEY_PLACES}</span>
             {hasRouteStats && totalDistanceKm > 0 && (
               <>
                 <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 shrink-0"></span>

@@ -12,6 +12,8 @@ import { MapPin, Search, X, Check, Clock, Plus, Loader2, RefreshCw } from 'lucid
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { useDialog } from '@/providers/DialogProvider';
+import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 
 interface SearchOverlayProps {
   activeJourney: Journey;
@@ -82,6 +84,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     updatePlace: state.updatePlace,
     closeSearchMode: state.closeSearchMode,
   })));
+
+  const { alert } = useDialog();
 
   const isMapDragging = useMapUIStore((state) => state.isMapDragging);
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
@@ -505,6 +509,13 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       return;
     }
 
+    if (!targetChangePlaceId && !addedIds.has(item.id)) {
+      if ((activeJourney?.places?.length ?? 0) >= MAX_JOURNEY_PLACES) {
+        await alert(MAX_JOURNEY_PLACES_ALERT);
+        return;
+      }
+    }
+
     if (addedIds.has(item.id)) {
       setAddedIds(prev => { const n = new Set(prev); n.delete(item.id); return n; });
       try {
@@ -522,6 +533,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       setAddedIds(prev => { const n = new Set(prev); n.delete(item.id); return n; });
     }
   };
+
+  const isMaxPlacesReached = (activeJourney?.places?.length ?? 0) >= MAX_JOURNEY_PLACES;
 
   return (
     <div

@@ -6,6 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
+import { useDialog } from '@/providers/DialogProvider';
 import type { Journey } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
@@ -21,6 +23,7 @@ export default function JourneyControlFloatingBar({
   setIsEditModalOpen,
   handleDoneEdit,
 }: JourneyControlFloatingBarProps) {
+  const { alert } = useDialog();
   const queryClient = useQueryClient();
   const {
     journeys,
@@ -94,11 +97,17 @@ export default function JourneyControlFloatingBar({
     }
   };
 
-  const handleAddPlaceClick = () => {
+  const handleAddPlaceClick = async () => {
     setFocusedStep(null);
     setFocusedSegment(null);
     setAlternativeSegment(null);
     setFocusBounds(null);
+
+    if ((activeJourney.places?.length ?? 0) >= MAX_JOURNEY_PLACES) {
+      await alert(MAX_JOURNEY_PLACES_ALERT);
+      return;
+    }
+
     openSearchMode();
   };
 
@@ -254,7 +263,7 @@ export default function JourneyControlFloatingBar({
             <span className="text-zinc-300 text-[10px]">·</span>
             <div className="flex items-center gap-1 text-zinc-700 font-semibold shrink-0">
               <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
-              <span>장소 {activeJourney.places.length}곳</span>
+              <span>장소 {activeJourney.places.length}/{MAX_JOURNEY_PLACES}</span>
             </div>
 
             {/* 장소 개수 UI 바로 오른쪽: 장소 추가 버튼 */}

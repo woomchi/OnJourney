@@ -7,6 +7,8 @@ import { MapPin, Plus } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import React, { useEffect } from 'react';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { useDialog } from '@/providers/DialogProvider';
+import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
 import {
   DndContext,
@@ -57,6 +59,7 @@ export default function PlaceList({
     setFocusBounds,
     setDrawerSnapPoint,
   } = useJourneyStore();
+  const { alert } = useDialog();
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const bottomSheet = useOptionalBottomSheet();
@@ -225,11 +228,17 @@ export default function PlaceList({
           ) : (
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 setFocusedStep?.(null);
                 setFocusedSegment?.(null);
                 setAlternativeSegment?.(null);
                 setFocusBounds?.(null);
+
+                if ((activeJourney?.places?.length ?? 0) >= MAX_JOURNEY_PLACES) {
+                  await alert(MAX_JOURNEY_PLACES_ALERT);
+                  return;
+                }
+
                 openSearchMode();
               }}
               className="w-full py-4 bg-zinc-950/90 hover:bg-zinc-900 active:scale-[0.98] text-white font-bold text-[15px] rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:shadow-xl transition-all cursor-pointer flex justify-center items-center gap-2 backdrop-blur-md border border-white/10"

@@ -24,6 +24,8 @@ import { useGeocodeOnIdle } from './hooks/useGeocodeOnIdle';
 import { useMapPadding } from './hooks/useMapPadding';
 import { MapOverlays } from './MapOverlays';
 import { MapFloatingControls } from './MapFloatingControls';
+import { useDialog } from '@/providers/DialogProvider';
+import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 
 import type { Place, PlaceResult } from '@/types/journey';
 
@@ -162,8 +164,14 @@ export default function MapArea() {
     }
   }, [recommendedPlaces, setActiveRecommendedPlace]);
 
+  const { alert } = useDialog();
+
   const handleAddRecommendedPlace = async (item: PlaceResult) => {
     if (!activeJourney) return;
+    if ((activeJourney.places?.length ?? 0) >= MAX_JOURNEY_PLACES) {
+      await alert(MAX_JOURNEY_PLACES_ALERT);
+      return;
+    }
     const place: Place = {
       id: item.id,
       place_name: item.place_name,

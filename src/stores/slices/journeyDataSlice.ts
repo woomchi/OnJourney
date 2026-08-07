@@ -19,6 +19,7 @@ import type {
 import { insertJourney, updateJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import { verifyAndCleanRoutes } from '@/lib/services/directionsService';
+import { MAX_JOURNEY_PLACES } from '@/constants/journey';
 
 // ─── 인터페이스 ───────────────────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ export const createJourneyDataSlice: StateCreator<
   addPlace: async (place) => {
     const { activeJourney } = get();
     if (!activeJourney) return;
+    if ((activeJourney.places?.length ?? 0) >= MAX_JOURNEY_PLACES) return;
 
     const rawPlaces = [...(activeJourney.places ?? []), place];
     const updatedPlaces = verifyAndCleanRoutes(rawPlaces);

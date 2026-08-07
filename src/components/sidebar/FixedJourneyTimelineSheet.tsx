@@ -10,6 +10,8 @@ import type { Journey, Place } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins, RefreshCw } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon, AlternativeRouteIcon } from '@/components/ui/icons';
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
+import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
+import { useDialog } from '@/providers/DialogProvider';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
 import { formatKmDistance } from '@/lib/utils/journeyUtils';
 
@@ -24,6 +26,7 @@ export default function FixedJourneyTimelineSheet({
   activeJourney,
   setIsEditModalOpen,
 }: FixedJourneyTimelineSheetProps) {
+  const { alert } = useDialog();
   const { isInstalled } = usePWA();
   const queryClient = useQueryClient();
   const {
@@ -245,12 +248,18 @@ export default function FixedJourneyTimelineSheet({
     }
   };
 
-  const handleAddPlaceClick = () => {
+  const handleAddPlaceClick = async () => {
     setFocusedStep(null);
     setFocusedSegment(null);
     setFocusedPlaceId(null);
     setAlternativeSegment(null);
     setFocusBounds(null);
+
+    if (places.length >= MAX_JOURNEY_PLACES) {
+      await alert(MAX_JOURNEY_PLACES_ALERT);
+      return;
+    }
+
     openSearchMode();
   };
 
@@ -749,7 +758,7 @@ export default function FixedJourneyTimelineSheet({
         {/* 우측 끝: 목적지 N개 (flex-1 영역으로 우측 정렬) */}
         <div className="flex-1 flex items-center justify-end gap-1 text-xs font-semibold text-zinc-600 min-w-0">
           <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-          <span className="shrink-0">장소 {places.length}곳</span>
+          <span className="shrink-0">장소 {places.length}/{MAX_JOURNEY_PLACES}</span>
         </div>
       </div>
 

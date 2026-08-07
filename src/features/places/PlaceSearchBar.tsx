@@ -10,6 +10,7 @@ import type { Journey, Place, ServiceCategoryTag } from '@/types/journey';
 import { getCategoryTheme } from '@/lib/categoryUtils';
 import { usePlaceSearch, CategoryFilterType } from '@/features/places/usePlaceSearch';
 import { formatJourneyDate } from '@/lib/journeyUtils';
+import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 import { Search, Loader2, Plus, MapPin, X } from 'lucide-react';
 
 const CATEGORY_CHIPS: { label: string; value: CategoryFilterType }[] = [
@@ -168,6 +169,11 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
     if (activeJourney) {
       if (addedIds.has(item.id)) return;
 
+      if ((activeJourney.places || []).length >= MAX_JOURNEY_PLACES) {
+        await alert(MAX_JOURNEY_PLACES_ALERT);
+        return;
+      }
+
       const place: Place = {
         id: item.id,
         place_name: item.place_name,
@@ -207,6 +213,12 @@ export default function PlaceSearchBar({ onPlaceSelect }: PlaceSearchBarProps) {
       lat: selectedPlaceToAssign.lat,
       lng: selectedPlaceToAssign.lng,
     };
+
+    // 해당 여정 장소 개수 제한 확인
+    if ((journey.places || []).length >= MAX_JOURNEY_PLACES) {
+      await alert(MAX_JOURNEY_PLACES_ALERT);
+      return;
+    }
 
     // 해당 여정에 이미 장소가 있는지 확인
     const isAlreadyAdded = (journey.places || []).some((p) => p.id === place.id);

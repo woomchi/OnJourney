@@ -2,6 +2,8 @@
 
 import { useMapUIStore } from '@/stores/map-store';
 import { useMapState } from './useMapState';
+import { useDialog } from '@/providers/DialogProvider';
+import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 import type { Place, PlaceResult } from '@/types/journey';
 
 interface MapOverlaysProps {
@@ -23,6 +25,7 @@ export function MapOverlays({
     addPlace,
   } = useMapState();
 
+  const { alert } = useDialog();
   const {
     activeRecommendedPlace,
     setActiveRecommendedPlace,
@@ -224,6 +227,10 @@ export function MapOverlays({
             type="button"
             onClick={async () => {
               if (!activeJourney) return;
+              if ((activeJourney.places?.length ?? 0) >= MAX_JOURNEY_PLACES) {
+                await alert(MAX_JOURNEY_PLACES_ALERT);
+                return;
+              }
               const newId = 'custom_' + Date.now();
               const place: Place = {
                 id: newId,

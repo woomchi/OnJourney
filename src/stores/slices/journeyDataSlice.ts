@@ -20,6 +20,7 @@ import { insertJourney, updateJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import { verifyAndCleanRoutes } from '@/lib/services/directionsService';
 import { MAX_JOURNEY_PLACES } from '@/constants/journey';
+import { useMapUIStore } from '../map-store';
 
 // ─── 인터페이스 ───────────────────────────────────────────────────────────────
 
@@ -162,6 +163,8 @@ export const createJourneyDataSlice: StateCreator<
 
   // ─ 활성 여정 전환 ─
   setActiveJourney: (journey) => {
+    useMapUIStore.getState().setGpsMode('none');
+    useMapUIStore.getState().setUserLocation(null);
     // 여정 전환 시 지도·경로 포커스 상태 전체 초기화
     set({
       activeJourney: journey,
@@ -172,13 +175,16 @@ export const createJourneyDataSlice: StateCreator<
   },
 
   // ─ 활성 여정 해제 ─
-  clearJourney: () =>
+  clearJourney: () => {
+    useMapUIStore.getState().setGpsMode('none');
+    useMapUIStore.getState().setUserLocation(null);
     set({
       activeJourney: null,
       ...RESET_FOCUS_STATE,
       isSearchMode: false,
       recommendedPlaces: [],
-    }),
+    });
+  },
 
   // ─ 경유지 추가 ─
   addPlace: async (place) => {

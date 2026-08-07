@@ -62,6 +62,20 @@ export function useGPSTracking({ map }: UseGPSTrackingProps) {
   );
 
   useEffect(() => {
+    if (gpsMode === 'none') {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
+      window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation as any, true);
+      setDeviceHeading(null);
+    }
+  }, [gpsMode, handleDeviceOrientation, setDeviceHeading]);
+
+
+
+  useEffect(() => {
     return () => {
       window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
       window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation as any, true);

@@ -303,6 +303,7 @@ export default function MapArea() {
     const dragStartListener = navermapsObj.Event.addListener(map, 'dragstart', () => {
       setFocusedPlaceId(null);
       useMapUIStore.getState().setIsMapDragging(true);
+      useMapUIStore.getState().setGpsMode('none');
     });
     const dragEndListener = navermapsObj.Event.addListener(map, 'dragend', () => {
       useMapUIStore.getState().setIsMapDragging(false);
@@ -338,28 +339,7 @@ export default function MapArea() {
     return { position: navermapsObj ? navermapsObj.Position.BOTTOM_LEFT : 10 };
   }, []);
 
-  useEffect(() => {
-    if (places.length === 0 && typeof window !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newCenter = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setMapCenter(newCenter);
-          setMapCenterCoord(newCenter);
-          if (map && window.naver?.maps) {
-            map.setCenter(new window.naver.maps.LatLng(newCenter.lat, newCenter.lng));
-          }
-        },
-        (error) => {
-          console.warn('[MapArea] Geolocation failed or denied. Defaulting to Seoul City Hall.', error);
-          setMapCenterCoord({ lat: 37.5665, lng: 126.9780 });
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
-      );
-    }
-  }, [places.length, map, setMapCenter, setMapCenterCoord]);
+
 
   useEffect(() => {
     if (!map) return;

@@ -115,11 +115,11 @@ export const RouteSegmentCardStack: React.FC<RouteSegmentCardStackProps> = ({
         if (!innerCard) return;
 
         if (idx === closestIndex) {
-          innerCard.classList.add('border-blue-500', 'shadow-md', 'shadow-blue-500/10', 'ring-1', 'ring-blue-500/20', 'opacity-100');
-          innerCard.classList.remove('border-zinc-200/80', 'shadow-sm', 'opacity-80');
+          innerCard.classList.add('shadow-md', 'opacity-100');
+          innerCard.classList.remove('border-blue-500', 'shadow-blue-500/10', 'ring-1', 'ring-blue-500/20', 'shadow-sm', 'opacity-80');
         } else {
-          innerCard.classList.remove('border-blue-500', 'shadow-md', 'shadow-blue-500/10', 'ring-1', 'ring-blue-500/20', 'opacity-100');
-          innerCard.classList.add('border-zinc-200/80', 'shadow-sm', 'opacity-80');
+          innerCard.classList.remove('border-blue-500', 'shadow-blue-500/10', 'ring-1', 'ring-blue-500/20', 'shadow-md', 'opacity-100');
+          innerCard.classList.add('shadow-sm', 'opacity-80');
         }
       });
     }

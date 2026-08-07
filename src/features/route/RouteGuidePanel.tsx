@@ -163,10 +163,23 @@ export default function RouteGuidePanel({
   }, [isOpen, snap, setGuidePanelState]);
 
   useEffect(() => {
+    setUnfocusedCardIndex(0);
+    if (focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id) {
+      setFocusedStep({
+        originId: originPlace.id,
+        destId: destPlace.id,
+        stepIndex: 0,
+        subType: 'start',
+      });
+      if (route?.steps && route.steps[0] && route.steps[0].pathPoints) {
+        const bounds = calculateStepBounds(route.steps[0].pathPoints);
+        if (bounds) setFocusBounds(bounds);
+      }
+    }
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
     }
-  }, [originPlace.id, destPlace.id]);
+  }, [route?.id, route, originPlace.id, destPlace.id, setFocusedStep, setFocusBounds]);
 
   useEffect(() => {
     if (isOpen) {
@@ -527,34 +540,35 @@ export default function RouteGuidePanel({
 
   const headerContent = (
     <div className="border-b border-zinc-100 flex-shrink-0 bg-white w-full">
-      {/* 첫 번째 행: 좌측 뒤로가기 버튼 & 우측 대중교통/승용차 태그 */}
-      <div className="px-5 pt-3 pb-0.5 flex items-center justify-between">
+      {/* 첫 번째 행: 좌측 뒤로가기 버튼 & 중앙 대안 경로 변경 버튼 & 우측 대중교통/승용차 태그 */}
+      <div className="px-5 pt-3 pb-0.5 flex items-center justify-between relative">
         <button
           onClick={onClose}
           onPointerDown={(e) => e.stopPropagation()}
-          className="w-8 h-8 rounded-full bg-white text-zinc-700 hover:text-zinc-950 flex items-center justify-center shadow-xs hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer"
+          className="w-8 h-8 rounded-full bg-white text-zinc-700 hover:text-zinc-950 flex items-center justify-center shadow-xs hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer z-10"
           aria-label="여정 상세로 돌아가기"
           title="여정 상세로 돌아가기"
         >
           <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
         </button>
 
-        <div className="flex items-center gap-2">
+        {/* 중앙 정렬 대안 변경 버튼 (출발지->도착지 UI 바로 위) */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-3 flex items-center z-10">
           <button
             onClick={handleOpenAlternative}
             onPointerDown={(e) => e.stopPropagation()}
-            className="px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100/80 border border-blue-200/60 rounded-full flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className="px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100/80 border border-blue-200/60 rounded-full flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
             title="대안 경로 변경"
             aria-label="대안 경로 변경"
           >
             <AlternativeRouteIcon className="w-3.5 h-3.5" />
             <span>대안 변경</span>
           </button>
-
-          <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-full flex-shrink-0">
-            {route.type === 'public' ? '대중교통' : '승용차'}
-          </span>
         </div>
+
+        <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-full flex-shrink-0 z-10">
+          {route.type === 'public' ? '대중교통' : '승용차'}
+        </span>
       </div>
 
       {/* 두 번째 행: 출발지 → 도착지 (클릭 시 상세 정보 말풍선 툴팁 표시) */}
@@ -757,20 +771,35 @@ export default function RouteGuidePanel({
         {/* All-in-One Mobile Segment Card Stack Container */}
         <div className="fixed bottom-[97px] left-0 right-0 z-[100] pointer-events-none px-0">
           <div className="relative w-full max-w-[480px] mx-auto pointer-events-auto">
-            {/* Header Back Button & Center Summary Pill & Right Alternative Button (#FFFFFF Pure White Background) */}
-            <div className="relative flex items-center justify-center px-4 pb-0 mb-2">
-              {/* Back Button on Left */}
-              <button
-                onClick={onClose}
-                className="absolute left-4 w-8 h-8 rounded-full bg-[#FFFFFF] text-zinc-700 hover:text-zinc-950 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer z-10"
-                aria-label="여정 상세로 돌아가기"
-                title="여정 상세로 돌아가기"
-              >
-                <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
-              </button>
+            {/* Header Top Centered Alternative Change Button & Center Summary Pill with Back Button (#FFFFFF Pure White Background) */}
+            <div className="relative flex flex-col items-center justify-center px-4 pb-0 mb-2">
+              {/* Top Centered Alternative Change Button */}
+              <div className="w-full flex items-center justify-center min-h-[28px] mb-1.5">
+                <button
+                  onClick={handleOpenAlternative}
+                  className="px-2.5 py-1 text-[11px] font-bold text-blue-600 bg-[#FFFFFF] hover:text-blue-700 flex items-center gap-1 shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 rounded-full cursor-pointer z-10 whitespace-nowrap shrink-0"
+                  aria-label="대안 경로 변경"
+                  title="대안 경로 변경"
+                >
+                  <AlternativeRouteIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="whitespace-nowrap">대안 변경</span>
+                </button>
+              </div>
 
-              {/* Center Origin -> Destination Pill UI with Tooltip Popups */}
-              <div className="bg-[#FFFFFF] text-zinc-900 p-1 rounded-2xl shadow-md text-xs font-extrabold flex items-center gap-1.5 border border-zinc-200/80">
+              {/* Back Button (Left) & Center Origin -> Destination Pill UI */}
+              <div className="relative w-full flex items-center justify-center">
+                {/* Back Button on Left (Original Position) */}
+                <button
+                  onClick={onClose}
+                  className="absolute left-0 w-8 h-8 rounded-full bg-[#FFFFFF] text-zinc-700 hover:text-zinc-950 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer z-10"
+                  aria-label="여정 상세로 돌아가기"
+                  title="여정 상세로 돌아가기"
+                >
+                  <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+                </button>
+
+                {/* Center Origin -> Destination Pill UI with Tooltip Popups */}
+                <div className="bg-[#FFFFFF] text-zinc-900 p-1 rounded-2xl shadow-md text-xs font-extrabold flex items-center gap-1.5 border border-zinc-200/80">
                 {/* 출발 지점 칩 */}
                 <div className="relative tooltip-trigger">
                   <div
@@ -859,18 +888,8 @@ export default function RouteGuidePanel({
                   </AnimatePresence>
                 </div>
               </div>
-
-              {/* Right Alternative Change Button */}
-              <button
-                onClick={handleOpenAlternative}
-                className="absolute right-2.5 px-2.5 py-1 text-[11px] font-bold text-blue-600 bg-[#FFFFFF] hover:text-blue-700 flex items-center gap-1 shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 rounded-full cursor-pointer z-10 whitespace-nowrap shrink-0"
-                aria-label="대안 경로 변경"
-                title="대안 경로 변경"
-              >
-                <AlternativeRouteIcon className="w-3.5 h-3.5 shrink-0" />
-                <span className="whitespace-nowrap">대안 변경</span>
-              </button>
             </div>
+          </div>
 
             {/* All-in-One Integrated Card Stack */}
             <RouteSegmentCardStack

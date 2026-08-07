@@ -101,10 +101,10 @@ export const RouteSegmentCard: React.FC<RouteSegmentCardProps> = ({
       data-card-index={index}
       className={`
         timeline-card-inner w-full rounded-2xl p-4 transition-all duration-300 select-none cursor-pointer
-        bg-white text-zinc-900 border flex flex-col justify-between overflow-hidden
+        bg-white text-zinc-900 border border-zinc-200/80 flex flex-col justify-between overflow-hidden
         ${isActive
-          ? 'border-blue-500 shadow-md shadow-blue-500/10 ring-1 ring-blue-500/20 opacity-100'
-          : 'border-zinc-200/80 shadow-sm opacity-80 hover:border-blue-300'
+          ? 'shadow-md opacity-100'
+          : 'shadow-sm opacity-80 hover:border-zinc-300'
         }
       `}
     >

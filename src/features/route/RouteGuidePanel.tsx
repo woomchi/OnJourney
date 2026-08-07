@@ -17,6 +17,7 @@ import RouteSegmentCardStack from '@/components/route/RouteSegmentCardStack';
 import RouteSegmentDetailSheet from '@/components/route/RouteSegmentDetailSheet';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { MapPin, ChevronLeft } from 'lucide-react';
+import { AlternativeRouteIcon } from '@/components/ui/icons';
 
 
 
@@ -97,8 +98,22 @@ export default function RouteGuidePanel({
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomSpacerRef = useRef<HTMLDivElement>(null);
-  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
+  const {
+    focusedStep,
+    setFocusedStep,
+    setFocusBounds,
+    setAlternativeSegment,
+    setIsAlternativeFromFocus,
+  } = useJourneyStore();
   const [unfocusedCardIndex, setUnfocusedCardIndex] = useState(0);
+
+  const handleOpenAlternative = () => {
+    setIsAlternativeFromFocus(true);
+    setAlternativeSegment({
+      originId: originPlace.id,
+      destId: destPlace.id,
+    });
+  };
 
   const isPanelFocused = !!(
     focusedStep &&
@@ -524,9 +539,22 @@ export default function RouteGuidePanel({
           <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
         </button>
 
-        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full flex-shrink-0">
-          {route.type === 'public' ? '대중교통' : '승용차'}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleOpenAlternative}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100/80 border border-blue-200/60 rounded-full flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            title="대안 경로 변경"
+            aria-label="대안 경로 변경"
+          >
+            <AlternativeRouteIcon className="w-3.5 h-3.5" />
+            <span>대안 변경</span>
+          </button>
+
+          <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-full flex-shrink-0">
+            {route.type === 'public' ? '대중교통' : '승용차'}
+          </span>
+        </div>
       </div>
 
       {/* 두 번째 행: 출발지 → 도착지 (클릭 시 상세 정보 말풍선 툴팁 표시) */}
@@ -729,7 +757,7 @@ export default function RouteGuidePanel({
         {/* All-in-One Mobile Segment Card Stack Container */}
         <div className="fixed bottom-[97px] left-0 right-0 z-[100] pointer-events-none px-0">
           <div className="relative w-full max-w-[480px] mx-auto pointer-events-auto">
-            {/* Header Back Button & Center Summary Pill (#FFFFFF Pure White Background) */}
+            {/* Header Back Button & Center Summary Pill & Right Alternative Button (#FFFFFF Pure White Background) */}
             <div className="relative flex items-center justify-center px-4 pb-0 mb-2">
               {/* Back Button on Left */}
               <button
@@ -831,6 +859,17 @@ export default function RouteGuidePanel({
                   </AnimatePresence>
                 </div>
               </div>
+
+              {/* Right Alternative Change Button */}
+              <button
+                onClick={handleOpenAlternative}
+                className="absolute right-2.5 px-2.5 py-1 text-[11px] font-bold text-blue-600 bg-[#FFFFFF] hover:text-blue-700 flex items-center gap-1 shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 rounded-full cursor-pointer z-10 whitespace-nowrap shrink-0"
+                aria-label="대안 경로 변경"
+                title="대안 경로 변경"
+              >
+                <AlternativeRouteIcon className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">대안 변경</span>
+              </button>
             </div>
 
             {/* All-in-One Integrated Card Stack */}

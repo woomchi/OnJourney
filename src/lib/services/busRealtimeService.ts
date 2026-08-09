@@ -1,18 +1,19 @@
 /**
  * @fileoverview 버스 실시간 도착 정보 서비스
  *
- * ODsay API로 정류소 ID를 조회한 뒤,
+ * ODsay API(#14 searchStation, #1 searchBusLane, #24 searchCID)로 정류소 및 버스 노선 정보를 조회한 뒤,
  * 경기도 API 또는 TAGO API에서 실시간 버스 도착 정보를 가져옵니다.
  *
- * 조회 전략:
- * - 경기도 노선(cityCode "31xxx") → 경기도 API 우선 → TAGO 병렬 Fallback
- * - 그 외 시도 → TAGO API 단독 조회
+ * 주요 고도화:
+ * - ODsay 동적 도시코드 파싱 및 CITY_CODE_MAP Fallback 연동
+ * - 버스 노선 엄격 매칭 (Strict Matching)으로 유사 버스번호(예: 10번 vs 10-1번 vs 100번) 오매칭 완전 차단
  */
 
 import { XMLParser } from 'fast-xml-parser';
 import { BusRealtimeQueryType } from '../validations/bus';
 import { unstable_cache } from 'next/cache';
 import type { BusArrival } from '@/types/journey';
+import { OdsayAdapter } from '@/lib/infrastructure/odsayAdapter';
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ const API_KEY_PLACEHOLDER = 'PLACEHOLDER';
 // ─── 도시 코드 매핑 ───────────────────────────────────────────────────────────
 
 /**
- * 도시명 → TAGO cityCode 매핑 테이블.
+ * 도시명 → TAGO cityCode 매핑 테이블 (Fallback용).
  * "31xxx" 접두사는 경기도 시군을 의미합니다.
  */
 const CITY_CODE_MAP: Record<string, string> = {
@@ -57,11 +58,14 @@ const CITY_CODE_MAP: Record<string, string> = {
 interface OdsayBusInfo {
   busNo: string | number;
   busLocalBlID?: string | number;
+  busID?: string | number;
+  busCityCode?: number | string;
 }
 
 /** ODsay 정류소 검색 결과의 단일 정류소 */
 interface OdsayStation {
   cityName: string;
+  stationCityCode?: number | string;
   localStationID: string | number;
   businfo?: OdsayBusInfo[];
 }
@@ -85,10 +89,40 @@ interface TagoBusItem {
 // ─── 내부 유틸리티 ────────────────────────────────────────────────────────────
 
 /**
+ * 버스 번호 입력을 정규화합니다 ("번", "번 버스" 접미사 제거).
+ */
+function normalizeBusNo(rawBusNo: string): string {
+  return rawBusNo
+    .replace(/번\s*버스$/, '')
+    .replace(/번$/, '')
+    .trim();
+}
+
+/**
  * API 키가 유효한지 확인합니다 (미설정 또는 플레이스홀더 제외).
  */
 function isValidApiKey(key: string | undefined): key is string {
   return Boolean(key && key !== API_KEY_PLACEHOLDER && key.trim() !== '');
+}
+
+/**
+ * 도시명 및 ODsay 정류소 도시코드를 바탕으로 TAGO/경기도 도시코드를 결정합니다.
+ */
+function resolveCityCode(cityName: string, stationCityCode?: string | number): string | null {
+  if (CITY_CODE_MAP[cityName]) {
+    return CITY_CODE_MAP[cityName];
+  }
+  const cleanName = cityName.replace(/^(경기|강원|충북|충남|전북|전남|경북|경남)\s*/, '');
+  if (CITY_CODE_MAP[cleanName]) {
+    return CITY_CODE_MAP[cleanName];
+  }
+  if (stationCityCode) {
+    const sCode = String(stationCityCode);
+    if (sCode.length === 2 || sCode.length === 5) {
+      return sCode;
+    }
+  }
+  return null;
 }
 
 /**
@@ -100,8 +134,6 @@ function isApproaching(predictTimeMin: number, stationCount: number): boolean {
 
 /**
  * 도착 상태 텍스트를 생성합니다.
- * @example buildStatusText(3, 5) → "3분 (5전)"
- * @example buildStatusText(1, 0) → "곧 도착"
  */
 function buildStatusText(predictTimeMin: number, stationCount: number): string {
   return isApproaching(predictTimeMin, stationCount)
@@ -140,7 +172,6 @@ function buildBusArrivalResult(
 
 /**
  * 응답 텍스트를 JSON 또는 XML로 파싱하여 리스트를 추출합니다.
- * TAGO API는 JSON/XML 양쪽으로 응답할 수 있습니다.
  */
 function parseListFromResponse<T>(
   text: string,
@@ -162,50 +193,26 @@ function parseListFromResponse<T>(
   return [];
 }
 
+/** ODsay 정류소 검색 API 캐시 TTL (7일, 604,800 초) */
+const ODSAY_STATION_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
+
 // ─── ODsay 캐시 래퍼 ──────────────────────────────────────────────────────────
 
 /**
- * ODsay 정류소 검색을 수행하고 24시간 캐시합니다.
- * 정류소 데이터는 자주 변경되지 않아 장기 캐시가 적합합니다.
+ * ODsay 정류소 검색API(#14 searchStation)를 수행하고 7일간 캐시합니다.
  */
 const getCachedOdsayStationData = unstable_cache(
-  async (stationName: string, apiKey: string, referer?: string) => {
-    const url =
-      `https://api.odsay.com/v1/api/searchStation` +
-      `?lang=0&stationName=${encodeURIComponent(stationName)}&stationClass=1` +
-      `&apiKey=${encodeURIComponent(apiKey)}`;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-    try {
-      const headers: Record<string, string> = {
-        Referer: referer || process.env.DOMAIN || 'http://localhost:3000',
-      };
-      const res = await fetch(url, { signal: controller.signal, cache: 'no-store', headers });
-      if (!res.ok) throw new Error(`ODsay 응답 오류: ${res.status}`);
-
-      const data = await res.json() as { error?: unknown };
-      if (data?.error) throw new Error('ODsay API 에러 응답');
-
-      return data;
-    } finally {
-      clearTimeout(timeoutId);
-    }
+  async (stationName: string, apiKey: string, _referer?: string) => {
+    return await OdsayAdapter.fetchSearchStation(stationName, '1', apiKey);
   },
-  ['odsay-station-search'],
-  { revalidate: ODSAY_CACHE_TTL_SECONDS }
+  ['odsay-station-search-v1'],
+  { revalidate: ODSAY_STATION_CACHE_TTL_SECONDS }
 );
 
 // ─── 경기도 API 조회 ──────────────────────────────────────────────────────────
 
 /**
  * 경기도 버스 도착 정보 API에서 특정 노선의 도착 정보를 조회합니다.
- *
- * - 경기도 전용 API Key(`REAL_TIME_BUS_GYEONGGI_API_KEY`)를 사용합니다.
- * - 경기도 노선이 아니거나 키가 없으면 null을 반환합니다.
- *
- * @returns BusArrival 또는 조회 실패 시 null
  */
 async function fetchGyeonggiArrival(
   busNo: string,
@@ -262,12 +269,7 @@ async function fetchGyeonggiArrival(
 // ─── TAGO API 조회 ────────────────────────────────────────────────────────────
 
 /**
- * TAGO 버스 도착 정보 API에서 특정 노선의 도착 정보를 조회합니다.
- *
- * - 경기도 정류소(`cityCode` "31xxx")는 nodeId에 "GGB" 접두사를 붙입니다.
- * - 노선 번호 부분 매칭으로 버스를 식별합니다.
- *
- * @returns BusArrival 또는 조회 실패 시 null
+ * TAGO 버스 도착 정보 API에서 특정 노선의 도착 정보를 조회합니다 (노선 번호 엄격 매칭 적용).
  */
 async function fetchTagoArrival(
   busNo: string,
@@ -277,7 +279,6 @@ async function fetchTagoArrival(
   tagoKey: string
 ): Promise<BusArrival | null> {
   try {
-    // 경기도 노선은 nodeId에 "GGB" 접두사 필요
     const isGyeonggi = cityCode.startsWith('31');
     const nodeId =
       isGyeonggi && /^\d+$/.test(localStationID)
@@ -303,10 +304,19 @@ async function fetchTagoArrival(
       (d) => (d as { response?: { body?: { items?: { item?: unknown } } } }).response?.body?.items?.item
     );
 
-    // 노선 번호 부분 매칭 후 도착 시간 오름차순 정렬
-    const matchedBuses = items
-      .filter((it) => String(it.routeno).includes(busNo))
-      .sort((a, b) => (a.arrtime ?? 0) - (b.arrtime ?? 0));
+    const targetClean = busNo.trim();
+    // 1단계: 완전 일치 (Strict Equals) 검증으로 "10"과 "10-1", "100" 오매칭 차단
+    let matchedBuses = items.filter((it) => String(it.routeno || '').trim() === targetClean);
+
+    // 2단계: 마을버스 접두어 등 보완 매칭
+    if (matchedBuses.length === 0) {
+      matchedBuses = items.filter((it) => {
+        const rNo = String(it.routeno || '').trim();
+        return rNo === targetClean || rNo === `마을${targetClean}` || rNo === `${targetClean}번`;
+      });
+    }
+
+    matchedBuses.sort((a, b) => (a.arrtime ?? 0) - (b.arrtime ?? 0));
 
     if (matchedBuses.length === 0) return null;
 
@@ -336,9 +346,6 @@ async function fetchTagoArrival(
 
 // ─── 미설정 응답 빌더 ─────────────────────────────────────────────────────────
 
-/**
- * API 키 없음 또는 정류소 미조회 시 반환하는 기본(정보 없음) 응답을 생성합니다.
- */
 function buildNoInfoResult(busNo: string, stationName: string, isRealtime: boolean): BusArrival & { isRealtime: boolean } {
   return {
     busNo,
@@ -359,32 +366,21 @@ function buildNoInfoResult(busNo: string, stationName: string, isRealtime: boole
 
 /**
  * 정류소명과 버스 번호로 실시간 버스 도착 정보를 조회합니다.
- *
- * 1. ODsay로 정류소 정보 조회 (도시명 + localStationID + busLocalBlID)
- * 2. 경기도 노선이면 경기도 API와 TAGO를 병렬 호출, 경기도 결과 우선
- * 3. 매칭 결과 없으면 '정보 없음' 응답 반환
- *
- * @param params.station 정류소명
- * @param params.busNo   버스 노선 번호
- * @param referer        ODsay API 호출 시 Referer 헤더 (CORS 허용 도메인)
  */
 export async function fetchBusRealtime(
   params: BusRealtimeQueryType,
   referer?: string
 ): Promise<BusArrival & { isRealtime: boolean }> {
   const { station, busNo } = params;
-  // "3번 버스", "3번" 등의 접미사 제거
-  const targetBusNo = busNo.replace(/번\s*버스$/, '').replace(/번$/, '').trim();
+  const targetBusNo = normalizeBusNo(busNo);
 
   const odsayKey = process.env.ODSAY_API_KEY;
   const tagoKey = process.env.REAL_TIME_BUS_API_KEY;
 
-  // ─ API 키 미설정 → 즉시 반환 ─
   if (!isValidApiKey(tagoKey) || !isValidApiKey(odsayKey)) {
     return buildNoInfoResult(targetBusNo, station, false);
   }
 
-  // ─ ODsay 정류소 정보 조회 ─
   type OdsayResult = { result?: { station?: OdsayStation[] } };
   let odsayData: OdsayResult | null = null;
   try {
@@ -398,21 +394,23 @@ export async function fetchBusRealtime(
     return buildNoInfoResult(targetBusNo, station, true);
   }
 
-  // 해당 버스 번호를 운행하는 정류소 우선 선택, 없으면 첫 번째 정류소 사용
+  // 엄격 매칭(===) 우선 탐색 후 포함 매칭 보완
   const matchedStation =
-    stations.find((s) => s.businfo?.some((b) => String(b.busNo) === targetBusNo)) ??
+    stations.find((s) => s.businfo?.some((b) => String(b.busNo).trim() === targetBusNo)) ??
+    stations.find((s) => s.businfo?.some((b) => String(b.busNo).includes(targetBusNo))) ??
     stations[0];
 
-  const cityCode = CITY_CODE_MAP[matchedStation.cityName];
+  const cityCode = resolveCityCode(matchedStation.cityName, matchedStation.stationCityCode);
   if (!cityCode) {
     return buildNoInfoResult(targetBusNo, station, true);
   }
 
   const localStationID = String(matchedStation.localStationID);
-  const matchedBusInfo = matchedStation.businfo?.find((b) => String(b.busNo) === targetBusNo);
+  const matchedBusInfo =
+    matchedStation.businfo?.find((b) => String(b.busNo).trim() === targetBusNo) ??
+    matchedStation.businfo?.find((b) => String(b.busNo).includes(targetBusNo));
   const busLocalBlID = matchedBusInfo ? String(matchedBusInfo.busLocalBlID) : null;
 
-  // ─ 경기도 노선: 경기도 API와 TAGO 병렬 호출, 경기도 결과 우선 ─
   if (cityCode.startsWith('31')) {
     const [ggResult, tagoResult] = await Promise.all([
       fetchGyeonggiArrival(targetBusNo, station, localStationID, busLocalBlID),
@@ -422,7 +420,6 @@ export async function fetchBusRealtime(
     const result = ggResult ?? tagoResult;
     if (result) return { ...result, isRealtime: true };
   } else {
-    // ─ 그 외 시도: TAGO 단독 조회 ─
     const tagoResult = await fetchTagoArrival(targetBusNo, station, localStationID, cityCode, tagoKey);
     if (tagoResult) return { ...tagoResult, isRealtime: true };
   }

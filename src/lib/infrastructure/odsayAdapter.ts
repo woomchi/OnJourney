@@ -66,17 +66,28 @@ export class TransitTimeoutError extends TransitApiError {
  */
 export class OdsayAdapter {
   /**
-   * ODsay 대중교통 경로 검색 API 어댑터
+   * ODsay GET API 공통 호출 메서드
    */
-  public static async fetchPublicTransit(
-    sx: string,
-    sy: string,
-    ex: string,
-    ey: string,
-    apiKey: string
+  private static async getOdsayData(
+    endpoint: string,
+    params: Record<string, string | undefined>,
+    apiKey?: string
   ): Promise<any> {
-    const url = `https://api.odsay.com/v1/api/searchPubTransPathT?apiKey=${encodeURIComponent(apiKey)}&SX=${sx}&SY=${sy}&EX=${ex}&EY=${ey}`;
-    
+    const key = apiKey || process.env.ODSAY_API_KEY;
+    if (!key) {
+      throw new TransitAuthError('ODsay API Key가 설정되지 않았습니다.');
+    }
+
+    const queryParams = new URLSearchParams();
+    queryParams.set('apiKey', key);
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && v !== '') {
+        queryParams.set(k, v);
+      }
+    }
+
+    const url = `https://api.odsay.com/v1/api/${endpoint}?${queryParams.toString()}`;
+
     let res: Response;
     try {
       res = await externalFetch(url, {
@@ -95,26 +106,96 @@ export class OdsayAdapter {
   }
 
   /**
-   * ODsay 상세 노선 궤적(loadLane) API 어댑터
+   * ODsay 대중교통 경로 검색 API 어댑터 (#20 searchPubTransPathT)
    */
-  public static async fetchLoadLane(mapObjectParam: string, apiKey: string): Promise<any> {
-    const laneUrl = `https://api.odsay.com/v1/api/loadLane?apiKey=${encodeURIComponent(apiKey)}&mapObject=${encodeURIComponent(mapObjectParam)}`;
+  public static async fetchPublicTransit(
+    sx: string,
+    sy: string,
+    ex: string,
+    ey: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('searchPubTransPathT', { SX: sx, SY: sy, EX: ex, EY: ey }, apiKey);
+  }
 
-    let res: Response;
-    try {
-      res = await externalFetch(laneUrl, {
-        cache: 'no-store',
-        headers: {
-          Referer: process.env.DOMAIN || 'http://localhost:3000',
-        },
-      });
-    } catch (err: any) {
-      throw this.convertNetworkError(err);
-    }
+  /**
+   * ODsay 상세 노선 궤적(loadLane) API 어댑터 (#13 loadLane)
+   */
+  public static async fetchLoadLane(mapObjectParam: string, apiKey?: string): Promise<any> {
+    return this.getOdsayData('loadLane', { mapObject: mapObjectParam }, apiKey);
+  }
 
-    const data = await res.json();
-    this.checkAndThrowBodyError(data);
-    return data;
+  /**
+   * ODsay (신) 지하철역 전체 시간표 조회 어댑터 (#12 searchSubwaySchedule)
+   */
+  public static async fetchSubwaySchedule(
+    stationID: string,
+    wayCode?: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('searchSubwaySchedule', { stationID, wayCode }, apiKey);
+  }
+
+  /**
+   * ODsay 지하철역 세부 정보 조회 어댑터 (#10 subwayStationInfo)
+   */
+  public static async fetchSubwayStationInfo(
+    stationID: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('subwayStationInfo', { stationID }, apiKey);
+  }
+
+  /**
+   * ODsay 버스노선 조회 어댑터 (#1 searchBusLane)
+   */
+  public static async fetchBusLane(
+    busNo: string,
+    cid?: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('searchBusLane', { busNo, CID: cid }, apiKey);
+  }
+
+  /**
+   * ODsay 버스노선 상세정보 조회 어댑터 (#2 busLaneDetail)
+   */
+  public static async fetchBusLaneDetail(
+    busID: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('busLaneDetail', { busID }, apiKey);
+  }
+
+  /**
+   * ODsay 버스정류장 세부 정보 조회 어댑터 (#3 busStationInfo)
+   */
+  public static async fetchBusStationInfo(
+    stationID: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('busStationInfo', { stationID }, apiKey);
+  }
+
+  /**
+   * ODsay 대중교통 정류장 검색 어댑터 (#14 searchStation)
+   */
+  public static async fetchSearchStation(
+    stationName: string,
+    stationClass: string = '1',
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('searchStation', { stationName, stationClass, lang: '0' }, apiKey);
+  }
+
+  /**
+   * ODsay 도시코드 조회 어댑터 (#24 searchCID)
+   */
+  public static async fetchSearchCID(
+    cityName: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('searchCID', { cityName }, apiKey);
   }
 
   /**

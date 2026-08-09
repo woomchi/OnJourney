@@ -35,9 +35,9 @@ const getCachedOdsayDirections = unstable_cache(
   { revalidate: 3600 }
 );
 
-// ODsay loadLane 조회를 위한 top-level 캐시 함수
+// ODsay loadLane 조회를 위한 top-level 캐시 함수 (시간 독립 30일 장기 캐시)
 const getCachedOdsayLoadLane = unstable_cache(
-  async (mapObjectParam: string, apiKey: string, timeSlot: string) => {
+  async (mapObjectParam: string, apiKey: string) => {
     return odsayCircuitBreaker.execute<OdsayApiCacheResult>(
       async () => {
         const data = await OdsayAdapter.fetchLoadLane(mapObjectParam, apiKey);
@@ -52,8 +52,8 @@ const getCachedOdsayLoadLane = unstable_cache(
       }
     );
   },
-  ['odsay-loadlane'],
-  { revalidate: 3600 }
+  ['odsay-loadlane-v1'],
+  { revalidate: 60 * 60 * 24 * 30 }
 );
 
 /**
@@ -137,11 +137,12 @@ export async function fetchPublicTransitOptions(
 
       let hasDetailedLanes = false;
       let laneList: any[] = [];
-      if (info.mapObj) {
+      // 1순위 최적 경로(pathIdx === 0)이거나 결과 수가 적을 때(<=2)만 초기 loadLane 호출 수행
+      if (info.mapObj && (pathIdx === 0 || validPaths.length <= 2)) {
         try {
           const mapObjectParam = `0:0@${info.mapObj}`;
           let laneData: any = null;
-          const laneRes = await getCachedOdsayLoadLane(mapObjectParam, apiKey, timeGroup);
+          const laneRes = await getCachedOdsayLoadLane(mapObjectParam, apiKey);
           if (laneRes.ok) {
             laneData = laneRes.data;
           }

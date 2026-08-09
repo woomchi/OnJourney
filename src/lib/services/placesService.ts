@@ -5,6 +5,7 @@ import {
   analyzeQuery,
   getCategoryPatternScore,
   hasExplicitRegionKeyword,
+  getPatternGroupCodes,
 } from './searchPatternService';
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { PlaceResult, ServiceCategoryTag } from '@/types/journey';
@@ -13,6 +14,9 @@ import type { PlaceResult, ServiceCategoryTag } from '@/types/journey';
 
 /** 카카오 로컬 API Base URL */
 const KAKAO_API_BASE_URL = 'https://dapi.kakao.com/v2/local/search/keyword.json';
+
+/** 카카오 로컬 카테고리 검색 API Base URL */
+const KAKAO_CATEGORY_API_BASE_URL = 'https://dapi.kakao.com/v2/local/search/category.json';
 
 /** 1회 요청당 최대 결과 수 */
 const RESULTS_PER_PAGE = 15;
@@ -99,6 +103,7 @@ interface KakaoDocument {
   category_group_code: string;
   x: string; // 경도(lng) 문자열
   y: string; // 위도(lat) 문자열
+  distance?: string; // 거리(미터) 문자열 (x/y 좌표 검색 시 포함됨)
 }
 
 // ─── 내부 헬퍼: 거리 계산 ────────────────────────────────────────────────────
@@ -289,15 +294,7 @@ function isSuburbanAddress(address: string | undefined): boolean {
 // ─── 공개 API ────────────────────────────────────────────────────────────────
 
 /**
- * 검색어와 위치 정보를 기반으로 랭킹된 장소 목록을 반환합니다 (v3).
- *
- * 처리 흐름:
- * 1. 이중 파이프라인 수집 (Pipeline A: accuracy/전국 랜드마크 보장, Pipeline B: distance/현위치)
- * 2. 중복 제거
- * 3. 서비스 카테고리 태깅 (Drop 없이 모든 결과 보존)
- * 4. 쿼리 패턴 분석 및 거리 하드 컷오프 적용
- * 5. 복합 점수 산출 및 내림차순 정렬
- * 6. 상위 MAX_RESULTS(20)개 반환 (serviceCategory 포함)
+ * 검색어와 위치 정보를 기반으로 랭킹된 장소 목록을 반환합니다 (v3 + Pipeline C).
  */
 export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[]> {
   const apiKey = process.env.KAKAO_REST_API_KEY;
@@ -307,7 +304,7 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
 
   const { query, lat, lng, minLat, maxLat, minLng, maxLng, sort, transport_type } = params;
 
-  // ─ 파이프라인 Fetch 헬퍼 ─
+  // ─ 파이프라인 Fetch 헬퍼 (키워드 검색) ─
   const fetchApiPage = async (
     pageParams: URLSearchParams,
     page: number
@@ -358,6 +355,57 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
     }
   };
 
+  // ─ 파이프라인 C Fetch 헬퍼 (카테고리 검색) ─
+  const fetchCategoryApiPage = async (
+    groupCode: string,
+    x: number,
+    y: number,
+    radiusM: number,
+    page: number
+  ): Promise<PlaceResult[]> => {
+    const p = new URLSearchParams({
+      category_group_code: groupCode,
+      x: x.toString(),
+      y: y.toString(),
+      radius: radiusM.toString(),
+      size: String(RESULTS_PER_PAGE),
+      sort: 'distance',
+      page: page.toString(),
+    });
+    const url = `${KAKAO_CATEGORY_API_BASE_URL}?${p.toString()}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `KakaoAK ${apiKey}` },
+        next: { revalidate: 30 },
+        signal: controller.signal,
+      });
+
+      if (!res.ok) return [];
+
+      const data = (await res.json()) as { documents?: KakaoDocument[] };
+      if (!data.documents) return [];
+
+      return data.documents.map((doc) => ({
+        id: doc.id,
+        place_name: doc.place_name,
+        address: doc.road_address_name || doc.address_name,
+        category: doc.category_name,
+        lat: parseFloat(doc.y),
+        lng: parseFloat(doc.x),
+        category_group_code: doc.category_group_code,
+        serviceCategory: getServiceCategoryTag(doc.category_group_code, doc.category_name),
+      }));
+    } catch {
+      return []; // 카테고리 API 실패 시 조용히 skip (keyword 결과로 fallback)
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
   // ─ Pipeline A: 정확도 기반 (전국 범위 랜드마크 보장) ─
   const pipelineAParams = new URLSearchParams();
   pipelineAParams.set('query', query);
@@ -383,15 +431,47 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
     pipelineBParams.set('rect', `${minLng},${minLat},${maxLng},${maxLat}`);
   }
 
-  // 이중 파이프라인 병렬 수집 (A: 1~2p, B: 1~2p)
-  const [pipelineAPages, pipelineBPages] = await Promise.all([
+  // ─ 쿼리 패턴 분석 및 Pipeline C 조건 검토 ─
+  const queryAnalysis = analyzeQuery(query);
+  const groupCodes = getPatternGroupCodes(queryAnalysis.pattern);
+  const canRunPipelineC =
+    groupCodes.length > 0 &&
+    lat !== undefined &&
+    lng !== undefined &&
+    !isNaN(lat) &&
+    !isNaN(lng);
+
+  const PATTERN_RADIUS_MAP: Record<string, number> = {
+    transit: 2000,
+    food: 1000,
+    medical: 1500,
+    parking: 1000,
+    leisure: 3000,
+    shopping: 1500,
+    public: 2000,
+  };
+  const pipelineCRadius = queryAnalysis.pattern
+    ? PATTERN_RADIUS_MAP[queryAnalysis.pattern] ?? 1500
+    : 1500;
+
+  // 이중/삼중 파이프라인 병렬 수집 (A: 1~2p, B: 1~2p, C: 카테고리 1p 조건부)
+  const [pipelineAPages, pipelineBPages, pipelineCResults] = await Promise.all([
     Promise.all([fetchApiPage(pipelineAParams, 1), fetchApiPage(pipelineAParams, 2)]),
     Promise.all([fetchApiPage(pipelineBParams, 1), fetchApiPage(pipelineBParams, 2)]),
+    canRunPipelineC
+      ? Promise.all(
+          groupCodes.map((code) => fetchCategoryApiPage(code, lng!, lat!, pipelineCRadius, 1))
+        )
+      : Promise.resolve([[]]),
   ]);
 
-  const combinedItems = [...pipelineAPages.flat(), ...pipelineBPages.flat()];
+  const combinedItems = [
+    ...pipelineAPages.flat(),
+    ...pipelineBPages.flat(),
+    ...pipelineCResults.flat(),
+  ];
 
-  // 중복 제거 (Pipeline A 항목 우선 유지)
+  // 중복 제거 (Pipeline A -> B -> C 순서 유지)
   const seen = new Set<string>();
   const uniqueItems: PlaceResult[] = [];
   for (const item of combinedItems) {
@@ -403,7 +483,7 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
 
   if (uniqueItems.length === 0) return [];
 
-  // ─ 카테고리 태깅 및 적합도 평가 (Drop 없이 모든 결과 유지!) ─
+  // ─ 카테고리 태깅 및 적합도 평가 (Drop 없이 모든 결과 유지) ─
   const categoryEvaluated = uniqueItems.map((item) => {
     const serviceCategory = item.serviceCategory || getServiceCategoryTag(item.category_group_code, item.category);
     const sCat = getCategoryScoreByTag(serviceCategory);
@@ -416,8 +496,6 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
     };
   });
 
-  // ─ 쿼리 패턴 분석 ─
-  const queryAnalysis = analyzeQuery(query);
   const isExplicitRegion = hasExplicitRegionKeyword(query);
 
   // ─ 인기도 점수 조회 ─
@@ -439,16 +517,20 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
   const scoredItems: PlaceResult[] = [];
 
   for (const { item, sCat } of categoryEvaluated) {
-    // 기본 단어(baseWord) 매칭 점수 (S_match)
+    // 기본 단어(baseWord) 매칭 점수 (S_match) — 퍼지 매칭 적용
     const placeNameLower = item.place_name.toLowerCase();
     const itemCategoryLower = (item.category || '').toLowerCase();
     const baseWordLower = (queryAnalysis.baseWord || query).toLowerCase();
 
     let sMatch = 0.1;
-    if (placeNameLower.includes(baseWordLower)) {
-      sMatch = 1.0;
+    if (placeNameLower === baseWordLower) {
+      sMatch = 1.0; // 완전 일치
+    } else if (placeNameLower.startsWith(baseWordLower)) {
+      sMatch = 0.95; // 접두사 일치
+    } else if (placeNameLower.includes(baseWordLower)) {
+      sMatch = 0.8; // 부분 일치
     } else if (itemCategoryLower.includes(baseWordLower)) {
-      sMatch = 0.6;
+      sMatch = 0.6; // 카테고리명 포함
     }
 
     // 패턴별 카테고리 점수 (S_pattern)
@@ -464,8 +546,9 @@ export async function fetchPlaces(params: PlacesQueryType): Promise<PlaceResult[
       sPop = COLD_START_POPULARITY_BONUS;
     }
 
+    // 가중치 산출 (패턴 유무에 따른 분기)
     const totalScore = queryAnalysis.pattern
-      ? sMatch * 0.40 + sPattern * 0.25 + sCat * 0.15 + sDist * 0.10 + sPop * 0.10
+      ? sMatch * 0.35 + sPattern * 0.35 + sDist * 0.20 + sPop * 0.10
       : sMatch * 0.40 + sCat * 0.30 + sDist * 0.20 + sPop * 0.10;
 
     scoredItems.push({

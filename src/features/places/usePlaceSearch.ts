@@ -30,21 +30,31 @@ export function usePlaceSearch() {
 
     try {
       const res = await fetch(`/api/places?query=${encodeURIComponent(q)}`);
-      const payload = await res.json();
+      let payload: any = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
 
-      if (!res.ok || !payload.success) {
-        setError(payload.error || '검색 실패');
+      if (!res.ok || !payload?.success) {
+        const errorMsg =
+          typeof payload?.error === 'object'
+            ? payload.error.message
+            : payload?.error || '장소를 검색하는 중 오류가 발생했습니다.';
+        setError(errorMsg);
         setResults([]);
       } else {
         setResults(payload.data?.items || []);
         setIsOpen(true);
       }
     } catch {
-      setError('네트워크 오류가 발생했습니다.');
+      setError('네트워크 연결 상태를 확인해주세요.');
       setResults([]);
     } finally {
       setIsLoading(false);
     }
+
   }, []);
 
   const debouncedSearch = useDebouncedCallback((val: string) => {

@@ -66,7 +66,27 @@ export const SEARCH_PATTERNS: Record<string, SearchPattern> = {
 };
 
 /**
+ * 카카오 공식 GroupCode 매핑 DB
+ */
+export const GROUP_CODE_PATTERN_MAP: Record<string, { pattern: string; categoryScore: number }> = {
+  'SW8': { pattern: 'transit',  categoryScore: 1.0 },  // 지하철역
+  'PK6': { pattern: 'parking',  categoryScore: 1.0 },  // 주차장
+  'CE7': { pattern: 'food',     categoryScore: 1.0 },  // 카페
+  'FD6': { pattern: 'food',     categoryScore: 0.9 },  // 음식점
+  'PM9': { pattern: 'medical',  categoryScore: 1.0 },  // 약국
+  'HP8': { pattern: 'medical',  categoryScore: 0.9 },  // 병원
+  'AT4': { pattern: 'leisure',  categoryScore: 1.0 },  // 관광명소
+  'AD5': { pattern: 'leisure',  categoryScore: 0.9 },  // 숙박
+  'CT1': { pattern: 'leisure',  categoryScore: 0.9 },  // 문화시설
+  'MT1': { pattern: 'shopping', categoryScore: 1.0 },  // 대형마트
+  'CS2': { pattern: 'shopping', categoryScore: 0.8 },  // 편의점
+  'PO3': { pattern: 'public',   categoryScore: 1.0 },  // 공공기관
+  'BK9': { pattern: 'public',   categoryScore: 0.9 },  // 은행
+};
+
+/**
  * 2.1 검색어 분석 (Query Analysis)
+ * - 띄어쓰기 정규화 추가 ("버스 정류장" -> "버스정류장")
  */
 export function analyzeQuery(query: string): QueryAnalysis {
   const cleanQuery = query.trim();
@@ -80,6 +100,8 @@ export function analyzeQuery(query: string): QueryAnalysis {
     };
   }
 
+  const normalizedQuery = cleanQuery.replace(/\s+/g, '');
+
   // 접미사 길이가 긴 패턴부터 우선 체크 (예: "버스정류장" > "역")
   const sortedPatternKeys = Object.keys(SEARCH_PATTERNS).sort(
     (a, b) => SEARCH_PATTERNS[b].suffix.length - SEARCH_PATTERNS[a].suffix.length
@@ -87,8 +109,17 @@ export function analyzeQuery(query: string): QueryAnalysis {
 
   for (const key of sortedPatternKeys) {
     const p = SEARCH_PATTERNS[key];
-    if (cleanQuery.endsWith(p.suffix) && cleanQuery.length > p.suffix.length) {
-      const base = cleanQuery.slice(0, cleanQuery.length - p.suffix.length).trim();
+    const isCleanMatch = cleanQuery.endsWith(p.suffix) && cleanQuery.length >= p.suffix.length;
+    const isNormMatch = normalizedQuery.endsWith(p.suffix) && normalizedQuery.length >= p.suffix.length;
+
+    if (isCleanMatch || isNormMatch) {
+      let base = '';
+      if (isCleanMatch) {
+        base = cleanQuery.slice(0, cleanQuery.length - p.suffix.length).trim();
+      } else {
+        base = cleanQuery.replace(new RegExp(`${p.suffix.split('').join('\\s*')}$`), '').trim();
+      }
+
       return {
         baseWord: base,
         suffix: p.suffix,
@@ -98,12 +129,36 @@ export function analyzeQuery(query: string): QueryAnalysis {
     }
   }
 
+
   return {
     baseWord: cleanQuery,
     suffix: null,
     pattern: null,
     priority: 'normal'
   };
+}
+
+/**
+ * GroupCode가 패턴과 일치할 때의 카테고리 점수를 반환합니다.
+ */
+export function getGroupCodeMatchScore(
+  pattern: string | null,
+  groupCode: string | undefined | null
+): number {
+  if (!pattern || !groupCode) return 0;
+  const mapping = GROUP_CODE_PATTERN_MAP[groupCode];
+  if (!mapping) return 0;
+  return mapping.pattern === pattern ? mapping.categoryScore : 0;
+}
+
+/**
+ * 패턴에 해당하는 GroupCode 목록을 반환합니다 (Pipeline C 카테고리 API 연동용).
+ */
+export function getPatternGroupCodes(pattern: string | null): string[] {
+  if (!pattern) return [];
+  return Object.entries(GROUP_CODE_PATTERN_MAP)
+    .filter(([, v]) => v.pattern === pattern)
+    .map(([code]) => code);
 }
 
 /**
@@ -115,6 +170,10 @@ export function getCategoryPatternScore(
   categoryName: string | undefined | null
 ): number {
   if (!pattern) return 0.5; // 패턴 지정 없으면 기본 중립 점수
+
+  // GroupCode 명확 매칭 시 우선 반환
+  const groupScore = getGroupCodeMatchScore(pattern, groupCode);
+  if (groupScore > 0) return groupScore;
 
   const catLower = (categoryName || '').toLowerCase();
 
@@ -151,3 +210,4 @@ export function hasExplicitRegionKeyword(query: string): boolean {
   const regionRegex = /(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|수원|성남|용인|고양|창원|화성|청주|부천|남양주|천안|전주|안산|평택|안양|포항|시흥|파주|김해|의정부|구미|순천|부여|경주|여수|강릉|속초|가평|양평|춘천)/i;
   return regionRegex.test(query);
 }
+

@@ -403,6 +403,7 @@ export default function MapArea() {
       navigator.vibrate(10);
     }
     setActiveRecommendedPlace(recPlace);
+    setMapClickedPlace(null);
 
     if (panTimeoutRef.current) clearTimeout(panTimeoutRef.current);
     if (stateTimeoutRef.current) clearTimeout(stateTimeoutRef.current);
@@ -412,12 +413,13 @@ export default function MapArea() {
         panToWithOffset(map, { lat: recPlace.lat, lng: recPlace.lng });
       }, 50);
     }
-  }, [setActiveRecommendedPlace, map, panToWithOffset]);
+  }, [setActiveRecommendedPlace, setMapClickedPlace, map, panToWithOffset]);
 
   const handleMarkerClick = useCallback((place: SelectedPlace & { id: string }, idx: number) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
+    setMapClickedPlace(null);
 
     if (focusedPlaceId === place.id) {
       setFocusedPlaceId(null);
@@ -471,7 +473,7 @@ export default function MapArea() {
         setFocusedStep(null);
       }
     }, 80);
-  }, [focusedPlaceId, setFocusedPlaceId, map, currentMapPadding, setMapCenter, panToWithOffset, places, directionsCache, activeJourney?.transport_type, focusedSegment, setFocusBounds, setFocusedStep, setFocusedSegment]);
+  }, [setMapClickedPlace, focusedPlaceId, setFocusedPlaceId, map, currentMapPadding, setMapCenter, panToWithOffset, places, directionsCache, activeJourney?.transport_type, focusedSegment, setFocusBounds, setFocusedStep, setFocusedSegment]);
 
   if (!clientId) {
     return (

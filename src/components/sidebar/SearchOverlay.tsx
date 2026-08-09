@@ -339,11 +339,20 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
       let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`);
       if (currentSearchId !== activeSearchId.current) return;
-      let payload = await res.json();
+      let payload: any = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
       let items: PlaceResult[] = [];
 
-      if (!res.ok || !payload.success) {
-        setSearchError(payload.error || '검색 실패');
+      if (!res.ok || !payload?.success) {
+        const errorMsg =
+          typeof payload?.error === 'object'
+            ? payload.error.message
+            : payload?.error || '장소를 검색하는 중 오류가 발생했습니다.';
+        setSearchError(errorMsg);
         setSearchResults([]);
         clearRecommendedPlaces();
         return;
@@ -354,10 +363,16 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       if (items.length < 3) {
         const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}${transportParam}`);
         if (currentSearchId !== activeSearchId.current) return;
-        const fallbackPayload = await fallbackRes.json();
+        let fallbackPayload: any = null;
+        try {
+          fallbackPayload = await fallbackRes.json();
+        } catch {
+          fallbackPayload = null;
+        }
 
-        if (fallbackRes.ok && fallbackPayload.success && fallbackPayload.data?.items && fallbackPayload.data.items.length > 0) {
+        if (fallbackRes.ok && fallbackPayload?.success && fallbackPayload.data?.items && fallbackPayload.data.items.length > 0) {
           const newItems = fallbackPayload.data.items as PlaceResult[];
+
           const merged = [...items, ...newItems];
           items = Array.from(new Map(merged.map(item => [item.id, item])).values());
         } else if (items.length === 0) {

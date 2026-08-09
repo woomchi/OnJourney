@@ -44,6 +44,11 @@ export function CustomOverlayView({
     // 크기가 측정되어 위치가 계산될 때까지 순간적인 튀는 현상을 막기 위해 초기에는 숨김 처리
     el.style.opacity = '0';
     el.style.transition = 'opacity 0.15s ease-out';
+
+    const handleNativeClick = (e: Event) => {
+      e.stopPropagation();
+    };
+    el.addEventListener('click', handleNativeClick);
     setContainer(el);
 
     class ReactOverlayView extends navermaps.OverlayView {
@@ -176,6 +181,7 @@ export function CustomOverlayView({
 
       return () => {
         clearInterval(checkTimer);
+        el.removeEventListener('click', handleNativeClick);
         if (overlayRef.current) {
           overlayRef.current.setMap(null);
           overlayRef.current = null;
@@ -184,6 +190,7 @@ export function CustomOverlayView({
     }
 
     return () => {
+      el.removeEventListener('click', handleNativeClick);
       if (overlayRef.current) {
         overlayRef.current.setMap(null);
         overlayRef.current = null;
@@ -209,7 +216,13 @@ export function CustomOverlayView({
   if (!container) return null;
 
   return createPortal(
-    <div onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+    <div
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(e);
+      }}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
+    >
       {children}
     </div>,
     container

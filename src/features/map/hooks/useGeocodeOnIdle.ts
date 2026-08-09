@@ -70,15 +70,15 @@ export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
 
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
       geocodeTimerRef.current = setTimeout(() => {
-        const center = map.getCenter();
-        const lat = center.y;
-        const lng = center.x;
+        const center = map.getCenter() as naver.maps.LatLng;
+        const lat = typeof center.lat === 'function' ? center.lat() : (center as any).y;
+        const lng = typeof center.lng === 'function' ? center.lng() : (center as any).x;
 
         const last = lastGeocodedCoordsRef.current;
         if (last) {
           const dLat = Math.abs(lat - last.lat);
           const dLng = Math.abs(lng - last.lng);
-          if (dLat < 0.003 && dLng < 0.003) return;
+          if (dLat < 0.01 && dLng < 0.01) return;
         }
 
         if (navermaps.Service && navermaps.Service.reverseGeocode) {

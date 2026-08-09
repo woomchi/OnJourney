@@ -267,27 +267,18 @@ export default function DirectionalStripes({
       return res;
     }
     try {
-      const sw = mapBounds.getSW();
-      const ne = mapBounds.getNE();
-      if (!sw || !ne || typeof sw.lat !== 'function' || typeof ne.lat !== 'function') {
-        const res = sampledAnchors.slice(0, 80);
-        lastVisiblePointsRef.current = res;
-        return res;
-      }
-
-      const latSpan = ne.lat() - sw.lat();
-      const lngSpan = ne.lng() - sw.lng();
-      const paddingLat = latSpan * 0.15;
-      const paddingLng = lngSpan * 0.15;
-
-      const minLat = sw.lat() - paddingLat;
-      const maxLat = ne.lat() + paddingLat;
-      const minLng = sw.lng() - paddingLng;
-      const maxLng = ne.lng() + paddingLng;
-
       const filtered = sampledAnchors.filter(pt => {
-        const { lat, lng } = pt.position;
-        return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+        const targetCoord = new navermaps.LatLng(pt.position.lat, pt.position.lng);
+        if (typeof (mapBounds as any).hasLatLng === 'function') {
+          return (mapBounds as any).hasLatLng(targetCoord);
+        }
+        if (typeof (mapBounds as any).contains === 'function') {
+          return (mapBounds as any).contains(targetCoord);
+        }
+        const sw = mapBounds.getSW();
+        const ne = mapBounds.getNE();
+        return pt.position.lat >= sw.lat() && pt.position.lat <= ne.lat() &&
+               pt.position.lng >= sw.lng() && pt.position.lng <= ne.lng();
       });
 
       const res = filtered.slice(0, 50);

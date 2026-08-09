@@ -201,9 +201,6 @@ export default function MapArea() {
 
   const handleMapRef = useCallback((mapInstance: naver.maps.Map | null) => {
     if (!mapInstance) return;
-    if (typeof window !== 'undefined') {
-      (window as any).__naver_map_instance__ = mapInstance;
-    }
     setMap((prev) => {
       if (prev === mapInstance) return prev;
       return mapInstance;

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useMap } from 'react-naver-maps';
 
 export interface CustomOverlayViewProps {
   position: { lat: number; lng: number };
@@ -26,14 +27,15 @@ export function CustomOverlayView({
   offsetX = 0,
   offsetY = 0,
 }: CustomOverlayViewProps) {
+  const contextMap = useMap();
+  const targetMap = mapProp || contextMap;
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const overlayRef = useRef<naver.maps.OverlayView | null>(null);
 
   useEffect(() => {
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-    if (!navermaps) return;
+    if (!navermaps || !targetMap) return;
 
-    // Create container element for React portal
     const el = document.createElement('div');
     el.style.position = 'absolute';
     el.style.left = '0px';
@@ -41,9 +43,6 @@ export function CustomOverlayView({
     el.style.willChange = 'transform';
     el.style.zIndex = String(zIndex);
     el.style.pointerEvents = 'auto';
-    // 크기가 측정되어 위치가 계산될 때까지 순간적인 튀는 현상을 막기 위해 초기에는 숨김 처리
-    el.style.opacity = '0';
-    el.style.transition = 'opacity 0.15s ease-out';
 
     const handleNativeClick = (e: Event) => {
       e.stopPropagation();
@@ -58,8 +57,6 @@ export function CustomOverlayView({
       private ancY: number;
       private offX: number;
       private offY: number;
-      private resizeObserver: ResizeObserver | null = null;
-      private hasPositioned = false;
 
       constructor(
         element: HTMLDivElement,
@@ -78,28 +75,9 @@ export function CustomOverlayView({
         this.offY = offY;
       }
 
-      private cachedWidth = 0;
-      private cachedHeight = 0;
-
       onAdd() {
         const overlayLayer = this.getPanes().overlayLayer;
         overlayLayer.appendChild(this.element);
-
-        if (typeof ResizeObserver !== 'undefined') {
-          this.resizeObserver = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-              if (entry.borderBoxSize && entry.borderBoxSize.length > 0) {
-                this.cachedWidth = entry.borderBoxSize[0].inlineSize;
-                this.cachedHeight = entry.borderBoxSize[0].blockSize;
-              } else {
-                this.cachedWidth = entry.contentRect.width;
-                this.cachedHeight = entry.contentRect.height;
-              }
-            }
-            this.draw();
-          });
-          this.resizeObserver.observe(this.element);
-        }
       }
 
       draw() {
@@ -112,35 +90,16 @@ export function CustomOverlayView({
         const latLng = new mapsObj.LatLng(this.pos.lat, this.pos.lng);
         const pixelPosition = projection.fromCoordToOffset(latLng);
 
-        const width = this.cachedWidth || this.element.offsetWidth || 0;
-        const height = this.cachedHeight || this.element.offsetHeight || 0;
-        if (width > 0 && !this.cachedWidth) this.cachedWidth = width;
-        if (height > 0 && !this.cachedHeight) this.cachedHeight = height;
+        const width = this.element.offsetWidth || 0;
+        const height = this.element.offsetHeight || 0;
 
         const left = pixelPosition.x - width * this.ancX + this.offX;
         const top = pixelPosition.y - height * this.ancY + this.offY;
 
         this.element.style.transform = `translate3d(${left}px, ${top}px, 0)`;
-
-        // 요새 크기가 유효하거나 측정이 이루어졌을 때 화면에 노출
-        if (width > 0 || height > 0 || this.hasPositioned) {
-          this.hasPositioned = true;
-          this.element.style.opacity = '1';
-        } else {
-          // 크기가 아직 0인 경우 다음 프레임에 한번 더 체크
-          requestAnimationFrame(() => {
-            if (this.element && !this.hasPositioned) {
-              this.draw();
-            }
-          });
-        }
       }
 
       onRemove() {
-        if (this.resizeObserver) {
-          this.resizeObserver.disconnect();
-          this.resizeObserver = null;
-        }
         if (this.element && this.element.parentNode) {
           this.element.parentNode.removeChild(this.element);
         }
@@ -164,30 +123,7 @@ export function CustomOverlayView({
 
     const overlay = new ReactOverlayView(el, position, anchorX, anchorY, offsetX, offsetY);
     overlayRef.current = overlay;
-
-    // Attach to map if provided, or search window map instance
-    const targetMap = mapProp || (window as any).__naver_map_instance__;
-    if (targetMap) {
-      overlay.setMap(targetMap);
-    } else {
-      // Fallback: search DOM for map container or retry
-      const checkTimer = setInterval(() => {
-        const m = (window as any).__naver_map_instance__;
-        if (m && overlayRef.current) {
-          overlayRef.current.setMap(m);
-          clearInterval(checkTimer);
-        }
-      }, 200);
-
-      return () => {
-        clearInterval(checkTimer);
-        el.removeEventListener('click', handleNativeClick);
-        if (overlayRef.current) {
-          overlayRef.current.setMap(null);
-          overlayRef.current = null;
-        }
-      };
-    }
+    overlay.setMap(targetMap);
 
     return () => {
       el.removeEventListener('click', handleNativeClick);
@@ -197,7 +133,7 @@ export function CustomOverlayView({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapProp]);
+  }, [targetMap]);
 
   // Update position & options on prop changes
   useEffect(() => {

@@ -11,7 +11,7 @@ import { MapPin, ArrowRight, Footprints, Car, Bus, Train } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
-import { formatKmDistance } from '@/lib/utils/journeyUtils';
+import { formatKmDistance, formatDurationMinutes } from '@/lib/utils/journeyUtils';
 
 interface HorizontalJourneyTimelineBarProps {
   activeJourney: Journey;
@@ -172,7 +172,7 @@ export default function HorizontalJourneyTimelineBar({
       );
     }
 
-    const duration = route?.duration ? `${route.duration}분` : '';
+    const duration = route?.duration ? formatDurationMinutes(route.duration) : '';
     const type = route?.type || transportType;
     const getDistanceKm = (): number | null => {
       if (route?.distance != null && route.distance > 0) {

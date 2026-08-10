@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
+import { IntercityTransitScheduleWidget } from '@/components/transit/IntercityTransitScheduleWidget';
+import { Clock } from 'lucide-react';
+import { formatDurationMinutes } from '@/lib/utils/journeyUtils';
 
 interface TransitGuideListProps {
   route: SelectedRoute | DirectionResult;
@@ -22,6 +25,17 @@ export default function TransitGuideList({
   const { focusedStep } = useJourneyStore();
   const steps = route.steps || [];
   const [expandedSteps, setExpandedSteps] = useState<number[]>([]);
+  const [selectedSchedule, setSelectedSchedule] = useState<{
+    type: 'train' | 'bus';
+    startStationID: string | number;
+    endStationID: string | number;
+    startStationName: string;
+    endStationName: string;
+    sx?: number;
+    sy?: number;
+    ex?: number;
+    ey?: number;
+  } | null>(null);
 
   const toggleAccordion = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -122,7 +136,7 @@ export default function TransitGuideList({
                   </h4>
                 </div>
                 <span className="text-[12px] font-bold text-zinc-600 flex-shrink-0">
-                  {step.duration}분
+                  {formatDurationMinutes(step.duration)}
                 </span>
               </div>
 
@@ -258,9 +272,85 @@ export default function TransitGuideList({
                 );
               })()}
 
-              {/* 예약 링크 추가 */}
+              {/* 대안 4: 접속 수단 대안 선택 칩 (SubPath Selector) */}
+              {(step.type === 'train' || step.type === 'expressbus') && step.subPathOptions && step.subPathOptions.length > 0 && (
+                <div className="mb-2 mt-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="text-[10px] font-bold text-zinc-500 mb-1 flex items-center gap-1">
+                    <span>💡 기차/버스 접속 수단 대안 선택</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {step.subPathOptions.map((opt) => {
+                      const isSelected = (selectedSchedule?.startStationName === opt.stationName) || (step.startName === opt.stationName);
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            step.startName = opt.stationName;
+                            if (opt.stationId) {
+                              step.startID = opt.stationId;
+                              step.startStationID = opt.stationId;
+                            }
+                            setSelectedSchedule({
+                              type: step.type === 'train' ? 'train' : 'bus',
+                              startStationID: opt.stationId || step.startID || '130',
+                              endStationID: step.endID || step.endStationID || '110',
+                              startStationName: opt.stationName,
+                              endStationName: step.endName || '부산역',
+                              sx: originPlace.lng,
+                              sy: originPlace.lat,
+                              ex: destPlace.lng,
+                              ey: destPlace.lat,
+                            });
+                          }}
+                          className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                              : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                          }`}
+                        >
+                          <span>{opt.label}</span>
+                          <span className="text-[9px] opacity-80">({opt.duration}분)</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 장거리 기차/버스 시간표 및 요금 위젯 버튼 */}
               {(step.type === 'train' || step.type === 'expressbus') && (
-                <div className="mt-2 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                <div className="mt-2 flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // 역 명칭 정밀 추출 (step.startName -> originPlace.place_name 순)
+                      const derivedStart =
+                        step.startName ||
+                        (idx === 0 ? originPlace.place_name : steps[idx - 1]?.endName) ||
+                        (step.type === 'train' ? '서울역' : '서울');
+                      const derivedEnd =
+                        step.endName ||
+                        (idx === steps.length - 1 ? destPlace.place_name : steps[idx + 1]?.startName) ||
+                        (step.type === 'train' ? '부산역' : '부산');
+
+                      setSelectedSchedule({
+                        type: step.type === 'train' ? 'train' : 'bus',
+                        startStationID: step.startID || step.startStationID || '130',
+                        endStationID: step.endID || step.endStationID || '110',
+                        startStationName: derivedStart,
+                        endStationName: derivedEnd,
+                        sx: originPlace.lng,
+                        sy: originPlace.lat,
+                        ex: destPlace.lng,
+                        ey: destPlace.lat,
+                      });
+                    }}
+                    className="text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl border border-indigo-200 transition-colors flex items-center gap-1 shadow-xs"
+                  >
+                    <span>실시간 시간표 & 요금</span>
+                  </button>
+
                   <a
                     href={
                       step.type === 'train'
@@ -278,12 +368,33 @@ export default function TransitGuideList({
                   </a>
                 </div>
               )}
-
-
             </div>
           </div>
         );
       })}
+
+      {/* 실시간 시간표 & 요금 모달 팝업 */}
+      {selectedSchedule && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedSchedule(null)}
+        >
+          <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <IntercityTransitScheduleWidget
+              type={selectedSchedule.type}
+              startStationID={selectedSchedule.startStationID}
+              endStationID={selectedSchedule.endStationID}
+              startStationName={selectedSchedule.startStationName}
+              endStationName={selectedSchedule.endStationName}
+              sx={selectedSchedule.sx}
+              sy={selectedSchedule.sy}
+              ex={selectedSchedule.ex}
+              ey={selectedSchedule.ey}
+              onClose={() => setSelectedSchedule(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

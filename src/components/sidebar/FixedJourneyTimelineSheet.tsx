@@ -13,7 +13,7 @@ import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 import { useDialog } from '@/providers/DialogProvider';
 import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
-import { formatKmDistance } from '@/lib/utils/journeyUtils';
+import { formatKmDistance, formatDurationMinutes } from '@/lib/utils/journeyUtils';
 
 import { usePWA } from '@/components/PWAProvider';
 
@@ -373,7 +373,7 @@ export default function FixedJourneyTimelineSheet({
       );
     }
 
-    const duration = route?.duration ? `${route.duration}분` : '';
+    const duration = route?.duration ? formatDurationMinutes(route.duration) : '';
     const type = route?.type || transportType;
 
     const getDistanceKm = (): number | null => {

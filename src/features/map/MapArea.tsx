@@ -493,11 +493,12 @@ export default function MapArea() {
 
   const { isCacheRestored } = useJourneyStore();
 
+  const placesKey = places?.map((p) => `${p.id}_${p.lat}_${p.lng}`).join('|') || '';
   useEffect(() => {
     if (isCacheRestored && places && places.length > 1) {
       fetchSequentialDirections(places);
     }
-  }, [places, fetchSequentialDirections, isCacheRestored]);
+  }, [placesKey, fetchSequentialDirections, isCacheRestored]);
 
   const animatedSegmentsRef = useRef<Set<string>>(new Set());
   const navermaps = typeof window !== 'undefined' && window.naver?.maps;

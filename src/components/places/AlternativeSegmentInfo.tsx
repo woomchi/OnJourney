@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult } from '@/types/journey';
 import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
-import { formatKmDistance } from '@/lib/utils/journeyUtils';
+import { formatKmDistance, formatDurationMinutes } from '@/lib/utils/journeyUtils';
 
 interface AlternativeSegmentInfoProps {
   place: Place;
@@ -212,7 +212,7 @@ export default function AlternativeSegmentInfo({
                 {/* Right: Duration & Status Check */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className={`text-[11px] font-extrabold ${isSelected ? 'text-blue-600' : 'text-zinc-800'}`}>
-                    {route.duration}분
+                    {formatDurationMinutes(route.duration)}
                   </span>
                   {isSelected && (
                     <svg

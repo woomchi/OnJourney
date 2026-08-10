@@ -38,6 +38,17 @@ export interface BaseRouteData {
   startWalkSection?: { lat: number; lng: number }[];
   endWalkSection?: { lat: number; lng: number }[];
   tags?: string[];
+  fareBreakdown?: FareSection[];
+}
+
+/** 구간별 요금 분해 정보 */
+export interface FareSection {
+  label: string;       // 예: "경기도 화성 버스·지하철", "SRT"
+  payment: number;     // 구간 요금 (원)
+  time?: number;       // 구간 소요 시간 (분)
+  distance?: number;   // 구간 거리 (m)
+  type: 'transit' | 'intercity' | 'walk';
+  trainSpSeatFare?: number; // 특실 추가 요금
 }
 
 // ─── 경유지 ───────────────────────────────────────────────────────────────────
@@ -84,6 +95,17 @@ export interface CreateJourneyInput {
 
 // ─── 경로 단계 ────────────────────────────────────────────────────────────────
 
+export interface SubPathOption {
+  id: string;
+  label: string;
+  type: 'bus' | 'subway' | 'walk';
+  stationName: string;
+  stationId?: string | number;
+  duration: number;
+  lineName?: string;
+  pathPoints?: { lat: number; lng: number }[];
+}
+
 /** 경로를 구성하는 단일 이동 수단 단계 */
 export interface DirectionStep {
   type: 'walk' | 'subway' | 'bus' | 'car' | 'train' | 'expressbus' | 'taxi';
@@ -99,6 +121,11 @@ export interface DirectionStep {
   startLng?: number;
   endLat?: number;
   endLng?: number;
+  startID?: string | number;
+  endID?: string | number;
+  startStationID?: string | number;
+  endStationID?: string | number;
+  subPathOptions?: SubPathOption[];
   passStopList?: {
     stationList: {
       stationName: string;
@@ -106,6 +133,14 @@ export interface DirectionStep {
       lng?: number;
     }[];
   };
+  // maasRP 전용 추가 필드
+  startDateTime?: string;    // "202608101407" (yyyyMMddHHmm)
+  endDateTime?: string;      // "202608101435"
+  waitingTime?: number;      // 대기 시간 (분)
+  trainSubType?: string;     // "SRT", "KTX", "ITX-청춘" 등
+  trainSpSeatYn?: 'Y' | 'N'; // 특실 존재 여부
+  trainSpSeatFare?: number;  // 특실 요금
+  busLaneColor?: string;     // 버스 노선 색상
 }
 
 /** 차량 경로 안내 단일 노드 (거리·시간 포함) */

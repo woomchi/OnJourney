@@ -15,6 +15,10 @@ import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi, fetchTmapDetailRou
 import { getDefaultRoute } from '@/lib/routeUtils';
 import FittedDuration from '@/components/places/FittedDuration';
 import { usePWA } from '@/components/PWAProvider';
+import DepartureTimeSelector from '@/components/common/DepartureTimeSelector';
+import FareBreakdownTooltip from '@/components/route/FareBreakdownTooltip';
+import { formatDurationMinutes } from '@/lib/utils/journeyUtils';
+import RouteTimelineGaugeBar from '@/components/route/RouteTimelineGaugeBar';
 
 interface AlternativeRoutePanelProps {
   originPlace: Place;
@@ -99,6 +103,7 @@ export default function AlternativeRoutePanel({
     setFocusedSegment,
     setFocusedStep,
     setHoveredAlternativeRoute,
+    departureTime
   } = useJourneyStore();
 
   const [snap, setSnap] = useState<number | string | null>('46vh');
@@ -238,11 +243,11 @@ export default function AlternativeRoutePanel({
 
   const queryClient = useQueryClient();
   
-  const publicKey = directionKeys.segmentPublic(originPlace.id, destPlace.id);
-  const carKey = directionKeys.segmentCar(originPlace.id, destPlace.id);
+  const publicKey = directionKeys.segmentPublic(originPlace.id, destPlace.id, departureTime);
+  const carKey = directionKeys.segmentCar(originPlace.id, destPlace.id, departureTime);
   
   const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(publicKey);
-  const carData = queryClient.getQueryData<{ car: DirectionResult[], walk: DirectionResult[] }>(carKey);
+  const carData = queryClient.getQueryState(carKey)?.data as { car: DirectionResult[], walk: DirectionResult[] } | undefined;
   
   const segmentData = useMemo(() => {
     if (!publicData && !carData) return undefined;
@@ -301,16 +306,16 @@ export default function AlternativeRoutePanel({
     if (!publicData && !publicLoading) {
       queryClient.fetchQuery({
         queryKey: publicKey,
-        queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
+        queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace, departureTime || undefined)
       }).catch(console.error);
     }
     if (!carData && !carLoading) {
       queryClient.fetchQuery({
         queryKey: carKey,
-        queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
+        queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined)
       }).catch(console.error);
     }
-  }, [publicData, publicLoading, carData, carLoading, publicKey, carKey, queryClient, originPlace, destPlace]);
+  }, [publicData, publicLoading, carData, carLoading, publicKey, carKey, queryClient, originPlace, destPlace, departureTime]);
 
   const getEmoji = (type: string, name: string) => {
     if (type === 'public') {
@@ -483,7 +488,7 @@ export default function AlternativeRoutePanel({
             <div className="flex flex-col min-w-0 justify-center">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className={`text-sm font-black tracking-tight ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
-                  {route.duration}분
+                  {formatDurationMinutes(route.duration)}
                 </span>
                 {tags.map(tag => {
                   let colorClass = 'bg-blue-50 text-blue-600 border border-blue-100';
@@ -514,8 +519,9 @@ export default function AlternativeRoutePanel({
                   예매처 확인
                 </span>
               ) : route.fare > 0 ? (
-                <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
-                  {route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}
+                <span className="text-[11px] text-zinc-500 font-semibold mt-0.5 flex items-center gap-1">
+                  <span>{route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}</span>
+                  <FareBreakdownTooltip fareBreakdown={route.fareBreakdown} />
                 </span>
               ) : (
                 <span className="text-[11px] text-zinc-500 font-semibold mt-0.5">
@@ -545,85 +551,8 @@ export default function AlternativeRoutePanel({
           </div>
         </div>
 
-        {/* Bottom Section: Gauge Timeline Bar (Web SegmentInfo Style Unified) */}
-        {validSteps.length > 0 && (
-          <div className="w-full flex mt-1.5 mb-1 relative" style={{ paddingLeft: '8px', paddingRight: '4px' }}>
-            {validSteps.map((step, idx) => {
-              const pct = normalizedPcts[idx];
-              const isFirst = idx === 0;
-              const isLast = idx === validSteps.length - 1;
-              const isWalk = step.type === 'walk';
-              const stepColor = step.color || (isWalk ? '#E4E4E7' : '#3b82f6');
-
-              let icon = '🚶';
-              if (step.type === 'subway') icon = '🚇';
-              else if (step.type === 'bus') icon = '🚌';
-              else if (step.type === 'car') icon = '🚗';
-              else if (step.type === 'train') icon = '🚄';
-              else if (step.type === 'expressbus') icon = '🚌';
-              else if (step.type === 'taxi') icon = '🚕';
-
-              return (
-                <div
-                  key={idx}
-                  className="flex flex-col items-stretch min-w-0 relative"
-                  style={{
-                    width: `${pct}%`,
-                    flexShrink: 0,
-                    flexGrow: 0,
-                  }}
-                >
-                  {/* 아이콘 백그라운드 컷아웃 */}
-                  <div
-                    className="absolute left-0 -translate-x-1/2 bg-white rounded-full z-[15]"
-                    style={{ width: '18px', height: '18px', top: '-3px' }}
-                  />
-
-                  {/* 아이콘 */}
-                  <div
-                    className="absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20"
-                    style={{
-                      borderColor: stepColor,
-                      width: '14px',
-                      height: '14px',
-                      top: '-1px',
-                    }}
-                  >
-                    <span className="text-[8px] leading-none">{icon}</span>
-                  </div>
-
-                  {/* 타임라인 바 조각 */}
-                  <div
-                    className="relative flex items-center justify-center h-3 overflow-hidden"
-                    style={{
-                      backgroundColor: stepColor,
-                      borderTopLeftRadius: isFirst ? '9999px' : '0px',
-                      borderBottomLeftRadius: isFirst ? '9999px' : '0px',
-                      borderTopRightRadius: isLast ? '9999px' : '0px',
-                      borderBottomRightRadius: isLast ? '9999px' : '0px',
-                      zIndex: 1,
-                    }}
-                  >
-                    <FittedDuration duration={step.duration} isWalk={isWalk} />
-                  </div>
-
-                  {/* 하단 노선명 텍스트 */}
-                  <div className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden">
-                    {step.type !== 'walk' ? (
-                      <span style={{ color: stepColor }} className="truncate">
-                        {step.type === 'subway'
-                          ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
-                          : step.name.replace(' 버스', '').replace(' 일반', '').replace(' 간선', '').replace(' 지선', '')}
-                      </span>
-                    ) : (
-                      <span className="invisible">&nbsp;</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Bottom Section: Gauge Timeline Bar (Auto-scroll on low visibility) */}
+        <RouteTimelineGaugeBar steps={route.steps} className="mt-1.5 mb-1" />
       </button>
     );
   };
@@ -775,6 +704,12 @@ export default function AlternativeRoutePanel({
             </AnimatePresence>
           </div>
         </div>
+      </div>
+
+      {/* 3층: 출발 시각 설정 */}
+      <div className="mx-4 pb-3 flex items-center justify-between border-t border-zinc-100/50 pt-2.5 bg-zinc-50/50 -mt-3 mb-2 px-3 rounded-lg">
+        <span className="text-[11px] font-bold text-zinc-500">길찾기 출발 시각</span>
+        <DepartureTimeSelector />
       </div>
 
       <div className={`px-5 ${isMobile ? 'pt-1.5 pb-1' : 'pt-4 pb-2'} flex-shrink-0 flex flex-col gap-1.5`}>

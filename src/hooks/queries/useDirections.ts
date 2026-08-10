@@ -7,15 +7,15 @@ import { useJourneyStore } from '@/stores/journey-store';
 export const directionKeys = {
   all: ['directions'] as const,
   segment: (originId: string, destId: string) => [...directionKeys.all, originId, destId] as const,
-  segmentPublic: (originId: string, destId: string) => [...directionKeys.segment(originId, destId), 'public'] as const,
-  segmentCar: (originId: string, destId: string) => [...directionKeys.segment(originId, destId), 'car'] as const,
+  segmentPublic: (originId: string, destId: string, departureTime?: number | null) => [...directionKeys.segment(originId, destId), 'public', departureTime ?? 'now'] as const,
+  segmentCar: (originId: string, destId: string, departureTime?: number | null) => [...directionKeys.segment(originId, destId), 'car', departureTime ?? 'now'] as const,
 };
 
 export function useSegmentDirection(origin: Place | null, dest: Place | null) {
   const { departureTime } = useJourneyStore();
   
   const publicQuery = useQuery({
-    queryKey: origin && dest ? directionKeys.segmentPublic(origin.id, dest.id) : directionKeys.all,
+    queryKey: origin && dest ? directionKeys.segmentPublic(origin.id, dest.id, departureTime) : directionKeys.all,
     queryFn: () => {
       if (!origin || !dest) throw new Error('Invalid origin or dest');
       return fetchPublicDirectionsApi(origin, dest, departureTime || undefined);
@@ -25,7 +25,7 @@ export function useSegmentDirection(origin: Place | null, dest: Place | null) {
   });
 
   const carWalkQuery = useQuery({
-    queryKey: origin && dest ? directionKeys.segmentCar(origin.id, dest.id) : directionKeys.all,
+    queryKey: origin && dest ? directionKeys.segmentCar(origin.id, dest.id, departureTime) : directionKeys.all,
     queryFn: () => {
       if (!origin || !dest) throw new Error('Invalid origin or dest');
       return fetchCarWalkDirectionsApi(origin, dest, departureTime || undefined);
@@ -39,6 +39,7 @@ export function useSegmentDirection(origin: Place | null, dest: Place | null) {
 
 export function useJourneyDirections() {
   const queryClient = useQueryClient();
+  const { departureTime } = useJourneyStore();
 
   const fetchSequentialDirections = async (places: Place[]) => {
     if (!places || places.length < 2) return;
@@ -53,8 +54,8 @@ export function useJourneyDirections() {
         continue;
       }
 
-      const publicKey = directionKeys.segmentPublic(currentPlace.id, nextPlace.id);
-      const carKey = directionKeys.segmentCar(currentPlace.id, nextPlace.id);
+      const publicKey = directionKeys.segmentPublic(currentPlace.id, nextPlace.id, departureTime);
+      const carKey = directionKeys.segmentCar(currentPlace.id, nextPlace.id, departureTime);
       
       const publicCached = queryClient.getQueryData(publicKey);
       const carCached = queryClient.getQueryData(carKey);
@@ -62,14 +63,14 @@ export function useJourneyDirections() {
       if (!publicCached) {
         allPromises.push(queryClient.fetchQuery({
           queryKey: publicKey,
-          queryFn: () => fetchPublicDirectionsApi(currentPlace, nextPlace),
+          queryFn: () => fetchPublicDirectionsApi(currentPlace, nextPlace, departureTime || undefined),
           staleTime: 1000 * 60 * 30,
         }));
       }
       if (!carCached) {
         allPromises.push(queryClient.fetchQuery({
           queryKey: carKey,
-          queryFn: () => fetchCarWalkDirectionsApi(currentPlace, nextPlace),
+          queryFn: () => fetchCarWalkDirectionsApi(currentPlace, nextPlace, departureTime || undefined),
           staleTime: 1000 * 60 * 30,
         }));
       }
@@ -89,6 +90,7 @@ export function useJourneyDirections() {
 
 export function useJourneyDirectionsCache(places: Place[] | undefined) {
   const queryClient = useQueryClient();
+  const { departureTime } = useJourneyStore();
   const [directionsCache, setDirectionsCache] = useState<Record<string, DirectionsApiResponse>>({});
 
   const placesRef = useRef(places);
@@ -116,8 +118,8 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
       currentPlaces.slice(0, -1).forEach((origin, i) => {
         const dest = currentPlaces[i + 1];
         const cacheKey = `${origin.id}-${dest.id}`;
-        const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id));
-        const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id));
+        const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+        const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
         
         if (publicData || carData) {
           newCache[cacheKey] = {
@@ -143,7 +145,7 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
     };
 
     updateCache();
-  }, [placesKey, queryClient]);
+  }, [placesKey, queryClient, departureTime]);
 
   useEffect(() => {
     let cacheUpdateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -169,8 +171,8 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
                 currentPlaces.slice(0, -1).forEach((origin, i) => {
                   const dest = currentPlaces[i + 1];
                   const cacheKey = `${origin.id}-${dest.id}`;
-                  const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id));
-                  const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id));
+                  const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+                  const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
                   
                   if (publicData || carData) {
                     newCache[cacheKey] = {
@@ -204,7 +206,7 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
       unsubscribe();
       if (cacheUpdateTimer) clearTimeout(cacheUpdateTimer);
     };
-  }, [queryClient]);
+  }, [queryClient, departureTime]);
 
   return directionsCache;
 }

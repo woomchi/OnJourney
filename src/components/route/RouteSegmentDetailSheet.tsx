@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { DirectionStep } from '@/types/journey';
-import { Bus, Train, Footprints, X, Bell, MapPin, Navigation } from 'lucide-react';
+import { Bus, Train, Footprints, X, Bell, MapPin, Navigation, Clock } from 'lucide-react';
+import { formatDurationMinutes } from '@/lib/utils/journeyUtils';
 
 interface RouteSegmentDetailSheetProps {
   step: DirectionStep | null;
@@ -85,7 +86,7 @@ export const RouteSegmentDetailSheet: React.FC<RouteSegmentDetailSheetProps> = (
                   {step.type === 'walk' ? '도보' : step.name || '이동 구간'}
                 </span>
                 <span className="text-xs font-bold text-blue-600">
-                  {step.duration}분 소요
+                  {formatDurationMinutes(step.duration)} 소요
                 </span>
               </div>
               <h3 className="text-base font-extrabold text-slate-900 truncate mt-0.5">

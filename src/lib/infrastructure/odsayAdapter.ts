@@ -88,6 +88,10 @@ export class OdsayAdapter {
 
     const url = `https://api.odsay.com/v1/api/${endpoint}?${queryParams.toString()}`;
 
+    // ── DEBUG: 실제 요청 URL (API 키 마스킹)
+    const debugUrl = url.replace(/apiKey=[^&]+/, 'apiKey=***');
+    console.log(`[OdsayAdapter][DEBUG] ▶ ${endpoint} 요청:`, debugUrl);
+
     let res: Response;
     try {
       res = await externalFetch(url, {
@@ -97,10 +101,31 @@ export class OdsayAdapter {
         },
       });
     } catch (err: any) {
+      console.error(`[OdsayAdapter][DEBUG] ✗ ${endpoint} 네트워크 오류:`, err);
       throw this.convertNetworkError(err);
     }
 
+    // ── DEBUG: HTTP 응답 상태
+    console.log(`[OdsayAdapter][DEBUG] ◀ ${endpoint} HTTP 상태: ${res.status} ${res.statusText}`);
+
     const data = await res.json();
+
+    // ── DEBUG: 원시 응답 최상위 구조
+    console.log(`[OdsayAdapter][DEBUG] ◀ ${endpoint} 응답 최상위 키:`, Object.keys(data || {}));
+    if (data?.result) {
+      const resultKeys = Object.keys(data.result);
+      console.log(`[OdsayAdapter][DEBUG]   result 키:`, resultKeys);
+      if (data.result.paths) {
+        console.log(`[OdsayAdapter][DEBUG]   paths 개수:`, data.result.paths.length);
+      }
+      if (data.result.publicTransit_pathCnt !== undefined) {
+        console.log(`[OdsayAdapter][DEBUG]   publicTransit_pathCnt:`, data.result.publicTransit_pathCnt);
+      }
+    }
+    if (data?.error) {
+      console.error(`[OdsayAdapter][DEBUG]   error 필드:`, JSON.stringify(data.error));
+    }
+
     this.checkAndThrowBodyError(data);
     return data;
   }
@@ -113,9 +138,48 @@ export class OdsayAdapter {
     sy: string,
     ex: string,
     ey: string,
+    apiKey?: string,
+    searchType?: string,
+    opt?: string
+  ): Promise<any> {
+    return this.getOdsayData(
+      'searchPubTransPathT',
+      { SX: sx, SY: sy, EX: ex, EY: ey, SearchType: searchType, OPT: opt },
+      apiKey
+    );
+  }
+
+  /**
+   * ODsay 멀티모달 대중교통 길찾기 API 어댑터 (#28 maasRP)
+   */
+  public static async fetchMaasRP(
+    sx: string,
+    sy: string,
+    ex: string,
+    ey: string,
+    searchTime: string,
+    searchMethod: string = '2',
     apiKey?: string
   ): Promise<any> {
-    return this.getOdsayData('searchPubTransPathT', { SX: sx, SY: sy, EX: ex, EY: ey }, apiKey);
+    console.log(`[OdsayAdapter][DEBUG] fetchMaasRP 호출 파라미터:`, { SX: sx, SY: sy, EX: ex, EY: ey, SearchTime: searchTime, SearchMethod: searchMethod });
+    return this.getOdsayData(
+      'maasRP',
+      { SX: sx, SY: sy, EX: ex, EY: ey, SearchTime: searchTime, SearchMethod: searchMethod },
+      apiKey
+    );
+  }
+
+  /**
+   * ODsay 위치 기반 반경 정류장 검색 API 어댑터 (#18 pointSearch)
+   */
+  public static async fetchPointSearch(
+    x: string,
+    y: string,
+    radius: string = '5000',
+    stationClass?: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('pointSearch', { x, y, radius, stationClass }, apiKey);
   }
 
   /**
@@ -196,6 +260,58 @@ export class OdsayAdapter {
     apiKey?: string
   ): Promise<any> {
     return this.getOdsayData('searchCID', { cityName }, apiKey);
+  }
+
+  /**
+   * ODsay 열차/KTX 운행정보 검색 어댑터 (#4 trainServiceTime)
+   */
+  public static async fetchTrainServiceTime(
+    startStationID: string,
+    endStationID: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('trainServiceTime', { startStationID, endStationID }, apiKey);
+  }
+
+  /**
+   * ODsay 고속/시외버스 운행정보 검색 어댑터 (#7 searchInterBusSchedule)
+   */
+  public static async fetchInterBusSchedule(
+    startStationID: string,
+    endStationID: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('searchInterBusSchedule', { startStationID, endStationID }, apiKey);
+  }
+
+  /**
+   * ODsay 고속버스 터미널 목록 조회 어댑터 (#22 expressBusTerminals)
+   */
+  public static async fetchExpressBusTerminals(
+    cid?: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('expressBusTerminals', { CID: cid }, apiKey);
+  }
+
+  /**
+   * ODsay 시외버스 터미널 목록 조회 어댑터 (#23 intercityBusTerminals)
+   */
+  public static async fetchIntercityBusTerminals(
+    cid?: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('intercityBusTerminals', { CID: cid }, apiKey);
+  }
+
+  /**
+   * ODsay 기차역 터미널 목록 조회 어댑터 (#25 trainTerminals)
+   */
+  public static async fetchTrainTerminals(
+    cid?: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('trainTerminals', { CID: cid }, apiKey);
   }
 
   /**

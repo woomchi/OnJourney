@@ -18,6 +18,8 @@ import RouteSegmentDetailSheet from '@/components/route/RouteSegmentDetailSheet'
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { MapPin, ChevronLeft, Pencil, RefreshCw } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
+import DepartureTimeSelector from '@/components/common/DepartureTimeSelector';
+import FareBreakdownTooltip from '@/components/route/FareBreakdownTooltip';
 
 
 
@@ -654,11 +656,11 @@ export default function RouteGuidePanel({
                 <>
                   {/* Tooltip Body: 서비스 시그니처 그라데이션 테마 적용 */}
                   <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                    transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute z-[1000] right-0 top-full mt-2.5 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15"
+                     initial={{ opacity: 0, y: -6, scale: 0.95 }}
+                     animate={{ opacity: 1, y: 0, scale: 1 }}
+                     exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                     transition={{ duration: 0.15, ease: 'easeOut' }}
+                     className="absolute z-[1000] right-0 top-full mt-2.5 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15"
                   >
                     <p className="font-bold text-[13px] mb-1">{destPlace.place_name}</p>
                     {destPlace.address && (
@@ -667,11 +669,11 @@ export default function RouteGuidePanel({
                   </motion.div>
                   {/* Tooltip Arrow: 그라데이션 중앙 색상인 indigo-500 적용 */}
                   <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute z-[1001] left-1/2 -translate-x-1/2 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-violet-500 pointer-events-none"
+                     initial={{ opacity: 0, y: -6 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     exit={{ opacity: 0, y: -6 }}
+                     transition={{ duration: 0.15, ease: 'easeOut' }}
+                     className="absolute z-[1001] left-1/2 -translate-x-1/2 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-violet-500 pointer-events-none"
                   />
                 </>
               )}
@@ -679,6 +681,24 @@ export default function RouteGuidePanel({
           </div>
         </div>
       </div>
+
+      {/* 세 번째 행: 출발 시각 선택기 */}
+      <div className="px-5 pb-2.5 flex items-center justify-between border-t border-zinc-100/50 pt-2.5 bg-zinc-50/50">
+        <span className="text-[11px] font-bold text-zinc-500">길찾기 출발 시각</span>
+        <DepartureTimeSelector />
+      </div>
+
+      {/* 네 번째 행: 예상 요금 정보 */}
+      {route.type === 'public' && (route.fare ?? 0) > 0 && (
+        <div className="px-5 pb-2.5 flex items-center justify-between bg-zinc-50/50">
+          <span className="text-[11px] font-bold text-zinc-500">예상 요금</span>
+          <span className="flex items-center gap-1 text-[12px] font-bold text-zinc-800">
+            <span>{route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}</span>
+            <FareBreakdownTooltip fareBreakdown={route.fareBreakdown} />
+          </span>
+        </div>
+      )}
+
       {route.isEstimated && (
         <div className="mx-5 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800 text-xs font-semibold">
           <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

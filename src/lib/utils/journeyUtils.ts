@@ -193,5 +193,28 @@ export function formatDuration(ms: number): string {
   if (ms < DURATION_DISPLAY_MIN_MS) return '';
   const seconds = Math.round(ms / DURATION_DISPLAY_MIN_MS);
   if (seconds < DURATION_MINUTES_THRESHOLD_SECONDS) return `${seconds}초`;
-  return `${Math.round(seconds / DURATION_MINUTES_THRESHOLD_SECONDS)}분`;
+  return formatDurationMinutes(Math.round(seconds / DURATION_MINUTES_THRESHOLD_SECONDS));
+}
+
+/**
+ * 분 단위 소요 시간을 사람이 읽기 쉬운 형식으로 변환합니다.
+ *
+ * - 60분 미만: "X분" 형식
+ * - 60분 이상: "X시간 Y분" (0분인 경우 "X시간") 형식
+ *
+ * @param minutes 분 단위 소요 시간
+ *
+ * @example
+ * formatDurationMinutes(35)  // → "35분"
+ * formatDurationMinutes(60)  // → "1시간"
+ * formatDurationMinutes(171) // → "2시간 51분"
+ */
+export function formatDurationMinutes(minutes?: number | null): string {
+  if (minutes == null || isNaN(minutes) || minutes <= 0) return '0분';
+  const mins = Math.round(minutes);
+  if (mins < 60) return `${mins}분`;
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  if (remainingMins === 0) return `${hours}시간`;
+  return `${hours}시간 ${remainingMins}분`;
 }

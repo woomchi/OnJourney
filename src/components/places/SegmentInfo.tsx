@@ -12,7 +12,8 @@ import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { formatKmDistance } from '@/lib/utils/journeyUtils';
+import { formatKmDistance, formatDurationMinutes } from '@/lib/utils/journeyUtils';
+import RouteTimelineGaugeBar from '@/components/route/RouteTimelineGaugeBar';
 
 // 1. 구간 이동 정보 뼈대 로딩 UI
 export function SegmentInfoSkeleton() {
@@ -144,7 +145,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   const isThisSegmentFocused = focusedSegment?.originId === placeId && focusedSegment?.destId === destId;
   const segmentColor = SEQUENCE_COLORS[index % SEQUENCE_COLORS.length];
 
-  const duration = data.duration ? `${data.duration}분` : '';
+  const duration = data.duration ? formatDurationMinutes(data.duration) : '';
   const type = data.type || 'public';
 
   // Get active Places for Alternative route prefetching & distance calculation
@@ -356,41 +357,54 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
         {/* 2. 동적 타임라인 바 및 하단 노선 정보 (포커스/선택 시에만 확장되어 노출됨) */}
         {isThisSegmentFocused && (
           <div className="border-t border-zinc-100 mt-2.5 pt-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="flex mt-2 mb-1 relative" style={{ paddingLeft: '8px', paddingRight: '4px' }}>
-              {data.steps.map((step, idx) => {
-                const isFirst = idx === 0;
-                const isLast = idx === data.steps.length - 1;
-                const pct = normalizedPcts[idx];
+            <div 
+              className="w-full overflow-x-auto scrollbar-none mt-1 mb-1 relative cursor-grab active:cursor-grabbing"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div 
+                className="flex relative" 
+                style={{ 
+                  paddingLeft: '8px', 
+                  paddingRight: '12px',
+                  minWidth: data.steps.length >= 4 ? `${data.steps.length * 76}px` : '100%'
+                }}
+              >
+                {data.steps.map((step, idx) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === data.steps.length - 1;
+                  const pct = normalizedPcts[idx];
 
-                let icon = '🚶';
-                if (step.type === 'subway') icon = '🚇';
-                else if (step.type === 'bus') icon = '🚌';
-                else if (step.type === 'car') icon = '🚗';
-                else if (step.type === 'train') icon = '🚄';
-                else if (step.type === 'expressbus') icon = '🚌';
+                  let icon = '🚶';
+                  if (step.type === 'subway') icon = '🚇';
+                  else if (step.type === 'bus') icon = '🚌';
+                  else if (step.type === 'car') icon = '🚗';
+                  else if (step.type === 'train') icon = '🚄';
+                  else if (step.type === 'expressbus') icon = '🚌';
 
-                const segmentColor = SEQUENCE_COLORS[index % SEQUENCE_COLORS.length];
-                const stepColor = step.type === 'walk' ? '#E4E4E7' : segmentColor;
+                  const segmentColor = SEQUENCE_COLORS[index % SEQUENCE_COLORS.length];
+                  const stepColor = step.type === 'walk' ? '#E4E4E7' : segmentColor;
 
-                const isWalk = step.type === 'walk';
+                  const isWalk = step.type === 'walk';
 
-                const isThisStepFocused = !!(
-                  focusedStep &&
-                  focusedStep.originId === placeId &&
-                  focusedStep.destId === destId &&
-                  focusedStep.stepIndex === idx
-                );
-                const hasFocusedStep = !!(focusedStep && focusedStep.subType !== 'dest');
+                  const isThisStepFocused = !!(
+                    focusedStep &&
+                    focusedStep.originId === placeId &&
+                    focusedStep.destId === destId &&
+                    focusedStep.stepIndex === idx
+                  );
+                  const hasFocusedStep = !!(focusedStep && focusedStep.subType !== 'dest');
 
-                return (
-                  <div
-                    key={idx}
-                    className="flex flex-col items-stretch min-w-0 relative group/step cursor-pointer"
-                    style={{
-                      width: `${pct}%`,
-                      flexShrink: 0,
-                      flexGrow: 0,
-                    }}
+                  return (
+                    <div
+                      key={idx}
+                      className="flex flex-col items-stretch min-w-0 relative group/step cursor-pointer"
+                      style={{
+                        width: data.steps.length >= 4 ? `${100 / data.steps.length}%` : `${pct}%`,
+                        flexShrink: 0,
+                        flexGrow: 0,
+                      }}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!placeId || !destId) return;
@@ -507,10 +521,11 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               })}
             </div>
           </div>
-        )}
-      </div>
-    );
-  }
+        </div>
+      )}
+    </div>
+  );
+}
 
   // Desktop Web UI: Classic always-visible horizontal timeline bar (gauge bar) format
   const transitSteps = data.steps.filter((s: any) => s.type !== 'walk');
@@ -625,159 +640,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
         </div>
       </div>
 
-      {/* 동적 타임라인 바 및 하단 노선 정보 */}
-      <div className="flex mt-2 mb-1 relative" style={{ paddingLeft: '8px', paddingRight: '4px' }}>
-        {data.steps.map((step, idx) => {
-          const isFirst = idx === 0;
-          const isLast = idx === data.steps.length - 1;
-          const pct = normalizedPcts[idx];
-
-          let icon = '🚶';
-          if (step.type === 'subway') icon = '🚇';
-          else if (step.type === 'bus') icon = '🚌';
-          else if (step.type === 'car') icon = '🚗';
-          else if (step.type === 'train') icon = '🚄';
-          else if (step.type === 'expressbus') icon = '🚌';
-
-          const segmentColor = SEQUENCE_COLORS[index % SEQUENCE_COLORS.length];
-          const stepColor = step.type === 'walk' ? '#E4E4E7' : segmentColor;
-
-          const isWalk = step.type === 'walk';
-
-          const isThisStepFocused = !!(
-            focusedStep &&
-            focusedStep.originId === placeId &&
-            focusedStep.destId === destId &&
-            focusedStep.stepIndex === idx
-          );
-          const hasFocusedStep = !!(focusedStep && focusedStep.subType !== 'dest');
-
-          return (
-            <div
-              key={idx}
-              className="flex flex-col items-stretch min-w-0 relative group/step cursor-pointer"
-              style={{
-                width: `${pct}%`,
-                flexShrink: 0,
-                flexGrow: 0,
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!placeId || !destId) return;
-
-                // Ensure segment focus is active
-                const isSegmentFocused = focusedSegment && focusedSegment.originId === placeId && focusedSegment.destId === destId;
-                if (!isSegmentFocused) {
-                  setFocusedSegment({ originId: placeId, destId });
-                }
-
-                if (isThisStepFocused) {
-                  setFocusedStep(null);
-                  const bounds = calculateSegmentBounds(
-                    { lat: data.pathPoints[0].lat, lng: data.pathPoints[0].lng },
-                    { lat: data.pathPoints[data.pathPoints.length - 1].lat, lng: data.pathPoints[data.pathPoints.length - 1].lng },
-                    data
-                  );
-                  setFocusBounds(bounds);
-                } else {
-                  let subType: 'start' | 'end' | 'dest' | undefined = undefined;
-                  if (step.type === 'car' || step.type === 'taxi') {
-                    subType = 'start';
-                  } else if (step.type !== 'walk' && step.startName) {
-                    subType = 'start';
-                  }
-
-                  let lat = step.startLat;
-                  let lng = step.startLng;
-
-                  if (lat === undefined || lng === undefined) {
-                    if (step.pathPoints && step.pathPoints.length > 0) {
-                      lat = step.pathPoints[0].lat;
-                      lng = step.pathPoints[0].lng;
-                    }
-                  }
-
-                  if (lat !== undefined && lng !== undefined) {
-                    setFocusBounds({
-                      sw: { lat, lng },
-                      ne: { lat, lng }
-                    });
-                  } else {
-                    const bounds = calculateStepBounds(step);
-                    if (bounds) {
-                      setFocusBounds(bounds);
-                    }
-                  }
-
-                  setFocusedStep({
-                    originId: placeId,
-                    destId,
-                    stepIndex: idx,
-                    subType
-                  });
-                }
-              }}
-            >
-              {/* 아이콘 백그라운드 컷아웃 */}
-              <div
-                className="absolute left-0 -translate-x-1/2 bg-white rounded-full z-[15] transition-all duration-200"
-                style={{ width: '20px', height: '20px', top: '-4px' }}
-              />
-
-              {/* 아이콘 */}
-              <div
-                className={`absolute left-0 -translate-x-1/2 flex items-center justify-center bg-white rounded-full shadow-sm border z-20 transition-all duration-200 ${isThisStepFocused ? 'scale-110' : ''}`}
-                style={{
-                  borderColor: stepColor,
-                  width: '16px',
-                  height: '16px',
-                  top: '-2px',
-                  opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
-                }}
-              >
-                <span className="text-[9px] leading-none">{icon}</span>
-              </div>
-
-              {/* 타임라인 바 조각 */}
-              <div
-                className="relative flex items-center justify-center h-3 overflow-hidden transition-all duration-200"
-                style={{
-                  backgroundColor: stepColor,
-                  borderTopLeftRadius: isFirst ? '9999px' : '0px',
-                  borderBottomLeftRadius: isFirst ? '9999px' : '0px',
-                  borderTopRightRadius: isLast ? '9999px' : '0px',
-                  borderBottomRightRadius: isLast ? '9999px' : '0px',
-                  opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
-                  zIndex: isThisStepFocused ? 10 : 1,
-                }}
-              >
-                <FittedDuration duration={step.duration} isWalk={isWalk} />
-              </div>
-
-              {/* 하단 노선명 텍스트 */}
-              {hasTransit && (
-                <div
-                  className="text-center mt-1 text-[9px] font-extrabold truncate px-0.5 min-h-[12px] min-w-0 overflow-hidden transition-all duration-200"
-                  style={{
-                    opacity: hasFocusedStep ? (isThisStepFocused ? 1 : 0.35) : 1,
-                  }}
-                  title={step.type !== 'walk' ? step.name : undefined}
-                >
-                  {step.type !== 'walk' ? (
-                    <span style={{ color: stepColor }} className="truncate">
-                      {step.type === 'subway'
-                        ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
-                        : step.name.replace(' 버스', '')}
-                    </span>
-                  ) : (
-                    <span className="invisible">&nbsp;</span>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {/* 동적 타임라인 바 및 하단 노선 정보 (시인성 기준 조건부 가로 스크롤 적용) */}
+      <RouteTimelineGaugeBar steps={data.steps} className="mt-2 mb-1" />
     </div>
   );
 }

@@ -1,63 +1,62 @@
-import type { DirectionResult, DirectionStep } from '@/types/journey';
+import type { DirectionResult } from '@/types/journey';
 import { unstable_cache } from 'next/cache';
-import { chunkAsync } from '@/lib/utils/odsayThrottle';
-import { WALK_LIMITS } from '@/constants/transit';
 import { odsayCircuitBreaker } from '@/lib/infrastructure/circuitBreaker';
 import { OdsayAdapter, AppError } from '@/lib/infrastructure/odsayAdapter';
-import { haversineDistance } from '../common/distanceUtils';
-import { getTimeGroup } from '../common/timeUtils';
-import { getSubwayColor, cleanSubwayName, getBusColor } from './transitColorUtils';
-import { calculateCarFallback } from '../car/carRouteService';
-import { DirectionsQueryType } from '@/lib/validations/directions';
+import { parseMaasRPResponse } from './maasRPParser';
 
-type OdsayApiCacheResult =
+type MaasRPApiCacheResult =
   | { ok: true; data: any }
   | { ok: false; error: string; code: string };
 
-// ODsay 대중교통 경로 조회를 위한 top-level 캐시 함수
-const getCachedOdsayDirections = unstable_cache(
-  async (rsx: string, rsy: string, rex: string, rey: string, apiKey: string, timeSlot: string) => {
-    return odsayCircuitBreaker.execute<OdsayApiCacheResult>(
-      async () => {
-        const data = await OdsayAdapter.fetchPublicTransit(rsx, rsy, rex, rey, apiKey);
-        return { ok: true as const, data };
-      },
-      (err: any) => {
-        const isRetryable = err?.isRetryable === true || err?.message?.includes('Circuit breaker is OPEN');
-        if (!isRetryable) {
-          return { ok: false as const, error: err?.message || 'API Error', code: err?.code || 'API_ERROR' };
-        }
-        throw err;
-      }
-    );
-  },
-  ['odsay-directions-pubtrans'],
-  { revalidate: 3600 }
-);
-
-// ODsay loadLane 조회를 위한 top-level 캐시 함수 (시간 독립 30일 장기 캐시)
-const getCachedOdsayLoadLane = unstable_cache(
-  async (mapObjectParam: string, apiKey: string) => {
-    return odsayCircuitBreaker.execute<OdsayApiCacheResult>(
-      async () => {
-        const data = await OdsayAdapter.fetchLoadLane(mapObjectParam, apiKey);
-        return { ok: true as const, data };
-      },
-      (err: any) => {
-        const isRetryable = err?.isRetryable === true || err?.message?.includes('Circuit breaker is OPEN');
-        if (!isRetryable) {
-          return { ok: false as const, error: err?.message || 'LoadLane Error', code: err?.code || 'LOADLANE_ERROR' };
-        }
-        throw err;
-      }
-    );
-  },
-  ['odsay-loadlane-v1'],
-  { revalidate: 60 * 60 * 24 * 30 }
-);
+/**
+ * departureTime (timestamp ms) 또는 현재 시각을 yyyyMMddHHmm 문자열로 변환하는 유틸
+ */
+function toSearchTime(departureTime?: number): string {
+  const d = departureTime ? new Date(departureTime) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}${month}${day}${hours}${minutes}`;
+}
 
 /**
- * ODsay 대중교통 경로 호출 함수
+ * ODsay 멀티모달(maasRP) 대중교통 경로 캐시 함수 (시간대별 5분 캐싱)
+ */
+function getCachedMaasRP(sx: string, sy: string, ex: string, ey: string, searchTime: string, apiKey: string) {
+  return unstable_cache(
+    async () => {
+      // ── 이 줄이 출력되면 캐시 MISS (실제 API 호출), 출력되지 않으면 캐시 HIT
+      console.log(`[PublicTransitService][DEBUG] 🔄 getCachedMaasRP 캐시 MISS - 실제 API 호출 진행 (SX=${sx}, Time=${searchTime})`);
+      return odsayCircuitBreaker.execute<MaasRPApiCacheResult>(
+        async () => {
+          const data = await OdsayAdapter.fetchMaasRP(sx, sy, ex, ey, searchTime, '2', apiKey);
+          console.log(`[PublicTransitService][DEBUG] API 응답 수신 완료, data.result 존재:`, !!data?.result);
+          return { ok: true as const, data };
+        },
+        (err: any) => {
+          const isRetryable = err?.isRetryable === true || err?.message?.includes('Circuit breaker is OPEN');
+          console.error(`[PublicTransitService][DEBUG] circuitBreaker fallback 진입:`, err?.name, err?.message, `isRetryable=${isRetryable}`);
+          if (!isRetryable) {
+            return {
+              ok: false as const,
+              error: err?.message || 'MaasRP Public Directions Error',
+              code: err?.code || 'MAAS_RP_DIRECTIONS_ERROR',
+            };
+          }
+          throw err;
+        }
+      );
+    },
+    ['odsay-maas-rp-v2', sx, sy, ex, ey, searchTime],
+    { revalidate: 60 * 5 }
+  )();
+}
+
+
+/**
+ * 대중교통 경로 호출 메인 함수 (ODsay maasRP 기반 전면 통합)
  */
 export async function fetchPublicTransitOptions(
   sx: number,
@@ -75,363 +74,57 @@ export async function fetchPublicTransitOptions(
   const rsy = sy.toFixed(4);
   const rex = ex.toFixed(4);
   const rey = ey.toFixed(4);
-  const timeGroup = getTimeGroup(departureTime);
+  const searchTime = toSearchTime(departureTime);
 
-  const res = await getCachedOdsayDirections(rsx, rsy, rex, rey, apiKey, timeGroup);
+  console.log(`[PublicTransitService][DEBUG] ▶ fetchPublicTransitOptions 호출`);
+  console.log(`[PublicTransitService][DEBUG]   좌표: SX=${rsx}, SY=${rsy}, EX=${rex}, EY=${rey}`);
+  console.log(`[PublicTransitService][DEBUG]   시간: SearchTime=${searchTime} (departureTime=${departureTime ?? 'undefined(현재시각사용)'})`);
+  console.log(`[PublicTransitService][DEBUG]   API Key 존재: ${!!apiKey}`);
+
+  const res = await getCachedMaasRP(rsx, rsy, rex, rey, searchTime, apiKey);
+  console.log(`[PublicTransitService][DEBUG] getCachedMaasRP 응답 ok:`, res.ok);
+
   if (!res.ok) {
-    throw new AppError(`[API 내부 에러] ${res.error}`, res.code, 500, false);
+    const isNotFound = (res as any).code === 'TRANSIT_ROUTE_NOT_FOUND' || (res as any).error?.includes('찾을 수 없음') || (res as any).error?.includes('결과 데이터');
+    if (isNotFound) {
+      console.warn(`[PublicTransitService] 해당 좌표 구간에 검색된 대중교통 경로가 없습니다.`);
+      return [];
+    }
+    console.error(`[PublicTransitService][DEBUG] ✗ maasRP 에러:`, (res as any).error, (res as any).code);
+    throw new AppError(`[API 내부 에러] ${(res as any).error}`, (res as any).code, 500, false);
   }
+
   const data = res.data;
-
-  if (!data.result || !data.result.path || data.result.path.length === 0) {
-    const err = new Error('대중교통 경로를 찾을 수 없습니다.');
-    err.name = 'NoRouteFound';
-    throw err;
+  console.log(`[PublicTransitService][DEBUG] raw data 키:`, Object.keys(data || {}));
+  if (data?.result) {
+    console.log(`[PublicTransitService][DEBUG] result.paths 길이:`, Array.isArray(data.result.paths) ? data.result.paths.length : '비배열');
   }
 
-  const validPaths = data.result.path.filter((path: any) => {
-    let totalWalkTime = 0;
-    let firstWalkTime = 0;
-    let lastWalkTime = 0;
-    let maxTransferWalkTime = 0;
+  let parsedResults: DirectionResult[];
+  try {
+    parsedResults = parseMaasRPResponse(data, sx, sy, ex, ey);
+  } catch (parseErr: any) {
+    console.error(`[PublicTransitService][DEBUG] ✗ parseMaasRPResponse 예외:`, parseErr?.name, parseErr?.message);
+    throw parseErr;
+  }
 
-    const hasTransit = path.subPath.some((sp: any) => [1, 2, 4, 5, 6].includes(sp.trafficType));
-    if (!hasTransit) return false;
-
-    const isIntercity = path.subPath.some((sp: any) => [4, 5, 6].includes(sp.trafficType));
-    const limits = isIntercity ? WALK_LIMITS.INTERCITY : WALK_LIMITS.GENERAL;
-
-    const subPathsList = path.subPath;
-    subPathsList.forEach((sp: any, i: number) => {
-      if (sp.trafficType === 3) {
-        const time = sp.sectionTime || 0;
-        totalWalkTime += time;
-
-        if (i === 0) {
-          firstWalkTime = time;
-        } else if (i === subPathsList.length - 1) {
-          lastWalkTime = time;
-        } else {
-          maxTransferWalkTime = Math.max(maxTransferWalkTime, time);
-        }
-      }
-    });
-
-    if (firstWalkTime > limits.MAX_WALK_TO_FIRST_STATION) return false;
-    if (lastWalkTime > limits.MAX_WALK_FROM_LAST_STATION) return false;
-    if (maxTransferWalkTime > limits.MAX_TRANSFER_WALK) return false;
-    if (totalWalkTime > limits.MAX_TOTAL_WALK) return false;
-
-    return true;
+  console.log(`[PublicTransitService][DEBUG] ✓ 파싱 완료: ${parsedResults.length}개 경로`);
+  parsedResults.forEach((r, i) => {
+    console.log(`[PublicTransitService][DEBUG]   경로[${i}] id=${r.id}, duration=${r.duration}, steps=${r.steps?.length ?? 0}`);
   });
 
-  if (validPaths.length === 0) {
-    throw new Error('도보 검색 제한 반경을 초과하여 적절한 대중교통 경로가 없습니다.');
-  }
-
-  return chunkAsync(
-    validPaths,
-    async (path: any, pathIdx: number) => {
-      const info = path.info;
-      const subPaths = path.subPath;
-
-      let hasDetailedLanes = false;
-      let laneList: any[] = [];
-      // 1순위 최적 경로(pathIdx === 0)이거나 결과 수가 적을 때(<=2)만 초기 loadLane 호출 수행
-      if (info.mapObj && (pathIdx === 0 || validPaths.length <= 2)) {
-        try {
-          const mapObjectParam = `0:0@${info.mapObj}`;
-          let laneData: any = null;
-          const laneRes = await getCachedOdsayLoadLane(mapObjectParam, apiKey);
-          if (laneRes.ok) {
-            laneData = laneRes.data;
-          }
-
-          if (laneData && laneData.result && laneData.result.lane) {
-            laneList = laneData.result.lane;
-            const transitCount = subPaths.filter((sp: any) => [1, 2, 4, 5, 6].includes(sp.trafficType)).length;
-            if (laneList.length === transitCount) {
-              hasDetailedLanes = true;
-            } else {
-              console.warn(
-                `[directions] path ${pathIdx} loadLane length mismatch (${laneList.length} vs ${transitCount}), ignoring detailed lanes`
-              );
-            }
-          }
-        } catch (e) {
-          console.warn(
-            `[directions] path ${pathIdx} loadLane detailed coordinates fetch failed, fallback to station points:`,
-            e
-          );
-        }
-      }
-
-      let transitIndex = 0;
-      const steps: DirectionStep[] = subPaths
-        .map((sp: any, idx: number) => {
-          let type: DirectionStep['type'] = 'walk';
-          let name = '도보';
-          let color = '#E4E4E7';
-          const stepPathPoints: { lat: number; lng: number }[] = [];
-
-          let startLat = parseFloat(sp.startY || sp.y1);
-          let startLng = parseFloat(sp.startX || sp.x1);
-          if (isNaN(startLat) || isNaN(startLng)) {
-            if (idx === 0) {
-              startLat = sy;
-              startLng = sx;
-            } else {
-              const prevSp = subPaths[idx - 1];
-              if (prevSp.passStopList?.stations?.length > 0) {
-                const lastStation = prevSp.passStopList.stations[prevSp.passStopList.stations.length - 1];
-                startLat = parseFloat(lastStation.y);
-                startLng = parseFloat(lastStation.x);
-              } else {
-                startLat = parseFloat(prevSp.endY || prevSp.y2 || sy);
-                startLng = parseFloat(prevSp.endX || prevSp.x2 || sx);
-              }
-            }
-          }
-
-          let endLat = parseFloat(sp.endY || sp.y2);
-          let endLng = parseFloat(sp.endX || sp.x2);
-          if (isNaN(endLat) || isNaN(endLng)) {
-            if (idx === subPaths.length - 1) {
-              endLat = ey;
-              endLng = ex;
-            } else {
-              const nextSp = subPaths[idx + 1];
-              if (nextSp.passStopList?.stations?.length > 0) {
-                const firstStation = nextSp.passStopList.stations[0];
-                endLat = parseFloat(firstStation.y);
-                endLng = parseFloat(firstStation.x);
-              } else {
-                endLat = parseFloat(nextSp.startY || nextSp.y1 || ey);
-                endLng = parseFloat(nextSp.startX || nextSp.x1 || ex);
-              }
-            }
-          }
-
-          if (sp.trafficType === 1) {
-            type = 'subway';
-            const laneName = sp.lane?.[0]?.name || '지하철';
-            name = cleanSubwayName(laneName);
-            color = getSubwayColor(laneName);
-
-            if (hasDetailedLanes && laneList[transitIndex]) {
-              const lane = laneList[transitIndex];
-              lane.section.forEach((section: any) => {
-                section.graphPos.forEach((pos: any) => {
-                  stepPathPoints.push({ lat: pos.y, lng: pos.x });
-                });
-              });
-            } else if (sp.passStopList && sp.passStopList.stations) {
-              sp.passStopList.stations.forEach((station: any) => {
-                const lat = parseFloat(station.y);
-                const lng = parseFloat(station.x);
-                if (!isNaN(lat) && !isNaN(lng)) {
-                  stepPathPoints.push({ lat, lng });
-                }
-              });
-            }
-            transitIndex++;
-          } else if (sp.trafficType === 2) {
-            type = 'bus';
-            const busNo = sp.lane?.[0]?.busNo || '버스';
-            const busType = sp.lane?.[0]?.type || 1;
-            name = `${busNo}번 버스`;
-            color = getBusColor(busType, busNo);
-
-            if (hasDetailedLanes && laneList[transitIndex]) {
-              const lane = laneList[transitIndex];
-              lane.section.forEach((section: any) => {
-                section.graphPos.forEach((pos: any) => {
-                  stepPathPoints.push({ lat: pos.y, lng: pos.x });
-                });
-              });
-            } else if (sp.passStopList && sp.passStopList.stations) {
-              sp.passStopList.stations.forEach((station: any) => {
-                const lat = parseFloat(station.y);
-                const lng = parseFloat(station.x);
-                if (!isNaN(lat) && !isNaN(lng)) {
-                  stepPathPoints.push({ lat, lng });
-                }
-              });
-            }
-            transitIndex++;
-          } else if (sp.trafficType === 4 || sp.trafficType === 5 || sp.trafficType === 6) {
-            type = sp.trafficType === 4 ? 'train' : 'expressbus';
-            if (sp.trafficType === 4) {
-              const trainTypes: Record<number, string> = {
-                1: 'KTX', 2: '새마을호', 3: '무궁화호', 4: '누리로',
-                6: 'ITX-새마을', 7: 'SRT', 8: 'ITX-청춘', 9: 'ITX-마음',
-              };
-              name = trainTypes[sp.trainType] || '기차';
-            } else {
-              name = sp.trafficType === 5 ? '고속버스' : '시외버스';
-            }
-
-            if (type === 'train') {
-              color = name.includes('SRT') ? '#582E55' : name.includes('KTX') ? '#003366' : '#2C3E50';
-            } else {
-              color = '#e60012';
-            }
-
-            if (sp.passStopList && sp.passStopList.stations) {
-              sp.passStopList.stations.forEach((station: any) => {
-                const lat = parseFloat(station.y);
-                const lng = parseFloat(station.x);
-                if (!isNaN(lat) && !isNaN(lng)) {
-                  stepPathPoints.push({ lat, lng });
-                }
-              });
-            }
-            transitIndex++;
-          } else {
-            type = 'walk';
-            name = '도보';
-            color = '#E4E4E7';
-
-            if (!isNaN(startLat) && !isNaN(startLng)) {
-              stepPathPoints.push({ lat: startLat, lng: startLng });
-            }
-            if (!isNaN(endLat) && !isNaN(endLng)) {
-              stepPathPoints.push({ lat: endLat, lng: endLng });
-            }
-          }
-
-          if (stepPathPoints.length === 0) {
-            if (!isNaN(startLat) && !isNaN(startLng)) {
-              stepPathPoints.push({ lat: startLat, lng: startLng });
-            }
-            if (!isNaN(endLat) && !isNaN(endLng)) {
-              stepPathPoints.push({ lat: endLat, lng: endLng });
-            }
-          }
-
-          if (stepPathPoints.length >= 2 && !isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
-            const firstPoint = stepPathPoints[0];
-            const lastPoint = stepPathPoints[stepPathPoints.length - 1];
-
-            const distNormal =
-              haversineDistance(startLat, startLng, firstPoint.lat, firstPoint.lng) +
-              haversineDistance(endLat, endLng, lastPoint.lat, lastPoint.lng);
-
-            const distReversed =
-              haversineDistance(startLat, startLng, lastPoint.lat, lastPoint.lng) +
-              haversineDistance(endLat, endLng, firstPoint.lat, firstPoint.lng);
-
-            if (distReversed < distNormal) {
-              stepPathPoints.reverse();
-            }
-          }
-
-          let startName = sp.startName || '';
-          let endName = sp.endName || '';
-          if (!startName && sp.passStopList?.stations?.length > 0) {
-            startName = sp.passStopList.stations[0].stationName || '';
-          }
-          if (!endName && sp.passStopList?.stations?.length > 0) {
-            endName = sp.passStopList.stations[sp.passStopList.stations.length - 1].stationName || '';
-          }
-
-          if (type === 'subway' || type === 'train') {
-            if (startName && !startName.endsWith('역')) {
-              startName = `${startName}역`;
-            }
-            if (endName && !endName.endsWith('역')) {
-              endName = `${endName}역`;
-            }
-          }
-
-          let passStopList = undefined;
-          if (sp.passStopList && sp.passStopList.stations) {
-            passStopList = {
-              stationList: sp.passStopList.stations.map((station: any) => ({
-                stationName: station.stationName,
-                lat: parseFloat(station.y) || undefined,
-                lng: parseFloat(station.x) || undefined,
-              })),
-            };
-          }
-
-          return {
-            type,
-            name,
-            duration: sp.sectionTime,
-            color,
-            pathPoints: stepPathPoints,
-            startName: startName || undefined,
-            endName: endName || undefined,
-            headsign: sp.way || undefined,
-            wayCode: sp.wayCode || undefined,
-            startLat: !isNaN(startLat) ? startLat : undefined,
-            startLng: !isNaN(startLng) ? startLng : undefined,
-            endLat: !isNaN(endLat) ? endLat : undefined,
-            endLng: !isNaN(endLng) ? endLng : undefined,
-            passStopList,
-          };
-        })
-        .filter((step: DirectionStep) => step.duration > 0);
-
-      const pathPoints: { lat: number; lng: number }[] = [];
-      pathPoints.push({ lat: sy, lng: sx });
-      steps.forEach((step) => {
-        if (step.pathPoints) {
-          pathPoints.push(...step.pathPoints);
-        }
-      });
-      pathPoints.push({ lat: ey, lng: ex });
-
-      const transitNames = steps
-        .filter((s) => s.type !== 'walk')
-        .map((s) => s.name.replace(' 버스', ''));
-      const displayTitle = transitNames.length > 0 ? transitNames.join(' → ') : '도보 이동';
-
-      const isIntercity = steps.some((s) => s.type === 'train' || s.type === 'expressbus');
-      let fare = info.payment && info.payment > 0 ? info.payment : 0;
-      let isFareEstimated = false;
-
-      if (fare === 0) {
-        const subPathsPayment = subPaths.reduce((sum: number, sp: any) => sum + (sp.payment || 0), 0);
-        if (subPathsPayment > 0) {
-          fare = subPathsPayment;
-        } else if (!isIntercity) {
-          const hasWideAreaBus = steps.some((s) => s.type === 'bus' && s.color === '#e60012');
-          fare = hasWideAreaBus ? 3000 : 1400;
-          isFareEstimated = true;
-        }
-      }
-
-      return {
-        id: `public-${pathIdx}`,
-        type: 'public' as const,
-        name: displayTitle,
-        duration: info.totalTime,
-        fare,
-        distance: info.totalDistance ? info.totalDistance / 1000 : undefined,
-        isFareEstimated: isFareEstimated ? true : undefined,
-        isIntercity: isIntercity ? true : undefined,
-        steps,
-        pathPoints,
-      };
-    },
-    2,
-    150
-  );
+  return parsedResults;
 }
 
 /**
- * 대중교통 경로 조회 API 핸들러용 래퍼 함수
+ * fetchPublicDirections 파사드 래퍼 함수 (하위 호환성 유지)
  */
-export async function fetchPublicDirections(params: DirectionsQueryType): Promise<{ public: DirectionResult[] }> {
-  const { sx, sy, ex, ey, departureTime } = params;
-
-  try {
-    const publicResults = await fetchPublicTransitOptions(sx, sy, ex, ey, departureTime);
-    return { public: publicResults };
-  } catch (error: any) {
-    console.warn('[fetchPublicDirections] Public transit API fetch failed:', error);
-    return { public: [] };
-  }
+export async function fetchPublicDirections(params: {
+  sx: number;
+  sy: number;
+  ex: number;
+  ey: number;
+  departureTime?: number;
+}): Promise<DirectionResult[]> {
+  return fetchPublicTransitOptions(params.sx, params.sy, params.ex, params.ey, params.departureTime);
 }

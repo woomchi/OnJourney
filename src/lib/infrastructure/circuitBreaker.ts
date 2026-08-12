@@ -27,6 +27,7 @@ export enum CircuitState {
 export interface CircuitBreakerOptions {
   failureThreshold?: number; // 연속 실패 허용 횟수 (기본 3회)
   cooldownMs?: number;       // OPEN 상태 유지 시간 (기본 10초)
+  shouldTrip?: (error: any) => boolean; // 실패 카운트에 반영할 에러 여부 판별 (기본: 모든 에러)
 }
 
 export class CircuitBreaker {
@@ -34,11 +35,13 @@ export class CircuitBreaker {
   private failureCount = 0;
   private failureThreshold: number;
   private cooldownMs: number;
+  private shouldTrip?: (error: any) => boolean;
   private lastStateChange: number = Date.now();
 
   constructor(options?: CircuitBreakerOptions) {
     this.failureThreshold = options?.failureThreshold ?? 3;
     this.cooldownMs = options?.cooldownMs ?? 10000;
+    this.shouldTrip = options?.shouldTrip;
   }
 
   public getState(): CircuitState {
@@ -76,20 +79,25 @@ export class CircuitBreaker {
   private onSuccess(): void {
     this.failureCount = 0;
     if (this.state !== CircuitState.CLOSED) {
-      console.info(`[CircuitBreaker] Circuit state changed to CLOSED`);
+      // console.info(`[CircuitBreaker] Circuit state changed to CLOSED`);
       this.state = CircuitState.CLOSED;
       this.lastStateChange = Date.now();
     }
   }
 
   private onFailure(error: any): void {
+    if (this.shouldTrip && !this.shouldTrip(error)) {
+      // console.warn(`[CircuitBreaker] Exception caught but ignored for breaker trip: ${error?.message || error}`);
+      return;
+    }
+
     this.failureCount++;
-    console.warn(`[CircuitBreaker] Execution failed (${this.failureCount}/${this.failureThreshold}): ${error?.message || error}`);
+    // console.warn(`[CircuitBreaker] Execution failed (${this.failureCount}/${this.failureThreshold}): ${error?.message || error}`);
 
     if (this.failureCount >= this.failureThreshold) {
       this.state = CircuitState.OPEN;
       this.lastStateChange = Date.now();
-      console.error(`[CircuitBreaker] Failure threshold reached. Circuit switched to OPEN state.`);
+      // console.error(`[CircuitBreaker] Failure threshold reached. Circuit switched to OPEN state.`);
     }
   }
 }
@@ -98,4 +106,13 @@ export class CircuitBreaker {
 export const odsayCircuitBreaker = new CircuitBreaker({
   failureThreshold: 3,
   cooldownMs: 10000,
+  shouldTrip: (error: any) => {
+    const msg = String(error?.message || error || '');
+    const code = String(error?.code || '');
+    // 429 (Too Many Requests), Rate Limit, Quota Exceeded 등은 서킷 트립에서 제외
+    if (msg.includes('Too Many Requests') || msg.includes('429') || code === 'TRANSIT_QUOTA_EXCEEDED' || error?.status === 429) {
+      return false;
+    }
+    return true;
+  },
 });

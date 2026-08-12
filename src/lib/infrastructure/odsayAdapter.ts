@@ -1,4 +1,5 @@
 import { externalFetch } from '@/lib/utils/externalFetch';
+import { odsayRateLimiter } from '@/lib/infrastructure/odsayRateLimiter';
 
 /**
  * Domain Standard Custom Errors
@@ -89,42 +90,44 @@ export class OdsayAdapter {
     const url = `https://api.odsay.com/v1/api/${endpoint}?${queryParams.toString()}`;
 
     // ── DEBUG: 실제 요청 URL (API 키 마스킹)
-    const debugUrl = url.replace(/apiKey=[^&]+/, 'apiKey=***');
-    console.log(`[OdsayAdapter][DEBUG] ▶ ${endpoint} 요청:`, debugUrl);
+    // const debugUrl = url.replace(/apiKey=[^&]+/, 'apiKey=***');
+    // console.log(`[OdsayAdapter][DEBUG] ▶ ${endpoint} 요청:`, debugUrl);
 
     let res: Response;
     try {
-      res = await externalFetch(url, {
-        cache: 'no-store',
-        headers: {
-          Referer: process.env.DOMAIN || 'http://localhost:3000',
-        },
-      });
+      res = await odsayRateLimiter.enqueue(() =>
+        externalFetch(url, {
+          cache: 'no-store',
+          headers: {
+            Referer: process.env.DOMAIN || 'http://localhost:3000',
+          },
+        })
+      );
     } catch (err: any) {
-      console.error(`[OdsayAdapter][DEBUG] ✗ ${endpoint} 네트워크 오류:`, err);
+      // console.error(`[OdsayAdapter][DEBUG] ✗ ${endpoint} 네트워크 오류:`, err);
       throw this.convertNetworkError(err);
     }
 
     // ── DEBUG: HTTP 응답 상태
-    console.log(`[OdsayAdapter][DEBUG] ◀ ${endpoint} HTTP 상태: ${res.status} ${res.statusText}`);
+    // console.log(`[OdsayAdapter][DEBUG] ◀ ${endpoint} HTTP 상태: ${res.status} ${res.statusText}`);
 
     const data = await res.json();
 
     // ── DEBUG: 원시 응답 최상위 구조
-    console.log(`[OdsayAdapter][DEBUG] ◀ ${endpoint} 응답 최상위 키:`, Object.keys(data || {}));
-    if (data?.result) {
-      const resultKeys = Object.keys(data.result);
-      console.log(`[OdsayAdapter][DEBUG]   result 키:`, resultKeys);
-      if (data.result.paths) {
-        console.log(`[OdsayAdapter][DEBUG]   paths 개수:`, data.result.paths.length);
-      }
-      if (data.result.publicTransit_pathCnt !== undefined) {
-        console.log(`[OdsayAdapter][DEBUG]   publicTransit_pathCnt:`, data.result.publicTransit_pathCnt);
-      }
-    }
-    if (data?.error) {
-      console.error(`[OdsayAdapter][DEBUG]   error 필드:`, JSON.stringify(data.error));
-    }
+    // console.log(`[OdsayAdapter][DEBUG] ◀ ${endpoint} 응답 최상위 키:`, Object.keys(data || {}));
+    // if (data?.result) {
+    //   const resultKeys = Object.keys(data.result);
+    //   console.log(`[OdsayAdapter][DEBUG]   result 키:`, resultKeys);
+    //   if (data.result.paths) {
+    //     console.log(`[OdsayAdapter][DEBUG]   paths 개수:`, data.result.paths.length);
+    //   }
+    //   if (data.result.publicTransit_pathCnt !== undefined) {
+    //     console.log(`[OdsayAdapter][DEBUG]   publicTransit_pathCnt:`, data.result.publicTransit_pathCnt);
+    //   }
+    // }
+    // if (data?.error) {
+    //   console.error(`[OdsayAdapter][DEBUG]   error 필드:`, JSON.stringify(data.error));
+    // }
 
     this.checkAndThrowBodyError(data);
     return data;
@@ -161,7 +164,7 @@ export class OdsayAdapter {
     searchMethod: string = '2',
     apiKey?: string
   ): Promise<any> {
-    console.log(`[OdsayAdapter][DEBUG] fetchMaasRP 호출 파라미터:`, { SX: sx, SY: sy, EX: ex, EY: ey, SearchTime: searchTime, SearchMethod: searchMethod });
+    // console.log(`[OdsayAdapter][DEBUG] fetchMaasRP 호출 파라미터:`, { SX: sx, SY: sy, EX: ex, EY: ey, SearchTime: searchTime, SearchMethod: searchMethod });
     return this.getOdsayData(
       'maasRP',
       { SX: sx, SY: sy, EX: ex, EY: ey, SearchTime: searchTime, SearchMethod: searchMethod },
@@ -177,9 +180,11 @@ export class OdsayAdapter {
     sy: string,
     ex: string,
     ey: string,
-    apiKey?: string
+    apiKey?: string,
+    startName: string = 'Start',
+    endName: string = 'End'
   ): Promise<any> {
-    return this.getOdsayData('searchWalkPathV2', { SX: sx, SY: sy, EX: ex, EY: ey }, apiKey);
+    return this.getOdsayData('searchWalkPathV2', { SX: sx, SY: sy, EX: ex, EY: ey, startName, endName }, apiKey);
   }
 
   /**

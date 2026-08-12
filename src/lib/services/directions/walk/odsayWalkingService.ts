@@ -63,9 +63,9 @@ export async function getCachedOdsayMaasRPWalk(
       } catch (err: any) {
         console.warn(`[odsayWalkingService] maasRP 호출 예외, searchWalkPathV2 폴백 시도:`, err?.message || err);
         try {
-          return await OdsayAdapter.fetchWalkPathV2(wsx, wsy, wex, wey, apiKey);
-        } catch (v2Err) {
-          console.error(`[odsayWalkingService] searchWalkPathV2 호출도 실패:`, v2Err);
+          return await OdsayAdapter.fetchWalkPathV2(wsx, wsy, wex, wey, apiKey, 'Start', 'End');
+        } catch (v2Err: any) {
+          console.warn(`[odsayWalkingService] searchWalkPathV2 폴백 실패 (직선거리 Fallback 사용 예정):`, v2Err?.message || v2Err);
           return null;
         }
       }

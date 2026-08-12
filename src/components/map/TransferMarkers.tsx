@@ -75,7 +75,7 @@ export default function TransferMarkers({
     if (focusedSegment) {
       filteredPoints = points.filter((pt) => {
         if (pt.isSegmentStart || pt.isSegmentDest) return true;
-        if (!focusedStep) return false;
+        if (!focusedStep) return true;
         if (focusedStep.originId !== pt.originId || focusedStep.destId !== pt.destId) return false;
 
         if (focusedStep.subType === 'dest') {

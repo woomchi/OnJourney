@@ -57,6 +57,8 @@ export function CustomOverlayView({
       private ancY: number;
       private offX: number;
       private offY: number;
+      private observer: MutationObserver | null = null;
+      private rafId: number | null = null;
 
       constructor(
         element: HTMLDivElement,
@@ -78,9 +80,21 @@ export function CustomOverlayView({
       onAdd() {
         const overlayLayer = this.getPanes().overlayLayer;
         overlayLayer.appendChild(this.element);
+
+        this.observer = new MutationObserver(() => {
+          if (this.element.offsetWidth > 0 || this.element.offsetHeight > 0) {
+            this.draw();
+          }
+        });
+        this.observer.observe(this.element, { childList: true, subtree: true, attributes: true });
       }
 
       draw() {
+        if (this.rafId !== null) {
+          cancelAnimationFrame(this.rafId);
+          this.rafId = null;
+        }
+
         const projection = this.getProjection();
         if (!projection) return;
 
@@ -93,6 +107,11 @@ export function CustomOverlayView({
         const width = this.element.offsetWidth || 0;
         const height = this.element.offsetHeight || 0;
 
+        if ((width === 0 || height === 0) && this.element.children.length > 0) {
+          this.rafId = requestAnimationFrame(() => this.draw());
+          return;
+        }
+
         const left = pixelPosition.x - width * this.ancX + this.offX;
         const top = pixelPosition.y - height * this.ancY + this.offY;
 
@@ -100,6 +119,14 @@ export function CustomOverlayView({
       }
 
       onRemove() {
+        if (this.rafId !== null) {
+          cancelAnimationFrame(this.rafId);
+          this.rafId = null;
+        }
+        if (this.observer) {
+          this.observer.disconnect();
+          this.observer = null;
+        }
         if (this.element && this.element.parentNode) {
           this.element.parentNode.removeChild(this.element);
         }

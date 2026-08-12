@@ -147,9 +147,9 @@ export function removeJourneysFromStoredOrder(userId: string, deletedIds: string
  * formatDistance(1500)  // → "1.5km"
  * formatDistance(5)     // → ""
  */
-export function formatDistance(meters: number): string {
-  if (meters < DISTANCE_DISPLAY_MIN_METERS) return '';
-  if (meters < DISTANCE_KM_THRESHOLD_METERS) return `${meters}m`;
+export function formatDistance(meters?: number | null): string {
+  if (meters == null || isNaN(meters) || meters < DISTANCE_DISPLAY_MIN_METERS) return '';
+  if (meters < DISTANCE_KM_THRESHOLD_METERS) return `${Math.round(meters)}m`;
   return `${(meters / DISTANCE_KM_THRESHOLD_METERS).toFixed(1)}km`;
 }
 
@@ -167,7 +167,7 @@ export function formatDistance(meters: number): string {
  * formatKmDistance(137.4) // → "137.4km"
  */
 export function formatKmDistance(km?: number | null): string {
-  if (km == null || km <= 0) return '';
+  if (km == null || isNaN(km) || km <= 0) return '';
   if (km >= 1) return `${km.toFixed(1)}km`;
   const meters = Math.round(km * 1000);
   if (meters < DISTANCE_DISPLAY_MIN_METERS) return '';
@@ -189,8 +189,8 @@ export function formatKmDistance(km?: number | null): string {
  * formatDuration(90000)  // → "2분"
  * formatDuration(500)    // → ""
  */
-export function formatDuration(ms: number): string {
-  if (ms < DURATION_DISPLAY_MIN_MS) return '';
+export function formatDuration(ms?: number | null): string {
+  if (ms == null || isNaN(ms) || ms < DURATION_DISPLAY_MIN_MS) return '';
   const seconds = Math.round(ms / DURATION_DISPLAY_MIN_MS);
   if (seconds < DURATION_MINUTES_THRESHOLD_SECONDS) return `${seconds}초`;
   return formatDurationMinutes(Math.round(seconds / DURATION_MINUTES_THRESHOLD_SECONDS));

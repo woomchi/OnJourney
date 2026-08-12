@@ -114,19 +114,8 @@ export default function AlternativeSegmentInfo({
                 type="button"
                 onClick={() => {
                   const selectedRouteObj = {
+                    ...route,
                     destId,
-                    id: route.id,
-                    type: route.type,
-                    name: route.name,
-                    duration: route.duration,
-                    fare: route.fare,
-                    taxiFare: route.taxiFare,
-                    distance: route.distance,
-                    isIntercity: route.isIntercity,
-                    isFareEstimated: route.isFareEstimated,
-                    steps: route.steps,
-                    pathPoints: route.pathPoints,
-                    guide: route.guide,
                   };
                   selectSegmentRoute(place.id, selectedRouteObj);
                   onSelect?.();

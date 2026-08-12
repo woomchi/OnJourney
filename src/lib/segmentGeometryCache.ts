@@ -75,8 +75,8 @@ export function getSegmentGeometry(
     return { cacheKey: '', arrowAnchors: [], transferPoints: [] };
   }
 
-  const routeHash = activeRoute.type || 'default';
-  const cacheKey = `${place.id}-${nextPlace.id}-${routeHash}-${activeRoute.steps.length}`;
+  const routeId = activeRoute.id || activeRoute.type || 'default';
+  const cacheKey = `${place.id}-${nextPlace.id}-${routeId}-${activeRoute.steps.length}`;
 
   if (geometryCache.has(cacheKey)) {
     return geometryCache.get(cacheKey)!;

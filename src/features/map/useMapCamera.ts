@@ -5,6 +5,7 @@ import { useMapState } from './useMapState';
 import { useMapUIStore } from '@/stores/map-store';
 import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
+import { areBoundsEqual } from '@/stores/slices/mapSlice';
 import type { Place, LatLngBoundsLiteral, DirectionsApiResponse } from '@/types/journey';
 
 interface UseMapCameraProps {
@@ -214,6 +215,7 @@ export function useMapCamera({
   const lastFocusStateRef = useRef<boolean>(false);
   const isInitialFitRef = useRef<boolean>(true);
   const prevFocusedSegmentRef = useRef<string | null>(null);
+  const fitTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 3-1. 이동 상세(focusedSegment) 전환 시 또는 해당 구간 경로 데이터 로드 완료 시 이동 구간 전체 경로로 줌 정렬
   useEffect(() => {
@@ -237,12 +239,14 @@ export function useMapCamera({
 
     // 상세 패널(패딩)이 반영될 수 있도록 지연 후 핏팅 실행
     const timer = setTimeout(() => {
-      lastFittedFocusBoundsRef.current = '';
-      setFocusBounds({ ...bounds });
+      if (isSegmentChanged || !areBoundsEqual(focusBounds, bounds)) {
+        lastFittedFocusBoundsRef.current = '';
+        setFocusBounds(bounds);
+      }
     }, isSegmentChanged ? 120 : 0);
 
     return () => clearTimeout(timer);
-  }, [map, focusedSegment, places, directionsCache, activeJourney?.transport_type, setFocusBounds]);
+  }, [map, focusedSegment, places, directionsCache, activeJourney?.transport_type, focusBounds, setFocusBounds]);
 
   // 3. places 또는 map 인스턴스 또는 로드된 세그먼트 수가 변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
   useEffect(() => {
@@ -253,6 +257,12 @@ export function useMapCamera({
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
+
+    // 이전 지연 핏팅 타이머가 존재하면 취소하여 중복 실행 방지
+    if (fitTimerRef.current) {
+      clearTimeout(fitTimerRef.current);
+      fitTimerRef.current = null;
+    }
 
     const currentDataString = JSON.stringify({
       places: places.map(p => p.id),
@@ -319,12 +329,10 @@ export function useMapCamera({
 
     if (isInitialFitRef.current) {
       isInitialFitRef.current = false;
-      setTimeout(doFit, 100);
-    } else if (wasFocused) {
-      // 상세(포커스) 상태에서 전체 여정 상태로 전환될 때는
-      // 바텀시트 퇴장 및 패딩 업데이트가 완료된 후(지도가 늘어난 후)에 fitBounds를 수행하도록 지연을 줍니다.
-      // 이렇게 함으로써 레이아웃 갱신 타이밍 차이로 인한 깜빡임 및 지도 찌그러짐 현상을 방지합니다.
-      setTimeout(doFit, 150);
+      fitTimerRef.current = setTimeout(() => {
+        doFit();
+        fitTimerRef.current = null;
+      }, 100);
     } else {
       doFit();
     }
@@ -332,6 +340,13 @@ export function useMapCamera({
     lastFittedDataStringRef.current = currentDataString;
     lastFittedPlacesWidthRef.current = windowWidth;
     lastFittedPlacesHeightRef.current = windowHeight;
+
+    return () => {
+      if (fitTimerRef.current) {
+        clearTimeout(fitTimerRef.current);
+        fitTimerRef.current = null;
+      }
+    };
   }, [places, map, focusBounds, loadedSegmentsCount, activeJourney?.transport_type, recommendedPlaces, isDrawerMaximized, isSearchMode, isMobile, windowWidth, windowHeight, drawerSnapPoint, directionsCache, validateBounds]);
 
   // 4. focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
@@ -416,9 +431,11 @@ export function useMapCamera({
 
     if (activeRoute) {
       const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
-      setFocusBounds({ ...bounds }); // trigger re-fit by spreading to create a new reference
+      if (!areBoundsEqual(focusBounds, bounds)) {
+        setFocusBounds(bounds);
+      }
     }
-  }, [alternativeSegment, hoveredAlternativeRoute, places, directionsCache, activeJourney?.transport_type, setFocusBounds]);
+  }, [alternativeSegment, hoveredAlternativeRoute, places, directionsCache, activeJourney?.transport_type, focusBounds, setFocusBounds]);
 
   return {
     panToWithOffset,

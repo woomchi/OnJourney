@@ -210,9 +210,10 @@ export default function TransferMarkers({
               }}
             >
               {subPoints.map((subPt: any, idx: number) => {
+                const busNameStr = subPt.busName || '';
                 const displayBusName = subPt.isAlighting
-                  ? subPt.busName
-                  : ((subPt.isSegmentDest || subPt.isSegmentStart) ? subPt.busName : (subPt.type === 'walk' ? '도보 이동' : subPt.busName.replace(' 버스', '')));
+                  ? busNameStr
+                  : ((subPt.isSegmentDest || subPt.isSegmentStart) ? busNameStr : (subPt.type === 'walk' ? '도보 이동' : (busNameStr ? busNameStr.replace(' 버스', '') : '대중교통')));
                 const labelText = subPt.isSegmentStart 
                   ? '출발' 
                   : (subPt.isSegmentDest 

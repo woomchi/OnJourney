@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import type { Place, DirectionsApiResponse, DirectionResult, SnapMeta } from '@/types/journey';
 import { useEffect, useState, useRef, useMemo } from 'react';
@@ -89,25 +89,56 @@ export function useJourneyDirections() {
 }
 
 export function useJourneyDirectionsCache(places: Place[] | undefined) {
-  const queryClient = useQueryClient();
   const { departureTime } = useJourneyStore();
+
+  const segmentQueries = useMemo(() => {
+    if (!places || places.length < 2) return [];
+
+    const queries = [];
+    for (let i = 0; i < places.length - 1; i++) {
+      const origin = places[i];
+      const dest = places[i + 1];
+
+      queries.push({
+        queryKey: directionKeys.segmentPublic(origin.id, dest.id, departureTime),
+        queryFn: () => fetchPublicDirectionsApi(origin, dest, departureTime || undefined),
+        staleTime: 1000 * 60 * 30,
+        enabled: !!origin && !!dest,
+      });
+
+      queries.push({
+        queryKey: directionKeys.segmentCar(origin.id, dest.id, departureTime),
+        queryFn: () => fetchCarWalkDirectionsApi(origin, dest, departureTime || undefined),
+        staleTime: 1000 * 60 * 30,
+        enabled: !!origin && !!dest,
+      });
+    }
+    return queries;
+  }, [places, departureTime]);
+
+  const queryResults = useQueries({ queries: segmentQueries });
+  const resultsKey = queryResults.map((r) => `${r.status}-${r.dataUpdatedAt}`).join('|');
 
   return useMemo(() => {
     if (!places || places.length < 2) return {};
 
     const cache: Record<string, DirectionsApiResponse> = {};
+    let resultIdx = 0;
+
     for (let i = 0; i < places.length - 1; i++) {
       const origin = places[i];
       const dest = places[i + 1];
       const cacheKey = `${origin.id}-${dest.id}`;
-      const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(
-        directionKeys.segmentPublic(origin.id, dest.id, departureTime)
-      );
-      const carData = queryClient.getQueryData<{
+
+      const publicResult = queryResults[resultIdx++];
+      const carResult = queryResults[resultIdx++];
+
+      const publicData = publicResult?.data as { public: DirectionResult[] } | undefined;
+      const carData = carResult?.data as {
         car: DirectionResult[];
         walk: DirectionResult[];
         snapMeta?: SnapMeta;
-      }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+      } | undefined;
 
       if (publicData || carData) {
         cache[cacheKey] = {
@@ -118,5 +149,6 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
       }
     }
     return cache;
-  }, [places, queryClient, departureTime]);
+  }, [places, resultsKey]);
 }
+

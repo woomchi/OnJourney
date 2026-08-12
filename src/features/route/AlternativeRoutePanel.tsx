@@ -286,7 +286,8 @@ export default function AlternativeRoutePanel({
   }, []);
 
   const [hoveredPreviewRoute, setHoveredPreviewRoute] = useState<DirectionResult | SelectedRoute | null>(null);
-  const previewRoute = hoveredPreviewRoute || activeRoute;
+  const activeTabRoutes = segmentData ? (segmentData[activeTab] || []) : [];
+  const previewRoute = (hoveredPreviewRoute && hoveredPreviewRoute.type === activeTab ? hoveredPreviewRoute : null) || activeTabRoutes[0] || activeRoute;
 
   useEffect(() => {
     setHoveredAlternativeRoute(previewRoute as any);
@@ -579,19 +580,8 @@ export default function AlternativeRoutePanel({
             onClick={() => {
               if (previewRoute) {
                 const selectedRouteObj = {
+                  ...previewRoute,
                   destId: destPlace.id,
-                  id: previewRoute.id,
-                  type: previewRoute.type,
-                  name: previewRoute.name,
-                  duration: previewRoute.duration,
-                  fare: previewRoute.fare,
-                  taxiFare: previewRoute.taxiFare,
-                  distance: previewRoute.distance,
-                  isIntercity: previewRoute.isIntercity,
-                  isFareEstimated: previewRoute.isFareEstimated,
-                  steps: previewRoute.steps,
-                  pathPoints: previewRoute.pathPoints,
-                  guide: previewRoute.guide,
                 };
                 selectSegmentRoute(originPlace.id, selectedRouteObj);
               }

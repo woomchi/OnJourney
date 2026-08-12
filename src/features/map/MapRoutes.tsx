@@ -176,8 +176,9 @@ export const MapRoutes = memo(function MapRoutes({
 
                 const hasDetailed = !!(route.detailedPathPoints && route.detailedPathPoints.length >= 2);
 
+                const rId = route.id || route.type || 'default';
                 return (
-                  <Fragment key={`estimated-polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}>
+                  <Fragment key={`estimated-polyline-${keyPrefix}${rId}-${place.id}-${nextPlace.id}-${sIdx}`}>
                     {flatPath.length >= 2 && (
                       <AnimatedPolyline
                         path={flatPath}
@@ -200,9 +201,10 @@ export const MapRoutes = memo(function MapRoutes({
                 );
               }
 
+              const rId = route.id || route.type || 'default';
               return (
                 <AnimatedPolyline
-                  key={`polyline-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}
+                  key={`polyline-${keyPrefix}${rId}-${place.id}-${nextPlace.id}-${sIdx}`}
                   path={pathPoints}
                   delay={stepDelay}
                   duration={stepDuration}
@@ -222,9 +224,10 @@ export const MapRoutes = memo(function MapRoutes({
             }
 
             const showOuterStroke = zoomLevel > 13 || isThisStepFocused;
+            const rId = route.id || route.type || 'default';
 
             return (
-              <Fragment key={`polyline-group-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}>
+              <Fragment key={`polyline-group-${keyPrefix}${rId}-${place.id}-${nextPlace.id}-${sIdx}`}>
                 {showOuterStroke && (
                   <AnimatedPolyline
                     path={pathPoints}
@@ -244,6 +247,7 @@ export const MapRoutes = memo(function MapRoutes({
                   />
                 )}
                 <AnimatedPolyline
+                  key={`polyline-inner-${keyPrefix}${rId}-${place.id}-${nextPlace.id}-${sIdx}`}
                   path={pathPoints}
                   delay={stepDelay}
                   duration={stepDuration}

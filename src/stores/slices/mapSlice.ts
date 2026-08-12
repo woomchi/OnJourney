@@ -38,6 +38,21 @@ export interface MapSlice {
   setActiveSearchPlace: (place: PlaceResult | null) => void;
 }
 
+const EPSILON = 1e-7;
+export function areBoundsEqual(
+  a: LatLngBoundsLiteral | null,
+  b: LatLngBoundsLiteral | null
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    Math.abs(a.sw.lat - b.sw.lat) < EPSILON &&
+    Math.abs(a.sw.lng - b.sw.lng) < EPSILON &&
+    Math.abs(a.ne.lat - b.ne.lat) < EPSILON &&
+    Math.abs(a.ne.lng - b.ne.lng) < EPSILON
+  );
+}
+
 export const createMapSlice: StateCreator<
   JourneyStore,
   [],
@@ -59,10 +74,16 @@ export const createMapSlice: StateCreator<
   isSearchLoading: false,
   searchTriggerCount: 0,
   searchQuery: '',
-  setFocusBounds: (bounds) => set({ focusBounds: bounds }),
+  setFocusBounds: (bounds) => set((state) => {
+    if (areBoundsEqual(state.focusBounds, bounds)) return state;
+    return { focusBounds: bounds };
+  }),
   setFocusedSegment: (segment) => set(() => ({ 
     focusedSegment: segment,
-    ...(segment ? { alternativeSegment: null, hoveredAlternativeRoute: null, focusedPlaceId: null } : {})
+    ...(segment 
+      ? { alternativeSegment: null, hoveredAlternativeRoute: null, focusedPlaceId: null } 
+      : { focusBounds: null, focusedStep: null, alternativeSegment: null, hoveredAlternativeRoute: null, focusedPlaceId: null }
+    )
   })),
   setFocusedStep: (step) => set(() => ({ 
     focusedStep: step,

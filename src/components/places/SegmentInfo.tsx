@@ -508,9 +508,13 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                     >
                       {step.type !== 'walk' ? (
                         <span style={{ color: stepColor }} className="truncate">
-                          {step.type === 'subway'
-                            ? (step.name.endsWith('선') && step.name.length >= 4 ? step.name.slice(0, -1) : step.name)
-                            : step.name.replace(' 버스', '')}
+                          {(() => {
+                            const nameStr = step.name || '';
+                            if (step.type === 'subway') {
+                              return nameStr.endsWith('선') && nameStr.length >= 4 ? nameStr.slice(0, -1) : (nameStr || '지하철');
+                            }
+                            return nameStr ? nameStr.replace(' 버스', '') : '대중교통';
+                          })()}
                         </span>
                       ) : (
                         <span className="invisible">&nbsp;</span>

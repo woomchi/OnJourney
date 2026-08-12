@@ -17,12 +17,15 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
     if (!path || path.length === 0) return '';
     const len = path.length;
     const first = path[0];
+    const mid = path[Math.floor(len / 2)];
     const last = path[len - 1];
     const fLat = typeof first.lat === 'function' ? first.lat() : first.lat;
     const fLng = typeof first.lng === 'function' ? first.lng() : first.lng;
+    const mLat = mid ? (typeof mid.lat === 'function' ? mid.lat() : mid.lat) : 0;
+    const mLng = mid ? (typeof mid.lng === 'function' ? mid.lng() : mid.lng) : 0;
     const lLat = typeof last.lat === 'function' ? last.lat() : last.lat;
     const lLng = typeof last.lng === 'function' ? last.lng() : last.lng;
-    return `${len}:${fLat},${fLng}:${lLat},${lLng}`;
+    return `${len}:${fLat},${fLng}:${mLat},${mLng}:${lLat},${lLng}`;
   }, [path]);
 
   const updatePolylinePath = (newPath: any[]) => {

@@ -19,6 +19,7 @@ import type {
 import { insertJourney, updateJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import { verifyAndCleanRoutes } from '@/lib/services/directionsService';
+import { evictSegmentGeometry } from '@/lib/segmentGeometryCache';
 import { MAX_JOURNEY_PLACES } from '@/constants/journey';
 import { useMapUIStore } from '../map-store';
 
@@ -309,6 +310,10 @@ export const createJourneyDataSlice: StateCreator<
   selectSegmentRoute: async (placeId, route) => {
     const { activeJourney } = get();
     if (!activeJourney) return;
+
+    if (route?.destId) {
+      evictSegmentGeometry(placeId, route.destId);
+    }
 
     const updatedPlaces = activeJourney.places.map((p) =>
       p.id === placeId

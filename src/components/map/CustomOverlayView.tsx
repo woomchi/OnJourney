@@ -78,8 +78,9 @@ export function CustomOverlayView({
       }
 
       onAdd() {
-        const overlayLayer = this.getPanes().overlayLayer;
-        overlayLayer.appendChild(this.element);
+        const panes = this.getPanes();
+        const targetPane = panes.floatPane || panes.overlayLayer;
+        targetPane.appendChild(this.element);
 
         this.observer = new MutationObserver(() => {
           if (this.element.offsetWidth > 0 || this.element.offsetHeight > 0) {

@@ -169,7 +169,7 @@ export function getSegmentGeometry(
         ? (focusedSegment ? 5000 + sIdx : (100 - placeIdx) * 10)
         : (100 - placeIdx);
 
-    const arrowZIndex = baseZIndex + 2;
+    const arrowZIndex = baseZIndex + 10;
     const strokeColor = step.color || (activeRoute.type === 'public' ? '#3b82f6' : '#f59e0b');
     const D = activeRoute.type === 'public' ? 250 : 350;
 

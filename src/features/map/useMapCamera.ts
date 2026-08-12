@@ -217,10 +217,25 @@ export function useMapCamera({
   const prevFocusedSegmentRef = useRef<string | null>(null);
   const fitTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // focusedSegment가 변경될 때마다 fitBounds 캐시를 즉시 무효화
+  // → 동일 구간 재진입 + 동일 패딩 상황에서도 Effect #4가 fitBounds를 재실행할 수 있도록 보장
+  useEffect(() => {
+    lastFittedFocusBoundsRef.current = '';
+  }, [focusedSegment]);
+
   // 3-1. 이동 상세(focusedSegment) 전환 시 또는 해당 구간 경로 데이터 로드 완료 시 이동 구간 전체 경로로 줌 정렬
   useEffect(() => {
     if (!map || !focusedSegment) {
       prevFocusedSegmentRef.current = null;
+      return;
+    }
+
+    // focusedStep이 현재 focusedSegment와 일치하는 경우 (여정 재생/단계 상세 중) segment bounds 덮어쓰기 방지
+    if (
+      focusedStep &&
+      focusedStep.originId === focusedSegment.originId &&
+      focusedStep.destId === focusedSegment.destId
+    ) {
       return;
     }
 
@@ -239,14 +254,17 @@ export function useMapCamera({
 
     // 상세 패널(패딩)이 반영될 수 있도록 지연 후 핏팅 실행
     const timer = setTimeout(() => {
-      if (isSegmentChanged || !areBoundsEqual(focusBounds, bounds)) {
-        lastFittedFocusBoundsRef.current = '';
+      lastFittedFocusBoundsRef.current = '';
+      if (isSegmentChanged) {
+        // 구간이 변경된 경우: 동일 bounds여도 새 객체로 강제 설정하여 focusBounds dep 변경 유도
+        setFocusBounds({ ...bounds });
+      } else if (!areBoundsEqual(focusBounds, bounds)) {
         setFocusBounds(bounds);
       }
     }, isSegmentChanged ? 120 : 0);
 
     return () => clearTimeout(timer);
-  }, [map, focusedSegment, places, directionsCache, activeJourney?.transport_type, focusBounds, setFocusBounds]);
+  }, [map, focusedSegment, focusedStep, places, directionsCache, activeJourney?.transport_type, focusBounds, setFocusBounds]);
 
   // 3. places 또는 map 인스턴스 또는 로드된 세그먼트 수가 변경되었을 때 전체 경유지를 한 화면에 담도록 fitBounds 설정
   useEffect(() => {
@@ -393,7 +411,7 @@ export function useMapCamera({
     lastFittedFocusBoundsRef.current = currentFocusString;
     lastFittedWidthRef.current = windowWidth;
     lastFittedHeightRef.current = windowHeight;
-  }, [focusBounds, map, isDrawerMaximized, isMobile, windowWidth, windowHeight, validateBounds]);
+  }, [focusBounds, map, isDrawerMaximized, isMobile, windowWidth, windowHeight, validateBounds, currentMapPadding]);
 
   // 5. 장소 검색 카드 클릭 시 해당 장소로 줌 인
   useEffect(() => {

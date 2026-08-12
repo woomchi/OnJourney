@@ -74,21 +74,7 @@ export default function TransferMarkers({
     let filteredPoints = points;
     if (focusedSegment) {
       filteredPoints = points.filter((pt) => {
-        if (pt.isSegmentStart || pt.isSegmentDest) return true;
-        if (!focusedStep) return true;
-        if (focusedStep.originId !== pt.originId || focusedStep.destId !== pt.destId) return false;
-
-        if (focusedStep.subType === 'dest') {
-          return !!(pt.isSegmentDest || pt.stepIndex === focusedStep.stepIndex - 1);
-        }
-        if (focusedStep.subType === 'start') {
-          return pt.stepIndex === focusedStep.stepIndex && !pt.isAlighting && !pt.isSegmentDest;
-        }
-        if (focusedStep.subType === 'end') {
-          return pt.stepIndex === focusedStep.stepIndex && !!pt.isAlighting;
-        }
-
-        return pt.stepIndex === focusedStep.stepIndex;
+        return pt.originId === focusedSegment.originId && pt.destId === focusedSegment.destId;
       });
     }
 

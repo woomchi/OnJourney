@@ -120,7 +120,9 @@ export const MapMarkers = memo(function MapMarkers({
           (place.id === activeSegment.originId || place.id === activeSegment.destId)
         );
         const zIndex = 10000 + (places.length - idx) + (isSegmentMarker ? 10000 : 0) + (isPlaceFocused ? 20000 : 0);
-        const isVisible = !activeSegment || isSegmentMarker;
+        // 이동 상세(activeSegment 활성) 상태에서는 번호 핀을 모두 숨김.
+        // TransferMarkers에서 출발/도착 마커를 대신 표시하므로 겹침 방지.
+        const isVisible = !activeSegment;
 
         if (!isVisible) return null;
 

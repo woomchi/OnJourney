@@ -11,6 +11,7 @@ export function useMapPadding(isMobile: boolean) {
     isDrawerMaximized,
     drawerSnapPoint,
     guidePanelState,
+    isSearchMode,
   } = useMapState();
 
   const windowWidthRef = useRef<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -50,7 +51,20 @@ export function useMapPadding(isMobile: boolean) {
     const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
     const mapWidth = windowWidth - sidebarWidth;
 
-    let topPadding = isMobile ? 120 : 80;
+    const isStandalone = typeof window !== 'undefined' && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches ||
+      (navigator as any).standalone === true ||
+      document.referrer.includes('android-app://') ||
+      window.location.search.includes('pwa=true')
+    );
+
+    let topPadding = isMobile ? (isStandalone ? 48 : 40) : 24;
+    if (isSearchMode) {
+      topPadding = isMobile ? 64 : 56;
+    }
+
     const rightPadding = mapWidth < 600 ? 48 : 30;
     let bottomPadding = mapWidth < 600 ? 30 : 45;
 
@@ -91,7 +105,7 @@ export function useMapPadding(isMobile: boolean) {
       const maxAllowedVerticalPadding = Math.max(0, windowHeight - 150);
       const currentTotalVerticalPadding = topPadding + bottomPadding;
       if (currentTotalVerticalPadding > maxAllowedVerticalPadding) {
-        topPadding = Math.min(topPadding, maxAllowedVerticalPadding * 0.3);
+        topPadding = Math.min(topPadding, maxAllowedVerticalPadding * 0.25);
         bottomPadding = maxAllowedVerticalPadding - topPadding;
       }
     }
@@ -102,7 +116,7 @@ export function useMapPadding(isMobile: boolean) {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [focusedSegment, alternativeSegment, paddingVersion, isMobile, drawerSnapPoint, isDrawerMaximized, guidePanelState, activeJourney]);
+  }, [focusedSegment, alternativeSegment, paddingVersion, isMobile, drawerSnapPoint, isDrawerMaximized, guidePanelState, activeJourney, isSearchMode]);
 
   return {
     currentMapPadding,

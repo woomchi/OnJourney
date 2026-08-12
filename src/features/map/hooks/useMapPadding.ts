@@ -60,13 +60,13 @@ export function useMapPadding(isMobile: boolean) {
       window.location.search.includes('pwa=true')
     );
 
-    let topPadding = isMobile ? (isStandalone ? 48 : 40) : 24;
+    let topPadding = isMobile ? (isStandalone ? 48 : 40) : 32;
     if (isSearchMode) {
       topPadding = isMobile ? 64 : 56;
     }
 
     const rightPadding = mapWidth < 600 ? 48 : 30;
-    let bottomPadding = mapWidth < 600 ? 30 : 45;
+    let bottomPadding = isMobile ? (mapWidth < 600 ? 30 : 45) : 32;
 
     const effectiveSnapPoint = isDrawerMaximized
       ? lastNonMaximizedSnapPointRef.current || (activeJourney ? '370px' : '360px')

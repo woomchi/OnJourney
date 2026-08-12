@@ -81,8 +81,8 @@ export function useMapCamera({
     const visibleHeight = windowHeight - topPadding - bottomPadding;
 
     if (visibleHeight > 0) {
-      // 50% (중심) - 40% (목표 지점) = 10% 오프셋 (아래 방향으로 +Y 이동)
-      const offsetPixels = visibleHeight * 0.1;
+      // 5% 미세 오프셋 (가시 영역 정중앙 기준 하단 보정으로 마커가 살짝 위쪽에 안정적으로 렌더링되도록 함)
+      const offsetPixels = visibleHeight * 0.05;
       const targetPixel = new window.naver.maps.Point(pixelPoint.x, pixelPoint.y + offsetPixels);
       const targetLatLng = projection.fromOffsetToCoord(targetPixel);
       naverMap.panTo(targetLatLng);

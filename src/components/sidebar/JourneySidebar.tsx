@@ -365,7 +365,7 @@ export default function JourneySidebar() {
               minHeight={minSnapPx}
               defaultHeight={defaultSnapPx}
               maxHeight={windowHeight - 16}
-              initialSnap={currentSnapType}
+              initialSnap={isSearchMode ? 'default' : currentSnapType}
               zIndex={30}
               y={y}
               onSnap={(snapName) => {

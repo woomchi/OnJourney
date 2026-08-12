@@ -73,24 +73,26 @@ export function useMapPadding(isMobile: boolean) {
       : drawerSnapPoint;
 
     if (isMobile) {
-      if (!!focusedSegment || !!alternativeSegment) {
+      if (isSearchMode) {
+        bottomPadding = Math.round(windowHeight * 0.5) + 20;
+      } else if (!!focusedSegment || !!alternativeSegment) {
         if (!!alternativeSegment) {
-          bottomPadding = windowHeight * 0.46 + 60;
+          bottomPadding = Math.min(340, Math.round(windowHeight * 0.46) + 40);
         } else {
           if (guidePanelState === 'minimized') {
-            bottomPadding = 240;
+            bottomPadding = 200;
           } else {
-            bottomPadding = 410;
+            bottomPadding = 320;
           }
         }
       } else if (effectiveSnapPoint !== 1) {
+        let snapPx = activeJourney ? 370 : 360;
         if (typeof effectiveSnapPoint === 'number') {
-          bottomPadding = effectiveSnapPoint + 40;
+          snapPx = effectiveSnapPoint;
         } else if (typeof effectiveSnapPoint === 'string' && effectiveSnapPoint.endsWith('px')) {
-          bottomPadding = parseInt(effectiveSnapPoint, 10) + 40;
-        } else {
-          bottomPadding = 310;
+          snapPx = parseInt(effectiveSnapPoint, 10);
         }
+        bottomPadding = snapPx + 20;
       }
     }
 
@@ -102,11 +104,10 @@ export function useMapPadding(isMobile: boolean) {
     }
 
     if (isMobile) {
-      const maxAllowedVerticalPadding = Math.max(0, windowHeight - 150);
+      const maxAllowedVerticalPadding = Math.max(0, windowHeight - 120);
       const currentTotalVerticalPadding = topPadding + bottomPadding;
       if (currentTotalVerticalPadding > maxAllowedVerticalPadding) {
-        topPadding = Math.min(topPadding, maxAllowedVerticalPadding * 0.25);
-        bottomPadding = maxAllowedVerticalPadding - topPadding;
+        bottomPadding = Math.max(100, maxAllowedVerticalPadding - topPadding);
       }
     }
 

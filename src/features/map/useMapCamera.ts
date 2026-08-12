@@ -252,7 +252,7 @@ export function useMapCamera({
   useEffect(() => {
     if (!map || places.length === 0) return;
 
-    if (isSearchMode) return;
+    if (activeSearchPlace) return;
     if (isDrawerMaximized) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
@@ -273,6 +273,7 @@ export function useMapCamera({
       windowWidth,
       windowHeight,
       drawerSnapPoint,
+      isSearchMode,
     });
 
     const lastWidth = lastFittedPlacesWidthRef.current;

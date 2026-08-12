@@ -26,7 +26,7 @@ export default function MapHeaderOverlay() {
 
   if (isSearchMode) {
     return (
-      <div className="absolute top-4 left-4 right-4 z-20 flex items-center gap-2 pointer-events-none md:right-auto md:max-w-xl">
+      <div className="fixed top-4 left-4 right-4 z-20 flex items-center gap-2 pointer-events-none md:absolute md:right-auto md:max-w-xl">
         {!targetChangePlaceId && (
           <button
             type="button"
@@ -45,7 +45,7 @@ export default function MapHeaderOverlay() {
   }
 
   return (
-    <div className="absolute top-4 right-4 z-10 pointer-events-none md:hidden">
+    <div className="fixed top-4 right-4 z-10 pointer-events-none md:absolute md:hidden">
       <div className="relative pointer-events-auto" ref={menuRef}>
         <button
           onClick={handleProfileClick}

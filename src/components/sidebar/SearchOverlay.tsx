@@ -598,6 +598,10 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
               onKeyDown={handleKeyDown}
               onFocus={() => {
                 if (suggestions.length > 0) setIsDropdownOpen(true);
+                if (typeof window !== 'undefined') {
+                  window.scrollTo(0, 0);
+                  setTimeout(() => window.scrollTo(0, 0), 50);
+                }
               }}
               placeholder="방문할 장소를 검색해보세요"
               className="flex-1 bg-transparent outline-none text-sm text-zinc-800 placeholder-zinc-400 font-semibold [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"

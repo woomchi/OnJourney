@@ -95,6 +95,8 @@ interface DirectionalStripesProps {
 import { useMapUIStore } from '@/stores/map-store';
 
 // 폴리라인 내부에 화살표 스트라이프 패턴을 렌더링하는 정적 마커 컴포넌트
+import { getSegmentGeometry, ArrowAnchor } from '@/lib/segmentGeometryCache';
+
 export default function DirectionalStripes({
   places,
   directionsCache,
@@ -108,16 +110,10 @@ export default function DirectionalStripes({
   alternativeSegment,
 }: DirectionalStripesProps) {
   const isMapDragging = useMapUIStore((state) => state.isMapDragging);
-  // 1. Calculate anchor points along path (independent of zoomLevel)
+
+  // 1. Fetch cached anchor points using segment geometry cache module (zero math re-calculations)
   const arrowAnchors = useMemo(() => {
-    const points: Array<{
-      key: string;
-      position: { lat: number; lng: number };
-      bearing: number;
-      color: string;
-      transportType: string;
-      zIndex: number;
-    }> = [];
+    const points: ArrowAnchor[] = [];
 
     if (!navermaps || places.length < 2) return points;
 
@@ -129,114 +125,28 @@ export default function DirectionalStripes({
       const segmentData = directionsCache[cacheKey];
 
       const defaultRoute = getDefaultRoute(place, nextPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-
       const isAlternativeSegment = alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id;
       const activeRoute = (isAlternativeSegment && hoveredAlternativeRoute) ? hoveredAlternativeRoute : defaultRoute;
 
-      if (!activeRoute || !activeRoute.steps) {
-        return;
-      }
+      if (!activeRoute || !activeRoute.steps) return;
 
       if (focusedSegment && !focusedStep) {
-        const isCurrentSegment =
-          focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
+        const isCurrentSegment = focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
         if (!isCurrentSegment) return;
       }
 
-      activeRoute.steps.forEach((step: any, sIdx: number) => {
-        const stepPath = step.pathPoints || [];
-        if (stepPath.length < 2 || step.type === 'walk') return;
+      const geometry = getSegmentGeometry(
+        place,
+        nextPlace,
+        activeRoute,
+        transportType,
+        idx,
+        places.length,
+        focusedSegment,
+        focusedStep
+      );
 
-        const isThisStepFocused = !!(
-          focusedStep &&
-          focusedStep.originId === place.id &&
-          focusedStep.destId === nextPlace.id &&
-          focusedStep.stepIndex === sIdx
-        );
-
-        const isSegmentFocused = focusedSegment
-          ? (focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id)
-          : true;
-
-        const baseZIndex = isThisStepFocused
-          ? 15000
-          : isSegmentFocused
-            ? (focusedSegment ? 5000 + sIdx : (100 - idx) * 10)
-            : (100 - idx);
-
-        const arrowZIndex = baseZIndex + 2;
-        const strokeColor = step.color || (activeRoute.type === 'public' ? '#3b82f6' : '#f59e0b');
-        const stepLen = stepPath.length;
-
-        // Base distance spacing in meters for anchor calculation
-        let D = activeRoute.type === 'public' ? 250 : 350;
-
-        const pointsBefore = points.length;
-        let accumulatedDistance = 0;
-
-        for (let i = 1; i < stepLen; i++) {
-          const pPrev = stepPath[i - 1];
-          const pCurr = stepPath[i];
-
-          const segmentDist = calculateHaversineDistance(pPrev.lat, pPrev.lng, pCurr.lat, pCurr.lng);
-          if (segmentDist === 0) continue;
-
-          let remainingSegmentDist = segmentDist;
-          let currentSegmentPosition = 0;
-
-          while (accumulatedDistance + remainingSegmentDist >= D) {
-            const distanceToNextArrow = D - accumulatedDistance;
-            const nextArrowPositionOnSegment = currentSegmentPosition + distanceToNextArrow;
-            const t = nextArrowPositionOnSegment / segmentDist;
-
-            const lng = pPrev.lng + (pCurr.lng - pPrev.lng) * t;
-            const yPrev = getMercatorY(pPrev.lat);
-            const yCurr = getMercatorY(pCurr.lat);
-            const y = yPrev + (yCurr - yPrev) * t;
-            const lat = getInverseMercatorY(y);
-            const bearing = getRhumbBearing(pPrev.lat, pPrev.lng, pCurr.lat, pCurr.lng);
-
-            points.push({
-              key: `stripe-${place.id}-${nextPlace.id}-${sIdx}-${i}-${points.length}`,
-              position: { lat, lng },
-              bearing,
-              color: strokeColor,
-              transportType,
-              zIndex: arrowZIndex,
-            });
-
-            remainingSegmentDist -= distanceToNextArrow;
-            currentSegmentPosition = nextArrowPositionOnSegment;
-            accumulatedDistance = 0;
-          }
-
-          accumulatedDistance += remainingSegmentDist;
-        }
-
-        if (points.length === pointsBefore && stepLen >= 2) {
-          const midIdx = Math.floor(stepLen / 2);
-          const p1 = stepPath[midIdx];
-          let p2 = stepPath[midIdx + 1];
-          let isReverseBearing = false;
-          if (!p2 && stepPath[midIdx - 1]) {
-            p2 = stepPath[midIdx - 1];
-            isReverseBearing = true;
-          }
-          if (p1 && p2) {
-            const bearing = isReverseBearing
-              ? getRhumbBearing(p2.lat, p2.lng, p1.lat, p1.lng)
-              : getRhumbBearing(p1.lat, p1.lng, p2.lat, p2.lng);
-            points.push({
-              key: `stripe-${place.id}-${nextPlace.id}-${sIdx}-mid`,
-              position: { lat: p1.lat, lng: p1.lng },
-              bearing,
-              color: strokeColor,
-              transportType,
-              zIndex: arrowZIndex,
-            });
-          }
-        }
-      });
+      points.push(...geometry.arrowAnchors);
     });
 
     return points;

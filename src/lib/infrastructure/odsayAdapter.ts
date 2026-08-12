@@ -170,6 +170,19 @@ export class OdsayAdapter {
   }
 
   /**
+   * ODsay 도보 길찾기 API 어댑터 (#31 searchWalkPathV2)
+   */
+  public static async fetchWalkPathV2(
+    sx: string,
+    sy: string,
+    ex: string,
+    ey: string,
+    apiKey?: string
+  ): Promise<any> {
+    return this.getOdsayData('searchWalkPathV2', { SX: sx, SY: sy, EX: ex, EY: ey }, apiKey);
+  }
+
+  /**
    * ODsay 위치 기반 반경 정류장 검색 API 어댑터 (#18 pointSearch)
    */
   public static async fetchPointSearch(

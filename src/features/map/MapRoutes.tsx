@@ -3,6 +3,8 @@ import AnimatedPolyline from '@/components/AnimatedPolyline';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { SEQUENCE_COLORS } from '@/constants/colors';
+import { simplifyPath } from '@/lib/polylineSimplifier';
+import { useMapUIStore } from '@/stores/map-store';
 import type { Place, Journey } from '@/types/journey';
 
 export interface MapRoutesProps {
@@ -40,6 +42,8 @@ export const MapRoutes = memo(function MapRoutes({
   animationVersion,
   animatedSegmentsRef,
 }: MapRoutesProps) {
+  const zoomLevel = useMapUIStore((state) => state.zoomLevel);
+
   const handlePolylineClick = useCallback((place: Place, nextPlace: Place, targetRoute: any) => {
     const bounds = calculateSegmentBounds(place, nextPlace, targetRoute);
     if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
@@ -90,8 +94,11 @@ export const MapRoutes = memo(function MapRoutes({
           if (isHoveredRoute) currentStepDelay = 0;
 
           return route.steps.map((step: any, sIdx: number) => {
-            const stepPath = step.pathPoints || [];
-            if (stepPath.length < 2) return null;
+            const rawStepPath = step.pathPoints || [];
+            if (rawStepPath.length < 2) return null;
+
+            // RDP 좌표 단순화 적용
+            const stepPath = simplifyPath(rawStepPath, zoomLevel);
 
             const stepRatio = (step.distance || 1) / totalDistance;
             const stepDuration = Math.max(100, totalAnimDuration * stepRatio);
@@ -214,24 +221,28 @@ export const MapRoutes = memo(function MapRoutes({
               );
             }
 
+            const showOuterStroke = zoomLevel > 13 || isThisStepFocused;
+
             return (
               <Fragment key={`polyline-group-${keyPrefix}${place.id}-${nextPlace.id}-${sIdx}`}>
-                <AnimatedPolyline
-                  path={pathPoints}
-                  delay={stepDelay}
-                  duration={stepDuration}
-                  skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
-                  resetKey={animationVersion}
-                  strokeColor="#FFFFFF"
-                  strokeOpacity={0.95}
-                  strokeWeight={strokeWeight + 1.8}
-                  strokeStyle="solid"
-                  strokeLineCap="round"
-                  strokeLineJoin="round"
-                  zIndex={baseZIndex}
-                  onClick={() => handlePolylineClick(place, nextPlace, route)}
-                  visible={isVisible}
-                />
+                {showOuterStroke && (
+                  <AnimatedPolyline
+                    path={pathPoints}
+                    delay={stepDelay}
+                    duration={stepDuration}
+                    skipAnimation={isHoveredRoute || animatedSegmentsRef.current.has(cacheKey)}
+                    resetKey={animationVersion}
+                    strokeColor="#FFFFFF"
+                    strokeOpacity={0.95}
+                    strokeWeight={strokeWeight + 1.8}
+                    strokeStyle="solid"
+                    strokeLineCap="round"
+                    strokeLineJoin="round"
+                    zIndex={baseZIndex}
+                    onClick={() => handlePolylineClick(place, nextPlace, route)}
+                    visible={isVisible}
+                  />
+                )}
                 <AnimatedPolyline
                   path={pathPoints}
                   delay={stepDelay}

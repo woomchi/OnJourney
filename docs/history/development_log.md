@@ -1,4 +1,4 @@
-﻿# OnJourney 개발 흐름 로그
+# OnJourney 개발 흐름 로그
 
 > Git 커밋 이력을 기반으로 정리한 프로젝트 개발 흐름 요약입니다.  
 > 세부 변경 사항보다는 **어떤 기능이 어떤 순서로 추가·개선·제거되었는지**의 흐름에 집중합니다.
@@ -192,6 +192,61 @@
 
 ---
 
+## Phase 8 — 인프라 고도화 & 신규 서비스 연동 (2026-07-29 ~ 2026-08-12)
+
+### 장소 검색 API 전환
+- **네이버 장소 검색 → 카카오 로컬 API** 전환
+  - 키워드 검색 + 카테고리 검색 이중 구조
+  - `searchPatternService.ts` 도입: 검색어 패턴 분석 + 카테고리 코드 자동 매핑
+  - **Gaussian Decay 거리 점수** 기반 랭킹 (도보/도심/외곽 scale 구분)
+  - Cold Start 방지용 Tier1 카테고리 인기도 가산점
+
+### 도보 경로 실제 API 연동
+- **ODsay 멀티모달 API 연동** (`odsayWalkingService.ts`)
+  - 10km 미만 구간에 ODsay `maasRP` (멀티모달 API) 기반 도보/자전거/킥보드 경로 탐색 적용 (기존 TMAP 보행자 API 대체)
+  - 단일 `ODSAY_API_KEY` 사용으로 API 인증 관리 통합 및 데이터 일관성 확보
+  - ODsay API 장애 또는 범위 초과 시 `buildWalkFallbackResults` 기반 Fallback 자동 전환
+
+### 인프라 패턴 도입
+- **Circuit Breaker** 패턴 구현 (`circuitBreaker.ts`)
+  - CLOSED → OPEN → HALF_OPEN 3상태 관리
+  - ODsay 연속 실패 3회 시 즉시 Fail-Fast Fallback
+  - 10초 쿨다운 후 HALF_OPEN 복구 시험
+- **Rate Limiter** 구현 (`rateLimiter.ts`): ODsay 무료 플랜(1,000회/일) 보호
+- **OdsayAdapter** 도메인 에러 클래스 체계화
+  - `TransitApiError`, `TransitAuthError`, `TransitQuotaError`, `TransitRouteNotFoundError`
+
+### 지형 분류 시스템
+- **GeoJSON 기반 지형 분류** 구현 (`walkabilityCheck.ts`, `terrainClassifier.ts`)
+  - Phase 1: O(1) BBox 선검사 → Turf.js PIP 2차 정밀 검증
+  - `naturalData.json` + `landUseData_processed.json` 파일 로드 (forest, wood, water, beach 등)
+  - 지형 타입 분류: `normal` / `mountain` / `beach`
+
+### DnD 라이브러리 전환
+- **HTML5 Native DnD → `@dnd-kit`** 전환 (core / sortable / modifiers)
+  - 모바일 터치 지원 향상
+  - `useMobileDndSensors` 훅으로 센서 설정 추상화
+
+### 출발 시간 선택 UI
+- `DepartureTimePicker` 및 `DepartureTimeSelector` 컴포넌트 추가
+  - 여정 출발 시간 직접 지정 기능
+  - 기존 `departureTime` 파라미터 캐시와 연동
+
+### GPS 트래킹 복구
+- Phase 6에서 보류된 GPS 기능 **`useGPSTracking` 훅**으로 재구현
+  - `useGeocodeOnIdle.ts`: 지도 idle 상태 기반 역지오코딩
+
+### 피처 모듈화 (features/ 디렉터리)
+- `features/map/`: MapArea, MapMarkers, MapRoutes, MapOverlays, MapFloatingControls, useMapCamera
+- `features/route/`: AlternativeRoutePanel, RouteGuidePanel, RoutePanels
+- `features/places/`: PlaceSearchBar, usePlaceSearch
+
+### React Query 영속화
+- `@tanstack/react-query-persist-client` + `idb-keyval` 도입
+  - IndexedDB 기반 쿼리 캐시 영속화 (앱 재시작 시 캐시 유지)
+
+---
+
 ## 삭제 / 임시 제거된 기능
 
 | 항목 | 시점 | 비고 |
@@ -200,8 +255,9 @@
 | 가짜 실시간 데이터 로직 | Phase 3 | 실 API 연동 전 임시 제거 |
 | 사이드바 내 실시간 정보 UI | Phase 3 | 임시 삭제 (재설계 예정) |
 | 검색바 | Phase 3 | 줌/뷰 방식 개편으로 제거 |
-| GPS 기능 | Phase 6 | 일시 보류 |
+| GPS 기능 (일시 보류) | Phase 6 | Phase 8에서 `useGPSTracking`으로 복구 |
 | 마커 애니메이션 | Phase 5 | 성능/디자인 이유로 삭제 |
+| 네이버 장소 검색 API | Phase 8 | 카카오 로컬 API로 전환 |
 
 ---
 
@@ -211,9 +267,18 @@
 |------------|----------|------|
 | `shadcn/ui` | Phase 4 (06-24) | UI 컴포넌트 체계화 |
 | `React Query` | Phase 4 (06-23) | 서버 상태 관리 최적화 |
-| 바텀 시트 패턴 | Phase 6 | 모바일 UX 최적화 |
+| 바텀 시트 패턴 (`framer-motion`) | Phase 6 | 모바일 UX 최적화 |
 | Polyline 레이어 분리 | Phase 2 | 렌더링 우선순위 제어 |
+| 시간대별 캐시 키 분리 | Phase 7 | ODsay API 비용 절감 |
+| 출발 시간 파라미터 (`departureTime`) | Phase 7 | 예약 여정 계획 지원 |
+| Circuit Breaker | Phase 8 | ODsay 장애 보호 및 Fail-Fast |
+| Rate Limiter | Phase 8 | ODsay 무료 플랜 쿼터 보호 |
+| TMAP 보행자 경로 API | Phase 8 | 실제 도보 경로 탐색 |
+| 카카오 로컬 API | Phase 8 | 장소 검색 개편 (네이버 대체) |
+| `@dnd-kit` | Phase 8 | DnD 모바일 지원 향상 |
+| GeoJSON + Turf BBox+PIP | Phase 8 | 지형 분류 시스템 |
+| `@tanstack/react-query-persist-client` | Phase 8 | 쿼리 캐시 IndexedDB 영속화 |
 
 ---
 
-*최종 업데이트: 2026-07-28*
+*최종 업데이트: 2026-08-12*

@@ -16,7 +16,10 @@ interface TransferMarkersProps {
   alternativeSegment?: any;
 }
 
+import { isPositionInBounds } from '@/features/map/MapMarkers';
 import { useMapUIStore } from '@/stores/map-store';
+
+import { getSegmentGeometry, TransferPoint } from '@/lib/segmentGeometryCache';
 
 export default function TransferMarkers({
   places,
@@ -28,27 +31,11 @@ export default function TransferMarkers({
   alternativeSegment,
 }: TransferMarkersProps) {
   const isMapDragging = useMapUIStore((state) => state.isMapDragging);
+  const mapBounds = useMapUIStore((state) => state.mapBounds);
   const { focusedStep, setFocusedStep, setFocusBounds, setFocusedSegment } = useJourneyStore();
 
   const transferPoints = useMemo(() => {
-    const points: Array<{
-      key: string;
-      originId: string;
-      destId: string;
-      position: { lat: number; lng: number };
-      busName: string;
-      type: string;
-      color: string;
-      stationName: string;
-      isFirst?: boolean;
-      isStart?: boolean;
-      isDest?: boolean;
-      isAlighting?: boolean;
-      isSegmentStart?: boolean;
-      isSegmentDest?: boolean;
-      stepIndex: number;
-      offsetX?: number;
-    }> = [];
+    const points: TransferPoint[] = [];
 
     if (!navermaps || places.length < 2) return points;
 
@@ -60,236 +47,35 @@ export default function TransferMarkers({
       const segmentData = directionsCache[cacheKey];
 
       const defaultRoute = getDefaultRoute(place, nextPlace, segmentData, transportType as 'public' | 'car' | 'walk');
-
       const isAlternativeSegment = alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id;
       const activeRoute = (isAlternativeSegment && hoveredAlternativeRoute) ? hoveredAlternativeRoute : defaultRoute;
 
-      if (!activeRoute || !activeRoute.steps) {
-        return;
-      }
+      if (!activeRoute || !activeRoute.steps) return;
 
-      // 전체 여정 뷰(focusedSegment가 없을 때)에서는 마커를 노출하지 않음
       if (!focusedSegment) return;
 
-      const isCurrentSegment =
-        focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
+      const isCurrentSegment = focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
       if (!isCurrentSegment) return;
 
-      const transitSteps = activeRoute.steps.filter((s: any) => ['bus', 'subway', 'train', 'expressbus'].includes(s.type));
-      
-      const startColor = getSequenceTheme(idx, places.length).color;
-      const mergedFirstTransit = false;
-
-      const getShiftedStepPoint = (step: any, isStart: boolean) => {
-        if (step.pathPoints && step.pathPoints.length >= 2) {
-          const pt = isStart ? step.pathPoints[0] : step.pathPoints[step.pathPoints.length - 1];
-          return { lat: pt.lat, lng: pt.lng };
-        }
-        if (isStart) {
-          return {
-            lat: step.startLat ?? (step.pathPoints && step.pathPoints.length > 0 ? step.pathPoints[0].lat : undefined),
-            lng: step.startLng ?? (step.pathPoints && step.pathPoints.length > 0 ? step.pathPoints[0].lng : undefined)
-          };
-        } else {
-          return {
-            lat: step.endLat ?? (step.pathPoints && step.pathPoints.length > 0 ? step.pathPoints[step.pathPoints.length - 1].lat : undefined),
-            lng: step.endLng ?? (step.pathPoints && step.pathPoints.length > 0 ? step.pathPoints[step.pathPoints.length - 1].lng : undefined)
-          };
-        }
-      };
-
-      // 1. 출발지 전용 마커 추가 (무조건 추가 - 유효한 좌표 확인)
-      if (place.lat !== undefined && place.lng !== undefined && !isNaN(place.lat) && !isNaN(place.lng)) {
-        points.push({
-          key: `start-${place.id}-${nextPlace.id}`,
-          originId: place.id,
-          destId: nextPlace.id,
-          position: { lat: Number(place.lat), lng: Number(place.lng) },
-          busName: place.place_name,
-          type: 'start',
-          color: startColor,
-          stationName: '출발지',
-          isStart: true,
-          isSegmentStart: true,
-          stepIndex: -1,
-        });
-      }
-
-      // 모든 도보 스텝에 대해 도보 출발 마커 추가
-      activeRoute.steps.forEach((step: any, sIdx: number) => {
-        if (step && step.type === 'walk') {
-          const { lat: firstLat, lng: firstLng } = getShiftedStepPoint(step, true);
-
-          if (firstLat !== undefined && firstLng !== undefined) {
-            points.push({
-              key: `walk-${place.id}-${nextPlace.id}-${sIdx}`,
-              originId: place.id,
-              destId: nextPlace.id,
-              position: { lat: firstLat, lng: firstLng },
-              busName: '도보',
-              type: 'walk',
-              color: '#71717A',
-              stationName: '도보 출발지',
-              isFirst: true,
-              stepIndex: sIdx,
-            });
-          }
-        }
-      });
-
-      // 현재 포커스된 스텝이 이 구간의 마지막 스텝인 경우, 다음 구간의 첫 번째 이동 수단 마커 추가
-      const isLastStepFocused = !!(
-        focusedStep &&
-        focusedStep.originId === place.id &&
-        focusedStep.destId === nextPlace.id &&
-        (focusedStep.stepIndex === activeRoute.steps.length - 1 || focusedStep.subType === 'dest')
+      const geometry = getSegmentGeometry(
+        place,
+        nextPlace,
+        activeRoute,
+        transportType,
+        idx,
+        places.length,
+        focusedSegment,
+        focusedStep
       );
 
-      if (isLastStepFocused && idx + 2 < places.length) {
-        const nextSegmentOrigin = nextPlace;
-        const nextSegmentDest = places[idx + 2];
-        const nextCacheKey = `${nextSegmentOrigin.id}-${nextSegmentDest.id}`;
-        const nextSegmentData = directionsCache[nextCacheKey];
-        const nextActiveRoute = getDefaultRoute(nextSegmentOrigin, nextSegmentDest, nextSegmentData, transportType as 'public' | 'car' | 'walk');
-
-        if (nextActiveRoute && nextActiveRoute.steps && nextActiveRoute.steps.length > 0) {
-          const nextFirstStep = nextActiveRoute.steps[0];
-          const { lat: nextFirstLat, lng: nextFirstLng } = getShiftedStepPoint(nextFirstStep, true);
-
-          if (nextFirstLat !== undefined && nextFirstLng !== undefined) {
-            points.push({
-              key: `next-first-${nextSegmentOrigin.id}-${nextSegmentDest.id}-0`,
-              originId: nextSegmentOrigin.id,
-              destId: nextSegmentDest.id,
-              position: { lat: nextFirstLat, lng: nextFirstLng },
-              busName: nextFirstStep.name,
-              type: nextFirstStep.type,
-              color: nextFirstStep.color || (nextFirstStep.type === 'walk' ? '#71717A' : '#4F46E5'),
-              stationName: nextFirstStep.startName || (nextFirstStep.type === 'walk' ? '도보 출발지' : '탑승 정류장'),
-              isFirst: true,
-              stepIndex: 0,
-            });
-          }
-        }
-      }
-
-      if (transitSteps.length > 0) {
-        const firstStep = transitSteps[0];
-        const firstStepIndex = activeRoute.steps.indexOf(firstStep);
-        const shouldShowFirstStep = true;
-        // 첫 대중교통 탑승지가 출발지와 병합되었다면, 중복 렌더링 방지를 위해 첫 탑승 마커는 생략
-        if (shouldShowFirstStep && !mergedFirstTransit) {
-          const { lat: firstLat, lng: firstLng } = getShiftedStepPoint(firstStep, true);
-
-          if (firstLat !== undefined && firstLng !== undefined) {
-            points.push({
-              key: `transfer-${place.id}-${nextPlace.id}-0`,
-              originId: place.id,
-              destId: nextPlace.id,
-              position: { lat: firstLat, lng: firstLng },
-              busName: firstStep.name,
-              type: firstStep.type,
-              color: firstStep.color || '#4F46E5',
-              stationName: firstStep.startName || '탑승 정류장',
-              isFirst: true,
-              stepIndex: firstStepIndex,
-            });
-          }
-        }
-      }
-
-      for (let i = 1; i < transitSteps.length; i++) {
-        const prevStep = transitSteps[i - 1];
-        const currStep = transitSteps[i];
-        const currStepIndex = activeRoute.steps.indexOf(currStep);
-        const shouldShowCurrStep = true;
-
-        if (shouldShowCurrStep) {
-          const { lat: prevEndLat, lng: prevEndLng } = getShiftedStepPoint(prevStep, false);
-          const { lat: currStartLat, lng: currStartLng } = getShiftedStepPoint(currStep, true);
-
-          const hasCoordinates = prevEndLat !== undefined && prevEndLng !== undefined &&
-            currStartLat !== undefined && currStartLng !== undefined;
-
-          const isSameName = !!(prevStep.endName && currStep.startName &&
-            prevStep.endName.trim() === currStep.startName.trim());
-
-          const isClose = hasCoordinates &&
-            calculateHaversineDistance(prevEndLat, prevEndLng, currStartLat, currStartLng) < 300;
-
-          if (isSameName || isClose) {
-            const lat = currStartLat;
-            const lng = currStartLng;
-
-            if (lat && lng) {
-              points.push({
-                key: `transfer-${place.id}-${nextPlace.id}-${i}`,
-                originId: place.id,
-                destId: nextPlace.id,
-                position: { lat, lng },
-                busName: currStep.name,
-                type: currStep.type,
-                color: currStep.color || '#4F46E5',
-                stationName: currStep.startName || '환승 정류장',
-                stepIndex: currStepIndex,
-              });
-            }
-          }
-        }
-      }
-
-      // 세그먼트의 도착지 마커 추가 (무조건 추가)
-      points.push({
-        key: `destination-${place.id}-${nextPlace.id}`,
-        originId: place.id,
-        destId: nextPlace.id,
-        position: { lat: nextPlace.lat, lng: nextPlace.lng },
-        busName: nextPlace.place_name,
-        type: 'destination',
-        color: getSequenceTheme(idx + 1, places.length).color,
-        stationName: '도착지',
-        isDest: true,
-        isSegmentDest: true,
-        stepIndex: activeRoute.steps.length,
-      });
-
-      // 하차 마커 추가 (focusedStep.subType === 'end' 인 경우에만 노출)
-      if (
-        focusedStep &&
-        focusedStep.originId === place.id &&
-        focusedStep.destId === nextPlace.id &&
-        focusedStep.subType === 'end'
-      ) {
-        const step = activeRoute.steps[focusedStep.stepIndex];
-        if (step) {
-          const { lat: endLat, lng: endLng } = getShiftedStepPoint(step, false);
-          if (endLat !== undefined && endLng !== undefined) {
-            points.push({
-              key: `alighting-${place.id}-${nextPlace.id}-${focusedStep.stepIndex}`,
-              originId: place.id,
-              destId: nextPlace.id,
-              position: { lat: endLat, lng: endLng },
-              busName: step.endName || step.name || '하차지',
-              type: step.type,
-              color: '#F43F5E', // 하차는 Rose Red
-              stationName: step.endName || '하차 정류장',
-              isAlighting: true,
-              stepIndex: focusedStep.stepIndex,
-            });
-          }
-        }
-      }
+      points.push(...geometry.transferPoints);
     });
 
     let filteredPoints = points;
     if (focusedSegment) {
-      filteredPoints = points.filter(pt => {
-        // 항상 출발/도착 마커는 노출
+      filteredPoints = points.filter((pt) => {
         if (pt.isSegmentStart || pt.isSegmentDest) return true;
-        
-        // 특정 세부 구간이 선택되지 않았을 때는 세부 마커 숨김
         if (!focusedStep) return false;
-        
         if (focusedStep.originId !== pt.originId || focusedStep.destId !== pt.destId) return false;
 
         if (focusedStep.subType === 'dest') {
@@ -304,57 +90,12 @@ export default function TransferMarkers({
 
         return pt.stepIndex === focusedStep.stepIndex;
       });
-
-      if (filteredPoints.length > 0) {
-        filteredPoints.sort((a: any, b: any) => {
-          if (a.stepIndex !== b.stepIndex) return a.stepIndex - b.stepIndex;
-          if (a.isStart !== b.isStart) return a.isStart ? -1 : 1;
-          if (a.isDest !== b.isDest) return a.isDest ? 1 : -1;
-          if (a.isAlighting !== b.isAlighting) return a.isAlighting ? 1 : -1;
-          return 0;
-        });
-      }
     }
 
-    // 중복 마커 병합 및 그룹화 로직 (오프셋 대신 단일 알약으로 통합)
-    const groups: { [key: string]: typeof filteredPoints } = {};
-    filteredPoints.forEach((pt) => {
-      const key = `${pt.position.lat.toFixed(5)},${pt.position.lng.toFixed(5)}`;
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(pt);
-    });
+    if (!mapBounds) return filteredPoints;
 
-    const finalPoints: Array<any> = [];
-
-    Object.values(groups).forEach((group) => {
-      if (group.length === 1) {
-        const pt = group[0];
-        pt.offsetX = 0;
-        finalPoints.push(pt);
-      } else {
-        group.sort((a, b) => {
-          const scoreA = a.isSegmentStart ? 1 : (a.isSegmentDest ? 3 : 2);
-          const scoreB = b.isSegmentStart ? 1 : (b.isSegmentDest ? 3 : 2);
-          return scoreA - scoreB;
-        });
-
-        const primaryPt = group[0];
-        const mergedKey = group.map((p) => p.key).join('--');
-
-        finalPoints.push({
-          ...primaryPt,
-          key: `merged-${mergedKey}`,
-          isMergedGroup: true,
-          subPoints: group,
-          offsetX: 0,
-        });
-      }
-    });
-
-    return finalPoints;
-  }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps]);
+    return filteredPoints.filter((pt) => isPositionInBounds(pt.position, mapBounds, 0.15));
+  }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps, mapBounds, alternativeSegment, hoveredAlternativeRoute]);
 
   const handleTransferMarkerClick = (targetPt: any) => {
     const pt = targetPt.isMergedGroup

@@ -91,122 +91,32 @@ export function useJourneyDirections() {
 export function useJourneyDirectionsCache(places: Place[] | undefined) {
   const queryClient = useQueryClient();
   const { departureTime } = useJourneyStore();
-  const [directionsCache, setDirectionsCache] = useState<Record<string, DirectionsApiResponse>>({});
 
-  const placesRef = useRef(places);
-  useEffect(() => {
-    placesRef.current = places;
-  }, [places]);
+  return useMemo(() => {
+    if (!places || places.length < 2) return {};
 
-  const placesKey = useMemo(() => {
-    if (!places) return '';
-    return places.map(p => `${p.id}-${p.selected_route?.destId || ''}`).join(',');
-  }, [places]);
+    const cache: Record<string, DirectionsApiResponse> = {};
+    for (let i = 0; i < places.length - 1; i++) {
+      const origin = places[i];
+      const dest = places[i + 1];
+      const cacheKey = `${origin.id}-${dest.id}`;
+      const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(
+        directionKeys.segmentPublic(origin.id, dest.id, departureTime)
+      );
+      const carData = queryClient.getQueryData<{
+        car: DirectionResult[];
+        walk: DirectionResult[];
+        snapMeta?: SnapMeta;
+      }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
 
-  useEffect(() => {
-    const activePlaces = placesRef.current;
-    if (!activePlaces || activePlaces.length < 2) {
-      setDirectionsCache({});
-      return;
-    }
-
-    const updateCache = () => {
-      const currentPlaces = placesRef.current;
-      if (!currentPlaces || currentPlaces.length < 2) return;
-
-      const newCache: Record<string, DirectionsApiResponse> = {};
-      currentPlaces.slice(0, -1).forEach((origin, i) => {
-        const dest = currentPlaces[i + 1];
-        const cacheKey = `${origin.id}-${dest.id}`;
-        const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-        const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
-        
-        if (publicData || carData) {
-          newCache[cacheKey] = {
-            public: publicData?.public || [],
-            car: carData?.car || [],
-            walk: carData?.walk || []
-          };
-        }
-      });
-      
-      setDirectionsCache(prevCache => {
-        const prevKeys = Object.keys(prevCache);
-        const newKeys = Object.keys(newCache);
-        if (prevKeys.length !== newKeys.length) return newCache;
-        
-        for (const key of newKeys) {
-          if (prevCache[key] !== newCache[key]) {
-            return newCache;
-          }
-        }
-        return prevCache;
-      });
-    };
-
-    updateCache();
-  }, [placesKey, queryClient, departureTime]);
-
-  useEffect(() => {
-    let cacheUpdateTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-      if (event.type === 'updated' || event.type === 'added') {
-        const qKey = event.query.queryKey;
-        if (Array.isArray(qKey) && qKey[0] === 'directions') {
-          // Check if updated direction segment belongs to active places
-          const activePlaces = placesRef.current;
-          if (activePlaces && activePlaces.length >= 2 && qKey.length >= 3) {
-            const originId = qKey[1];
-            const destId = qKey[2];
-            const isRelevant = activePlaces.some((p, i) => i < activePlaces.length - 1 && p.id === originId && activePlaces[i + 1].id === destId);
-            
-            if (isRelevant) {
-              if (cacheUpdateTimer) clearTimeout(cacheUpdateTimer);
-              cacheUpdateTimer = setTimeout(() => {
-                const currentPlaces = placesRef.current;
-                if (!currentPlaces || currentPlaces.length < 2) return;
-
-                const newCache: Record<string, DirectionsApiResponse> = {};
-                currentPlaces.slice(0, -1).forEach((origin, i) => {
-                  const dest = currentPlaces[i + 1];
-                  const cacheKey = `${origin.id}-${dest.id}`;
-                  const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-                  const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
-                  
-                  if (publicData || carData) {
-                    newCache[cacheKey] = {
-                      public: publicData?.public || [],
-                      car: carData?.car || [],
-                      walk: carData?.walk || []
-                    };
-                  }
-                });
-
-                setDirectionsCache(prevCache => {
-                  const prevKeys = Object.keys(prevCache);
-                  const newKeys = Object.keys(newCache);
-                  if (prevKeys.length !== newKeys.length) return newCache;
-                  
-                  for (const key of newKeys) {
-                    if (prevCache[key] !== newCache[key]) {
-                      return newCache;
-                    }
-                  }
-                  return prevCache;
-                });
-              }, 50);
-            }
-          }
-        }
+      if (publicData || carData) {
+        cache[cacheKey] = {
+          public: publicData?.public || [],
+          car: carData?.car || [],
+          walk: carData?.walk || [],
+        };
       }
-    });
-
-    return () => {
-      unsubscribe();
-      if (cacheUpdateTimer) clearTimeout(cacheUpdateTimer);
-    };
-  }, [queryClient, departureTime]);
-
-  return directionsCache;
+    }
+    return cache;
+  }, [places, queryClient, departureTime]);
 }

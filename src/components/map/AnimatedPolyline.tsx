@@ -39,6 +39,19 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
     return false;
   };
 
+  // Memoize full LatLng array conversion to eliminate object re-instantiation overhead
+  const fullPath = useMemo(() => {
+    if (!path || path.length === 0) return [];
+    const navermaps = typeof window !== 'undefined' && window.naver?.maps;
+    return navermaps
+      ? path.map((pt: any) => {
+          const lat = typeof pt.lat === 'function' ? pt.lat() : pt.lat;
+          const lng = typeof pt.lng === 'function' ? pt.lng() : pt.lng;
+          return pt instanceof navermaps.LatLng ? pt : new navermaps.LatLng(lat, lng);
+        })
+      : [...path];
+  }, [pathKey, path]);
+
   useEffect(() => {
     if (!path || path.length < 2) {
       const initial = path || [];
@@ -48,13 +61,6 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
     }
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-    const fullPath = navermaps
-      ? path.map((pt: any) => {
-          const lat = typeof pt.lat === 'function' ? pt.lat() : pt.lat;
-          const lng = typeof pt.lng === 'function' ? pt.lng() : pt.lng;
-          return pt instanceof navermaps.LatLng ? pt : new navermaps.LatLng(lat, lng);
-        })
-      : [...path];
 
     if (skipAnimation || hasAnimatedRef.current) {
       setCurrentPath(fullPath);

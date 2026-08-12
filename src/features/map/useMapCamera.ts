@@ -61,8 +61,10 @@ export function useMapCamera({
 
   // 1. Offset을 고려하여 좌표로 이동 (panTo)
   const panToWithOffset = useCallback((naverMap: naver.maps.Map, coord: { lat: number; lng: number }) => {
+    if (typeof (naverMap as any).stop === 'function') {
+      (naverMap as any).stop();
+    }
     const padding = currentMapPaddingRef.current;
-    naverMap.setOptions({ padding });
 
     const projection = naverMap.getProjection();
     if (!projection) {

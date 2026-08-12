@@ -112,8 +112,10 @@ export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
                 }
 
                 const regionName = regionParts.filter(Boolean).join(' ');
-                setMapCenterAddress(regionName);
-                setMapCenterCoord({ lat, lng });
+                useJourneyStore.setState({
+                  mapCenterAddress: regionName,
+                  mapCenterCoord: { lat, lng },
+                });
                 lastGeocodedCoordsRef.current = { lat, lng };
               }
             }

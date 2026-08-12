@@ -3,7 +3,7 @@ import { DirectionsQueryType } from '@/lib/validations/directions';
 import { haversineDistance, roundCoord } from './common/distanceUtils';
 import { fetchCarRoute, calculateCarFallback } from './car/carRouteService';
 import { buildWalkFallbackResults } from './walk/walkFallbackService';
-import { getCachedTMapWalkingRoute, parseTMapResponse } from './walk/tmapWalkingService';
+import { fetchOdsayWalkingRoute } from './walk/odsayWalkingService';
 
 /**
  * 차량 + 도보 통합 오케스트레이션 함수
@@ -15,7 +15,6 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   const straightDistKm = haversineDistance(sy, sx, ey, ex);
   const isWalkExceedLimit = straightDistKm >= 10.0;
 
-  const roundCoordWalk = (val: number) => roundCoord(val, 4);
   const roundCoordCar = (val: number) => roundCoord(val, 6);
 
   const csx = roundCoordCar(sx);
@@ -23,29 +22,12 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   const cex = roundCoordCar(ex);
   const cey = roundCoordCar(ey);
 
-  // 2. 도보 탐색 (TMAP 보행자 경로 API 및 Fallback 연동)
+  // 2. 도보 탐색 (ODsay 멀티모달 도보 경로 API 및 Fallback 연동)
   let walkResults: DirectionResult[] = [];
   if (isWalkExceedLimit) {
     walkResults = [];
   } else {
-    const apiKey = process.env.TMAP_API_KEY;
-    if (!apiKey) {
-      console.warn('[directionsOrchestrator] TMAP_API_KEY가 설정되지 않았습니다. Fallback 도보 경로를 사용합니다.');
-      walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
-    } else {
-      try {
-        const wsx = roundCoordWalk(sx);
-        const wsy = roundCoordWalk(sy);
-        const wex = roundCoordWalk(ex);
-        const wey = roundCoordWalk(ey);
-
-        const tmapData = await getCachedTMapWalkingRoute(wsx, wsy, wex, wey, apiKey);
-        walkResults = parseTMapResponse(tmapData, wsx, wsy, wex, wey);
-      } catch (error) {
-        console.warn('[directionsOrchestrator] TMap Walking API 호출 실패, Fallback 도보 경로를 적용합니다.', error);
-        walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
-      }
-    }
+    walkResults = await fetchOdsayWalkingRoute(sx, sy, ex, ey);
   }
 
   const snapMeta: SnapMeta = {

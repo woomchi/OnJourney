@@ -402,13 +402,13 @@ export default function MapArea() {
     setActiveRecommendedPlace(recPlace);
     setMapClickedPlace(null);
 
-    if (panTimeoutRef.current) clearTimeout(panTimeoutRef.current);
-    if (stateTimeoutRef.current) clearTimeout(stateTimeoutRef.current);
-
     if (map) {
-      panTimeoutRef.current = setTimeout(() => {
+      if (typeof (map as any).stop === 'function') {
+        (map as any).stop();
+      }
+      requestAnimationFrame(() => {
         panToWithOffset(map, { lat: recPlace.lat, lng: recPlace.lng });
-      }, 50);
+      });
     }
   }, [setActiveRecommendedPlace, setMapClickedPlace, map, panToWithOffset]);
 
@@ -425,52 +425,49 @@ export default function MapArea() {
 
     setFocusedPlaceId(place.id);
 
-    if (panTimeoutRef.current) clearTimeout(panTimeoutRef.current);
-    if (stateTimeoutRef.current) clearTimeout(stateTimeoutRef.current);
-
     const coord: naver.maps.CoordLiteral = { lat: place.lat, lng: place.lng };
 
     if (map) {
-      map.setOptions({ padding: currentMapPadding });
+      if (typeof (map as any).stop === 'function') {
+        (map as any).stop();
+      }
       setMapCenter(coord);
-      panTimeoutRef.current = setTimeout(() => {
+      requestAnimationFrame(() => {
         panToWithOffset(map, coord);
-      }, 50);
+      });
     }
 
-    stateTimeoutRef.current = setTimeout(() => {
-      if (places.length < 2) return;
+    if (places.length < 2) return;
 
-      let originPlace: any;
-      let destPlace: any;
+    let originPlace: any;
+    let destPlace: any;
 
-      if (idx === places.length - 1) {
-        originPlace = places[places.length - 2];
-        destPlace = places[places.length - 1];
-      } else {
-        originPlace = places[idx];
-        destPlace = places[idx + 1];
-      }
+    if (idx === places.length - 1) {
+      originPlace = places[places.length - 2];
+      destPlace = places[places.length - 1];
+    } else {
+      originPlace = places[idx];
+      destPlace = places[idx + 1];
+    }
 
-      if (!originPlace || !destPlace) return;
+    if (!originPlace || !destPlace) return;
 
-      const cacheKey = `${originPlace.id}-${destPlace.id}`;
-      const segmentData = directionsCache[cacheKey];
-      const transportType = activeJourney?.transport_type || 'public';
-      const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+    const cacheKey = `${originPlace.id}-${destPlace.id}`;
+    const segmentData = directionsCache[cacheKey];
+    const transportType = activeJourney?.transport_type || 'public';
+    const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 
-      const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
+    const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
 
-      if (focusedSegment && focusedSegment.originId === originPlace.id && focusedSegment.destId === destPlace.id) {
-        setFocusBounds({ ...bounds });
-        setFocusedStep(null);
-      } else {
-        setFocusBounds(bounds);
-        setFocusedSegment({ originId: originPlace.id, destId: destPlace.id });
-        setFocusedStep(null);
-      }
-    }, 80);
-  }, [setMapClickedPlace, focusedPlaceId, setFocusedPlaceId, map, currentMapPadding, setMapCenter, panToWithOffset, places, directionsCache, activeJourney?.transport_type, focusedSegment, setFocusBounds, setFocusedStep, setFocusedSegment]);
+    if (focusedSegment && focusedSegment.originId === originPlace.id && focusedSegment.destId === destPlace.id) {
+      setFocusBounds({ ...bounds });
+      setFocusedStep(null);
+    } else {
+      setFocusBounds(bounds);
+      setFocusedSegment({ originId: originPlace.id, destId: destPlace.id });
+      setFocusedStep(null);
+    }
+  }, [setMapClickedPlace, focusedPlaceId, setFocusedPlaceId, map, setMapCenter, panToWithOffset, places, directionsCache, activeJourney?.transport_type, focusedSegment, setFocusBounds, setFocusedStep, setFocusedSegment]);
 
   if (!clientId) {
     return (

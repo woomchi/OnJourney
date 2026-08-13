@@ -12,6 +12,7 @@ export interface SegmentBusRealtimeChipProps {
   stationName?: string;
   busNo?: string;
   busColor?: string;
+  cityCode?: string;
 }
 
 type AutoRefreshState = 'idle' | 'active' | 'paused';
@@ -29,6 +30,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   stationName,
   busNo,
   busColor,
+  cityCode,
 }) => {
   // 상태 관리: 'idle' (최초 1회 조회 후 대기), 'active' (3회 자동 갱신 진행), 'paused' (3회 완료 후 정지)
   const [autoRefreshState, setAutoRefreshState] = useState<AutoRefreshState>('idle');
@@ -52,6 +54,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     region: region || 'seoul',
     stationId: String(stationId || ''),
     stationName,
+    cityCode,
     enabled: Boolean(stationId && cleanBusNo),
   });
 

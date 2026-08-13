@@ -219,6 +219,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   // 이동 구간 내 첫 번째 버스 정보 추출 (실시간 칩 연결용)
   const targetBusStep = data.steps?.find((s: any) => s.type === 'bus' || s.type === 'expressbus') || null;
   const rawStationId =
+    (targetBusStep as any)?.realtimeStationId ||
     (targetBusStep as any)?.startStationID ||
     (targetBusStep as any)?.startID ||
     (targetBusStep as any)?.startStationId ||
@@ -226,6 +227,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   const targetBusStationId = rawStationId ? String(rawStationId) : undefined;
   const targetBusName = targetBusStep?.name || '';
   const inferredRegion = (targetBusStep as any)?.startRegion || inferRegionFromPlace(originPlace);
+  const targetCityCode = (targetBusStep as any)?.startCityCode;
 
   const getTransportIcon = (tType: string, steps: any[] = []) => {
     if (tType === 'car' || tType === 'taxi') return <Car className="w-7 h-7" />;
@@ -310,6 +312,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                       region={inferredRegion}
                       stationId={targetBusStationId}
                       stationName={originPlace?.place_name}
+                      cityCode={targetCityCode}
                       busNo={targetBusName}
                       busColor={targetBusStep?.color}
                     />
@@ -616,6 +619,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                   region={inferredRegion}
                   stationId={targetBusStationId}
                   stationName={originPlace?.place_name}
+                  cityCode={targetCityCode}
                   busNo={targetBusName}
                   busColor={targetBusStep?.color}
                 />

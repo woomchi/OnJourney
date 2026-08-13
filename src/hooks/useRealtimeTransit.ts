@@ -44,6 +44,8 @@ export function useRealtimeTransit({
     refetchInterval: 15000, // 사용자 요청 반영: 모든 지역 15초 통일
     refetchIntervalInBackground: false, // 탭 비활성화 시 자동 갱신 일시정지
     staleTime: 10000, // 10초간 fresh 상태 유지
+    retry: 2, // 2회까지 자동 재시도
+    retryDelay: 1000, // 1초 간격 백오프
   });
 
   return {

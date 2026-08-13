@@ -255,8 +255,9 @@ export function parseMaasRPPath(
     const firstStation = rp.passStopList?.stations?.[0];
     const lastStation = rp.passStopList?.stations?.[rp.passStopList.stations.length - 1];
 
-    const resolvedStartStationID = firstStation?.localStationID || firstStation?.arsID || rp.startID;
-    const resolvedEndStationID = lastStation?.localStationID || lastStation?.arsID || rp.endID;
+    const resolvedStartStationID = firstStation?.localStationID || firstStation?.arsID || rp.startID || rp.startStationID;
+    const resolvedEndStationID = lastStation?.localStationID || lastStation?.arsID || rp.endID || rp.endStationID;
+    const busLocalBlID = rp.lane?.[0]?.busLocalBlID || rp.lane?.[0]?.busID || rp.lane?.[0]?.localBusID;
 
     return {
       type,
@@ -276,6 +277,8 @@ export function parseMaasRPPath(
       endID: resolvedEndStationID,
       startStationID: resolvedStartStationID,
       endStationID: resolvedEndStationID,
+      realtimeStationId: resolvedStartStationID ? String(resolvedStartStationID) : undefined,
+      busLocalBlID: busLocalBlID ? String(busLocalBlID) : undefined,
       startCityCode: rp.lane?.[0]?.busCityCode ? resolveTagoCode(rp.lane[0].busCityCode) : undefined,
       startRegion: rp.lane?.[0]?.busCityCode ? resolveBusRegion(rp.lane[0].busCityCode) : undefined,
       startDateTime: rp.startDateTime,

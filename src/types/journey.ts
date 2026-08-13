@@ -143,6 +143,8 @@ export interface DirectionStep {
   busLaneColor?: string;     // 버스 노선 색상
   startCityCode?: string;    // 버스 정류소 도시 코드
   startRegion?: string;      // 버스 정류소 지역 식별자
+  busLocalBlID?: string;     // 지자체 버스 노선 고유 ID (경기도 등)
+  realtimeStationId?: string;// TAGO/지자체 실시간 조회용 정류소 ID
 }
 
 /** 차량 경로 안내 단일 노드 (거리·시간 포함) */

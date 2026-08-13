@@ -3,6 +3,7 @@ import { GyeonggiBusService } from './GyeonggiBusService';
 import { MergeService } from './MergeService';
 import { TagoBusService } from './TagoBusService';
 import { NormalizedRealtimeData } from '@/types/realtimeTransit';
+import { resolveBusRegion, resolveTagoCode } from '@/lib/utils/busRegionUtils';
 
 export interface GetBusArrivalsParams {
   region: string;
@@ -21,11 +22,21 @@ export class RealtimeTransitService {
     stationName = '정류소',
     cityCode,
   }: GetBusArrivalsParams): Promise<NormalizedRealtimeData> {
-    const normalizedRegion = region.toLowerCase();
+    let normalizedRegion = region ? region.toLowerCase() : 'seoul';
+    let resolvedCityCode = cityCode;
+
+    // 0단계: ODsay CID 및 cityCode 매핑을 통한 region 및 TAGO cityCode 자동 교정
+    if (cityCode) {
+      resolvedCityCode = resolveTagoCode(cityCode);
+      const mappedRegion = resolveBusRegion(cityCode);
+      if (mappedRegion && mappedRegion !== 'seoul') {
+        normalizedRegion = mappedRegion;
+      }
+    }
 
     // 1단계: TAGO 버스 서비스 호출 (전국 주축 Primary API)
     const tagoResult = await TagoBusService.getArrivalInfo({
-      cityCode,
+      cityCode: resolvedCityCode,
       region: normalizedRegion,
       nodeId: stationId,
       stationName,

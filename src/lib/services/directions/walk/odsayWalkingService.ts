@@ -61,11 +61,18 @@ export async function getCachedOdsayMaasRPWalk(
         const data = await OdsayAdapter.fetchMaasRP(wsx, wsy, wex, wey, searchTime, '2', apiKey);
         return data;
       } catch (err: any) {
+        // 429 (한도 초과) 에러 발생 시 2차 외부 API 호출 시도를 생략하고 즉시 직선거리 Fallback 사용
+        const isQuotaError = err?.status === 429 || err?.code === 'TRANSIT_QUOTA_EXCEEDED' || err?.message?.includes('한도 초과');
+        if (isQuotaError) {
+          console.warn(`[odsayWalkingService] ODsay API 쿼터 한도 초과(429). 직선거리 Fallback 경로로 즉시 전환합니다.`);
+          return null;
+        }
+
         console.warn(`[odsayWalkingService] maasRP 호출 예외, searchWalkPathV2 폴백 시도:`, err?.message || err);
         try {
           return await OdsayAdapter.fetchWalkPathV2(wsx, wsy, wex, wey, apiKey, 'Start', 'End');
         } catch (v2Err: any) {
-          console.warn(`[odsayWalkingService] searchWalkPathV2 폴백 실패 (직선거리 Fallback 사용 예정):`, v2Err?.message || v2Err);
+          console.warn(`[odsayWalkingService] 도보 API 폴백 완료 (직선거리 Fallback 사용):`, v2Err?.message || v2Err);
           return null;
         }
       }

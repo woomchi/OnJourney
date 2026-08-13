@@ -339,7 +339,7 @@ export class OdsayAdapter {
     if (err.name === 'AbortError' || err.status === 408 || err.code === 'TIMEOUT') {
       return new TransitTimeoutError('ODsay API 호출 시간 초과');
     }
-    if (err.status === 429) {
+    if (err.status === 429 || err.message?.includes('Too Many Requests') || err.message?.includes('429')) {
       return new TransitQuotaError('ODsay API 요청 한도 초과');
     }
     return new TransitApiError(err.message || 'ODsay API 통신 오류', 'TRANSIT_API_NETWORK_ERROR', err.status || 500, true);

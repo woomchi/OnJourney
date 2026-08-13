@@ -1,5 +1,6 @@
 import type { DirectionResult, DirectionStep } from '@/types/journey';
 import { getSubwayColor, cleanSubwayName, getBusColor } from './transitColorUtils';
+import { resolveBusRegion, resolveTagoCode } from '@/lib/utils/busRegionUtils';
 
 const TRAIN_SUBTYPES: Record<number, string> = {
   1: 'KTX',
@@ -251,6 +252,12 @@ export function parseMaasRPPath(
       lng: parseFloat(st.x),
     }));
 
+    const firstStation = rp.passStopList?.stations?.[0];
+    const lastStation = rp.passStopList?.stations?.[rp.passStopList.stations.length - 1];
+
+    const resolvedStartStationID = firstStation?.localStationID || firstStation?.arsID || rp.startID;
+    const resolvedEndStationID = lastStation?.localStationID || lastStation?.arsID || rp.endID;
+
     return {
       type,
       name,
@@ -265,10 +272,12 @@ export function parseMaasRPPath(
       startLng,
       endLat,
       endLng,
-      startID: rp.startID,
-      endID: rp.endID,
-      startStationID: rp.startID,
-      endStationID: rp.endID,
+      startID: resolvedStartStationID,
+      endID: resolvedEndStationID,
+      startStationID: resolvedStartStationID,
+      endStationID: resolvedEndStationID,
+      startCityCode: rp.lane?.[0]?.busCityCode ? resolveTagoCode(rp.lane[0].busCityCode) : undefined,
+      startRegion: rp.lane?.[0]?.busCityCode ? resolveBusRegion(rp.lane[0].busCityCode) : undefined,
       startDateTime: rp.startDateTime,
       endDateTime: rp.endDateTime,
       waitingTime: rp.waitingTime,

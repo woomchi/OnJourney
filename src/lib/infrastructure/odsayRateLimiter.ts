@@ -10,10 +10,18 @@ class OdsayRateLimiter {
   private maxConcurrency: number;
   private minIntervalMs: number;
   private lastExecutionTime = 0;
+  private cooldownUntil = 0;
 
-  constructor(maxConcurrency = 2, minIntervalMs = 80) {
+  constructor(maxConcurrency = 2, minIntervalMs = 150) {
     this.maxConcurrency = maxConcurrency;
     this.minIntervalMs = minIntervalMs;
+  }
+
+  /**
+   * 429 Too Many Requests 감지 시 쿨다운 설정
+   */
+  public triggerCooldown(durationMs = 2000) {
+    this.cooldownUntil = Math.max(this.cooldownUntil, Date.now() + durationMs);
   }
 
   /**
@@ -24,9 +32,15 @@ class OdsayRateLimiter {
       const task = async () => {
         this.activeCount++;
         try {
-          // 요청 간 최소 시간(minIntervalMs) 보장
+          // 429 쿨다운 대기
           const now = Date.now();
-          const timeSinceLast = now - this.lastExecutionTime;
+          if (now < this.cooldownUntil) {
+            await new Promise((r) => setTimeout(r, this.cooldownUntil - now));
+          }
+
+          // 요청 간 최소 시간(minIntervalMs) 보장
+          const nowExec = Date.now();
+          const timeSinceLast = nowExec - this.lastExecutionTime;
           if (timeSinceLast < this.minIntervalMs) {
             await new Promise((r) => setTimeout(r, this.minIntervalMs - timeSinceLast));
           }
@@ -34,7 +48,10 @@ class OdsayRateLimiter {
 
           const result = await fn();
           resolve(result);
-        } catch (error) {
+        } catch (error: any) {
+          if (error?.status === 429 || error?.code === 'TRANSIT_QUOTA_EXCEEDED' || error?.message?.includes('429')) {
+            this.triggerCooldown(2500);
+          }
           reject(error);
         } finally {
           this.activeCount--;
@@ -57,5 +74,5 @@ class OdsayRateLimiter {
   }
 }
 
-// ODsay 전용 글로벌 Rate Limiter 싱글톤 객체 (최대 동시 2개, 최소 80ms 시차)
-export const odsayRateLimiter = new OdsayRateLimiter(2, 80);
+// ODsay 전용 글로벌 Rate Limiter 싱글톤 객체 (최대 동시 2개, 최소 150ms 시차)
+export const odsayRateLimiter = new OdsayRateLimiter(2, 150);

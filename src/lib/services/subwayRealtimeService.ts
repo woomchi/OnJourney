@@ -132,7 +132,9 @@ export async function fetchSubwayRealtime(
   params: SubwayRealtimeQueryType
 ): Promise<SubwayArrival[]> {
   const { station, wayCode } = params;
-  const apiKey = process.env.REAL_TIME_SEOUL_SUBWAY_API_KEY;
+  const apiKey =
+    process.env.REAL_TIME_SUBWAY_API_KEY ||
+    process.env.REAL_TIME_SEOUL_SUBWAY_API_KEY;
   const cleanStation = station.replace(/역$/, '').trim();
 
   // ─ API 키 미설정 → 시간표 Fallback ─

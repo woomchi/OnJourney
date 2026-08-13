@@ -218,3 +218,51 @@ export function formatDurationMinutes(minutes?: number | null): string {
   if (remainingMins === 0) return `${hours}시간`;
   return `${hours}시간 ${remainingMins}분`;
 }
+
+/**
+ * 장소(Place)의 주소, 지역명, 좌표 정보를 기반으로 17개 지자체 ID를 정밀 추론합니다.
+ */
+export function inferRegionFromPlace(place?: any): string {
+  if (!place) return 'seoul';
+  if (place.region && typeof place.region === 'string') {
+    return place.region.toLowerCase();
+  }
+
+  const addr = (place.address || place.address_name || '').trim();
+  const name = (place.place_name || '').trim();
+  const fullText = `${addr} ${name}`;
+
+  if (fullText.includes('부산')) return 'busan';
+  if (fullText.includes('대구')) return 'daegu';
+  if (fullText.includes('인천')) return 'incheon';
+  if (fullText.includes('광주')) return 'gwangju';
+  if (fullText.includes('대전')) return 'daejeon';
+  if (fullText.includes('울산')) return 'ulsan';
+  if (fullText.includes('세종')) return 'sejong';
+  const GYEONGGI_CITIES = [
+    '수원', '성남', '의정부', '안양', '부천', '광명', '평택', '동두천',
+    '안산', '고양', '과천', '구리', '남양주', '오산', '시흥', '군포',
+    '의왕', '하남', '용인', '파주', '이천', '안성', '김포', '화성',
+    '양주', '포천', '여주', '연천', '가평', '양평'
+  ];
+  if (fullText.includes('경기') || GYEONGGI_CITIES.some(city => fullText.includes(city))) return 'gyeonggi';
+  if (fullText.includes('강원')) return 'gangwon';
+  if (fullText.includes('충북') || fullText.includes('충청북도')) return 'chungbuk';
+  if (fullText.includes('충남') || fullText.includes('충청남도')) return 'chungnam';
+  if (fullText.includes('전북') || fullText.includes('전라북도') || fullText.includes('전북특별자치도')) return 'jeonbuk';
+  if (fullText.includes('전남') || fullText.includes('전라남도')) return 'jeonnam';
+  if (fullText.includes('경북') || fullText.includes('경상북도') || fullText.includes('경주')) return 'gyeongbuk';
+  if (fullText.includes('경남') || fullText.includes('경상남도')) return 'gyeongnam';
+  if (fullText.includes('제주')) return 'jeju';
+
+  // 위도/경도 기반 경계 fallback (부산, 대구, 인천 등)
+  const lat = Number(place.lat);
+  const lng = Number(place.lng);
+  if (!isNaN(lat) && !isNaN(lng)) {
+    if (lat >= 35.0 && lat <= 35.35 && lng >= 128.8 && lng <= 129.3) return 'busan';
+    if (lat >= 35.7 && lat <= 36.0 && lng >= 128.4 && lng <= 128.8) return 'daegu';
+    if (lat >= 37.35 && lat <= 37.65 && lng >= 126.5 && lng <= 126.85) return 'incheon';
+  }
+
+  return 'seoul';
+}

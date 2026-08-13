@@ -17,8 +17,9 @@ import FittedDuration from '@/components/places/FittedDuration';
 import { usePWA } from '@/components/PWAProvider';
 import DepartureTimeSelector from '@/components/common/DepartureTimeSelector';
 import FareBreakdownTooltip from '@/components/route/FareBreakdownTooltip';
-import { formatDurationMinutes } from '@/lib/utils/journeyUtils';
+import { formatDurationMinutes, inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 import RouteTimelineGaugeBar from '@/components/route/RouteTimelineGaugeBar';
+import { RealtimeArrivalCard } from '@/components/transit/RealtimeArrivalCard';
 
 interface AlternativeRoutePanelProps {
   originPlace: Place;
@@ -834,6 +835,16 @@ export default function AlternativeRoutePanel({
                 <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
               </svg>
             </button>
+          )}
+
+          {activeTab === 'public' && (
+            <div className="mt-4 pt-3 border-t border-zinc-100">
+              <RealtimeArrivalCard
+                region={inferRegionFromPlace(originPlace)}
+                stationId={(originPlace as any)?.stationId || (originPlace as any)?.arsId || (originPlace as any)?.nodeId || originPlace?.id}
+                stationName={originPlace.place_name}
+              />
+            </div>
           )}
         </>
       )}

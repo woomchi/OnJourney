@@ -301,6 +301,23 @@ export default function PlaceCard({
               </div>
             )}
           </div>
+
+          {/* 대중교통/정류소 장소인 경우 실시간 버스 도착 정보 카드 노출 */}
+          {!editMode && (() => {
+            const pName = place?.place_name || (place as any)?.name || '';
+            const pAddr = place?.address || (place as any)?.address_name || (place as any)?.road_address_name || '';
+            
+            const isTransit =
+              place?.category === 'transit' ||
+              Boolean((place as any)?.arsId || (place as any)?.stationId || (place as any)?.nodeId) ||
+              pName.endsWith('역') ||
+              pName.includes('정류장') ||
+              pName.includes('정류소') ||
+              pName.includes('터미널');
+
+            if (!isTransit) return null;
+
+          })()}
         </div>
       </div>
 

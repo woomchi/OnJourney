@@ -12,8 +12,9 @@ import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { formatKmDistance, formatDurationMinutes } from '@/lib/utils/journeyUtils';
+import { formatKmDistance, formatDurationMinutes, inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 import RouteTimelineGaugeBar from '@/components/route/RouteTimelineGaugeBar';
+import { SegmentBusRealtimeChip } from '@/components/transit/SegmentBusRealtimeChip';
 
 // 1. 구간 이동 정보 뼈대 로딩 UI
 export function SegmentInfoSkeleton() {
@@ -215,6 +216,17 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     transferLabel = '도보';
   }
 
+  // 이동 구간 내 첫 번째 버스 정보 추출 (실시간 칩 연결용)
+  const targetBusStep = data.steps?.find((s: any) => s.type === 'bus' || s.type === 'expressbus') || null;
+  const rawStationId =
+    (targetBusStep as any)?.startStationID ||
+    (targetBusStep as any)?.startID ||
+    (targetBusStep as any)?.startStationId ||
+    (targetBusStep as any)?.nodeId;
+  const targetBusStationId = rawStationId ? String(rawStationId) : undefined;
+  const targetBusName = targetBusStep?.name || '';
+  const inferredRegion = (targetBusStep as any)?.startRegion || inferRegionFromPlace(originPlace);
+
   const getTransportIcon = (tType: string, steps: any[] = []) => {
     if (tType === 'car' || tType === 'taxi') return <Car className="w-7 h-7" />;
     if (tType === 'walk') return <Footprints className="w-7 h-7" />;
@@ -251,7 +263,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               {getTransportIcon(type, data.steps)}
             </div>
 
-            {/* 소요 시간(좌: 시간/도착예정) & 상세 정보(우: 수단·거리 뱃지/요금) Split 구조 (대안 2) */}
+            {/* 소요 시간(좌: 시간/도착예정) & 상세 정보(우: 수단·거리 뱃지/요금) Split 구조 */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
               {/* 좌: 시간 & 도착예정 (수직 정렬) */}
               <div className="flex flex-col justify-center min-w-0 pr-3 border-r border-zinc-100 shrink-0">
@@ -265,29 +277,44 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 )}
               </div>
 
-              {/* 우: 정보 텍스트 3개 나란히 배치 (박스 제거) */}
-              <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1 text-[12px] font-medium text-zinc-500">
-                <span className="shrink-0">
-                  {type === 'car' ? (
-                    data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원` : '비용 정보 없음'
-                  ) : type === 'walk' ? (
-                    '무료'
-                  ) : fareVal ? (
-                    formattedFare
-                  ) : (
-                    '요금 정보 없음'
+              {/* 우: 정보 텍스트 (요금, 거리, 수단) 및 타깃 버스 실시간 (수직 구조 분리) */}
+              <div className="flex flex-col justify-center min-w-0 flex-1 text-[12px] font-medium text-zinc-500 gap-0.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="shrink-0">
+                    {type === 'car' ? (
+                      data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원` : '비용 정보 없음'
+                    ) : type === 'walk' ? (
+                      '무료'
+                    ) : fareVal ? (
+                      formattedFare
+                    ) : (
+                      '요금 정보 없음'
+                    )}
+                  </span>
+                  <span className="text-zinc-300 select-none shrink-0">·</span>
+                  {formattedDistance && (
+                    <>
+                      <span className="shrink-0">{formattedDistance}</span>
+                      <span className="text-zinc-300 select-none shrink-0">·</span>
+                    </>
                   )}
-                </span>
-                <span className="text-zinc-300 select-none shrink-0">·</span>
-                {formattedDistance && (
-                  <>
-                    <span className="shrink-0">{formattedDistance}</span>
-                    <span className="text-zinc-300 select-none shrink-0">·</span>
-                  </>
+                  <span className="shrink-0">
+                    {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
+                  </span>
+                </div>
+
+                {/* 타깃 버스 실시간 수직 독립 레이아웃 */}
+                {targetBusStep && targetBusName && (
+                  <div className="flex items-center pt-0.5">
+                    <SegmentBusRealtimeChip
+                      region={inferredRegion}
+                      stationId={targetBusStationId}
+                      stationName={originPlace?.place_name}
+                      busNo={targetBusName}
+                      busColor={targetBusStep?.color}
+                    />
+                  </div>
                 )}
-                <span className="shrink-0">
-                  {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
-                </span>
               </div>
             </div>
           </div>
@@ -553,32 +580,47 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
           )}
         </div>
 
-        {/* 우측 영역: 요금 뱃지 · 거리 뱃지 (상단) 및 이동 수단/환승 횟수 텍스트 (하단), 대안 경로 버튼 */}
+        {/* 우측 영역: 요금/거리/이동수단 (상단) 및 타깃 버스 실시간 (수직 구조 분리) */}
         <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1 text-[11px] font-medium text-zinc-500">
-            <span className="shrink-0">
-              {type === 'car' || type === 'taxi' ? (
-                data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}` : '비용 정보 없음'
-              ) : type === 'walk' || type === 'bicycle' ? (
-                '무료'
-              ) : (data.isIntercity || data.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && data.fare === 0 ? (
-                '예매처 확인'
-              ) : data.fare > 0 ? (
-                data.isFareEstimated ? `약 ${data.fare.toLocaleString()}원` : `${data.fare.toLocaleString()}원`
-              ) : (
-                '요금 정보 없음'
+          <div className="flex flex-col justify-center min-w-0 flex-1 text-[11px] font-medium text-zinc-500 gap-0.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="shrink-0">
+                {type === 'car' || type === 'taxi' ? (
+                  data.taxiFare ? `택시 ${data.taxiFare.toLocaleString()}원${data.fare > 0 ? ` (통행료 ${data.fare.toLocaleString()}원)` : ''}` : '비용 정보 없음'
+                ) : type === 'walk' || type === 'bicycle' ? (
+                  '무료'
+                ) : (data.isIntercity || data.steps?.some(s => s.type === 'train' || s.type === 'expressbus')) && data.fare === 0 ? (
+                  '예매처 확인'
+                ) : data.fare > 0 ? (
+                  data.isFareEstimated ? `약 ${data.fare.toLocaleString()}원` : `${data.fare.toLocaleString()}원`
+                ) : (
+                  '요금 정보 없음'
+                )}
+              </span>
+              <span className="text-zinc-300 select-none shrink-0">·</span>
+              {formattedDistance && (
+                <>
+                  <span className="shrink-0">{formattedDistance}</span>
+                  <span className="text-zinc-300 select-none shrink-0">·</span>
+                </>
               )}
-            </span>
-            <span className="text-zinc-300 select-none shrink-0">·</span>
-            {formattedDistance && (
-              <>
-                <span className="shrink-0">{formattedDistance}</span>
-                <span className="text-zinc-300 select-none shrink-0">·</span>
-              </>
+              <span className="shrink-0">
+                {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
+              </span>
+            </div>
+
+            {/* 타깃 버스 실시간 수직 독립 레이아웃 */}
+            {targetBusStep && targetBusName && (
+              <div className="flex items-center pt-0.5">
+                <SegmentBusRealtimeChip
+                  region={inferredRegion}
+                  stationId={targetBusStationId}
+                  stationName={originPlace?.place_name}
+                  busNo={targetBusName}
+                  busColor={targetBusStep?.color}
+                />
+              </div>
             )}
-            <span className="shrink-0">
-              {type === 'public' ? transferLabel : type === 'car' ? '차량' : '도보'}
-            </span>
           </div>
 
           {/* 대안 경로 탐색 버튼 */}

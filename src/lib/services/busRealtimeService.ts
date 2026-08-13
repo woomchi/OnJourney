@@ -375,7 +375,10 @@ export async function fetchBusRealtime(
   const targetBusNo = normalizeBusNo(busNo);
 
   const odsayKey = process.env.ODSAY_API_KEY;
-  const tagoKey = process.env.REAL_TIME_BUS_API_KEY;
+  const tagoKey =
+    process.env.REAL_TIME_BUS_API_KEY ||
+    process.env.REAL_TIME_BUS_TAGO_API_KEY ||
+    process.env.TAGO_API_KEY;
 
   if (!isValidApiKey(tagoKey) || !isValidApiKey(odsayKey)) {
     return buildNoInfoResult(targetBusNo, station, false);

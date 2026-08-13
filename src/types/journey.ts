@@ -141,6 +141,8 @@ export interface DirectionStep {
   trainSpSeatYn?: 'Y' | 'N'; // 특실 존재 여부
   trainSpSeatFare?: number;  // 특실 요금
   busLaneColor?: string;     // 버스 노선 색상
+  startCityCode?: string;    // 버스 정류소 도시 코드
+  startRegion?: string;      // 버스 정류소 지역 식별자
 }
 
 /** 차량 경로 안내 단일 노드 (거리·시간 포함) */

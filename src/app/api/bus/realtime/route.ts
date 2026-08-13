@@ -1,19 +1,13 @@
-import { NextRequest } from 'next/server';
-import { withErrorHandler, successResponse } from '@/lib/apiResponse';
-import { busRealtimeQuerySchema } from '@/lib/validations/bus';
-import { fetchBusRealtime } from '@/lib/services/busRealtimeService';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export const GET = withErrorHandler(async (request: NextRequest) => {
-  const { searchParams } = new URL(request.url);
-  const rawParams = Object.fromEntries(searchParams.entries());
-  const referer = request.headers.get('referer') || undefined;
-
-  // Zod 검증
-  const validatedParams = busRealtimeQuerySchema.parse(rawParams);
-
-  const data = await fetchBusRealtime(validatedParams, referer);
-
-  return successResponse(data);
-});
+export async function GET() {
+  return NextResponse.json(
+    {
+      success: false,
+      error: '구형 버스 실시간 API 엔드포인트는 통폐합되었습니다. /api/realtime/bus/[region]/[stationId] 엔드포인트를 사용해 주세요.',
+    },
+    { status: 410 }
+  );
+}

@@ -1,6 +1,7 @@
 import { RELIABILITY_SCORES } from '@/constants/transitConstants';
 import {
   ArrivalBusItem,
+  BusType,
   GyeonggiApiResponse,
   GyeonggiBusItem,
   NormalizedRealtimeData,
@@ -81,24 +82,26 @@ export class GyeonggiBusService {
         }
       }
 
-      const nextArrivals: ArrivalBusItem[] = itemsArray.map((item) => {
-        const time1 = Number(item.predictedTime1) || 0;
-        const time2 = Number(item.predictedTime2) || 0;
-        const arrivalSeconds =
-          time1 > 0 ? time1 : time2 > 0 ? time2 : 0;
+      const nextArrivals: ArrivalBusItem[] = itemsArray
+        .map((item) => {
+          const time1 = Number(item.predictedTime1) || 0;
+          const time2 = Number(item.predictedTime2) || 0;
+          // predictedTime1, predictedTime2는 '분(minute)' 단위이므로 초 단위(* 60) 변환
+          const arrivalSeconds = time1 > 0 ? time1 * 60 : time2 > 0 ? time2 * 60 : 0;
 
-        return {
-          lineId: item.routeId,
-          lineName: item.routeName,
-          arrivedInSeconds: arrivalSeconds,
-          currentStationSequence:
-            typeof item.locationNumber1 === 'number'
-              ? item.locationNumber1
-              : undefined,
-          busType: 'normal',
-          destination: item.stopName,
-        };
-      });
+          return {
+            lineId: item.routeId,
+            lineName: item.routeName,
+            arrivedInSeconds: arrivalSeconds,
+            currentStationSequence:
+              typeof item.locationNumber1 === 'number'
+                ? item.locationNumber1
+                : undefined,
+            busType: 'normal' as BusType,
+            destination: item.stopName,
+          };
+        })
+        .filter((item) => item.arrivedInSeconds > 0);
 
       nextArrivals.sort((a, b) => a.arrivedInSeconds - b.arrivedInSeconds);
 

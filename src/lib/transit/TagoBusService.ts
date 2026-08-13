@@ -145,13 +145,22 @@ export class TagoBusService {
         }
       }
 
-      const nextArrivals: ArrivalBusItem[] = itemsArray.map((item) => ({
-        lineId: item.routeid,
-        lineName: String(item.routeno),
-        arrivedInSeconds: Number(item.arrtime) || 0,
-        currentStationSequence: item.arrprevstationcnt,
-        busType: this.parseBusType(String(item.routeno), item.routety),
-      }));
+      const nextArrivals: ArrivalBusItem[] = itemsArray
+        .map((item) => ({
+          lineId: item.routeid,
+          lineName: String(item.routeno),
+          arrivedInSeconds: Number(item.arrtime) || 0,
+          currentStationSequence: item.arrprevstationcnt,
+          busType: this.parseBusType(String(item.routeno), item.routety),
+        }))
+        .filter((item) => {
+          if (item.arrivedInSeconds <= 0) return false;
+          // 남은 정류장이 0개인데 60초 이하로 넘어오는 비정상 기본값 필터링
+          if (item.currentStationSequence !== undefined && item.currentStationSequence === 0 && item.arrivedInSeconds <= 60) {
+            return false;
+          }
+          return true;
+        });
 
       // 도착 예정 시간 기준 오름차순 정렬
       nextArrivals.sort((a, b) => a.arrivedInSeconds - b.arrivedInSeconds);

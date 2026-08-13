@@ -68,6 +68,11 @@ export const RealtimeArrivalCard: React.FC<RealtimeArrivalCardProps> = ({
     return `${diffMin}분 전`;
   }, [lastUpdated, isFetching]);
 
+  const validArrivals = useMemo(() => {
+    if (!data?.nextArrivals) return [];
+    return data.nextArrivals.filter((bus) => bus.arrivedInSeconds > 0);
+  }, [data]);
+
   return (
     <div
       className={clsx(
@@ -135,17 +140,17 @@ export const RealtimeArrivalCard: React.FC<RealtimeArrivalCardProps> = ({
       )}
 
       {/* Body: Empty State */}
-      {!isLoading && !isError && data?.nextArrivals.length === 0 && (
+      {!isLoading && !isError && validArrivals.length === 0 && (
         <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
           현재 운행 중인 버스 도착 정보가 없습니다.
         </div>
       )}
 
       {/* Body: Arrival List */}
-      {!isLoading && !isError && data && data.nextArrivals.length > 0 && (
+      {!isLoading && !isError && validArrivals.length > 0 && (
         <div className="space-y-2">
           <AnimatePresence mode="popLayout">
-            {data.nextArrivals.slice(0, 4).map((bus: ArrivalBusItem, idx: number) => {
+            {validArrivals.slice(0, 4).map((bus: ArrivalBusItem, idx: number) => {
               const { primary, isImminent } = formatRemainingTime(
                 bus.arrivedInSeconds
               );

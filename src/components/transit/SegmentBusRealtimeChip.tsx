@@ -55,13 +55,14 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     enabled: Boolean(stationId && cleanBusNo),
   });
 
-  // 'active' 상태일 때 1초 마다 카운트다운
+  // 'active' 상태일 때 1초 마다 카운트다운 및 15초 주기 만료 시 실제 refetch() 호출
   useEffect(() => {
     if (autoRefreshState !== 'active') return;
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
+          refetch();
           return 15;
         }
         return prev - 1;
@@ -69,7 +70,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [autoRefreshState]);
+  }, [autoRefreshState, refetch]);
 
   // 실제 데이터 갱신 시 카운터 카운팅
   const prevLastUpdatedRef = useRef<number | undefined>(undefined);
@@ -101,13 +102,16 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   const targetBus = useMemo(() => {
     if (!data?.nextArrivals || data.nextArrivals.length === 0 || !cleanBusNo) return null;
     
-    const exact = data.nextArrivals.find((item) => {
+    // arrivedInSeconds가 0 초과인 유효 항목만 대상으로 검색
+    const validArrivals = data.nextArrivals.filter((item) => item.arrivedInSeconds > 0);
+
+    const exact = validArrivals.find((item) => {
       const line = item.lineName.replace(/버스|번/g, '').trim();
       return line === cleanBusNo;
     });
     if (exact) return exact;
 
-    const partial = data.nextArrivals.find((item) => {
+    const partial = validArrivals.find((item) => {
       const line = item.lineName.replace(/버스|번/g, '').trim();
       return line.includes(cleanBusNo) || cleanBusNo.includes(line);
     });

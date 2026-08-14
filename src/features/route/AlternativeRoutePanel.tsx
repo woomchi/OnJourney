@@ -837,15 +837,35 @@ export default function AlternativeRoutePanel({
             </button>
           )}
 
-          {activeTab === 'public' && (
-            <div className="mt-4 pt-3 border-t border-zinc-100">
-              <RealtimeArrivalCard
-                region={inferRegionFromPlace(originPlace)}
-                stationId={(originPlace as any)?.stationId || (originPlace as any)?.arsId || (originPlace as any)?.nodeId || originPlace?.id}
-                stationName={originPlace.place_name}
-              />
-            </div>
-          )}
+          {activeTab === 'public' && (() => {
+            const firstBusStep = (selectedRoute || routes[0])?.steps?.find(
+              (s: any) => s.type === 'bus' || s.type === 'expressbus'
+            );
+            const busStationId =
+              firstBusStep?.realtimeStationId ||
+              firstBusStep?.startStationID ||
+              firstBusStep?.startID ||
+              (originPlace as any)?.stationId ||
+              (originPlace as any)?.arsId ||
+              (originPlace as any)?.nodeId;
+
+            if (!busStationId) return null;
+
+            const busStationName = firstBusStep?.startName || originPlace.place_name;
+            const busRegion = firstBusStep?.startRegion || inferRegionFromPlace(originPlace);
+            const busCityCode = firstBusStep?.startCityCode;
+
+            return (
+              <div className="mt-4 pt-3 border-t border-zinc-100">
+                <RealtimeArrivalCard
+                  region={busRegion}
+                  stationId={String(busStationId)}
+                  stationName={busStationName}
+                  cityCode={busCityCode}
+                />
+              </div>
+            );
+          })()}
         </>
       )}
     </Scroller>

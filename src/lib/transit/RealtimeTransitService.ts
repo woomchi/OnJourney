@@ -34,41 +34,49 @@ export class RealtimeTransitService {
       }
     }
 
-    // 1단계: TAGO 버스 서비스 호출 (전국 주축 Primary API)
-    const tagoResult = await TagoBusService.getArrivalInfo({
+    // 1단계: TAGO 버스 서비스 Promise 생성
+    const tagoPromise = TagoBusService.getArrivalInfo({
       cityCode: resolvedCityCode,
       region: normalizedRegion,
       nodeId: stationId,
       stationName,
     });
 
-    // 2단계: 시도별 보완 API 대상 확인 (경기도 / 부산)
-    let supplementResult: NormalizedRealtimeData | null = null;
+    // 2단계: 시도별 보완 API Promise 생성 (경기도 / 부산)
+    let supplementPromise: Promise<NormalizedRealtimeData | null> = Promise.resolve(null);
     if (normalizedRegion === 'gyeonggi' || normalizedRegion === '경기') {
-      try {
-        supplementResult = await GyeonggiBusService.getArrivalInfo(
-          stationId,
-          stationName
-        );
-      } catch (err: any) {
-        console.warn(
-          `[RealtimeTransitService] 경기도 보완 API 호출 실패: ${err?.message}`
-        );
-      }
+      supplementPromise = GyeonggiBusService.getArrivalInfo(stationId, stationName).catch((err) => {
+        console.warn(`[RealtimeTransitService] 경기도 보완 API 호출 실패: ${err?.message}`);
+        return null;
+      });
     } else if (normalizedRegion === 'busan' || normalizedRegion === '부산') {
-      try {
-        supplementResult = await BusanBusService.getArrivalInfo(
-          stationId,
-          stationName
-        );
-      } catch (err: any) {
-        console.warn(
-          `[RealtimeTransitService] 부산 보완 API 호출 실패: ${err?.message}`
-        );
-      }
+      supplementPromise = BusanBusService.getArrivalInfo(stationId, stationName).catch((err) => {
+        console.warn(`[RealtimeTransitService] 부산 보완 API 호출 실패: ${err?.message}`);
+        return null;
+      });
     }
 
-    // 3단계: 데이터 머지
+    // 3단계: 두 API를 병렬로 동시 대기 후 머지
+    const [tagoSettled, supplementSettled] = await Promise.allSettled([
+      tagoPromise,
+      supplementPromise,
+    ]);
+
+    const tagoResult: NormalizedRealtimeData =
+      tagoSettled.status === 'fulfilled'
+        ? tagoSettled.value
+        : {
+            stationId,
+            stationName,
+            nextArrivals: [],
+            dataSource: 'tago',
+            lastUpdated: Date.now(),
+            reliability: 0.0,
+          };
+
+    const supplementResult: NormalizedRealtimeData | null =
+      supplementSettled.status === 'fulfilled' ? supplementSettled.value : null;
+
     if (supplementResult) {
       return MergeService.mergeArrivalData(tagoResult, supplementResult);
     }

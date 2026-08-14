@@ -80,3 +80,74 @@ export function resolveTagoCode(busCityCode?: string | number): string {
 
   return codeStr;
 }
+
+/**
+ * 주어진 stationId와 지역 정보를 바탕으로 TAGO API에서 사용 가능한 nodeId 후보군 목록을 생성합니다.
+ */
+export function generateTagoNodeIdCandidates(
+  stationId: string,
+  region: string = 'seoul',
+  cityCode?: string
+): string[] {
+  if (!stationId) return [];
+
+  const rawId = String(stationId).trim();
+  const normalizedRegion = (region || '').toLowerCase();
+  const resolvedCityCode = cityCode || resolveTagoCode(normalizedRegion);
+
+  const candidates: string[] = [rawId];
+
+  // 숫자만 추출된 기본 ID
+  const pureNumeric = rawId.replace(/[^0-9]/g, '');
+
+  // 1. 경기도: GGB 접두사 (GGB + 9자리/수치형 ID)
+  if (
+    normalizedRegion === 'gyeonggi' ||
+    normalizedRegion === '경기' ||
+    resolvedCityCode.startsWith('31')
+  ) {
+    if (pureNumeric) {
+      candidates.push(`GGB${pureNumeric}`);
+      candidates.push(pureNumeric);
+    }
+    if (rawId.startsWith('GGB')) {
+      candidates.push(rawId.replace(/^GGB/i, ''));
+    }
+  }
+
+  // 2. 부산: BSB 접두사
+  if (
+    normalizedRegion === 'busan' ||
+    normalizedRegion === '부산' ||
+    resolvedCityCode === '21'
+  ) {
+    if (pureNumeric) {
+      candidates.push(`BSB${pureNumeric}`);
+      candidates.push(pureNumeric);
+    }
+    if (rawId.startsWith('BSB')) {
+      candidates.push(rawId.replace(/^BSB/i, ''));
+    }
+  }
+
+  // 3. 서울 / 기타 지자체
+  if (
+    normalizedRegion === 'seoul' ||
+    normalizedRegion === '서울' ||
+    resolvedCityCode === '11'
+  ) {
+    if (pureNumeric) {
+      candidates.push(pureNumeric);
+      // 서울시 5자리 ARS 번호 또는 내부 ID
+      candidates.push(`SEB${pureNumeric}`);
+    }
+  }
+
+  // 4. 일반적인 접두사 제거/포함 후보
+  if (pureNumeric && pureNumeric !== rawId) {
+    candidates.push(pureNumeric);
+  }
+
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
+

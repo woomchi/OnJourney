@@ -6,6 +6,7 @@ import {
   TagoApiResponse,
   TagoBusItem,
 } from '@/types/realtimeTransit';
+import { generateTagoNodeIdCandidates } from '@/lib/utils/busRegionUtils';
 
 export interface FetchTagoParams {
   cityCode?: string;
@@ -14,12 +15,19 @@ export interface FetchTagoParams {
   stationName?: string;
 }
 
+// 정류소 검색 캐시 (stationId/nodeno -> TAGO nodeId, 24시간 메모리 캐시)
+const NODE_ID_CACHE = new Map<string, { nodeId: string; expiresAt: number }>();
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
 export class TagoBusService {
   // 국토교통부 정류소별 도착예정정보 목록조회 서비스 공식 엔드포인트
   private static API_URL =
     'https://apis.data.go.kr/1613000/ArvlInfoInqireService/getSttnAcctoArvlPrearngeInfoList';
-  private static ALT_API_URL =
-    'https://apis.data.go.kr/1613000/ArvlInfoInqireService/getSttnAcctoArvlPrearngeInfoList';
+  // 국토교통부 정류소정보조회 서비스 (정류소번호/명 검색)
+  private static SEARCH_STTN_NO_URL =
+    'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoSearch';
+  private static SEARCH_STTN_NM_URL =
+    'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNmSearch';
 
   /**
    * 버스 번호나 노선 유형(routety)을 바탕으로 버스 타입 분류
@@ -38,6 +46,72 @@ export class TagoBusService {
     }
 
     return 'normal';
+  }
+
+  /**
+   * 정류소 번호(ARS) 또는 정류소명으로 TAGO 표준 nodeId 검색
+   */
+  private static async lookupTagoNodeId(
+    cityCode: string,
+    stationId: string,
+    stationName?: string,
+    serviceKey?: string
+  ): Promise<string | null> {
+    if (!serviceKey) return null;
+    const cacheKey = `${cityCode}_${stationId}_${stationName || ''}`;
+    const cached = NODE_ID_CACHE.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.nodeId;
+    }
+
+    try {
+      const pureNo = stationId.replace(/[^0-9]/g, '');
+      let searchUrl = '';
+
+      // 1. 5자리 정류소 번호(ARS) 검색 시도
+      if (pureNo && pureNo.length >= 4 && pureNo.length <= 6) {
+        searchUrl = `${this.SEARCH_STTN_NO_URL}?serviceKey=${serviceKey}&cityCode=${cityCode}&nodeNo=${encodeURIComponent(pureNo)}&_type=json`;
+      } else if (stationName && stationName !== '정류소' && stationName.length >= 2) {
+        // 2. 정류소명 검색 시도
+        searchUrl = `${this.SEARCH_STTN_NM_URL}?serviceKey=${serviceKey}&cityCode=${cityCode}&nodeNm=${encodeURIComponent(stationName)}&_type=json`;
+      }
+
+      if (!searchUrl) return null;
+
+      const res = await fetch(searchUrl, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(2000),
+        next: { revalidate: 86400 },
+      });
+
+      if (!res.ok) return null;
+      const json = await res.json().catch(() => null);
+      const items = json?.response?.body?.items?.item;
+      let targetItem: any = null;
+
+      if (Array.isArray(items) && items.length > 0) {
+        if (pureNo) {
+          targetItem = items.find((it: any) => String(it.nodeno || '').replace(/[^0-9]/g, '') === pureNo) || items[0];
+        } else {
+          targetItem = items[0];
+        }
+      } else if (items && typeof items === 'object') {
+        targetItem = items;
+      }
+
+      if (targetItem?.nodeid) {
+        const foundNodeId = String(targetItem.nodeid);
+        NODE_ID_CACHE.set(cacheKey, {
+          nodeId: foundNodeId,
+          expiresAt: Date.now() + CACHE_TTL_MS,
+        });
+        return foundNodeId;
+      }
+    } catch {
+      // ignore lookup error
+    }
+
+    return null;
   }
 
   /**
@@ -63,81 +137,63 @@ export class TagoBusService {
     }
 
     try {
-      let resolvedNodeId = nodeId.trim();
       const normalizedRegion = region.toLowerCase();
+      const serviceKey = apiKey.trim();
 
-      // 부산 정류소 수치형 ID 수신 시 BSB 접두사 자동 보완
-      if ((normalizedRegion === 'busan' || normalizedRegion === '부산') && /^\d{6,}$/.test(resolvedNodeId)) {
-        resolvedNodeId = `BSB${resolvedNodeId}`;
-      }
-
-      const nodeIdCandidates = Array.from(
-        new Set([resolvedNodeId, resolvedNodeId.replace(/^BSB/i, '')])
+      // 지역별 기본 nodeId 후보군 생성
+      const initialCandidates = generateTagoNodeIdCandidates(
+        nodeId,
+        normalizedRegion,
+        resolvedCityCode
       );
 
-      const rawKey = apiKey.trim();
-      let decodedKey = rawKey;
-      try {
-        decodedKey = decodeURIComponent(rawKey);
-      } catch {
-        decodedKey = rawKey;
-      }
+      // 1단계: 생성된 후보군 병렬 조회 (Promise.allSettled)
+      const fetchCandidate = async (candidateId: string): Promise<TagoApiResponse | null> => {
+        const requestUrl = `${this.API_URL}?serviceKey=${serviceKey}&cityCode=${resolvedCityCode}&nodeId=${encodeURIComponent(candidateId)}&_type=json`;
+        const res = await fetch(requestUrl, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(3000),
+          next: { revalidate: 15 },
+        });
+        if (!res.ok) return null;
+        return (await res.json().catch(() => null)) as TagoApiResponse | null;
+      };
 
-      // 공공데이터 API 서비스키 호환 후보 (인코딩/디코딩 키 순차 시도)
-      const serviceKeyCandidates = Array.from(
-        new Set([rawKey, encodeURIComponent(decodedKey), decodedKey])
+      const candidateResults = await Promise.allSettled(
+        initialCandidates.map((cand) => fetchCandidate(cand))
       );
 
-      let response: Response | null = null;
-      let lastError: Error | null = null;
+      let validJson: TagoApiResponse | null = null;
 
-      for (const serviceKey of serviceKeyCandidates) {
-        for (const candidateNodeId of nodeIdCandidates) {
-          const requestUrl = `${this.API_URL}?serviceKey=${serviceKey}&cityCode=${resolvedCityCode}&nodeId=${encodeURIComponent(candidateNodeId)}&_type=json`;
-
-          try {
-            const res = await fetch(requestUrl, {
-              method: 'GET',
-              headers: { Accept: 'application/json' },
-              next: { revalidate: 15 },
-            });
-
-            if (res.ok) {
-              const jsonCheck = await res.clone().json().catch(() => null);
-              const totalCount = jsonCheck?.response?.body?.totalCount || 0;
-              if (totalCount > 0) {
-                response = res;
-                break;
-              } else if (!response) {
-                response = res; // 빈 응답이라도 200이면 일단 보관
-              }
-            } else if (res.status === 400) {
-              lastError = new Error(`TAGO API HTTP 400 Bad Request`);
-            } else {
-              lastError = new Error(`TAGO API HTTP ${res.status}`);
-            }
-          } catch (e: any) {
-            lastError = e;
+      for (const result of candidateResults) {
+        if (result.status === 'fulfilled' && result.value) {
+          const json = result.value;
+          const totalCount = json.response?.body?.totalCount || 0;
+          if (totalCount > 0) {
+            validJson = json;
+            break;
+          } else if (!validJson) {
+            validJson = json;
           }
         }
-        if (response && response.ok) break;
       }
 
-      if (!response || !response.ok) {
+      if (!validJson || !validJson.response) {
         console.warn(
-          `[TagoBusService] TAGO API 연동 실패 (정류소 ID: ${resolvedNodeId}): ${lastError?.message}. Mock 데이터로 전환합니다.`
+          `[TagoBusService] TAGO API 연동 결과 없음 (정류소 ID: ${nodeId}). Mock 데이터로 전환합니다.`
         );
-        const mock = this.getMockData(resolvedNodeId, stationName, region);
+        const mock = this.getMockData(nodeId, stationName, region);
         mock.reliability = 0.4;
         return mock;
       }
 
-      const json: TagoApiResponse = await response.json();
-      const bodyItems = json.response?.body?.items;
+      const bodyItems = validJson.response.body?.items;
       
       let itemsArray: TagoBusItem[] = [];
       if (bodyItems && typeof bodyItems === 'object') {
         const rawItems = (bodyItems as any).item;
+
         if (Array.isArray(rawItems)) {
           itemsArray = rawItems;
         } else if (rawItems && typeof rawItems === 'object') {
@@ -166,7 +222,7 @@ export class TagoBusService {
       nextArrivals.sort((a, b) => a.arrivedInSeconds - b.arrivedInSeconds);
 
       return {
-        stationId: resolvedNodeId,
+        stationId: nodeId,
         stationName,
         nextArrivals,
         dataSource: 'tago',

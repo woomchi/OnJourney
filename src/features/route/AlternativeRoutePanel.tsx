@@ -505,9 +505,12 @@ export default function AlternativeRoutePanel({
         <div className="shrink-0 flex items-center">
           <SegmentSubwayRealtimeChip
             stationName={subwayStationName}
+            wayCode={firstSubwayStep.wayCode !== undefined ? String(firstSubwayStep.wayCode) : undefined}
+            subwayId={firstSubwayStep.name}
             variant="compact"
           />
         </div>
+
       );
     }
 

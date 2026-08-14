@@ -9,12 +9,14 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 export interface SegmentSubwayRealtimeChipProps {
   stationName?: string;
   wayCode?: string;
+  subwayId?: string;
   variant?: 'sidebar' | 'compact';
 }
 
 export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps> = ({
   stationName,
   wayCode,
+  subwayId,
   variant = 'sidebar',
 }) => {
   const cleanStationName = stationName ? stationName.replace(/역$/g, '').trim() : '';
@@ -22,6 +24,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   const { data, isLoading, isError, isFetching, refetch } = useRealtimeSubway({
     stationName: cleanStationName,
     wayCode,
+    subwayId,
     enabled: Boolean(cleanStationName),
   });
 
@@ -42,9 +45,26 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     autoStart: true,
   });
 
+  // 역명, 방면, 노선ID가 실제 변경되었을 때만 타이머를 리셋합니다.
+  const prevStationRef = React.useRef<string>(cleanStationName);
+  const prevWayCodeRef = React.useRef<string | undefined>(wayCode);
+  const prevSubwayIdRef = React.useRef<string | undefined>(subwayId);
+
   useEffect(() => {
-    start();
-  }, [cleanStationName, wayCode, start]);
+    if (
+      prevStationRef.current !== cleanStationName ||
+      prevWayCodeRef.current !== wayCode ||
+      prevSubwayIdRef.current !== subwayId
+    ) {
+      prevStationRef.current = cleanStationName;
+      prevWayCodeRef.current = wayCode;
+      prevSubwayIdRef.current = subwayId;
+      start();
+    }
+  }, [cleanStationName, wayCode, subwayId, start]);
+
+
+
 
   const handleManualRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();

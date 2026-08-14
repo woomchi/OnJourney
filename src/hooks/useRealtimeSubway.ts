@@ -16,6 +16,7 @@ export interface SubwayArrivalItem {
 export interface UseRealtimeSubwayOptions {
   stationName?: string;
   wayCode?: string;
+  subwayId?: string;
   enabled?: boolean;
   refetchInterval?: number | false;
 }
@@ -23,21 +24,24 @@ export interface UseRealtimeSubwayOptions {
 export function useRealtimeSubway({
   stationName,
   wayCode,
+  subwayId,
   enabled = true,
   refetchInterval = false,
 }: UseRealtimeSubwayOptions) {
   const cleanStationName = stationName ? stationName.replace(/역$/g, '').trim() : '';
 
   const query = useQuery({
-    queryKey: ['realtimeSubway', cleanStationName, wayCode],
+    queryKey: ['realtimeSubway', cleanStationName, wayCode, subwayId],
     queryFn: async (): Promise<SubwayArrivalItem[]> => {
       if (!cleanStationName) return [];
 
       const params = new URLSearchParams();
       params.append('station', cleanStationName);
       if (wayCode) params.append('wayCode', wayCode);
+      if (subwayId) params.append('subwayId', subwayId);
 
       const url = `/api/subway/realtime?${params.toString()}`;
+
 
       const res = await fetch(url, {
         headers: { Accept: 'application/json' },

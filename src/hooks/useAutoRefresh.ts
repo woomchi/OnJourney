@@ -15,6 +15,7 @@ export interface AutoRefreshState {
   status: AutoRefreshStatus;
   refreshCount: number;
   countdown: number;
+  sessionId: number;
 }
 
 export interface UseAutoRefreshReturn {
@@ -38,6 +39,7 @@ export function useAutoRefresh({
     status: autoStart ? 'active' : 'idle',
     refreshCount: 0,
     countdown: intervalSeconds,
+    sessionId: Date.now(),
   });
 
   const onRefreshRef = useRef(onRefresh);
@@ -60,6 +62,7 @@ export function useAutoRefresh({
       status: 'idle',
       refreshCount: 0,
       countdown: intervalSeconds,
+      sessionId: Date.now(),
     });
   }, [clearTimer, intervalSeconds]);
 
@@ -78,6 +81,7 @@ export function useAutoRefresh({
       status: 'active',
       refreshCount: 0,
       countdown: intervalSeconds,
+      sessionId: Date.now(),
     });
     // 시작 시 즉시 1회 갱신
     onRefreshRef.current();
@@ -104,6 +108,7 @@ export function useAutoRefresh({
 
           if (nextRefreshCount >= maxRefreshCount) {
             return {
+              ...prev,
               status: 'paused',
               refreshCount: nextRefreshCount,
               countdown: intervalSeconds,
@@ -111,6 +116,7 @@ export function useAutoRefresh({
           }
 
           return {
+            ...prev,
             status: 'active',
             refreshCount: nextRefreshCount,
             countdown: intervalSeconds,
@@ -127,7 +133,8 @@ export function useAutoRefresh({
     return () => {
       clearTimer();
     };
-  }, [state.status, maxRefreshCount, intervalSeconds, clearTimer]);
+  }, [state.status, state.sessionId, maxRefreshCount, intervalSeconds, clearTimer]);
+
 
   // 언마운트 시 타이머 정리 보장
   useEffect(() => {

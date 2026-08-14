@@ -330,9 +330,12 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                   <div className="flex items-center pt-0.5">
                     <SegmentSubwayRealtimeChip
                       stationName={targetSubwayStationName}
+                      wayCode={targetSubwayStep.wayCode !== undefined ? String(targetSubwayStep.wayCode) : undefined}
+                      subwayId={targetSubwayStep.name}
                       variant="sidebar"
                     />
                   </div>
+
                 ) : null}
               </div>
             </div>
@@ -647,9 +650,12 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               <div className="flex items-center pt-0.5">
                 <SegmentSubwayRealtimeChip
                   stationName={targetSubwayStationName}
+                  wayCode={targetSubwayStep.wayCode !== undefined ? String(targetSubwayStep.wayCode) : undefined}
+                  subwayId={targetSubwayStep.name}
                   variant="sidebar"
                 />
               </div>
+
             ) : null}
           </div>
 

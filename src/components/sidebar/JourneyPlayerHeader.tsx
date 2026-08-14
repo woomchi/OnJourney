@@ -44,6 +44,7 @@ export default function JourneyPlayerHeader({
     setEditMode,
     setDrawerSnapPoint,
     isCacheRestored,
+    departureTime,
   } = useJourneyStore();
 
   const bottomSheet = useOptionalBottomSheet();
@@ -93,10 +94,10 @@ export default function JourneyPlayerHeader({
         const cacheKey = `${origin.id}-${dest.id}`;
         const cachedData = directionsCache[cacheKey];
 
-        const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id));
-        const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id));
-        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id));
-        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id));
+        const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+        const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
 
         const hasData = (cachedData && (cachedData.public.length > 0 || cachedData.car.length > 0 || cachedData.walk.length > 0)) || !!publicData || !!carData;
 
@@ -401,8 +402,8 @@ export default function JourneyPlayerHeader({
                       const firstPlace = places[0];
                       const secondPlace = places[1];
 
-                      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id));
-                      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id));
+                      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id, departureTime));
+                      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id, departureTime));
                       const segmentData = {
                         public: publicData?.public || [],
                         car: carData?.car || [],

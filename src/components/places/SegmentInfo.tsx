@@ -64,7 +64,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     setAlternativeSegment,
     isAlternativeFromFocus,
     setIsAlternativeFromFocus,
-    activeJourney
+    activeJourney,
+    departureTime
   } = useJourneyStore();
 
   useEffect(() => {
@@ -92,12 +93,12 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
       if (originPlace && destPlace) {
         Promise.allSettled([
           queryClient.fetchQuery({
-            queryKey: directionKeys.segmentPublic(placeId, destId),
-            queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
+            queryKey: directionKeys.segmentPublic(placeId, destId, departureTime),
+            queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace, departureTime || undefined)
           }),
           queryClient.fetchQuery({
-            queryKey: directionKeys.segmentCar(placeId, destId),
-            queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
+            queryKey: directionKeys.segmentCar(placeId, destId, departureTime),
+            queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined)
           })
         ]).catch(console.error);
       }
@@ -322,9 +323,10 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
             </div>
           </div>
 
-          {/* 대안 경로 탐색 버튼 (요약 카드 내부 우측 배치) */}
+          {/* 대안 경로 탐색 버튼 (요약 카드 내부 우측 배치 & 마이크로 인터랙션) */}
           <button
             type="button"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               if (!placeId || !destId) return;
@@ -334,24 +336,22 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 const wasFocused = focusedSegment?.originId === placeId && focusedSegment?.destId === destId;
                 setIsAlternativeFromFocus(wasFocused);
                 setAlternativeSegment({ originId: placeId, destId: destId });
-                setFocusedSegment(null);
-                setFocusedStep(null);
                 if (data) {
                   const bounds = calculateSegmentBounds(originPlace, destPlace, data);
                   setFocusBounds(bounds);
                 }
                 // prefetch alternate routes data
                 const cacheKey = `${placeId}-${destId}`;
-                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId));
+                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId, departureTime));
                 if (!segmentDataInCache) {
                   Promise.allSettled([
                     queryClient.fetchQuery({
-                      queryKey: directionKeys.segmentPublic(placeId, destId),
-                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
+                      queryKey: directionKeys.segmentPublic(placeId, destId, departureTime),
+                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace, departureTime || undefined)
                     }),
                     queryClient.fetchQuery({
-                      queryKey: directionKeys.segmentCar(placeId, destId),
-                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
+                      queryKey: directionKeys.segmentCar(placeId, destId, departureTime),
+                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined)
                     })
                   ]).catch(console.error);
                 }
@@ -369,12 +369,13 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               }
             }}
             className={`
-              flex items-center justify-center w-6.5 h-6.5 rounded-md border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
+              flex items-center justify-center w-6.5 h-6.5 rounded-md border transition-all duration-200 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer shrink-0
               ${alternativeSegment?.originId === placeId && alternativeSegment?.destId === destId
                 ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
                 : 'bg-zinc-50 border-zinc-200 hover:border-blue-300 text-zinc-500 hover:text-blue-600'
               }
             `}
+            aria-label="대안 경로 탐색"
             title="대안 경로 탐색"
           >
             <AlternativeRouteIcon
@@ -630,6 +631,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
           {/* 대안 경로 탐색 버튼 */}
           <button
             type="button"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               if (!placeId || !destId) return;
@@ -639,24 +641,22 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 const wasFocused = focusedSegment?.originId === placeId && focusedSegment?.destId === destId;
                 setIsAlternativeFromFocus(wasFocused);
                 setAlternativeSegment({ originId: placeId, destId: destId });
-                setFocusedSegment(null);
-                setFocusedStep(null);
                 if (data) {
                   const bounds = calculateSegmentBounds(originPlace, destPlace, data);
                   setFocusBounds(bounds);
                 }
                 // prefetch alternate routes data
                 const cacheKey = `${placeId}-${destId}`;
-                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId));
+                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId, departureTime));
                 if (!segmentDataInCache) {
                   Promise.allSettled([
                     queryClient.fetchQuery({
-                      queryKey: directionKeys.segmentPublic(placeId, destId),
-                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
+                      queryKey: directionKeys.segmentPublic(placeId, destId, departureTime),
+                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace, departureTime || undefined)
                     }),
                     queryClient.fetchQuery({
-                      queryKey: directionKeys.segmentCar(placeId, destId),
-                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
+                      queryKey: directionKeys.segmentCar(placeId, destId, departureTime),
+                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined)
                     })
                   ]).catch(console.error);
                 }
@@ -674,12 +674,13 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               }
             }}
             className={`
-            flex items-center justify-center w-6.5 h-6.5 rounded-md border transition-all duration-300 shadow-2xs cursor-pointer shrink-0
+            flex items-center justify-center w-6.5 h-6.5 rounded-md border transition-all duration-200 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer shrink-0
             ${alternativeSegment?.originId === placeId && alternativeSegment?.destId === destId
                 ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
                 : 'bg-zinc-50 border-zinc-200 hover:border-blue-300 text-zinc-500 hover:text-blue-600'
               }
           `}
+            aria-label="대안 경로 탐색"
             title="대안 경로 탐색"
           >
             <AlternativeRouteIcon

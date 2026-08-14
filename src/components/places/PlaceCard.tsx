@@ -89,6 +89,7 @@ export default function PlaceCard({
     setAlternativeSegment,
     setTargetChangePlaceId,
     openSearchMode,
+    departureTime,
   } = useJourneyStore();
 
   const isMobile = useMediaQuery('(max-width: 767px)');
@@ -187,8 +188,8 @@ export default function PlaceCard({
   const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
   const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
   const { isCacheRestored } = useJourneyStore();
-  const publicQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentPublic(place.id, nextPlace.id)) : null;
-  const carQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentCar(place.id, nextPlace.id)) : null;
+  const publicQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentPublic(place.id, nextPlace.id, departureTime)) : null;
+  const carQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentCar(place.id, nextPlace.id, departureTime)) : null;
   const hasSelectedRoute = place.selected_route && place.selected_route.destId === nextPlace?.id;
   const isSegmentLoading = Boolean(
     nextPlace &&

@@ -31,8 +31,8 @@ export function RoutePanels() {
 
   const activeRouteOfFocusedSegment = useMemo(() => {
     if (!focusedSegment) return null;
-    const originPlace = places.find(p => p.id === focusedSegment.originId);
-    const destPlace = places.find(p => p.id === focusedSegment.destId);
+    const originPlace = places.find(p => String(p.id) === String(focusedSegment.originId));
+    const destPlace = places.find(p => String(p.id) === String(focusedSegment.destId));
     if (!originPlace || !destPlace) return null;
 
     const cacheKey = `${focusedSegment.originId}-${focusedSegment.destId}`;
@@ -43,23 +43,23 @@ export function RoutePanels() {
 
   const focusedPlaces = useMemo(() => {
     if (!focusedSegment) return null;
-    const originPlace = places.find(p => p.id === focusedSegment.originId);
-    const destPlace = places.find(p => p.id === focusedSegment.destId);
+    const originPlace = places.find(p => String(p.id) === String(focusedSegment.originId));
+    const destPlace = places.find(p => String(p.id) === String(focusedSegment.destId));
     if (!originPlace || !destPlace) return null;
     return { originPlace, destPlace };
   }, [focusedSegment, places]);
 
   const alternativePlaces = useMemo(() => {
     if (!alternativeSegment) return null;
-    const originPlace = places.find(p => p.id === alternativeSegment.originId);
-    const destPlace = places.find(p => p.id === alternativeSegment.destId);
+    const originPlace = places.find(p => String(p.id) === String(alternativeSegment.originId));
+    const destPlace = places.find(p => String(p.id) === String(alternativeSegment.destId));
     if (!originPlace || !destPlace) return null;
     return { originPlace, destPlace };
   }, [alternativeSegment, places]);
 
   const nextSegmentInfo = useMemo(() => {
     if (!focusedSegment || !activeJourney) return null;
-    const destIndex = places.findIndex(p => p.id === focusedSegment.destId);
+    const destIndex = places.findIndex(p => String(p.id) === String(focusedSegment.destId));
     if (destIndex < 0 || destIndex >= places.length - 1) return null;
     const nextOriginPlace = places[destIndex];
     const nextDestPlace = places[destIndex + 1];
@@ -68,7 +68,7 @@ export function RoutePanels() {
 
   const prevSegmentInfo = useMemo(() => {
     if (!focusedSegment || !activeJourney) return null;
-    const originIndex = places.findIndex(p => p.id === focusedSegment.originId);
+    const originIndex = places.findIndex(p => String(p.id) === String(focusedSegment.originId));
     if (originIndex <= 0) return null;
     const prevOriginPlace = places[originIndex - 1];
     const prevDestPlace = places[originIndex];
@@ -91,6 +91,14 @@ export function RoutePanels() {
 
   const showRouteGuide = !!(activeRouteOfFocusedSegment && focusedPlaces && !alternativePlaces);
   const showAlternative = !!alternativePlaces;
+
+  // Sync cachedAlternative immediately during render if alternativePlaces exists
+  if (showAlternative && alternativePlaces && (!cachedAlternative || cachedAlternative.originPlace.id !== alternativePlaces.originPlace.id || cachedAlternative.destPlace.id !== alternativePlaces.destPlace.id)) {
+    setCachedAlternative({
+      originPlace: alternativePlaces.originPlace,
+      destPlace: alternativePlaces.destPlace,
+    });
+  }
 
   useEffect(() => {
     if (showRouteGuide && activeRouteOfFocusedSegment && focusedPlaces) {
@@ -210,28 +218,29 @@ export function RoutePanels() {
       )}
 
       {/* 대안 경로 패널 */}
-      {cachedAlternative && (
+      {(alternativePlaces || cachedAlternative) && (
         <AlternativeRoutePanel
-          isOpen={showAlternative && !isSearchMode && !isDrawerMaximized}
-          originPlace={cachedAlternative.originPlace}
-          destPlace={cachedAlternative.destPlace}
+          isOpen={showAlternative && !isSearchMode}
+          originPlace={(alternativePlaces || cachedAlternative)!.originPlace}
+          destPlace={(alternativePlaces || cachedAlternative)!.destPlace}
           onClose={(isCancel?: boolean) => {
+            const currentAlt = alternativePlaces || cachedAlternative;
             setAlternativeSegment(null);
 
-            if (isAlternativeFromFocus) {
+            if (isAlternativeFromFocus && currentAlt) {
               setFocusedSegment({
-                originId: cachedAlternative.originPlace.id,
-                destId: cachedAlternative.destPlace.id
+                originId: currentAlt.originPlace.id,
+                destId: currentAlt.destPlace.id
               });
 
               if (isCancel) {
-                const cacheKey = `${cachedAlternative.originPlace.id}-${cachedAlternative.destPlace.id}`;
+                const cacheKey = `${currentAlt.originPlace.id}-${currentAlt.destPlace.id}`;
                 const segmentData = directionsCache[cacheKey];
                 const transportType = activeJourney?.transport_type || 'public';
-                const defaultRoute = getDefaultRoute(cachedAlternative.originPlace, cachedAlternative.destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+                const defaultRoute = getDefaultRoute(currentAlt.originPlace, currentAlt.destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
 
                 if (defaultRoute) {
-                  const bounds = calculateSegmentBounds(cachedAlternative.originPlace, cachedAlternative.destPlace, defaultRoute);
+                  const bounds = calculateSegmentBounds(currentAlt.originPlace, currentAlt.destPlace, defaultRoute);
                   setFocusBounds(bounds);
                 }
               }

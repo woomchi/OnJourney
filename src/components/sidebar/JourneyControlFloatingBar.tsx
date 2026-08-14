@@ -40,6 +40,7 @@ export default function JourneyControlFloatingBar({
     setEditMode,
     setDrawerSnapPoint,
     openSearchMode,
+    departureTime,
   } = useJourneyStore();
 
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
@@ -76,8 +77,8 @@ export default function JourneyControlFloatingBar({
         const firstPlace = activeJourney.places[0];
         const secondPlace = activeJourney.places[1];
 
-        const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id));
-        const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id));
+        const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id, departureTime));
+        const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id, departureTime));
         const segmentData = {
           public: publicData?.public || [],
           car: carData?.car || [],

@@ -14,6 +14,10 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const stationName = searchParams.get('stationName') || undefined;
     const cityCode = searchParams.get('cityCode') || undefined;
+    const latParam = searchParams.get('lat') || searchParams.get('gpsLati');
+    const lngParam = searchParams.get('lng') || searchParams.get('gpsLong');
+    const lat = latParam ? parseFloat(latParam) : undefined;
+    const lng = lngParam ? parseFloat(lngParam) : undefined;
 
     if (!stationId) {
       return NextResponse.json(
@@ -31,6 +35,8 @@ export async function GET(
       stationId,
       stationName,
       cityCode,
+      lat,
+      lng,
     });
 
     return NextResponse.json({

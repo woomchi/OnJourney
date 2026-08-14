@@ -1,0 +1,8873 @@
+{
+  "DESCRIPTION": {
+    "SBWY_ROUT_LN": "호선/노선구분",
+    "SBWY_STNS_NM": "역명",
+    "DIST_KM": "역간거리(km)",
+    "ACML_DIST": "누적거리(km)",
+    "HM": "소요시간(분:초)"
+  },
+  "DATA": [
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "서울역",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "시청",
+      "dist_km": 1.1,
+      "acml_dist": 1.1,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "종각",
+      "dist_km": 1.0,
+      "acml_dist": 2.1,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "종로3가",
+      "dist_km": 0.8,
+      "acml_dist": 2.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "종로5가",
+      "dist_km": 0.9,
+      "acml_dist": 3.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "동대문",
+      "dist_km": 0.8,
+      "acml_dist": 4.6,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "동묘앞",
+      "dist_km": 0.6,
+      "acml_dist": 5.2,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "신설동",
+      "dist_km": 0.7,
+      "acml_dist": 5.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "제기동",
+      "dist_km": 0.9,
+      "acml_dist": 6.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "청량리",
+      "dist_km": 1.0,
+      "acml_dist": 7.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "시청",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "을지로입구",
+      "dist_km": 0.7,
+      "acml_dist": 0.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "을지로3가",
+      "dist_km": 0.8,
+      "acml_dist": 1.5,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "을지로4가",
+      "dist_km": 0.6,
+      "acml_dist": 2.1,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "동대문역사문화공원",
+      "dist_km": 1.0,
+      "acml_dist": 3.1,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "신당",
+      "dist_km": 0.9,
+      "acml_dist": 4.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "상왕십리",
+      "dist_km": 0.9,
+      "acml_dist": 4.9,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 0.8,
+      "acml_dist": 5.7,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "한양대",
+      "dist_km": 1.0,
+      "acml_dist": 6.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "뚝섬",
+      "dist_km": 1.1,
+      "acml_dist": 7.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "성수",
+      "dist_km": 0.8,
+      "acml_dist": 8.6,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "건대입구",
+      "dist_km": 1.2,
+      "acml_dist": 9.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "구의",
+      "dist_km": 1.6,
+      "acml_dist": 11.4,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "강변",
+      "dist_km": 0.9,
+      "acml_dist": 12.3,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "잠실나루",
+      "dist_km": 1.8,
+      "acml_dist": 14.1,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "잠실",
+      "dist_km": 1.0,
+      "acml_dist": 15.1,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "잠실새내",
+      "dist_km": 1.2,
+      "acml_dist": 16.3,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "종합운동장",
+      "dist_km": 1.2,
+      "acml_dist": 17.5,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "삼성",
+      "dist_km": 1.0,
+      "acml_dist": 18.5,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "선릉",
+      "dist_km": 1.3,
+      "acml_dist": 19.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "역삼",
+      "dist_km": 1.2,
+      "acml_dist": 21.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "강남",
+      "dist_km": 0.8,
+      "acml_dist": 21.8,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "교대",
+      "dist_km": 1.2,
+      "acml_dist": 23.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "서초",
+      "dist_km": 0.7,
+      "acml_dist": 23.7,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "방배",
+      "dist_km": 1.7,
+      "acml_dist": 25.4,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "사당",
+      "dist_km": 1.6,
+      "acml_dist": 27.0,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "낙성대",
+      "dist_km": 1.7,
+      "acml_dist": 28.7,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "서울대입구",
+      "dist_km": 1.0,
+      "acml_dist": 29.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "봉천",
+      "dist_km": 1.0,
+      "acml_dist": 30.7,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "신림",
+      "dist_km": 1.1,
+      "acml_dist": 31.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "신대방",
+      "dist_km": 1.8,
+      "acml_dist": 33.6,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "구로디지털단지",
+      "dist_km": 1.1,
+      "acml_dist": 34.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "대림",
+      "dist_km": 1.1,
+      "acml_dist": 35.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "신도림",
+      "dist_km": 1.8,
+      "acml_dist": 37.6,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "문래",
+      "dist_km": 1.2,
+      "acml_dist": 38.8,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "영등포구청",
+      "dist_km": 0.9,
+      "acml_dist": 39.7,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "당산",
+      "dist_km": 1.1,
+      "acml_dist": 40.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "합정",
+      "dist_km": 2.0,
+      "acml_dist": 42.8,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "홍대입구",
+      "dist_km": 1.1,
+      "acml_dist": 43.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "신촌",
+      "dist_km": 1.3,
+      "acml_dist": 45.2,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "이대",
+      "dist_km": 0.8,
+      "acml_dist": 46.0,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "아현",
+      "dist_km": 0.9,
+      "acml_dist": 46.9,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "충정로",
+      "dist_km": 0.8,
+      "acml_dist": 47.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "시청",
+      "dist_km": 1.1,
+      "acml_dist": 48.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "용답",
+      "dist_km": 2.3,
+      "acml_dist": 51.1,
+      "hm": "3:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "신답",
+      "dist_km": 1.0,
+      "acml_dist": 52.1,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "용두",
+      "dist_km": 0.9,
+      "acml_dist": 53.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "신설동",
+      "dist_km": 1.2,
+      "acml_dist": 54.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "도림천",
+      "dist_km": 1.0,
+      "acml_dist": 55.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "양천구청",
+      "dist_km": 1.7,
+      "acml_dist": 56.9,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "신정네거리",
+      "dist_km": 1.9,
+      "acml_dist": 58.8,
+      "hm": "3:00"
+    },
+    {
+      "sbwy_rout_ln": "2",
+      "sbwy_stns_nm": "까치산",
+      "dist_km": 1.4,
+      "acml_dist": 60.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "지축",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "구파발",
+      "dist_km": 1.5,
+      "acml_dist": 1.5,
+      "hm": "3:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "연신내",
+      "dist_km": 2.0,
+      "acml_dist": 3.5,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "불광",
+      "dist_km": 1.3,
+      "acml_dist": 4.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "녹번",
+      "dist_km": 1.1,
+      "acml_dist": 5.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "홍제",
+      "dist_km": 1.6,
+      "acml_dist": 7.5,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "무악재",
+      "dist_km": 0.9,
+      "acml_dist": 8.4,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "독립문",
+      "dist_km": 1.1,
+      "acml_dist": 9.5,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "경복궁",
+      "dist_km": 1.6,
+      "acml_dist": 11.1,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "안국",
+      "dist_km": 1.1,
+      "acml_dist": 12.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "종로3가",
+      "dist_km": 1.0,
+      "acml_dist": 13.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "을지로3가",
+      "dist_km": 0.6,
+      "acml_dist": 13.8,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "충무로",
+      "dist_km": 0.7,
+      "acml_dist": 14.5,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "동대입구",
+      "dist_km": 0.9,
+      "acml_dist": 15.4,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "약수",
+      "dist_km": 0.7,
+      "acml_dist": 16.1,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "금호",
+      "dist_km": 0.8,
+      "acml_dist": 16.9,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "옥수",
+      "dist_km": 0.8,
+      "acml_dist": 17.7,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "압구정",
+      "dist_km": 2.1,
+      "acml_dist": 19.8,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "신사",
+      "dist_km": 1.5,
+      "acml_dist": 21.3,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "잠원",
+      "dist_km": 0.9,
+      "acml_dist": 22.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "고속터미널",
+      "dist_km": 1.2,
+      "acml_dist": 23.4,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "교대",
+      "dist_km": 1.6,
+      "acml_dist": 25.0,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "남부터미널",
+      "dist_km": 0.9,
+      "acml_dist": 25.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "양재",
+      "dist_km": 1.8,
+      "acml_dist": 27.7,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "매봉",
+      "dist_km": 1.2,
+      "acml_dist": 28.9,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "도곡",
+      "dist_km": 0.8,
+      "acml_dist": 29.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "대치",
+      "dist_km": 0.8,
+      "acml_dist": 30.5,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "학여울",
+      "dist_km": 0.8,
+      "acml_dist": 31.3,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "대청",
+      "dist_km": 0.9,
+      "acml_dist": 32.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "일원",
+      "dist_km": 1.2,
+      "acml_dist": 33.4,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "수서",
+      "dist_km": 1.8,
+      "acml_dist": 35.2,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "가락시장",
+      "dist_km": 1.4,
+      "acml_dist": 36.6,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "경찰병원",
+      "dist_km": 0.8,
+      "acml_dist": 37.4,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "3",
+      "sbwy_stns_nm": "오금",
+      "dist_km": 0.8,
+      "acml_dist": 38.2,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "당고개",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "상계",
+      "dist_km": 1.2,
+      "acml_dist": 1.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "노원",
+      "dist_km": 1.0,
+      "acml_dist": 2.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "창동",
+      "dist_km": 1.4,
+      "acml_dist": 3.6,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "쌍문",
+      "dist_km": 1.3,
+      "acml_dist": 4.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "수유",
+      "dist_km": 1.5,
+      "acml_dist": 6.4,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "미아",
+      "dist_km": 1.4,
+      "acml_dist": 7.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "미아사거리",
+      "dist_km": 1.5,
+      "acml_dist": 9.3,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "길음",
+      "dist_km": 1.3,
+      "acml_dist": 10.6,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "성신여대입구",
+      "dist_km": 1.4,
+      "acml_dist": 12.0,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "한성대입구",
+      "dist_km": 1.0,
+      "acml_dist": 13.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "혜화",
+      "dist_km": 0.9,
+      "acml_dist": 13.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "동대문",
+      "dist_km": 1.5,
+      "acml_dist": 15.4,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "동대문역사문화공원",
+      "dist_km": 0.7,
+      "acml_dist": 16.1,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "충무로",
+      "dist_km": 1.3,
+      "acml_dist": 17.4,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "명동",
+      "dist_km": 0.7,
+      "acml_dist": 18.1,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "회현",
+      "dist_km": 0.7,
+      "acml_dist": 18.8,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "서울역",
+      "dist_km": 0.9,
+      "acml_dist": 19.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "숙대입구",
+      "dist_km": 1.0,
+      "acml_dist": 20.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "삼각지",
+      "dist_km": 1.2,
+      "acml_dist": 21.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "신용산",
+      "dist_km": 0.7,
+      "acml_dist": 22.6,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "이촌",
+      "dist_km": 1.3,
+      "acml_dist": 23.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "동작",
+      "dist_km": 2.7,
+      "acml_dist": 26.6,
+      "hm": "3:00"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "총신대입구",
+      "dist_km": 1.8,
+      "acml_dist": 28.4,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "사당",
+      "dist_km": 1.1,
+      "acml_dist": 29.5,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "4",
+      "sbwy_stns_nm": "남태령",
+      "dist_km": 2.2,
+      "acml_dist": 31.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "방화",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "개화산",
+      "dist_km": 0.9,
+      "acml_dist": 0.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "김포공항",
+      "dist_km": 1.2,
+      "acml_dist": 2.1,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "송정",
+      "dist_km": 1.2,
+      "acml_dist": 3.3,
+      "hm": "2:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "마곡",
+      "dist_km": 1.1,
+      "acml_dist": 4.4,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "발산",
+      "dist_km": 1.2,
+      "acml_dist": 5.6,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "우장산",
+      "dist_km": 1.1,
+      "acml_dist": 6.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "화곡",
+      "dist_km": 1.0,
+      "acml_dist": 7.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "까치산",
+      "dist_km": 1.2,
+      "acml_dist": 8.9,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "신정",
+      "dist_km": 1.3,
+      "acml_dist": 10.2,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "목동",
+      "dist_km": 0.8,
+      "acml_dist": 11.0,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "오목교",
+      "dist_km": 0.9,
+      "acml_dist": 11.9,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "양평",
+      "dist_km": 1.0,
+      "acml_dist": 12.9,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "영등포구청",
+      "dist_km": 0.8,
+      "acml_dist": 13.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "영등포시장",
+      "dist_km": 0.9,
+      "acml_dist": 14.6,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "신길",
+      "dist_km": 1.1,
+      "acml_dist": 15.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "여의도",
+      "dist_km": 1.0,
+      "acml_dist": 16.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "여의나루",
+      "dist_km": 1.0,
+      "acml_dist": 17.7,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "마포",
+      "dist_km": 1.8,
+      "acml_dist": 19.5,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "공덕",
+      "dist_km": 0.8,
+      "acml_dist": 20.3,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "애오개",
+      "dist_km": 1.1,
+      "acml_dist": 21.4,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "충정로",
+      "dist_km": 0.9,
+      "acml_dist": 22.3,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "서대문",
+      "dist_km": 0.7,
+      "acml_dist": 23.0,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "광화문",
+      "dist_km": 1.1,
+      "acml_dist": 24.1,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "종로3가",
+      "dist_km": 1.2,
+      "acml_dist": 25.3,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "을지로4가",
+      "dist_km": 1.0,
+      "acml_dist": 26.3,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "동대문역사문화공원",
+      "dist_km": 0.9,
+      "acml_dist": 27.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "청구",
+      "dist_km": 0.9,
+      "acml_dist": 28.1,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "신금호",
+      "dist_km": 0.9,
+      "acml_dist": 29.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "행당",
+      "dist_km": 0.9,
+      "acml_dist": 29.9,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 0.9,
+      "acml_dist": 30.8,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "마장",
+      "dist_km": 0.7,
+      "acml_dist": 31.5,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "답십리",
+      "dist_km": 1.0,
+      "acml_dist": 32.5,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "장한평",
+      "dist_km": 1.2,
+      "acml_dist": 33.7,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "군자",
+      "dist_km": 1.5,
+      "acml_dist": 35.2,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "아차산",
+      "dist_km": 1.0,
+      "acml_dist": 36.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "광나루",
+      "dist_km": 1.5,
+      "acml_dist": 37.7,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "천호",
+      "dist_km": 2.0,
+      "acml_dist": 39.7,
+      "hm": "2:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "강동",
+      "dist_km": 0.8,
+      "acml_dist": 40.5,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "길동",
+      "dist_km": 0.9,
+      "acml_dist": 41.4,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "굽은다리",
+      "dist_km": 0.8,
+      "acml_dist": 42.2,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "명일",
+      "dist_km": 0.8,
+      "acml_dist": 43.0,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "고덕",
+      "dist_km": 1.2,
+      "acml_dist": 44.2,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "상일동",
+      "dist_km": 1.1,
+      "acml_dist": 45.3,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "강일",
+      "dist_km": 0.8,
+      "acml_dist": 46.1,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "미사",
+      "dist_km": 1.7,
+      "acml_dist": 47.8,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "하남풍산",
+      "dist_km": 2.1,
+      "acml_dist": 49.9,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "하남시청",
+      "dist_km": 1.3,
+      "acml_dist": 51.2,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "하남검단산",
+      "dist_km": 1.6,
+      "acml_dist": 52.8,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "둔촌동",
+      "dist_km": 1.2,
+      "acml_dist": 54.0,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "올림픽공원",
+      "dist_km": 1.4,
+      "acml_dist": 55.4,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "방이",
+      "dist_km": 0.8,
+      "acml_dist": 56.2,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "오금",
+      "dist_km": 0.9,
+      "acml_dist": 57.1,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "개롱",
+      "dist_km": 0.9,
+      "acml_dist": 58.0,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "거여",
+      "dist_km": 0.9,
+      "acml_dist": 58.9,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "5",
+      "sbwy_stns_nm": "마천",
+      "dist_km": 0.9,
+      "acml_dist": 59.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "응암",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "역촌",
+      "dist_km": 1.1,
+      "acml_dist": 1.1,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "불광",
+      "dist_km": 0.8,
+      "acml_dist": 1.9,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "독바위",
+      "dist_km": 0.9,
+      "acml_dist": 2.8,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "연신내",
+      "dist_km": 1.4,
+      "acml_dist": 4.2,
+      "hm": "2:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "구산",
+      "dist_km": 0.9,
+      "acml_dist": 5.1,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "응암",
+      "dist_km": 1.5,
+      "acml_dist": 6.6,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "새절",
+      "dist_km": 0.9,
+      "acml_dist": 7.5,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "증산",
+      "dist_km": 0.9,
+      "acml_dist": 8.4,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "디지털미디어시티",
+      "dist_km": 1.1,
+      "acml_dist": 9.5,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "월드컵경기장",
+      "dist_km": 0.8,
+      "acml_dist": 10.3,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "마포구청",
+      "dist_km": 0.8,
+      "acml_dist": 11.1,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "망원",
+      "dist_km": 1.0,
+      "acml_dist": 12.1,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "합정",
+      "dist_km": 0.8,
+      "acml_dist": 12.9,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "상수",
+      "dist_km": 0.8,
+      "acml_dist": 13.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "광흥창",
+      "dist_km": 0.9,
+      "acml_dist": 14.6,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "대흥",
+      "dist_km": 1.0,
+      "acml_dist": 15.6,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "공덕",
+      "dist_km": 0.9,
+      "acml_dist": 16.5,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "효창공원앞",
+      "dist_km": 0.9,
+      "acml_dist": 17.4,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "삼각지",
+      "dist_km": 1.2,
+      "acml_dist": 18.6,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "녹사평",
+      "dist_km": 1.1,
+      "acml_dist": 19.7,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "이태원",
+      "dist_km": 0.8,
+      "acml_dist": 20.5,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "한강진",
+      "dist_km": 1.0,
+      "acml_dist": 21.5,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "버티고개",
+      "dist_km": 1.0,
+      "acml_dist": 22.5,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "약수",
+      "dist_km": 0.7,
+      "acml_dist": 23.2,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "청구",
+      "dist_km": 0.8,
+      "acml_dist": 24.0,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "신당",
+      "dist_km": 0.7,
+      "acml_dist": 24.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "동묘앞",
+      "dist_km": 0.6,
+      "acml_dist": 25.3,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "창신",
+      "dist_km": 0.9,
+      "acml_dist": 26.2,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "보문",
+      "dist_km": 0.8,
+      "acml_dist": 27.0,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "안암",
+      "dist_km": 0.9,
+      "acml_dist": 27.9,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "고려대",
+      "dist_km": 0.8,
+      "acml_dist": 28.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "월곡",
+      "dist_km": 1.4,
+      "acml_dist": 30.1,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "상월곡",
+      "dist_km": 0.8,
+      "acml_dist": 30.9,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "돌곶이",
+      "dist_km": 0.8,
+      "acml_dist": 31.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "석계",
+      "dist_km": 1.0,
+      "acml_dist": 32.7,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "태릉입구",
+      "dist_km": 0.8,
+      "acml_dist": 33.5,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "화랑대",
+      "dist_km": 0.9,
+      "acml_dist": 34.4,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "봉화산",
+      "dist_km": 0.7,
+      "acml_dist": 35.1,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "6",
+      "sbwy_stns_nm": "신내역",
+      "dist_km": 1.3,
+      "acml_dist": 36.4,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "장암",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "도봉산",
+      "dist_km": 1.4,
+      "acml_dist": 1.4,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "수락산",
+      "dist_km": 1.6,
+      "acml_dist": 3.0,
+      "hm": "2:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "마들",
+      "dist_km": 1.4,
+      "acml_dist": 4.4,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "노원",
+      "dist_km": 1.2,
+      "acml_dist": 5.6,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "중계",
+      "dist_km": 1.1,
+      "acml_dist": 6.7,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "하계",
+      "dist_km": 1.0,
+      "acml_dist": 7.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "공릉",
+      "dist_km": 1.3,
+      "acml_dist": 9.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "태릉입구",
+      "dist_km": 0.8,
+      "acml_dist": 9.8,
+      "hm": "1:00"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "먹골",
+      "dist_km": 0.9,
+      "acml_dist": 10.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "중화",
+      "dist_km": 0.9,
+      "acml_dist": 11.6,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "상봉",
+      "dist_km": 1.0,
+      "acml_dist": 12.6,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "면목",
+      "dist_km": 0.8,
+      "acml_dist": 13.4,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "사가정",
+      "dist_km": 0.9,
+      "acml_dist": 14.3,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "용마산",
+      "dist_km": 0.8,
+      "acml_dist": 15.1,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "중곡",
+      "dist_km": 0.9,
+      "acml_dist": 16.0,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "군자",
+      "dist_km": 1.1,
+      "acml_dist": 17.1,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "어린이대공원",
+      "dist_km": 1.1,
+      "acml_dist": 18.2,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "건대입구",
+      "dist_km": 0.8,
+      "acml_dist": 19.0,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "뚝섬유원지",
+      "dist_km": 1.0,
+      "acml_dist": 20.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "청담",
+      "dist_km": 2.0,
+      "acml_dist": 22.0,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "강남구청",
+      "dist_km": 1.1,
+      "acml_dist": 23.1,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "학동",
+      "dist_km": 0.9,
+      "acml_dist": 24.0,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "논현",
+      "dist_km": 1.0,
+      "acml_dist": 25.0,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "반포",
+      "dist_km": 0.9,
+      "acml_dist": 25.9,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "고속터미널",
+      "dist_km": 0.9,
+      "acml_dist": 26.8,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "내방",
+      "dist_km": 2.2,
+      "acml_dist": 29.0,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "이수",
+      "dist_km": 1.0,
+      "acml_dist": 30.0,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "남성",
+      "dist_km": 1.0,
+      "acml_dist": 31.0,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "숭실대입구",
+      "dist_km": 2.0,
+      "acml_dist": 33.0,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "상도",
+      "dist_km": 0.9,
+      "acml_dist": 33.9,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "장승배기",
+      "dist_km": 0.9,
+      "acml_dist": 34.8,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "신대방삼거리",
+      "dist_km": 1.2,
+      "acml_dist": 36.0,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "보라매",
+      "dist_km": 0.8,
+      "acml_dist": 36.8,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "신풍",
+      "dist_km": 0.9,
+      "acml_dist": 37.7,
+      "hm": "2:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "대림",
+      "dist_km": 1.4,
+      "acml_dist": 39.1,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "남구로",
+      "dist_km": 1.1,
+      "acml_dist": 40.2,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "가산디지털단지",
+      "dist_km": 0.8,
+      "acml_dist": 41.0,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "철산",
+      "dist_km": 1.4,
+      "acml_dist": 42.4,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "광명사거리",
+      "dist_km": 1.3,
+      "acml_dist": 43.7,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "천왕",
+      "dist_km": 1.7,
+      "acml_dist": 45.4,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "7",
+      "sbwy_stns_nm": "온수",
+      "dist_km": 1.5,
+      "acml_dist": 46.9,
+      "hm": "2:20"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "암사",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "천호",
+      "dist_km": 1.3,
+      "acml_dist": 1.3,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "강동구청",
+      "dist_km": 0.9,
+      "acml_dist": 2.2,
+      "hm": "1:20"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "몽촌토성",
+      "dist_km": 1.6,
+      "acml_dist": 3.8,
+      "hm": "2:00"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "잠실",
+      "dist_km": 0.8,
+      "acml_dist": 4.6,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "석촌",
+      "dist_km": 1.2,
+      "acml_dist": 5.8,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "송파",
+      "dist_km": 0.9,
+      "acml_dist": 6.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "가락시장",
+      "dist_km": 0.8,
+      "acml_dist": 7.5,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "문정",
+      "dist_km": 0.9,
+      "acml_dist": 8.4,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "장지",
+      "dist_km": 0.9,
+      "acml_dist": 9.3,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "복정",
+      "dist_km": 0.9,
+      "acml_dist": 10.2,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "남위례",
+      "dist_km": 1.5,
+      "acml_dist": 11.7,
+      "hm": "1:50"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "산성",
+      "dist_km": 1.2,
+      "acml_dist": 12.9,
+      "hm": "1:40"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "남한산성입구",
+      "dist_km": 1.3,
+      "acml_dist": 14.2,
+      "hm": "2:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "단대오거리",
+      "dist_km": 0.8,
+      "acml_dist": 15.0,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "신흥",
+      "dist_km": 0.8,
+      "acml_dist": 15.8,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "수진",
+      "dist_km": 0.9,
+      "acml_dist": 16.7,
+      "hm": "1:10"
+    },
+    {
+      "sbwy_rout_ln": "8",
+      "sbwy_stns_nm": "모란",
+      "dist_km": 1.0,
+      "acml_dist": 17.7,
+      "hm": "1:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "서울",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "남영",
+      "dist_km": 1.7,
+      "acml_dist": 1.7,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 1.5,
+      "acml_dist": 3.2,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "노량진",
+      "dist_km": 2.6,
+      "acml_dist": 5.8,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "대방",
+      "dist_km": 1.5,
+      "acml_dist": 7.3,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "영등포",
+      "dist_km": 1.8,
+      "acml_dist": 9.1,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "신도림",
+      "dist_km": 1.5,
+      "acml_dist": 10.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "구로",
+      "dist_km": 1.1,
+      "acml_dist": 11.7,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "가산디지털단지",
+      "dist_km": 2.4,
+      "acml_dist": 14.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "금천구청",
+      "dist_km": 3.2,
+      "acml_dist": 17.3,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "석수",
+      "dist_km": 2.3,
+      "acml_dist": 19.6,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "관악",
+      "dist_km": 1.9,
+      "acml_dist": 21.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "안양",
+      "dist_km": 2.4,
+      "acml_dist": 23.9,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "명학",
+      "dist_km": 2.2,
+      "acml_dist": 26.1,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "금정",
+      "dist_km": 1.4,
+      "acml_dist": 27.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "군포",
+      "dist_km": 2.2,
+      "acml_dist": 29.7,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "당정",
+      "dist_km": 1.6,
+      "acml_dist": 31.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "의왕",
+      "dist_km": 2.6,
+      "acml_dist": 33.9,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "성균관대",
+      "dist_km": 2.9,
+      "acml_dist": 36.8,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "화서",
+      "dist_km": 2.6,
+      "acml_dist": 39.4,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "수원",
+      "dist_km": 2.1,
+      "acml_dist": 41.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "세류",
+      "dist_km": 2.9,
+      "acml_dist": 44.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "병점",
+      "dist_km": 4.3,
+      "acml_dist": 48.7,
+      "hm": "5:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "세마",
+      "dist_km": 2.4,
+      "acml_dist": 51.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "오산대",
+      "dist_km": 2.7,
+      "acml_dist": 53.8,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "오산",
+      "dist_km": 2.7,
+      "acml_dist": 56.5,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "진위",
+      "dist_km": 4.0,
+      "acml_dist": 60.5,
+      "hm": "5:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "송탄",
+      "dist_km": 3.8,
+      "acml_dist": 64.3,
+      "hm": "5:15"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "서정리",
+      "dist_km": 2.2,
+      "acml_dist": 66.5,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "평택지제",
+      "dist_km": 4.8,
+      "acml_dist": 71.3,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "평택",
+      "dist_km": 3.7,
+      "acml_dist": 75.0,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "성환",
+      "dist_km": 9.4,
+      "acml_dist": 84.4,
+      "hm": "9:54"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "직산",
+      "dist_km": 5.4,
+      "acml_dist": 89.8,
+      "hm": "5:54"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "두정",
+      "dist_km": 3.8,
+      "acml_dist": 93.6,
+      "hm": "5:15"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "천안",
+      "dist_km": 3.0,
+      "acml_dist": 96.6,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "봉명",
+      "dist_km": 1.3,
+      "acml_dist": 97.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "쌍용",
+      "dist_km": 1.6,
+      "acml_dist": 99.5,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "아산",
+      "dist_km": 1.6,
+      "acml_dist": 101.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "탕정",
+      "dist_km": 1.8,
+      "acml_dist": 102.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "배방",
+      "dist_km": 3.1,
+      "acml_dist": 106.0,
+      "hm": "4:22"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "온양온천",
+      "dist_km": 4.9,
+      "acml_dist": 110.9,
+      "hm": "6:38"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경부선",
+      "sbwy_stns_nm": "신창",
+      "dist_km": 5.1,
+      "acml_dist": 116.0,
+      "hm": "5:36"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "서울",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "남영",
+      "dist_km": 1.7,
+      "acml_dist": 1.7,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 1.5,
+      "acml_dist": 3.2,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "노량진",
+      "dist_km": 2.6,
+      "acml_dist": 5.8,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "대방",
+      "dist_km": 1.5,
+      "acml_dist": 7.3,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "영등포",
+      "dist_km": 1.8,
+      "acml_dist": 9.1,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "신도림",
+      "dist_km": 1.5,
+      "acml_dist": 10.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "구로",
+      "dist_km": 1.1,
+      "acml_dist": 11.7,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "가산디지털단지",
+      "dist_km": 2.4,
+      "acml_dist": 14.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "금천구청",
+      "dist_km": 3.2,
+      "acml_dist": 17.3,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "석수",
+      "dist_km": 2.3,
+      "acml_dist": 19.6,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "관악",
+      "dist_km": 1.9,
+      "acml_dist": 21.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "안양",
+      "dist_km": 2.4,
+      "acml_dist": 23.9,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "명학",
+      "dist_km": 2.2,
+      "acml_dist": 26.1,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "금정",
+      "dist_km": 1.4,
+      "acml_dist": 27.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "군포",
+      "dist_km": 2.2,
+      "acml_dist": 29.7,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "당정",
+      "dist_km": 1.6,
+      "acml_dist": 31.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "의왕",
+      "dist_km": 2.6,
+      "acml_dist": 33.9,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "성균관대",
+      "dist_km": 2.9,
+      "acml_dist": 36.8,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "화서",
+      "dist_km": 2.6,
+      "acml_dist": 39.4,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "수원",
+      "dist_km": 2.1,
+      "acml_dist": 41.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "세류",
+      "dist_km": 2.9,
+      "acml_dist": 44.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "병점",
+      "dist_km": 4.3,
+      "acml_dist": 48.7,
+      "hm": "5:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "세마",
+      "dist_km": 2.4,
+      "acml_dist": 51.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "오산대",
+      "dist_km": 2.7,
+      "acml_dist": 53.8,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "오산",
+      "dist_km": 2.7,
+      "acml_dist": 56.5,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "진위",
+      "dist_km": 4.0,
+      "acml_dist": 60.5,
+      "hm": "5:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "송탄",
+      "dist_km": 3.8,
+      "acml_dist": 64.3,
+      "hm": "5:15"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "서정리",
+      "dist_km": 2.2,
+      "acml_dist": 66.5,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "평택지제",
+      "dist_km": 4.8,
+      "acml_dist": 71.3,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "평택",
+      "dist_km": 3.7,
+      "acml_dist": 75.0,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "성환",
+      "dist_km": 9.4,
+      "acml_dist": 84.4,
+      "hm": "9:54"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "직산",
+      "dist_km": 5.4,
+      "acml_dist": 89.8,
+      "hm": "5:54"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "두정",
+      "dist_km": 3.8,
+      "acml_dist": 93.6,
+      "hm": "5:15"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "천안",
+      "dist_km": 3.0,
+      "acml_dist": 96.6,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "봉명",
+      "dist_km": 1.3,
+      "acml_dist": 97.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "쌍용",
+      "dist_km": 1.6,
+      "acml_dist": 99.5,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "아산",
+      "dist_km": 1.6,
+      "acml_dist": 101.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "탕정",
+      "dist_km": 1.8,
+      "acml_dist": 102.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "배방",
+      "dist_km": 3.1,
+      "acml_dist": 106.0,
+      "hm": "4:22"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "온양온천",
+      "dist_km": 4.9,
+      "acml_dist": 110.9,
+      "hm": "6:38"
+    },
+    {
+      "sbwy_rout_ln": "1001_경부",
+      "sbwy_stns_nm": "신창",
+      "dist_km": 5.1,
+      "acml_dist": 116.0,
+      "hm": "5:36"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "서울",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "남영",
+      "dist_km": 1.7,
+      "acml_dist": 1.7,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 1.5,
+      "acml_dist": 3.2,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "노량진",
+      "dist_km": 2.6,
+      "acml_dist": 5.8,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "대방",
+      "dist_km": 1.5,
+      "acml_dist": 7.3,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "영등포",
+      "dist_km": 1.8,
+      "acml_dist": 9.1,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "신도림",
+      "dist_km": 1.5,
+      "acml_dist": 10.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "구로",
+      "dist_km": 1.1,
+      "acml_dist": 11.7,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "가산디지털단지",
+      "dist_km": 2.4,
+      "acml_dist": 14.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "금천구청",
+      "dist_km": 3.2,
+      "acml_dist": 17.3,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "석수",
+      "dist_km": 2.3,
+      "acml_dist": 19.6,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "관악",
+      "dist_km": 1.9,
+      "acml_dist": 21.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "안양",
+      "dist_km": 2.4,
+      "acml_dist": 23.9,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "명학",
+      "dist_km": 2.2,
+      "acml_dist": 26.1,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "금정",
+      "dist_km": 1.4,
+      "acml_dist": 27.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "군포",
+      "dist_km": 2.2,
+      "acml_dist": 29.7,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "당정",
+      "dist_km": 1.6,
+      "acml_dist": 31.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "의왕",
+      "dist_km": 2.6,
+      "acml_dist": 33.9,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "성균관대",
+      "dist_km": 2.9,
+      "acml_dist": 36.8,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "화서",
+      "dist_km": 2.6,
+      "acml_dist": 39.4,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "수원",
+      "dist_km": 2.1,
+      "acml_dist": 41.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "세류",
+      "dist_km": 2.9,
+      "acml_dist": 44.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "병점",
+      "dist_km": 4.3,
+      "acml_dist": 48.7,
+      "hm": "5:52"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "세마",
+      "dist_km": 2.4,
+      "acml_dist": 51.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "오산대",
+      "dist_km": 2.7,
+      "acml_dist": 53.8,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "오산",
+      "dist_km": 2.7,
+      "acml_dist": 56.5,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "진위",
+      "dist_km": 4.0,
+      "acml_dist": 60.5,
+      "hm": "5:30"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "송탄",
+      "dist_km": 3.8,
+      "acml_dist": 64.3,
+      "hm": "5:15"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "서정리",
+      "dist_km": 2.2,
+      "acml_dist": 66.5,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "평택지제",
+      "dist_km": 4.8,
+      "acml_dist": 71.3,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "평택",
+      "dist_km": 3.7,
+      "acml_dist": 75.0,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "성환",
+      "dist_km": 9.4,
+      "acml_dist": 84.4,
+      "hm": "9:54"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "직산",
+      "dist_km": 5.4,
+      "acml_dist": 89.8,
+      "hm": "5:54"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "두정",
+      "dist_km": 3.8,
+      "acml_dist": 93.6,
+      "hm": "5:15"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "천안",
+      "dist_km": 3.0,
+      "acml_dist": 96.6,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "봉명",
+      "dist_km": 1.3,
+      "acml_dist": 97.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "쌍용",
+      "dist_km": 1.6,
+      "acml_dist": 99.5,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "아산",
+      "dist_km": 1.6,
+      "acml_dist": 101.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "탕정",
+      "dist_km": 1.8,
+      "acml_dist": 102.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "배방",
+      "dist_km": 3.1,
+      "acml_dist": 106.0,
+      "hm": "4:22"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "온양온천",
+      "dist_km": 4.9,
+      "acml_dist": 110.9,
+      "hm": "6:38"
+    },
+    {
+      "sbwy_rout_ln": "1001",
+      "sbwy_stns_nm": "신창",
+      "dist_km": 5.1,
+      "acml_dist": 116.0,
+      "hm": "5:36"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "서울",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "남영",
+      "dist_km": 1.7,
+      "acml_dist": 1.7,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 1.5,
+      "acml_dist": 3.2,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "노량진",
+      "dist_km": 2.6,
+      "acml_dist": 5.8,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "대방",
+      "dist_km": 1.5,
+      "acml_dist": 7.3,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "영등포",
+      "dist_km": 1.8,
+      "acml_dist": 9.1,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "신도림",
+      "dist_km": 1.5,
+      "acml_dist": 10.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "구로",
+      "dist_km": 1.1,
+      "acml_dist": 11.7,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "가산디지털단지",
+      "dist_km": 2.4,
+      "acml_dist": 14.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "금천구청",
+      "dist_km": 3.2,
+      "acml_dist": 17.3,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "석수",
+      "dist_km": 2.3,
+      "acml_dist": 19.6,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "관악",
+      "dist_km": 1.9,
+      "acml_dist": 21.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "안양",
+      "dist_km": 2.4,
+      "acml_dist": 23.9,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "명학",
+      "dist_km": 2.2,
+      "acml_dist": 26.1,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "금정",
+      "dist_km": 1.4,
+      "acml_dist": 27.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "군포",
+      "dist_km": 2.2,
+      "acml_dist": 29.7,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "당정",
+      "dist_km": 1.6,
+      "acml_dist": 31.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "의왕",
+      "dist_km": 2.6,
+      "acml_dist": 33.9,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "성균관대",
+      "dist_km": 2.9,
+      "acml_dist": 36.8,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "화서",
+      "dist_km": 2.6,
+      "acml_dist": 39.4,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "수원",
+      "dist_km": 2.1,
+      "acml_dist": 41.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "세류",
+      "dist_km": 2.9,
+      "acml_dist": 44.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "병점",
+      "dist_km": 4.3,
+      "acml_dist": 48.7,
+      "hm": "5:52"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "세마",
+      "dist_km": 2.4,
+      "acml_dist": 51.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "오산대",
+      "dist_km": 2.7,
+      "acml_dist": 53.8,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "오산",
+      "dist_km": 2.7,
+      "acml_dist": 56.5,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "진위",
+      "dist_km": 4.0,
+      "acml_dist": 60.5,
+      "hm": "5:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "송탄",
+      "dist_km": 3.8,
+      "acml_dist": 64.3,
+      "hm": "5:15"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "서정리",
+      "dist_km": 2.2,
+      "acml_dist": 66.5,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "평택지제",
+      "dist_km": 4.8,
+      "acml_dist": 71.3,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "평택",
+      "dist_km": 3.7,
+      "acml_dist": 75.0,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "성환",
+      "dist_km": 9.4,
+      "acml_dist": 84.4,
+      "hm": "9:54"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "직산",
+      "dist_km": 5.4,
+      "acml_dist": 89.8,
+      "hm": "5:54"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "두정",
+      "dist_km": 3.8,
+      "acml_dist": 93.6,
+      "hm": "5:15"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "천안",
+      "dist_km": 3.0,
+      "acml_dist": 96.6,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "봉명",
+      "dist_km": 1.3,
+      "acml_dist": 97.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "쌍용",
+      "dist_km": 1.6,
+      "acml_dist": 99.5,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "아산",
+      "dist_km": 1.6,
+      "acml_dist": 101.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "탕정",
+      "dist_km": 1.8,
+      "acml_dist": 102.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "배방",
+      "dist_km": 3.1,
+      "acml_dist": 106.0,
+      "hm": "4:22"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "온양온천",
+      "dist_km": 4.9,
+      "acml_dist": 110.9,
+      "hm": "6:38"
+    },
+    {
+      "sbwy_rout_ln": "1",
+      "sbwy_stns_nm": "신창",
+      "dist_km": 5.1,
+      "acml_dist": 116.0,
+      "hm": "5:36"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "구로",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "구일",
+      "dist_km": 1.4,
+      "acml_dist": 1.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "개봉",
+      "dist_km": 1.0,
+      "acml_dist": 2.4,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "오류동",
+      "dist_km": 1.3,
+      "acml_dist": 3.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "온수",
+      "dist_km": 1.9,
+      "acml_dist": 5.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "역곡",
+      "dist_km": 1.3,
+      "acml_dist": 6.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "소사",
+      "dist_km": 1.5,
+      "acml_dist": 8.4,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "부천",
+      "dist_km": 1.1,
+      "acml_dist": 9.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "중동",
+      "dist_km": 1.7,
+      "acml_dist": 11.2,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "송내",
+      "dist_km": 1.0,
+      "acml_dist": 12.2,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "부개",
+      "dist_km": 1.2,
+      "acml_dist": 13.4,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "부평",
+      "dist_km": 1.5,
+      "acml_dist": 14.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "백운",
+      "dist_km": 1.7,
+      "acml_dist": 16.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "동암",
+      "dist_km": 1.5,
+      "acml_dist": 18.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "간석",
+      "dist_km": 1.2,
+      "acml_dist": 19.3,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "주안",
+      "dist_km": 1.2,
+      "acml_dist": 20.5,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "제물포",
+      "dist_km": 2.0,
+      "acml_dist": 22.5,
+      "hm": "3:39"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "도원",
+      "dist_km": 1.4,
+      "acml_dist": 23.9,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "동인천",
+      "dist_km": 1.2,
+      "acml_dist": 25.1,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경인선",
+      "sbwy_stns_nm": "인천",
+      "dist_km": 1.9,
+      "acml_dist": 27.0,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "구로",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "구일",
+      "dist_km": 1.4,
+      "acml_dist": 1.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "개봉",
+      "dist_km": 1.0,
+      "acml_dist": 2.4,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "오류동",
+      "dist_km": 1.3,
+      "acml_dist": 3.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "온수",
+      "dist_km": 1.9,
+      "acml_dist": 5.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "역곡",
+      "dist_km": 1.3,
+      "acml_dist": 6.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "소사",
+      "dist_km": 1.5,
+      "acml_dist": 8.4,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "부천",
+      "dist_km": 1.1,
+      "acml_dist": 9.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "중동",
+      "dist_km": 1.7,
+      "acml_dist": 11.2,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "송내",
+      "dist_km": 1.0,
+      "acml_dist": 12.2,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "부개",
+      "dist_km": 1.2,
+      "acml_dist": 13.4,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "부평",
+      "dist_km": 1.5,
+      "acml_dist": 14.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "백운",
+      "dist_km": 1.7,
+      "acml_dist": 16.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "동암",
+      "dist_km": 1.5,
+      "acml_dist": 18.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "간석",
+      "dist_km": 1.2,
+      "acml_dist": 19.3,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "주안",
+      "dist_km": 1.2,
+      "acml_dist": 20.5,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "제물포",
+      "dist_km": 2.0,
+      "acml_dist": 22.5,
+      "hm": "3:39"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "도원",
+      "dist_km": 1.4,
+      "acml_dist": 23.9,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "동인천",
+      "dist_km": 1.2,
+      "acml_dist": 25.1,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1001_경인",
+      "sbwy_stns_nm": "인천",
+      "dist_km": 1.9,
+      "acml_dist": 27.0,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "이촌",
+      "dist_km": 1.9,
+      "acml_dist": 1.9,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "서빙고",
+      "dist_km": 1.7,
+      "acml_dist": 3.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "한남",
+      "dist_km": 1.9,
+      "acml_dist": 5.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "옥수",
+      "dist_km": 1.6,
+      "acml_dist": 7.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "응봉",
+      "dist_km": 1.8,
+      "acml_dist": 8.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 1.4,
+      "acml_dist": 10.3,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "청량리",
+      "dist_km": 2.4,
+      "acml_dist": 12.7,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "회기",
+      "dist_km": 1.3,
+      "acml_dist": 14.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "외대앞",
+      "dist_km": 0.9,
+      "acml_dist": 14.9,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "신이문",
+      "dist_km": 0.8,
+      "acml_dist": 15.7,
+      "hm": "1:57"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "석계",
+      "dist_km": 1.4,
+      "acml_dist": 17.1,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "광운대",
+      "dist_km": 1.1,
+      "acml_dist": 18.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "월계",
+      "dist_km": 1.1,
+      "acml_dist": 19.3,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "녹천",
+      "dist_km": 1.4,
+      "acml_dist": 20.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "창동",
+      "dist_km": 1.0,
+      "acml_dist": 21.7,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "방학",
+      "dist_km": 1.7,
+      "acml_dist": 23.4,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "도봉",
+      "dist_km": 1.3,
+      "acml_dist": 24.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "도봉산",
+      "dist_km": 1.2,
+      "acml_dist": 25.9,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "망월사",
+      "dist_km": 2.3,
+      "acml_dist": 28.2,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "회룡",
+      "dist_km": 1.4,
+      "acml_dist": 29.6,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "의정부",
+      "dist_km": 1.6,
+      "acml_dist": 31.2,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "가능",
+      "dist_km": 1.2,
+      "acml_dist": 32.4,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "녹양",
+      "dist_km": 1.3,
+      "acml_dist": 33.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "양주",
+      "dist_km": 1.6,
+      "acml_dist": 35.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "덕계",
+      "dist_km": 5.3,
+      "acml_dist": 40.6,
+      "hm": "5:48"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "덕정",
+      "dist_km": 2.9,
+      "acml_dist": 43.5,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "지행",
+      "dist_km": 5.6,
+      "acml_dist": 49.1,
+      "hm": "6:06"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "동두천중앙",
+      "dist_km": 1.0,
+      "acml_dist": 50.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "보산",
+      "dist_km": 1.4,
+      "acml_dist": 51.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "동두천",
+      "dist_km": 1.6,
+      "acml_dist": 53.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "소요산",
+      "dist_km": 2.4,
+      "acml_dist": 55.5,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "청산",
+      "dist_km": 5.8,
+      "acml_dist": 61.3,
+      "hm": "6:18"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "전곡",
+      "dist_km": 3.3,
+      "acml_dist": 64.6,
+      "hm": "4:38"
+    },
+    {
+      "sbwy_rout_ln": "1호선_경원선",
+      "sbwy_stns_nm": "연천",
+      "dist_km": 8.7,
+      "acml_dist": 73.3,
+      "hm": "9:12"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "이촌",
+      "dist_km": 1.9,
+      "acml_dist": 1.9,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "서빙고",
+      "dist_km": 1.7,
+      "acml_dist": 3.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "한남",
+      "dist_km": 1.9,
+      "acml_dist": 5.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "옥수",
+      "dist_km": 1.6,
+      "acml_dist": 7.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "응봉",
+      "dist_km": 1.8,
+      "acml_dist": 8.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 1.4,
+      "acml_dist": 10.3,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "청량리",
+      "dist_km": 2.4,
+      "acml_dist": 12.7,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "회기",
+      "dist_km": 1.3,
+      "acml_dist": 14.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "외대앞",
+      "dist_km": 0.9,
+      "acml_dist": 14.9,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "신이문",
+      "dist_km": 0.8,
+      "acml_dist": 15.7,
+      "hm": "1:57"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "석계",
+      "dist_km": 1.4,
+      "acml_dist": 17.1,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "광운대",
+      "dist_km": 1.1,
+      "acml_dist": 18.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "월계",
+      "dist_km": 1.1,
+      "acml_dist": 19.3,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "녹천",
+      "dist_km": 1.4,
+      "acml_dist": 20.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "창동",
+      "dist_km": 1.0,
+      "acml_dist": 21.7,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "방학",
+      "dist_km": 1.7,
+      "acml_dist": 23.4,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "도봉",
+      "dist_km": 1.3,
+      "acml_dist": 24.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "도봉산",
+      "dist_km": 1.2,
+      "acml_dist": 25.9,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "망월사",
+      "dist_km": 2.3,
+      "acml_dist": 28.2,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "회룡",
+      "dist_km": 1.4,
+      "acml_dist": 29.6,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "의정부",
+      "dist_km": 1.6,
+      "acml_dist": 31.2,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "가능",
+      "dist_km": 1.2,
+      "acml_dist": 32.4,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "녹양",
+      "dist_km": 1.3,
+      "acml_dist": 33.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "양주",
+      "dist_km": 1.6,
+      "acml_dist": 35.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "덕계",
+      "dist_km": 5.3,
+      "acml_dist": 40.6,
+      "hm": "5:48"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "덕정",
+      "dist_km": 2.9,
+      "acml_dist": 43.5,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "지행",
+      "dist_km": 5.6,
+      "acml_dist": 49.1,
+      "hm": "6:06"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "동두천중앙",
+      "dist_km": 1.0,
+      "acml_dist": 50.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "보산",
+      "dist_km": 1.4,
+      "acml_dist": 51.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "동두천",
+      "dist_km": 1.6,
+      "acml_dist": 53.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "소요산",
+      "dist_km": 2.4,
+      "acml_dist": 55.5,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "청산",
+      "dist_km": 5.8,
+      "acml_dist": 61.3,
+      "hm": "6:18"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "전곡",
+      "dist_km": 3.3,
+      "acml_dist": 64.6,
+      "hm": "4:38"
+    },
+    {
+      "sbwy_rout_ln": "1001_경원",
+      "sbwy_stns_nm": "연천",
+      "dist_km": 8.7,
+      "acml_dist": 73.3,
+      "hm": "9:12"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "이촌",
+      "dist_km": 1.9,
+      "acml_dist": 1.9,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "서빙고",
+      "dist_km": 1.7,
+      "acml_dist": 3.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "한남",
+      "dist_km": 1.9,
+      "acml_dist": 5.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "옥수",
+      "dist_km": 1.6,
+      "acml_dist": 7.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "응봉",
+      "dist_km": 1.8,
+      "acml_dist": 8.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 1.4,
+      "acml_dist": 10.3,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "청량리",
+      "dist_km": 2.4,
+      "acml_dist": 12.7,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "회기",
+      "dist_km": 1.3,
+      "acml_dist": 14.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "외대앞",
+      "dist_km": 0.9,
+      "acml_dist": 14.9,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "신이문",
+      "dist_km": 0.8,
+      "acml_dist": 15.7,
+      "hm": "1:57"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "석계",
+      "dist_km": 1.4,
+      "acml_dist": 17.1,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "광운대",
+      "dist_km": 1.1,
+      "acml_dist": 18.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "월계",
+      "dist_km": 1.1,
+      "acml_dist": 19.3,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "녹천",
+      "dist_km": 1.4,
+      "acml_dist": 20.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "창동",
+      "dist_km": 1.0,
+      "acml_dist": 21.7,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "방학",
+      "dist_km": 1.7,
+      "acml_dist": 23.4,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "도봉",
+      "dist_km": 1.3,
+      "acml_dist": 24.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "도봉산",
+      "dist_km": 1.2,
+      "acml_dist": 25.9,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "망월사",
+      "dist_km": 2.3,
+      "acml_dist": 28.2,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "회룡",
+      "dist_km": 1.4,
+      "acml_dist": 29.6,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "의정부",
+      "dist_km": 1.6,
+      "acml_dist": 31.2,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "가능",
+      "dist_km": 1.2,
+      "acml_dist": 32.4,
+      "hm": "2:41"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "녹양",
+      "dist_km": 1.3,
+      "acml_dist": 33.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "양주",
+      "dist_km": 1.6,
+      "acml_dist": 35.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "덕계",
+      "dist_km": 5.3,
+      "acml_dist": 40.6,
+      "hm": "5:48"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "덕정",
+      "dist_km": 2.9,
+      "acml_dist": 43.5,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "지행",
+      "dist_km": 5.6,
+      "acml_dist": 49.1,
+      "hm": "6:06"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "동두천중앙",
+      "dist_km": 1.0,
+      "acml_dist": 50.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "보산",
+      "dist_km": 1.4,
+      "acml_dist": 51.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "동두천",
+      "dist_km": 1.6,
+      "acml_dist": 53.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "소요산",
+      "dist_km": 2.4,
+      "acml_dist": 55.5,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "청산",
+      "dist_km": 5.8,
+      "acml_dist": 61.3,
+      "hm": "6:18"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "전곡",
+      "dist_km": 3.3,
+      "acml_dist": 64.6,
+      "hm": "4:38"
+    },
+    {
+      "sbwy_rout_ln": "경원선",
+      "sbwy_stns_nm": "연천",
+      "dist_km": 8.7,
+      "acml_dist": 73.3,
+      "hm": "9:12"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "도라산",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "임진강",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "운천",
+      "dist_km": 3.7,
+      "acml_dist": 3.7,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "문산",
+      "dist_km": 2.3,
+      "acml_dist": 6.0,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "파주",
+      "dist_km": 3.7,
+      "acml_dist": 9.7,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "월롱",
+      "dist_km": 4.4,
+      "acml_dist": 14.1,
+      "hm": "6:00"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "금촌",
+      "dist_km": 2.2,
+      "acml_dist": 16.3,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "금릉",
+      "dist_km": 4.1,
+      "acml_dist": 20.4,
+      "hm": "5:37"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "운정",
+      "dist_km": 2.1,
+      "acml_dist": 22.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "야당",
+      "dist_km": 3.1,
+      "acml_dist": 25.6,
+      "hm": "4:22"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "탄현",
+      "dist_km": 1.5,
+      "acml_dist": 27.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "일산",
+      "dist_km": 2.1,
+      "acml_dist": 29.2,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "풍산",
+      "dist_km": 1.7,
+      "acml_dist": 30.9,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "백마",
+      "dist_km": 1.9,
+      "acml_dist": 32.8,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "곡산",
+      "dist_km": 1.7,
+      "acml_dist": 34.5,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 1.6,
+      "acml_dist": 36.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "능곡",
+      "dist_km": 1.7,
+      "acml_dist": 37.8,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "행신",
+      "dist_km": 1.8,
+      "acml_dist": 39.6,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "강매",
+      "dist_km": 1.5,
+      "acml_dist": 41.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "한국항공대",
+      "dist_km": 1.0,
+      "acml_dist": 42.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "수색",
+      "dist_km": 2.4,
+      "acml_dist": 44.5,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "디지털미디어시티",
+      "dist_km": 3.4,
+      "acml_dist": 47.9,
+      "hm": "4:45"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "가좌",
+      "dist_km": 0.6,
+      "acml_dist": 48.5,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "홍대입구",
+      "dist_km": 1.6,
+      "acml_dist": 50.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "서강대",
+      "dist_km": 1.7,
+      "acml_dist": 51.8,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "공덕",
+      "dist_km": 0.9,
+      "acml_dist": 52.7,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "효창공원앞",
+      "dist_km": 1.9,
+      "acml_dist": 54.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 1.0,
+      "acml_dist": 55.6,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "이촌",
+      "dist_km": 1.9,
+      "acml_dist": 57.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "서빙고",
+      "dist_km": 1.7,
+      "acml_dist": 59.2,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "한남",
+      "dist_km": 1.9,
+      "acml_dist": 61.1,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "옥수",
+      "dist_km": 1.6,
+      "acml_dist": 62.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "응봉",
+      "dist_km": 1.8,
+      "acml_dist": 64.5,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 1.4,
+      "acml_dist": 65.9,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "청량리",
+      "dist_km": 2.4,
+      "acml_dist": 68.3,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "회기",
+      "dist_km": 1.4,
+      "acml_dist": 69.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "중랑",
+      "dist_km": 1.8,
+      "acml_dist": 71.5,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "상봉",
+      "dist_km": 0.8,
+      "acml_dist": 72.3,
+      "hm": "1:57"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "망우",
+      "dist_km": 0.6,
+      "acml_dist": 72.9,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "양원",
+      "dist_km": 1.7,
+      "acml_dist": 74.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "구리",
+      "dist_km": 3.2,
+      "acml_dist": 77.8,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "도농",
+      "dist_km": 1.7,
+      "acml_dist": 79.5,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "양정",
+      "dist_km": 3.7,
+      "acml_dist": 83.2,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "덕소",
+      "dist_km": 2.3,
+      "acml_dist": 85.5,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "도심",
+      "dist_km": 1.5,
+      "acml_dist": 87.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "팔당",
+      "dist_km": 4.2,
+      "acml_dist": 91.2,
+      "hm": "5:45"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "운길산",
+      "dist_km": 6.4,
+      "acml_dist": 97.6,
+      "hm": "6:54"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "양수",
+      "dist_km": 1.9,
+      "acml_dist": 99.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "신원",
+      "dist_km": 4.7,
+      "acml_dist": 104.2,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "국수",
+      "dist_km": 2.9,
+      "acml_dist": 107.1,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "아신",
+      "dist_km": 4.1,
+      "acml_dist": 111.2,
+      "hm": "5:37"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "오빈",
+      "dist_km": 2.8,
+      "acml_dist": 114.0,
+      "hm": "4:55"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "양평",
+      "dist_km": 2.2,
+      "acml_dist": 116.2,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "원덕",
+      "dist_km": 5.8,
+      "acml_dist": 122.0,
+      "hm": "6:18"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "용문",
+      "dist_km": 4.8,
+      "acml_dist": 126.8,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "경의중앙선",
+      "sbwy_stns_nm": "지평",
+      "dist_km": 3.6,
+      "acml_dist": 130.4,
+      "hm": "5:00"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "도라산",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "임진강",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "운천",
+      "dist_km": 3.7,
+      "acml_dist": 3.7,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "문산",
+      "dist_km": 2.3,
+      "acml_dist": 6.0,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "파주",
+      "dist_km": 3.7,
+      "acml_dist": 9.7,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "월롱",
+      "dist_km": 4.4,
+      "acml_dist": 14.1,
+      "hm": "6:00"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "금촌",
+      "dist_km": 2.2,
+      "acml_dist": 16.3,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "금릉",
+      "dist_km": 4.1,
+      "acml_dist": 20.4,
+      "hm": "5:37"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "운정",
+      "dist_km": 2.1,
+      "acml_dist": 22.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "야당",
+      "dist_km": 3.1,
+      "acml_dist": 25.6,
+      "hm": "4:22"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "탄현",
+      "dist_km": 1.5,
+      "acml_dist": 27.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "일산",
+      "dist_km": 2.1,
+      "acml_dist": 29.2,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "풍산",
+      "dist_km": 1.7,
+      "acml_dist": 30.9,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "백마",
+      "dist_km": 1.9,
+      "acml_dist": 32.8,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "곡산",
+      "dist_km": 1.7,
+      "acml_dist": 34.5,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 1.6,
+      "acml_dist": 36.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "능곡",
+      "dist_km": 1.7,
+      "acml_dist": 37.8,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "행신",
+      "dist_km": 1.8,
+      "acml_dist": 39.6,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "강매",
+      "dist_km": 1.5,
+      "acml_dist": 41.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "한국항공대",
+      "dist_km": 1.0,
+      "acml_dist": 42.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "수색",
+      "dist_km": 2.4,
+      "acml_dist": 44.5,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "디지털미디어시티",
+      "dist_km": 3.4,
+      "acml_dist": 47.9,
+      "hm": "4:45"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "가좌",
+      "dist_km": 0.6,
+      "acml_dist": 48.5,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "홍대입구",
+      "dist_km": 1.6,
+      "acml_dist": 50.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "서강대",
+      "dist_km": 1.7,
+      "acml_dist": 51.8,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "공덕",
+      "dist_km": 0.9,
+      "acml_dist": 52.7,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "효창공원앞",
+      "dist_km": 1.9,
+      "acml_dist": 54.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 1.0,
+      "acml_dist": 55.6,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "이촌",
+      "dist_km": 1.9,
+      "acml_dist": 57.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "서빙고",
+      "dist_km": 1.7,
+      "acml_dist": 59.2,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "한남",
+      "dist_km": 1.9,
+      "acml_dist": 61.1,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "옥수",
+      "dist_km": 1.6,
+      "acml_dist": 62.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "응봉",
+      "dist_km": 1.8,
+      "acml_dist": 64.5,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 1.4,
+      "acml_dist": 65.9,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "청량리",
+      "dist_km": 2.4,
+      "acml_dist": 68.3,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "회기",
+      "dist_km": 1.4,
+      "acml_dist": 69.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "중랑",
+      "dist_km": 1.8,
+      "acml_dist": 71.5,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "상봉",
+      "dist_km": 0.8,
+      "acml_dist": 72.3,
+      "hm": "1:57"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "망우",
+      "dist_km": 0.6,
+      "acml_dist": 72.9,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "양원",
+      "dist_km": 1.7,
+      "acml_dist": 74.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "구리",
+      "dist_km": 3.2,
+      "acml_dist": 77.8,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "도농",
+      "dist_km": 1.7,
+      "acml_dist": 79.5,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "양정",
+      "dist_km": 3.7,
+      "acml_dist": 83.2,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "덕소",
+      "dist_km": 2.3,
+      "acml_dist": 85.5,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "도심",
+      "dist_km": 1.5,
+      "acml_dist": 87.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "팔당",
+      "dist_km": 4.2,
+      "acml_dist": 91.2,
+      "hm": "5:45"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "운길산",
+      "dist_km": 6.4,
+      "acml_dist": 97.6,
+      "hm": "6:54"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "양수",
+      "dist_km": 1.9,
+      "acml_dist": 99.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "신원",
+      "dist_km": 4.7,
+      "acml_dist": 104.2,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "국수",
+      "dist_km": 2.9,
+      "acml_dist": 107.1,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "아신",
+      "dist_km": 4.1,
+      "acml_dist": 111.2,
+      "hm": "5:37"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "오빈",
+      "dist_km": 2.8,
+      "acml_dist": 114.0,
+      "hm": "4:55"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "양평",
+      "dist_km": 2.2,
+      "acml_dist": 116.2,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "원덕",
+      "dist_km": 5.8,
+      "acml_dist": 122.0,
+      "hm": "6:18"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "용문",
+      "dist_km": 4.8,
+      "acml_dist": 126.8,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "1063",
+      "sbwy_stns_nm": "지평",
+      "dist_km": 3.6,
+      "acml_dist": 130.4,
+      "hm": "5:00"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "도라산",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "임진강",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "운천",
+      "dist_km": 3.7,
+      "acml_dist": 3.7,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "문산",
+      "dist_km": 2.3,
+      "acml_dist": 6.0,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "파주",
+      "dist_km": 3.7,
+      "acml_dist": 9.7,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "월롱",
+      "dist_km": 4.4,
+      "acml_dist": 14.1,
+      "hm": "6:00"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "금촌",
+      "dist_km": 2.2,
+      "acml_dist": 16.3,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "금릉",
+      "dist_km": 4.1,
+      "acml_dist": 20.4,
+      "hm": "5:37"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "운정",
+      "dist_km": 2.1,
+      "acml_dist": 22.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "야당",
+      "dist_km": 3.1,
+      "acml_dist": 25.6,
+      "hm": "4:22"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "탄현",
+      "dist_km": 1.5,
+      "acml_dist": 27.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "일산",
+      "dist_km": 2.1,
+      "acml_dist": 29.2,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "풍산",
+      "dist_km": 1.7,
+      "acml_dist": 30.9,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "백마",
+      "dist_km": 1.9,
+      "acml_dist": 32.8,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "곡산",
+      "dist_km": 1.7,
+      "acml_dist": 34.5,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 1.6,
+      "acml_dist": 36.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "능곡",
+      "dist_km": 1.7,
+      "acml_dist": 37.8,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "행신",
+      "dist_km": 1.8,
+      "acml_dist": 39.6,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "강매",
+      "dist_km": 1.5,
+      "acml_dist": 41.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "한국항공대",
+      "dist_km": 1.0,
+      "acml_dist": 42.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "수색",
+      "dist_km": 2.4,
+      "acml_dist": 44.5,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "디지털미디어시티",
+      "dist_km": 3.4,
+      "acml_dist": 47.9,
+      "hm": "4:45"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "가좌",
+      "dist_km": 0.6,
+      "acml_dist": 48.5,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "홍대입구",
+      "dist_km": 1.6,
+      "acml_dist": 50.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "서강대",
+      "dist_km": 1.7,
+      "acml_dist": 51.8,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "공덕",
+      "dist_km": 0.9,
+      "acml_dist": 52.7,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "효창공원앞",
+      "dist_km": 1.9,
+      "acml_dist": 54.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 1.0,
+      "acml_dist": 55.6,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "이촌",
+      "dist_km": 1.9,
+      "acml_dist": 57.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "서빙고",
+      "dist_km": 1.7,
+      "acml_dist": 59.2,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "한남",
+      "dist_km": 1.9,
+      "acml_dist": 61.1,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "옥수",
+      "dist_km": 1.6,
+      "acml_dist": 62.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "응봉",
+      "dist_km": 1.8,
+      "acml_dist": 64.5,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 1.4,
+      "acml_dist": 65.9,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "청량리",
+      "dist_km": 2.4,
+      "acml_dist": 68.3,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "회기",
+      "dist_km": 1.4,
+      "acml_dist": 69.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "중랑",
+      "dist_km": 1.8,
+      "acml_dist": 71.5,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "상봉",
+      "dist_km": 0.8,
+      "acml_dist": 72.3,
+      "hm": "1:57"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "망우",
+      "dist_km": 0.6,
+      "acml_dist": 72.9,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "양원",
+      "dist_km": 1.7,
+      "acml_dist": 74.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "구리",
+      "dist_km": 3.2,
+      "acml_dist": 77.8,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "도농",
+      "dist_km": 1.7,
+      "acml_dist": 79.5,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "양정",
+      "dist_km": 3.7,
+      "acml_dist": 83.2,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "덕소",
+      "dist_km": 2.3,
+      "acml_dist": 85.5,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "도심",
+      "dist_km": 1.5,
+      "acml_dist": 87.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "팔당",
+      "dist_km": 4.2,
+      "acml_dist": 91.2,
+      "hm": "5:45"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "운길산",
+      "dist_km": 6.4,
+      "acml_dist": 97.6,
+      "hm": "6:54"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "양수",
+      "dist_km": 1.9,
+      "acml_dist": 99.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "신원",
+      "dist_km": 4.7,
+      "acml_dist": 104.2,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "국수",
+      "dist_km": 2.9,
+      "acml_dist": 107.1,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "아신",
+      "dist_km": 4.1,
+      "acml_dist": 111.2,
+      "hm": "5:37"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "오빈",
+      "dist_km": 2.8,
+      "acml_dist": 114.0,
+      "hm": "4:55"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "양평",
+      "dist_km": 2.2,
+      "acml_dist": 116.2,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "원덕",
+      "dist_km": 5.8,
+      "acml_dist": 122.0,
+      "hm": "6:18"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "용문",
+      "dist_km": 4.8,
+      "acml_dist": 126.8,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "경의선",
+      "sbwy_stns_nm": "지평",
+      "dist_km": 3.6,
+      "acml_dist": 130.4,
+      "hm": "5:00"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "도라산",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "임진강",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "운천",
+      "dist_km": 3.7,
+      "acml_dist": 3.7,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "문산",
+      "dist_km": 2.3,
+      "acml_dist": 6.0,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "파주",
+      "dist_km": 3.7,
+      "acml_dist": 9.7,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "월롱",
+      "dist_km": 4.4,
+      "acml_dist": 14.1,
+      "hm": "6:00"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "금촌",
+      "dist_km": 2.2,
+      "acml_dist": 16.3,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "금릉",
+      "dist_km": 4.1,
+      "acml_dist": 20.4,
+      "hm": "5:37"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "운정",
+      "dist_km": 2.1,
+      "acml_dist": 22.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "야당",
+      "dist_km": 3.1,
+      "acml_dist": 25.6,
+      "hm": "4:22"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "탄현",
+      "dist_km": 1.5,
+      "acml_dist": 27.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "일산",
+      "dist_km": 2.1,
+      "acml_dist": 29.2,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "풍산",
+      "dist_km": 1.7,
+      "acml_dist": 30.9,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "백마",
+      "dist_km": 1.9,
+      "acml_dist": 32.8,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "곡산",
+      "dist_km": 1.7,
+      "acml_dist": 34.5,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 1.6,
+      "acml_dist": 36.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "능곡",
+      "dist_km": 1.7,
+      "acml_dist": 37.8,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "행신",
+      "dist_km": 1.8,
+      "acml_dist": 39.6,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "강매",
+      "dist_km": 1.5,
+      "acml_dist": 41.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "한국항공대",
+      "dist_km": 1.0,
+      "acml_dist": 42.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "수색",
+      "dist_km": 2.4,
+      "acml_dist": 44.5,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "디지털미디어시티",
+      "dist_km": 3.4,
+      "acml_dist": 47.9,
+      "hm": "4:45"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "가좌",
+      "dist_km": 0.6,
+      "acml_dist": 48.5,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "홍대입구",
+      "dist_km": 1.6,
+      "acml_dist": 50.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "서강대",
+      "dist_km": 1.7,
+      "acml_dist": 51.8,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "공덕",
+      "dist_km": 0.9,
+      "acml_dist": 52.7,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "효창공원앞",
+      "dist_km": 1.9,
+      "acml_dist": 54.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "용산",
+      "dist_km": 1.0,
+      "acml_dist": 55.6,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "이촌",
+      "dist_km": 1.9,
+      "acml_dist": 57.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "서빙고",
+      "dist_km": 1.7,
+      "acml_dist": 59.2,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "한남",
+      "dist_km": 1.9,
+      "acml_dist": 61.1,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "옥수",
+      "dist_km": 1.6,
+      "acml_dist": 62.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "응봉",
+      "dist_km": 1.8,
+      "acml_dist": 64.5,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 1.4,
+      "acml_dist": 65.9,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "청량리",
+      "dist_km": 2.4,
+      "acml_dist": 68.3,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "회기",
+      "dist_km": 1.4,
+      "acml_dist": 69.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "중랑",
+      "dist_km": 1.8,
+      "acml_dist": 71.5,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "상봉",
+      "dist_km": 0.8,
+      "acml_dist": 72.3,
+      "hm": "1:57"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "망우",
+      "dist_km": 0.6,
+      "acml_dist": 72.9,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "양원",
+      "dist_km": 1.7,
+      "acml_dist": 74.6,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "구리",
+      "dist_km": 3.2,
+      "acml_dist": 77.8,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "도농",
+      "dist_km": 1.7,
+      "acml_dist": 79.5,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "양정",
+      "dist_km": 3.7,
+      "acml_dist": 83.2,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "덕소",
+      "dist_km": 2.3,
+      "acml_dist": 85.5,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "도심",
+      "dist_km": 1.5,
+      "acml_dist": 87.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "팔당",
+      "dist_km": 4.2,
+      "acml_dist": 91.2,
+      "hm": "5:45"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "운길산",
+      "dist_km": 6.4,
+      "acml_dist": 97.6,
+      "hm": "6:54"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "양수",
+      "dist_km": 1.9,
+      "acml_dist": 99.5,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "신원",
+      "dist_km": 4.7,
+      "acml_dist": 104.2,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "국수",
+      "dist_km": 2.9,
+      "acml_dist": 107.1,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "아신",
+      "dist_km": 4.1,
+      "acml_dist": 111.2,
+      "hm": "5:37"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "오빈",
+      "dist_km": 2.8,
+      "acml_dist": 114.0,
+      "hm": "4:55"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "양평",
+      "dist_km": 2.2,
+      "acml_dist": 116.2,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "원덕",
+      "dist_km": 5.8,
+      "acml_dist": 122.0,
+      "hm": "6:18"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "용문",
+      "dist_km": 4.8,
+      "acml_dist": 126.8,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "중앙선",
+      "sbwy_stns_nm": "지평",
+      "dist_km": 3.6,
+      "acml_dist": 130.4,
+      "hm": "5:00"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "지축",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "삼송",
+      "dist_km": 1.7,
+      "acml_dist": 1.7,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "원흥",
+      "dist_km": 2.1,
+      "acml_dist": 3.8,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "원당",
+      "dist_km": 2.9,
+      "acml_dist": 6.7,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "화정",
+      "dist_km": 2.6,
+      "acml_dist": 9.3,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 2.1,
+      "acml_dist": 11.4,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "백석",
+      "dist_km": 2.5,
+      "acml_dist": 13.9,
+      "hm": "4:27"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "마두",
+      "dist_km": 1.4,
+      "acml_dist": 15.3,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "정발산",
+      "dist_km": 0.9,
+      "acml_dist": 16.2,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "주엽",
+      "dist_km": 1.6,
+      "acml_dist": 17.8,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "3호선_일산선",
+      "sbwy_stns_nm": "대화",
+      "dist_km": 1.4,
+      "acml_dist": 19.2,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "지축",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "삼송",
+      "dist_km": 1.7,
+      "acml_dist": 1.7,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "원흥",
+      "dist_km": 2.1,
+      "acml_dist": 3.8,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "원당",
+      "dist_km": 2.9,
+      "acml_dist": 6.7,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "화정",
+      "dist_km": 2.6,
+      "acml_dist": 9.3,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 2.1,
+      "acml_dist": 11.4,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "백석",
+      "dist_km": 2.5,
+      "acml_dist": 13.9,
+      "hm": "4:27"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "마두",
+      "dist_km": 1.4,
+      "acml_dist": 15.3,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "정발산",
+      "dist_km": 0.9,
+      "acml_dist": 16.2,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "주엽",
+      "dist_km": 1.6,
+      "acml_dist": 17.8,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1003_일산",
+      "sbwy_stns_nm": "대화",
+      "dist_km": 1.4,
+      "acml_dist": 19.2,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "지축",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "삼송",
+      "dist_km": 1.7,
+      "acml_dist": 1.7,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "원흥",
+      "dist_km": 2.1,
+      "acml_dist": 3.8,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "원당",
+      "dist_km": 2.9,
+      "acml_dist": 6.7,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "화정",
+      "dist_km": 2.6,
+      "acml_dist": 9.3,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 2.1,
+      "acml_dist": 11.4,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "백석",
+      "dist_km": 2.5,
+      "acml_dist": 13.9,
+      "hm": "4:27"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "마두",
+      "dist_km": 1.4,
+      "acml_dist": 15.3,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "정발산",
+      "dist_km": 0.9,
+      "acml_dist": 16.2,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "주엽",
+      "dist_km": 1.6,
+      "acml_dist": 17.8,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "일산선",
+      "sbwy_stns_nm": "대화",
+      "dist_km": 1.4,
+      "acml_dist": 19.2,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "남태령",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "경마공원",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "대공원",
+      "dist_km": 1.0,
+      "acml_dist": 1.0,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "과천",
+      "dist_km": 0.9,
+      "acml_dist": 1.9,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "정부과천청사",
+      "dist_km": 1.0,
+      "acml_dist": 2.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "인덕원",
+      "dist_km": 1.0,
+      "acml_dist": 3.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "평촌",
+      "dist_km": 3.0,
+      "acml_dist": 6.9,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "범계",
+      "dist_km": 1.6,
+      "acml_dist": 8.5,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "금정",
+      "dist_km": 1.3,
+      "acml_dist": 9.8,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "산본",
+      "dist_km": 2.3,
+      "acml_dist": 12.1,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "수리산",
+      "dist_km": 1.1,
+      "acml_dist": 13.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "대야미",
+      "dist_km": 2.6,
+      "acml_dist": 15.8,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "반월",
+      "dist_km": 2.0,
+      "acml_dist": 17.8,
+      "hm": "3:39"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "상록수",
+      "dist_km": 3.7,
+      "acml_dist": 21.5,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "한대앞",
+      "dist_km": 1.5,
+      "acml_dist": 23.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "중앙",
+      "dist_km": 1.6,
+      "acml_dist": 24.6,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "고잔",
+      "dist_km": 1.4,
+      "acml_dist": 26.0,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.5,
+      "acml_dist": 27.5,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "안산",
+      "dist_km": 1.8,
+      "acml_dist": 29.3,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "능길",
+      "dist_km": 2.2,
+      "acml_dist": 31.5,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "정왕",
+      "dist_km": 2.9,
+      "acml_dist": 34.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "4호선_과천안산선",
+      "sbwy_stns_nm": "오이도",
+      "dist_km": 1.4,
+      "acml_dist": 35.8,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "남태령",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "경마공원",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "대공원",
+      "dist_km": 1.0,
+      "acml_dist": 1.0,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "과천",
+      "dist_km": 0.9,
+      "acml_dist": 1.9,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "정부과천청사",
+      "dist_km": 1.0,
+      "acml_dist": 2.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "인덕원",
+      "dist_km": 1.0,
+      "acml_dist": 3.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "평촌",
+      "dist_km": 3.0,
+      "acml_dist": 6.9,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "범계",
+      "dist_km": 1.6,
+      "acml_dist": 8.5,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "금정",
+      "dist_km": 1.3,
+      "acml_dist": 9.8,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "산본",
+      "dist_km": 2.3,
+      "acml_dist": 12.1,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "수리산",
+      "dist_km": 1.1,
+      "acml_dist": 13.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "대야미",
+      "dist_km": 2.6,
+      "acml_dist": 15.8,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "반월",
+      "dist_km": 2.0,
+      "acml_dist": 17.8,
+      "hm": "3:39"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "상록수",
+      "dist_km": 3.7,
+      "acml_dist": 21.5,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "한대앞",
+      "dist_km": 1.5,
+      "acml_dist": 23.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "중앙",
+      "dist_km": 1.6,
+      "acml_dist": 24.6,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "고잔",
+      "dist_km": 1.4,
+      "acml_dist": 26.0,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.5,
+      "acml_dist": 27.5,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "안산",
+      "dist_km": 1.8,
+      "acml_dist": 29.3,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "능길",
+      "dist_km": 2.2,
+      "acml_dist": 31.5,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "정왕",
+      "dist_km": 2.9,
+      "acml_dist": 34.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1004_과천안산",
+      "sbwy_stns_nm": "오이도",
+      "dist_km": 1.4,
+      "acml_dist": 35.8,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "남태령",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "경마공원",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "대공원",
+      "dist_km": 1.0,
+      "acml_dist": 1.0,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "과천",
+      "dist_km": 0.9,
+      "acml_dist": 1.9,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "정부과천청사",
+      "dist_km": 1.0,
+      "acml_dist": 2.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "인덕원",
+      "dist_km": 1.0,
+      "acml_dist": 3.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "평촌",
+      "dist_km": 3.0,
+      "acml_dist": 6.9,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "범계",
+      "dist_km": 1.6,
+      "acml_dist": 8.5,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "금정",
+      "dist_km": 1.3,
+      "acml_dist": 9.8,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "산본",
+      "dist_km": 2.3,
+      "acml_dist": 12.1,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "수리산",
+      "dist_km": 1.1,
+      "acml_dist": 13.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "대야미",
+      "dist_km": 2.6,
+      "acml_dist": 15.8,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "반월",
+      "dist_km": 2.0,
+      "acml_dist": 17.8,
+      "hm": "3:39"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "상록수",
+      "dist_km": 3.7,
+      "acml_dist": 21.5,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "한대앞",
+      "dist_km": 1.5,
+      "acml_dist": 23.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "중앙",
+      "dist_km": 1.6,
+      "acml_dist": 24.6,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "고잔",
+      "dist_km": 1.4,
+      "acml_dist": 26.0,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.5,
+      "acml_dist": 27.5,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "안산",
+      "dist_km": 1.8,
+      "acml_dist": 29.3,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "능길",
+      "dist_km": 2.2,
+      "acml_dist": 31.5,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "정왕",
+      "dist_km": 2.9,
+      "acml_dist": 34.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "과천선",
+      "sbwy_stns_nm": "오이도",
+      "dist_km": 1.4,
+      "acml_dist": 35.8,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "남태령",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "경마공원",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "대공원",
+      "dist_km": 1.0,
+      "acml_dist": 1.0,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "과천",
+      "dist_km": 0.9,
+      "acml_dist": 1.9,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "정부과천청사",
+      "dist_km": 1.0,
+      "acml_dist": 2.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "인덕원",
+      "dist_km": 1.0,
+      "acml_dist": 3.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "평촌",
+      "dist_km": 3.0,
+      "acml_dist": 6.9,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "범계",
+      "dist_km": 1.6,
+      "acml_dist": 8.5,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "금정",
+      "dist_km": 1.3,
+      "acml_dist": 9.8,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "산본",
+      "dist_km": 2.3,
+      "acml_dist": 12.1,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "수리산",
+      "dist_km": 1.1,
+      "acml_dist": 13.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "대야미",
+      "dist_km": 2.6,
+      "acml_dist": 15.8,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "반월",
+      "dist_km": 2.0,
+      "acml_dist": 17.8,
+      "hm": "3:39"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "상록수",
+      "dist_km": 3.7,
+      "acml_dist": 21.5,
+      "hm": "5:08"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "한대앞",
+      "dist_km": 1.5,
+      "acml_dist": 23.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "중앙",
+      "dist_km": 1.6,
+      "acml_dist": 24.6,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "고잔",
+      "dist_km": 1.4,
+      "acml_dist": 26.0,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.5,
+      "acml_dist": 27.5,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "안산",
+      "dist_km": 1.8,
+      "acml_dist": 29.3,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "능길",
+      "dist_km": 2.2,
+      "acml_dist": 31.5,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "정왕",
+      "dist_km": 2.9,
+      "acml_dist": 34.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "안산선",
+      "sbwy_stns_nm": "오이도",
+      "dist_km": 1.4,
+      "acml_dist": 35.8,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "서울숲",
+      "dist_km": 2.2,
+      "acml_dist": 2.2,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "압구정로데오",
+      "dist_km": 1.9,
+      "acml_dist": 4.1,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "강남구청",
+      "dist_km": 1.1,
+      "acml_dist": 5.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "한티",
+      "dist_km": 0.7,
+      "acml_dist": 5.9,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "도곡",
+      "dist_km": 0.7,
+      "acml_dist": 6.6,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "구룡",
+      "dist_km": 0.6,
+      "acml_dist": 7.2,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "개포동",
+      "dist_km": 0.7,
+      "acml_dist": 7.9,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "대모산입구",
+      "dist_km": 0.6,
+      "acml_dist": 8.5,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "수서",
+      "dist_km": 3.0,
+      "acml_dist": 11.5,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "복정",
+      "dist_km": 3.2,
+      "acml_dist": 14.7,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "가천대",
+      "dist_km": 2.4,
+      "acml_dist": 17.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "태평",
+      "dist_km": 1.0,
+      "acml_dist": 18.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "모란",
+      "dist_km": 0.9,
+      "acml_dist": 19.0,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "야탑",
+      "dist_km": 2.3,
+      "acml_dist": 21.3,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "이매",
+      "dist_km": 1.7,
+      "acml_dist": 23.0,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "서현",
+      "dist_km": 1.4,
+      "acml_dist": 24.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "수내",
+      "dist_km": 1.1,
+      "acml_dist": 25.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "정자",
+      "dist_km": 1.6,
+      "acml_dist": 27.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "미금",
+      "dist_km": 1.8,
+      "acml_dist": 28.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "오리",
+      "dist_km": 1.1,
+      "acml_dist": 30.0,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "죽전",
+      "dist_km": 1.8,
+      "acml_dist": 31.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "보정",
+      "dist_km": 1.3,
+      "acml_dist": 33.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "구성",
+      "dist_km": 1.6,
+      "acml_dist": 34.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "신갈",
+      "dist_km": 1.6,
+      "acml_dist": 36.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "기흥",
+      "dist_km": 1.4,
+      "acml_dist": 37.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "상갈",
+      "dist_km": 1.9,
+      "acml_dist": 39.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "청명",
+      "dist_km": 2.8,
+      "acml_dist": 42.4,
+      "hm": "4:55"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "영통",
+      "dist_km": 1.1,
+      "acml_dist": 43.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "망포",
+      "dist_km": 1.5,
+      "acml_dist": 45.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "수원시청",
+      "dist_km": 1.8,
+      "acml_dist": 46.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "매교",
+      "dist_km": 1.4,
+      "acml_dist": 48.2,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "수원",
+      "dist_km": 1.5,
+      "acml_dist": 49.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "고색",
+      "dist_km": 2.7,
+      "acml_dist": 52.4,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "오목천",
+      "dist_km": 1.6,
+      "acml_dist": 54.0,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "어천",
+      "dist_km": 5.1,
+      "acml_dist": 59.1,
+      "hm": "5:36"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "야목",
+      "dist_km": 2.6,
+      "acml_dist": 61.7,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "사리",
+      "dist_km": 4.7,
+      "acml_dist": 66.4,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "한대앞",
+      "dist_km": 2.2,
+      "acml_dist": 68.6,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "중앙",
+      "dist_km": 1.6,
+      "acml_dist": 70.2,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "고잔",
+      "dist_km": 1.4,
+      "acml_dist": 71.6,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.5,
+      "acml_dist": 73.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "안산",
+      "dist_km": 1.8,
+      "acml_dist": 74.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "능길",
+      "dist_km": 2.2,
+      "acml_dist": 77.1,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "정왕",
+      "dist_km": 2.9,
+      "acml_dist": 80.0,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "오이도",
+      "dist_km": 1.4,
+      "acml_dist": 81.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "달월",
+      "dist_km": 2.1,
+      "acml_dist": 83.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "월곶",
+      "dist_km": 1.5,
+      "acml_dist": 85.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "소래포구",
+      "dist_km": 1.3,
+      "acml_dist": 86.3,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "인천논현",
+      "dist_km": 1.0,
+      "acml_dist": 87.3,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "호구포",
+      "dist_km": 1.3,
+      "acml_dist": 88.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "남동인더스파크",
+      "dist_km": 1.3,
+      "acml_dist": 89.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "원인재",
+      "dist_km": 1.0,
+      "acml_dist": 90.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "연수",
+      "dist_km": 0.9,
+      "acml_dist": 91.8,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "송도",
+      "dist_km": 2.7,
+      "acml_dist": 94.5,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "인하대",
+      "dist_km": 2.4,
+      "acml_dist": 96.9,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "숭의",
+      "dist_km": 1.8,
+      "acml_dist": 98.7,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "신포",
+      "dist_km": 1.5,
+      "acml_dist": 100.2,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인분당선",
+      "sbwy_stns_nm": "인천",
+      "dist_km": 1.1,
+      "acml_dist": 101.3,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "서울숲",
+      "dist_km": 2.2,
+      "acml_dist": 2.2,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "압구정로데오",
+      "dist_km": 1.9,
+      "acml_dist": 4.1,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "강남구청",
+      "dist_km": 1.1,
+      "acml_dist": 5.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "한티",
+      "dist_km": 0.7,
+      "acml_dist": 5.9,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "도곡",
+      "dist_km": 0.7,
+      "acml_dist": 6.6,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "구룡",
+      "dist_km": 0.6,
+      "acml_dist": 7.2,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "개포동",
+      "dist_km": 0.7,
+      "acml_dist": 7.9,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "대모산입구",
+      "dist_km": 0.6,
+      "acml_dist": 8.5,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "수서",
+      "dist_km": 3.0,
+      "acml_dist": 11.5,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "복정",
+      "dist_km": 3.2,
+      "acml_dist": 14.7,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "가천대",
+      "dist_km": 2.4,
+      "acml_dist": 17.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "태평",
+      "dist_km": 1.0,
+      "acml_dist": 18.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "모란",
+      "dist_km": 0.9,
+      "acml_dist": 19.0,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "야탑",
+      "dist_km": 2.3,
+      "acml_dist": 21.3,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "이매",
+      "dist_km": 1.7,
+      "acml_dist": 23.0,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "서현",
+      "dist_km": 1.4,
+      "acml_dist": 24.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "수내",
+      "dist_km": 1.1,
+      "acml_dist": 25.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "정자",
+      "dist_km": 1.6,
+      "acml_dist": 27.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "미금",
+      "dist_km": 1.8,
+      "acml_dist": 28.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "오리",
+      "dist_km": 1.1,
+      "acml_dist": 30.0,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "죽전",
+      "dist_km": 1.8,
+      "acml_dist": 31.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "보정",
+      "dist_km": 1.3,
+      "acml_dist": 33.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "구성",
+      "dist_km": 1.6,
+      "acml_dist": 34.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "신갈",
+      "dist_km": 1.6,
+      "acml_dist": 36.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "기흥",
+      "dist_km": 1.4,
+      "acml_dist": 37.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "상갈",
+      "dist_km": 1.9,
+      "acml_dist": 39.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "청명",
+      "dist_km": 2.8,
+      "acml_dist": 42.4,
+      "hm": "4:55"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "영통",
+      "dist_km": 1.1,
+      "acml_dist": 43.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "망포",
+      "dist_km": 1.5,
+      "acml_dist": 45.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "수원시청",
+      "dist_km": 1.8,
+      "acml_dist": 46.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "매교",
+      "dist_km": 1.4,
+      "acml_dist": 48.2,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "수원",
+      "dist_km": 1.5,
+      "acml_dist": 49.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "고색",
+      "dist_km": 2.7,
+      "acml_dist": 52.4,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "오목천",
+      "dist_km": 1.6,
+      "acml_dist": 54.0,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "어천",
+      "dist_km": 5.1,
+      "acml_dist": 59.1,
+      "hm": "5:36"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "야목",
+      "dist_km": 2.6,
+      "acml_dist": 61.7,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "사리",
+      "dist_km": 4.7,
+      "acml_dist": 66.4,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "한대앞",
+      "dist_km": 2.2,
+      "acml_dist": 68.6,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "중앙",
+      "dist_km": 1.6,
+      "acml_dist": 70.2,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "고잔",
+      "dist_km": 1.4,
+      "acml_dist": 71.6,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.5,
+      "acml_dist": 73.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "안산",
+      "dist_km": 1.8,
+      "acml_dist": 74.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "능길",
+      "dist_km": 2.2,
+      "acml_dist": 77.1,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "정왕",
+      "dist_km": 2.9,
+      "acml_dist": 80.0,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "오이도",
+      "dist_km": 1.4,
+      "acml_dist": 81.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "달월",
+      "dist_km": 2.1,
+      "acml_dist": 83.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "월곶",
+      "dist_km": 1.5,
+      "acml_dist": 85.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "소래포구",
+      "dist_km": 1.3,
+      "acml_dist": 86.3,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "인천논현",
+      "dist_km": 1.0,
+      "acml_dist": 87.3,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "호구포",
+      "dist_km": 1.3,
+      "acml_dist": 88.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "남동인더스파크",
+      "dist_km": 1.3,
+      "acml_dist": 89.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "원인재",
+      "dist_km": 1.0,
+      "acml_dist": 90.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "연수",
+      "dist_km": 0.9,
+      "acml_dist": 91.8,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "송도",
+      "dist_km": 2.7,
+      "acml_dist": 94.5,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "인하대",
+      "dist_km": 2.4,
+      "acml_dist": 96.9,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "숭의",
+      "dist_km": 1.8,
+      "acml_dist": 98.7,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "신포",
+      "dist_km": 1.5,
+      "acml_dist": 100.2,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1075",
+      "sbwy_stns_nm": "인천",
+      "dist_km": 1.1,
+      "acml_dist": 101.3,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "서울숲",
+      "dist_km": 2.2,
+      "acml_dist": 2.2,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "압구정로데오",
+      "dist_km": 1.9,
+      "acml_dist": 4.1,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "강남구청",
+      "dist_km": 1.1,
+      "acml_dist": 5.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "한티",
+      "dist_km": 0.7,
+      "acml_dist": 5.9,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "도곡",
+      "dist_km": 0.7,
+      "acml_dist": 6.6,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "구룡",
+      "dist_km": 0.6,
+      "acml_dist": 7.2,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "개포동",
+      "dist_km": 0.7,
+      "acml_dist": 7.9,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "대모산입구",
+      "dist_km": 0.6,
+      "acml_dist": 8.5,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "수서",
+      "dist_km": 3.0,
+      "acml_dist": 11.5,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "복정",
+      "dist_km": 3.2,
+      "acml_dist": 14.7,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "가천대",
+      "dist_km": 2.4,
+      "acml_dist": 17.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "태평",
+      "dist_km": 1.0,
+      "acml_dist": 18.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "모란",
+      "dist_km": 0.9,
+      "acml_dist": 19.0,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "야탑",
+      "dist_km": 2.3,
+      "acml_dist": 21.3,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "이매",
+      "dist_km": 1.7,
+      "acml_dist": 23.0,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "서현",
+      "dist_km": 1.4,
+      "acml_dist": 24.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "수내",
+      "dist_km": 1.1,
+      "acml_dist": 25.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "정자",
+      "dist_km": 1.6,
+      "acml_dist": 27.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "미금",
+      "dist_km": 1.8,
+      "acml_dist": 28.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "오리",
+      "dist_km": 1.1,
+      "acml_dist": 30.0,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "죽전",
+      "dist_km": 1.8,
+      "acml_dist": 31.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "보정",
+      "dist_km": 1.3,
+      "acml_dist": 33.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "구성",
+      "dist_km": 1.6,
+      "acml_dist": 34.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "신갈",
+      "dist_km": 1.6,
+      "acml_dist": 36.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "기흥",
+      "dist_km": 1.4,
+      "acml_dist": 37.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "상갈",
+      "dist_km": 1.9,
+      "acml_dist": 39.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "청명",
+      "dist_km": 2.8,
+      "acml_dist": 42.4,
+      "hm": "4:55"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "영통",
+      "dist_km": 1.1,
+      "acml_dist": 43.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "망포",
+      "dist_km": 1.5,
+      "acml_dist": 45.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "수원시청",
+      "dist_km": 1.8,
+      "acml_dist": 46.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "매교",
+      "dist_km": 1.4,
+      "acml_dist": 48.2,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "수원",
+      "dist_km": 1.5,
+      "acml_dist": 49.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "고색",
+      "dist_km": 2.7,
+      "acml_dist": 52.4,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "오목천",
+      "dist_km": 1.6,
+      "acml_dist": 54.0,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "어천",
+      "dist_km": 5.1,
+      "acml_dist": 59.1,
+      "hm": "5:36"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "야목",
+      "dist_km": 2.6,
+      "acml_dist": 61.7,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "사리",
+      "dist_km": 4.7,
+      "acml_dist": 66.4,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "한대앞",
+      "dist_km": 2.2,
+      "acml_dist": 68.6,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "중앙",
+      "dist_km": 1.6,
+      "acml_dist": 70.2,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "고잔",
+      "dist_km": 1.4,
+      "acml_dist": 71.6,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.5,
+      "acml_dist": 73.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "안산",
+      "dist_km": 1.8,
+      "acml_dist": 74.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "능길",
+      "dist_km": 2.2,
+      "acml_dist": 77.1,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "정왕",
+      "dist_km": 2.9,
+      "acml_dist": 80.0,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "오이도",
+      "dist_km": 1.4,
+      "acml_dist": 81.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "달월",
+      "dist_km": 2.1,
+      "acml_dist": 83.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "월곶",
+      "dist_km": 1.5,
+      "acml_dist": 85.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "소래포구",
+      "dist_km": 1.3,
+      "acml_dist": 86.3,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "인천논현",
+      "dist_km": 1.0,
+      "acml_dist": 87.3,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "호구포",
+      "dist_km": 1.3,
+      "acml_dist": 88.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "남동인더스파크",
+      "dist_km": 1.3,
+      "acml_dist": 89.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "원인재",
+      "dist_km": 1.0,
+      "acml_dist": 90.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "연수",
+      "dist_km": 0.9,
+      "acml_dist": 91.8,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "송도",
+      "dist_km": 2.7,
+      "acml_dist": 94.5,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "인하대",
+      "dist_km": 2.4,
+      "acml_dist": 96.9,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "숭의",
+      "dist_km": 1.8,
+      "acml_dist": 98.7,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "신포",
+      "dist_km": 1.5,
+      "acml_dist": 100.2,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "분당선",
+      "sbwy_stns_nm": "인천",
+      "dist_km": 1.1,
+      "acml_dist": 101.3,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "왕십리",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "서울숲",
+      "dist_km": 2.2,
+      "acml_dist": 2.2,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "압구정로데오",
+      "dist_km": 1.9,
+      "acml_dist": 4.1,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "강남구청",
+      "dist_km": 1.1,
+      "acml_dist": 5.2,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "한티",
+      "dist_km": 0.7,
+      "acml_dist": 5.9,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "도곡",
+      "dist_km": 0.7,
+      "acml_dist": 6.6,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "구룡",
+      "dist_km": 0.6,
+      "acml_dist": 7.2,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "개포동",
+      "dist_km": 0.7,
+      "acml_dist": 7.9,
+      "hm": "1:46"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "대모산입구",
+      "dist_km": 0.6,
+      "acml_dist": 8.5,
+      "hm": "1:35"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "수서",
+      "dist_km": 3.0,
+      "acml_dist": 11.5,
+      "hm": "4:15"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "복정",
+      "dist_km": 3.2,
+      "acml_dist": 14.7,
+      "hm": "4:30"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "가천대",
+      "dist_km": 2.4,
+      "acml_dist": 17.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "태평",
+      "dist_km": 1.0,
+      "acml_dist": 18.1,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "모란",
+      "dist_km": 0.9,
+      "acml_dist": 19.0,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "야탑",
+      "dist_km": 2.3,
+      "acml_dist": 21.3,
+      "hm": "4:08"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "이매",
+      "dist_km": 1.7,
+      "acml_dist": 23.0,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "서현",
+      "dist_km": 1.4,
+      "acml_dist": 24.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "수내",
+      "dist_km": 1.1,
+      "acml_dist": 25.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "정자",
+      "dist_km": 1.6,
+      "acml_dist": 27.1,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "미금",
+      "dist_km": 1.8,
+      "acml_dist": 28.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "오리",
+      "dist_km": 1.1,
+      "acml_dist": 30.0,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "죽전",
+      "dist_km": 1.8,
+      "acml_dist": 31.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "보정",
+      "dist_km": 1.3,
+      "acml_dist": 33.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "구성",
+      "dist_km": 1.6,
+      "acml_dist": 34.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "신갈",
+      "dist_km": 1.6,
+      "acml_dist": 36.3,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "기흥",
+      "dist_km": 1.4,
+      "acml_dist": 37.7,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "상갈",
+      "dist_km": 1.9,
+      "acml_dist": 39.6,
+      "hm": "3:30"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "청명",
+      "dist_km": 2.8,
+      "acml_dist": 42.4,
+      "hm": "4:55"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "영통",
+      "dist_km": 1.1,
+      "acml_dist": 43.5,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "망포",
+      "dist_km": 1.5,
+      "acml_dist": 45.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "수원시청",
+      "dist_km": 1.8,
+      "acml_dist": 46.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "매교",
+      "dist_km": 1.4,
+      "acml_dist": 48.2,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "수원",
+      "dist_km": 1.5,
+      "acml_dist": 49.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "고색",
+      "dist_km": 2.7,
+      "acml_dist": 52.4,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "오목천",
+      "dist_km": 1.6,
+      "acml_dist": 54.0,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "어천",
+      "dist_km": 5.1,
+      "acml_dist": 59.1,
+      "hm": "5:36"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "야목",
+      "dist_km": 2.6,
+      "acml_dist": 61.7,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "사리",
+      "dist_km": 4.7,
+      "acml_dist": 66.4,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "한대앞",
+      "dist_km": 2.2,
+      "acml_dist": 68.6,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "중앙",
+      "dist_km": 1.6,
+      "acml_dist": 70.2,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "고잔",
+      "dist_km": 1.4,
+      "acml_dist": 71.6,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.5,
+      "acml_dist": 73.1,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "안산",
+      "dist_km": 1.8,
+      "acml_dist": 74.9,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "능길",
+      "dist_km": 2.2,
+      "acml_dist": 77.1,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "정왕",
+      "dist_km": 2.9,
+      "acml_dist": 80.0,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "오이도",
+      "dist_km": 1.4,
+      "acml_dist": 81.4,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "달월",
+      "dist_km": 2.1,
+      "acml_dist": 83.5,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "월곶",
+      "dist_km": 1.5,
+      "acml_dist": 85.0,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "소래포구",
+      "dist_km": 1.3,
+      "acml_dist": 86.3,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "인천논현",
+      "dist_km": 1.0,
+      "acml_dist": 87.3,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "호구포",
+      "dist_km": 1.3,
+      "acml_dist": 88.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "남동인더스파크",
+      "dist_km": 1.3,
+      "acml_dist": 89.9,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "원인재",
+      "dist_km": 1.0,
+      "acml_dist": 90.9,
+      "hm": "2:19"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "연수",
+      "dist_km": 0.9,
+      "acml_dist": 91.8,
+      "hm": "2:08"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "송도",
+      "dist_km": 2.7,
+      "acml_dist": 94.5,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "인하대",
+      "dist_km": 2.4,
+      "acml_dist": 96.9,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "숭의",
+      "dist_km": 1.8,
+      "acml_dist": 98.7,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "신포",
+      "dist_km": 1.5,
+      "acml_dist": 100.2,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "수인선",
+      "sbwy_stns_nm": "인천",
+      "dist_km": 1.1,
+      "acml_dist": 101.3,
+      "hm": "2:30"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "망우",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "신내",
+      "dist_km": 2.1,
+      "acml_dist": 2.1,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "갈매",
+      "dist_km": 2.6,
+      "acml_dist": 4.7,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "별내",
+      "dist_km": 1.4,
+      "acml_dist": 6.1,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "퇴계원",
+      "dist_km": 1.6,
+      "acml_dist": 7.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "사릉",
+      "dist_km": 3.3,
+      "acml_dist": 11.0,
+      "hm": "4:38"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "금곡",
+      "dist_km": 3.6,
+      "acml_dist": 14.6,
+      "hm": "5:00"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "평내호평",
+      "dist_km": 4.0,
+      "acml_dist": 18.6,
+      "hm": "5:30"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "천마산",
+      "dist_km": 4.2,
+      "acml_dist": 22.8,
+      "hm": "5:45"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "마석",
+      "dist_km": 2.2,
+      "acml_dist": 25.0,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "대성리",
+      "dist_km": 7.4,
+      "acml_dist": 32.4,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "청평",
+      "dist_km": 7.5,
+      "acml_dist": 39.9,
+      "hm": "8:00"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "상천",
+      "dist_km": 4.8,
+      "acml_dist": 44.7,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "가평",
+      "dist_km": 7.1,
+      "acml_dist": 51.8,
+      "hm": "7:36"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "굴봉산",
+      "dist_km": 4.7,
+      "acml_dist": 56.5,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "백양리",
+      "dist_km": 2.9,
+      "acml_dist": 59.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "강촌",
+      "dist_km": 5.3,
+      "acml_dist": 64.7,
+      "hm": "5:48"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "김유정",
+      "dist_km": 7.4,
+      "acml_dist": 72.1,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "남춘천",
+      "dist_km": 5.9,
+      "acml_dist": 78.0,
+      "hm": "6:24"
+    },
+    {
+      "sbwy_rout_ln": "경춘선",
+      "sbwy_stns_nm": "춘천",
+      "dist_km": 2.7,
+      "acml_dist": 80.7,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "망우",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "신내",
+      "dist_km": 2.1,
+      "acml_dist": 2.1,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "갈매",
+      "dist_km": 2.6,
+      "acml_dist": 4.7,
+      "hm": "4:36"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "별내",
+      "dist_km": 1.4,
+      "acml_dist": 6.1,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "퇴계원",
+      "dist_km": 1.6,
+      "acml_dist": 7.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "사릉",
+      "dist_km": 3.3,
+      "acml_dist": 11.0,
+      "hm": "4:38"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "금곡",
+      "dist_km": 3.6,
+      "acml_dist": 14.6,
+      "hm": "5:00"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "평내호평",
+      "dist_km": 4.0,
+      "acml_dist": 18.6,
+      "hm": "5:30"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "천마산",
+      "dist_km": 4.2,
+      "acml_dist": 22.8,
+      "hm": "5:45"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "마석",
+      "dist_km": 2.2,
+      "acml_dist": 25.0,
+      "hm": "3:58"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "대성리",
+      "dist_km": 7.4,
+      "acml_dist": 32.4,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "청평",
+      "dist_km": 7.5,
+      "acml_dist": 39.9,
+      "hm": "8:00"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "상천",
+      "dist_km": 4.8,
+      "acml_dist": 44.7,
+      "hm": "6:30"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "가평",
+      "dist_km": 7.1,
+      "acml_dist": 51.8,
+      "hm": "7:36"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "굴봉산",
+      "dist_km": 4.7,
+      "acml_dist": 56.5,
+      "hm": "6:22"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "백양리",
+      "dist_km": 2.9,
+      "acml_dist": 59.4,
+      "hm": "5:05"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "강촌",
+      "dist_km": 5.3,
+      "acml_dist": 64.7,
+      "hm": "5:48"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "김유정",
+      "dist_km": 7.4,
+      "acml_dist": 72.1,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "남춘천",
+      "dist_km": 5.9,
+      "acml_dist": 78.0,
+      "hm": "6:24"
+    },
+    {
+      "sbwy_rout_ln": "1067",
+      "sbwy_stns_nm": "춘천",
+      "dist_km": 2.7,
+      "acml_dist": 80.7,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "판교",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "이매",
+      "dist_km": 1.5,
+      "acml_dist": 1.5,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "삼동",
+      "dist_km": 6.9,
+      "acml_dist": 8.4,
+      "hm": "7:24"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "경기광주",
+      "dist_km": 4.9,
+      "acml_dist": 13.3,
+      "hm": "6:38"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "초월",
+      "dist_km": 5.0,
+      "acml_dist": 18.3,
+      "hm": "5:30"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "곤지암",
+      "dist_km": 4.9,
+      "acml_dist": 23.2,
+      "hm": "6:38"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "신둔도예촌",
+      "dist_km": 6.9,
+      "acml_dist": 30.1,
+      "hm": "7:24"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "이천",
+      "dist_km": 7.4,
+      "acml_dist": 37.5,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "부발",
+      "dist_km": 4.49,
+      "acml_dist": 41.99,
+      "hm": "6:07"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "세종대왕릉",
+      "dist_km": 7.4,
+      "acml_dist": 49.39,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "경강선",
+      "sbwy_stns_nm": "여주",
+      "dist_km": 5.4,
+      "acml_dist": 54.79,
+      "hm": "5:54"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "판교",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "이매",
+      "dist_km": 1.5,
+      "acml_dist": 1.5,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "삼동",
+      "dist_km": 6.9,
+      "acml_dist": 8.4,
+      "hm": "7:24"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "경기광주",
+      "dist_km": 4.9,
+      "acml_dist": 13.3,
+      "hm": "6:38"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "초월",
+      "dist_km": 5.0,
+      "acml_dist": 18.3,
+      "hm": "5:30"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "곤지암",
+      "dist_km": 4.9,
+      "acml_dist": 23.2,
+      "hm": "6:38"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "신둔도예촌",
+      "dist_km": 6.9,
+      "acml_dist": 30.1,
+      "hm": "7:24"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "이천",
+      "dist_km": 7.4,
+      "acml_dist": 37.5,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "부발",
+      "dist_km": 4.49,
+      "acml_dist": 41.99,
+      "hm": "6:07"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "세종대왕릉",
+      "dist_km": 7.4,
+      "acml_dist": 49.39,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "1081",
+      "sbwy_stns_nm": "여주",
+      "dist_km": 5.4,
+      "acml_dist": 54.79,
+      "hm": "5:54"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "능곡",
+      "dist_km": 1.8,
+      "acml_dist": 1.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "김포공항",
+      "dist_km": 7.4,
+      "acml_dist": 9.2,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "원종",
+      "dist_km": 4.3,
+      "acml_dist": 13.5,
+      "hm": "5:52"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "부천종합운동장",
+      "dist_km": 2.1,
+      "acml_dist": 15.6,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "소사",
+      "dist_km": 2.7,
+      "acml_dist": 18.3,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "소새울",
+      "dist_km": 1.7,
+      "acml_dist": 20.0,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "시흥대야",
+      "dist_km": 2.1,
+      "acml_dist": 22.1,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "신천",
+      "dist_km": 1.4,
+      "acml_dist": 23.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "신현",
+      "dist_km": 3.3,
+      "acml_dist": 26.8,
+      "hm": "4:38"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "시흥시청",
+      "dist_km": 3.6,
+      "acml_dist": 30.4,
+      "hm": "5:00"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "시흥능곡",
+      "dist_km": 1.3,
+      "acml_dist": 31.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "달미",
+      "dist_km": 2.4,
+      "acml_dist": 34.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.6,
+      "acml_dist": 35.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "시우",
+      "dist_km": 1.4,
+      "acml_dist": 37.1,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "서해선",
+      "sbwy_stns_nm": "원시",
+      "dist_km": 1.5,
+      "acml_dist": 38.6,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "대곡",
+      "dist_km": 0.0,
+      "acml_dist": 0.0,
+      "hm": "0:00"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "능곡",
+      "dist_km": 1.8,
+      "acml_dist": 1.8,
+      "hm": "3:21"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "김포공항",
+      "dist_km": 7.4,
+      "acml_dist": 9.2,
+      "hm": "7:54"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "원종",
+      "dist_km": 4.3,
+      "acml_dist": 13.5,
+      "hm": "5:52"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "부천종합운동장",
+      "dist_km": 2.1,
+      "acml_dist": 15.6,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "소사",
+      "dist_km": 2.7,
+      "acml_dist": 18.3,
+      "hm": "4:46"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "소새울",
+      "dist_km": 1.7,
+      "acml_dist": 20.0,
+      "hm": "3:11"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "시흥대야",
+      "dist_km": 2.1,
+      "acml_dist": 22.1,
+      "hm": "3:49"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "신천",
+      "dist_km": 1.4,
+      "acml_dist": 23.5,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "신현",
+      "dist_km": 3.3,
+      "acml_dist": 26.8,
+      "hm": "4:38"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "시흥시청",
+      "dist_km": 3.6,
+      "acml_dist": 30.4,
+      "hm": "5:00"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "시흥능곡",
+      "dist_km": 1.3,
+      "acml_dist": 31.7,
+      "hm": "2:52"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "달미",
+      "dist_km": 2.4,
+      "acml_dist": 34.1,
+      "hm": "4:17"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "초지",
+      "dist_km": 1.6,
+      "acml_dist": 35.7,
+      "hm": "3:02"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "시우",
+      "dist_km": 1.4,
+      "acml_dist": 37.1,
+      "hm": "3:03"
+    },
+    {
+      "sbwy_rout_ln": "1093",
+      "sbwy_stns_nm": "원시",
+      "dist_km": 1.5,
+      "acml_dist": 38.6,
+      "hm": "2:52"
+    }
+  ]
+}

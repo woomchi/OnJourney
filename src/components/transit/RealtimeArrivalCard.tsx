@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Bus, Clock, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -20,10 +20,13 @@ export interface RealtimeArrivalCardProps {
  * API 수신 시간을 깔끔하게 "N분 후" 또는 "도착" 직관적 분 단위로 표출
  */
 function formatRemainingTime(seconds: number): { primary: string; isImminent: boolean } {
-  const mins = Math.floor(seconds / 60);
-  if (mins <= 0) {
+  if (seconds <= 0) {
     return { primary: '도착', isImminent: true };
   }
+  if (seconds < 60) {
+    return { primary: '곧 도착', isImminent: true };
+  }
+  const mins = Math.floor(seconds / 60);
   return { primary: `${mins}분 후`, isImminent: mins <= 3 };
 }
 
@@ -58,6 +61,22 @@ export const RealtimeArrivalCard: React.FC<RealtimeArrivalCardProps> = ({
       stationName,
       cityCode,
     });
+
+  const [isSpinning, setIsSpinning] = useState(false);
+
+  useEffect(() => {
+    if (isFetching) {
+      setIsSpinning(true);
+      const timer = setTimeout(() => setIsSpinning(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isFetching]);
+
+  const handleRefresh = () => {
+    setIsSpinning(true);
+    setTimeout(() => setIsSpinning(false), 600);
+    refetch();
+  };
 
   const formattedTimeAgo = useMemo(() => {
     if (!lastUpdated) return '방금 전';
@@ -99,13 +118,13 @@ export const RealtimeArrivalCard: React.FC<RealtimeArrivalCardProps> = ({
         <div className="flex items-center gap-2">
           {data && <ReliabilityBadge reliability={data.reliability} />}
           <button
-            onClick={() => refetch()}
+            onClick={handleRefresh}
             disabled={isFetching}
             title="새로고침"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
           >
             <RefreshCw
-              className={clsx('w-3.5 h-3.5', isFetching && 'animate-spin')}
+              className={clsx('w-3.5 h-3.5', isSpinning && 'animate-spin-once')}
             />
           </button>
         </div>

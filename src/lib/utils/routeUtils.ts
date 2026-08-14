@@ -64,7 +64,7 @@ export function getDefaultRoute(
 
       if (
         walkRoute &&
-        (!publicRoute || (publicRoute.name === '대중교통(예상)' && walkRoute.duration <= 40) || walkRoute.duration <= 15)
+        (!publicRoute || (publicRoute.name === '대중교통(예상)' && walkRoute.duration <= 10) || walkRoute.duration <= 5)
       ) {
         targetRoute = walkRoute;
       } else {

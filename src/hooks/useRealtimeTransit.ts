@@ -6,7 +6,10 @@ export interface UseRealtimeTransitOptions {
   stationId: string;
   stationName?: string;
   cityCode?: string;
+  lat?: number;
+  lng?: number;
   enabled?: boolean;
+  refetchInterval?: number | false;
 }
 
 export function useRealtimeTransit({
@@ -14,14 +17,19 @@ export function useRealtimeTransit({
   stationId,
   stationName,
   cityCode,
+  lat,
+  lng,
   enabled = true,
+  refetchInterval = false,
 }: UseRealtimeTransitOptions) {
   const query = useQuery({
-    queryKey: ['realtimeBus', region, stationId, stationName, cityCode],
+    queryKey: ['realtimeBus', region, stationId, stationName, cityCode, lat, lng],
     queryFn: async (): Promise<NormalizedRealtimeData> => {
       const params = new URLSearchParams();
       if (stationName) params.append('stationName', stationName);
       if (cityCode) params.append('cityCode', cityCode);
+      if (lat) params.append('lat', String(lat));
+      if (lng) params.append('lng', String(lng));
 
       const url = `/api/realtime/bus/${encodeURIComponent(region)}/${encodeURIComponent(stationId)}?${params.toString()}`;
 
@@ -41,9 +49,9 @@ export function useRealtimeTransit({
       return json.data as NormalizedRealtimeData;
     },
     enabled: Boolean(enabled && stationId),
-    refetchInterval: 15000, // 사용자 요청 반영: 모든 지역 15초 통일
+    refetchInterval,
     refetchIntervalInBackground: false, // 탭 비활성화 시 자동 갱신 일시정지
-    staleTime: 10000, // 10초간 fresh 상태 유지
+    staleTime: 0, // 갱신 버튼 클릭 시 즉시 최신 데이터 재조회
     retry: 2, // 2회까지 자동 재시도
     retryDelay: 1000, // 1초 간격 백오프
   });

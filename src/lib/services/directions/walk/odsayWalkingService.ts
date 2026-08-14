@@ -38,49 +38,47 @@ function parseGraphString(graph?: string): { lat: number; lng: number }[] {
 }
 
 /**
- * ODsay 멀티모달(maasRP) 도보 경로 캐싱 함수
+ * ODsay 도보 경로(searchWalkPathV2) 캐싱 함수
  */
-export async function getCachedOdsayMaasRPWalk(
+export async function getCachedOdsayWalk(
   sx: number,
   sy: number,
   ex: number,
   ey: number,
-  apiKey: string,
-  departureTime?: number
+  apiKey: string
 ) {
   const wsx = roundCoord(sx, 4).toFixed(4);
   const wsy = roundCoord(sy, 4).toFixed(4);
   const wex = roundCoord(ex, 4).toFixed(4);
   const wey = roundCoord(ey, 4).toFixed(4);
-  const searchTime = toSearchTime(departureTime);
 
   return unstable_cache(
     async () => {
-      console.log(`[odsayWalkingService] ODsay maasRP 도보 경로 API 호출 (sx=${wsx}, sy=${wsy}, ex=${wex}, ey=${wey})`);
+      console.log(`[odsayWalkingService] ODsay searchWalkPathV2 도보 경로 API 호출 (sx=${wsx}, sy=${wsy}, ex=${wex}, ey=${wey})`);
       try {
-        const data = await OdsayAdapter.fetchMaasRP(wsx, wsy, wex, wey, searchTime, '2', apiKey);
-        return data;
+        const data = await OdsayAdapter.fetchWalkPathV2(wsx, wsy, wex, wey, apiKey, 'Start', 'End');
+        if (data && (data.result || data.paths || data.path)) {
+          return data;
+        }
+        console.warn(`[odsayWalkingService] searchWalkPathV2 데이터 미존재, Fallback 적용`);
+        return null;
       } catch (err: any) {
-        // 429 (한도 초과) 에러 발생 시 2차 외부 API 호출 시도를 생략하고 즉시 직선거리 Fallback 사용
         const isQuotaError = err?.status === 429 || err?.code === 'TRANSIT_QUOTA_EXCEEDED' || err?.message?.includes('한도 초과');
         if (isQuotaError) {
-          console.warn(`[odsayWalkingService] ODsay API 쿼터 한도 초과(429). 직선거리 Fallback 경로로 즉시 전환합니다.`);
-          return null;
+          console.warn(`[odsayWalkingService] ODsay API 쿼터 한도 초과(429). Fallback 도보 경로로 즉시 전환합니다.`);
+        } else {
+          console.warn(`[odsayWalkingService] searchWalkPathV2 호출 예외 발생, Fallback 적용:`, err?.message || err);
         }
-
-        console.warn(`[odsayWalkingService] maasRP 호출 예외, searchWalkPathV2 폴백 시도:`, err?.message || err);
-        try {
-          return await OdsayAdapter.fetchWalkPathV2(wsx, wsy, wex, wey, apiKey, 'Start', 'End');
-        } catch (v2Err: any) {
-          console.warn(`[odsayWalkingService] 도보 API 폴백 완료 (직선거리 Fallback 사용):`, v2Err?.message || v2Err);
-          return null;
-        }
+        return null;
       }
     },
-    ['odsay-walking-maas-cache', wsx, wsy, wex, wey, searchTime],
+    ['odsay-walking-v2-cache', wsx, wsy, wex, wey],
     { revalidate: 3600 }
   )();
 }
+
+/** 하위 호환성을 위한 alias export */
+export const getCachedOdsayMaasRPWalk = getCachedOdsayWalk;
 
 /**
  * ODsay API 응답 데이터를 DirectionResult[] (도보/자전거/킥보드) 뷰 모델로 파싱
@@ -92,7 +90,7 @@ export function parseOdsayWalkingResponse(
   ex: number,
   ey: number
 ): DirectionResult[] {
-  if (!data || (!data.result && !data.paths && !data.result?.paths)) {
+  if (!data || (!data.result && !data.paths && !data.result?.paths && !data.result?.path)) {
     return buildWalkFallbackResults(sx, sy, ex, ey);
   }
 
@@ -105,11 +103,11 @@ export function parseOdsayWalkingResponse(
   const guideNodes: RouteGuideNode[] = [];
 
   if (paths.length > 0) {
-    // 1. 도보 우선 경로 또는 최단 경로 추출
-    let selectedPath = paths.find((p: any) => p.pathType === 3) || paths[0];
+    // 1. 최단 도보 경로 추출
+    let selectedPath = paths[0];
 
-    totalDistanceMeters = selectedPath.info?.totalDistance || selectedPath.totalDistance || 0;
-    totalTimeMinutes = selectedPath.info?.totalTime || selectedPath.totalTime || 0;
+    totalDistanceMeters = selectedPath.info?.totalDistance || selectedPath.totalDistance || selectedPath.info?.distance || selectedPath.distance || 0;
+    totalTimeMinutes = selectedPath.info?.totalTime || selectedPath.totalTime || selectedPath.info?.time || selectedPath.time || 0;
 
     const rpsList: any[] = selectedPath.rps || selectedPath.subPath || [];
     for (const rp of rpsList) {
@@ -168,7 +166,9 @@ export function parseOdsayWalkingResponse(
     ? totalDistanceMeters / 1000
     : haversineDistance(sy, sx, ey, ex);
 
-  const walkDuration = totalTimeMinutes > 0
+  // 최소 도보 시간 검증 (8km/h 초과 = 도보 속도 불가능 시 4.5km/h 하버스인 계산 기반 산출)
+  const minPossibleTimeMin = Math.round((distanceKm / 8.0) * 60);
+  const walkDuration = (totalTimeMinutes > 0 && totalTimeMinutes >= minPossibleTimeMin)
     ? totalTimeMinutes
     : Math.max(1, Math.round((distanceKm / 4.5) * 60));
 
@@ -264,7 +264,7 @@ export async function fetchOdsayWalkingRoute(
   }
 
   try {
-    const data = await getCachedOdsayMaasRPWalk(sx, sy, ex, ey, apiKey, departureTime);
+    const data = await getCachedOdsayWalk(sx, sy, ex, ey, apiKey);
     if (!data) {
       return buildWalkFallbackResults(sx, sy, ex, ey);
     }

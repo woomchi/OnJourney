@@ -6,12 +6,11 @@
  *
  * 처리 흐름:
  * 1. API 키 없음 → 시간표 기반 Fallback
- * 2. API 호출 → XML 파싱 → 만료 데이터 필터
+ * 2. API 호출 → JSON 처리 → 만료 데이터 필터
  * 3. 결과 없음 / 오류 → 시간표 기반 Fallback
  * 4. 정상 결과 → ETA 계산 → 정렬
  */
 
-import { XMLParser } from 'fast-xml-parser';
 import {
   calculateSubwayETADynamic,
   calculateNextTrainFromTimetable,
@@ -22,7 +21,7 @@ import type { SubwayArrival } from '@/types/journey';
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
 /** 서울시 지하철 실시간 API 캐시 재검증 주기 (초) */
-const REALTIME_REVALIDATE_SECONDS = 15;
+const REALTIME_REVALIDATE_SECONDS = 5;
 
 /** 실시간 데이터 수신 후 유효 시간 (밀리초, 90초) */
 const STALE_DATA_THRESHOLD_MS = 90_000;
@@ -65,28 +64,33 @@ async function buildTimetableFallback(
   cleanStation: string,
   wayCode?: string
 ): Promise<SubwayArrival[]> {
-  if (!wayCode) return [];
+  const directions = wayCode
+    ? [wayCode === '1' ? '상행' : '하행']
+    : ['상행', '하행'];
 
-  const updnLine = wayCode === '1' ? '상행' : '하행';
-  const nextTrain = await calculateNextTrainFromTimetable(cleanStation, updnLine);
+  const results: SubwayArrival[] = [];
 
-  if (!nextTrain) return [];
+  for (const updnLine of directions) {
+    const nextTrain = await calculateNextTrainFromTimetable(cleanStation, updnLine);
+    if (nextTrain) {
+      results.push({
+        subwayId: '',
+        updnLine,
+        trainNo: nextTrain.trainNo,
+        statnNm: cleanStation,
+        arvlMsg2: nextTrain.statusText,
+        recptnDt: '',
+        statusText: nextTrain.statusText,
+        minutesLeft: nextTrain.minutesLeft,
+        arrivalTime: nextTrain.arrivalTime,
+        isApproaching: nextTrain.isApproaching,
+        isRealtime: false,
+      });
+    }
+  }
 
-  return [
-    {
-      subwayId: '',
-      updnLine,
-      trainNo: nextTrain.trainNo,
-      statnNm: cleanStation,
-      arvlMsg2: nextTrain.statusText,
-      recptnDt: '',
-      statusText: nextTrain.statusText,
-      minutesLeft: nextTrain.minutesLeft,
-      arrivalTime: nextTrain.arrivalTime,
-      isApproaching: nextTrain.isApproaching,
-      isRealtime: false,
-    },
-  ];
+  results.sort((a, b) => a.minutesLeft - b.minutesLeft);
+  return results;
 }
 
 /**
@@ -143,7 +147,7 @@ export async function fetchSubwayRealtime(
   }
 
   const url =
-    `http://swopenAPI.seoul.go.kr/api/subway/${apiKey}/xml/realtimeStationArrival` +
+    `http://swopenAPI.seoul.go.kr/api/subway/${apiKey}/json/realtimeStationArrival` +
     `/0/20/${encodeURIComponent(cleanStation)}`;
 
   const controller = new AbortController();
@@ -159,31 +163,33 @@ export async function fetchSubwayRealtime(
       throw new Error(`서울시 지하철 API 오류 응답: ${response.status}`);
     }
 
-    const xmlData = await response.text();
+    const data = await response.json();
 
     // API 키 오류 또는 한도 초과 응답은 에러로 처리
     if (
-      xmlData.includes('RESULT.LIMIT_TO_OVER_ERROR') ||
-      xmlData.includes('KEY형식오류') ||
-      xmlData.includes('인증키가 유효하지 않습니다')
+      data.errorMessage &&
+      data.errorMessage.code !== 'INFO-000' &&
+      data.errorMessage.status !== 200
     ) {
-      throw new Error('서울시 지하철 API 키 오류 또는 한도 초과');
+      throw new Error(`서울시 지하철 API 오류: ${data.errorMessage.message}`);
     }
 
-    const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: true });
-    const parsed = parser.parse(xmlData) as {
-      realtimeStationArrival?: { row?: SubwayRawRow | SubwayRawRow[] };
-    };
+    let rows: SubwayRawRow[] = data.realtimeArrivalList || [];
 
-    const rawRows = parsed?.realtimeStationArrival?.row;
-    let rows: SubwayRawRow[] = [];
-    if (rawRows) {
-      rows = Array.isArray(rawRows) ? rawRows : [rawRows];
+    // 요청된 wayCode 방향과 일치하는 열차만 필터링 ('1': 상행/내선, '2': 하행/외선)
+    if (wayCode) {
+      rows = rows.filter((row) => {
+        const lineStr = String(row.updnLine || '');
+        const isUpLine =
+          lineStr === '상행' ||
+          lineStr.includes('상선') ||
+          lineStr.includes('내선') ||
+          lineStr.includes('서울') ||
+          lineStr.includes('청량리');
+        const trainWayCode = isUpLine ? '1' : '2';
+        return trainWayCode === wayCode;
+      });
     }
-
-    // 만료 데이터 필터링
-    const currentTimeMs = Date.now();
-    rows = rows.filter((row) => !isStaleRow(row, currentTimeMs));
 
     // ─ 유효 결과 없음 → 시간표 Fallback ─
     if (rows.length === 0) {
@@ -191,7 +197,7 @@ export async function fetchSubwayRealtime(
     }
 
     // ─ ETA 계산 (병렬 처리) ─
-    const processedArrivals = await Promise.all(
+    const processedArrivalsRaw = await Promise.all(
       rows.map(async (row) => {
         const liveMsg = String(row.arvlMsg2 || '');
         const recTime = String(row.recptnDt || '');
@@ -206,7 +212,8 @@ export async function fetchSubwayRealtime(
           trainNo,
           lineName,
           barvlDt,
-          String(row.subwayId || '')
+          String(row.subwayId || ''),
+          row.arvlCd
         );
 
         return {
@@ -218,18 +225,28 @@ export async function fetchSubwayRealtime(
           recptnDt: recTime,
           ...eta,
           isRealtime: true,
-        } satisfies SubwayArrival;
+        };
       })
     );
 
-    // 접근 중인 열차 우선, 이후 minutesLeft 오름차순 정렬
-    processedArrivals.sort((a, b) => {
+    // 지나간 열차(isPassed === true) 제외
+    const validArrivals = processedArrivalsRaw.filter(
+      (item) => !item.isPassed
+    ) as SubwayArrival[];
+
+    // 모든 실시간 열차가 지나쳤으면 시간표 Fallback으로 자동 전환
+    if (validArrivals.length === 0) {
+      return buildTimetableFallback(cleanStation, wayCode);
+    }
+
+    // 접근 중인 열차 우선, 이후 minutesLeft 오름차순 정렬 (후속 열차 자동 승격)
+    validArrivals.sort((a, b) => {
       if (a.isApproaching && !b.isApproaching) return -1;
       if (!a.isApproaching && b.isApproaching) return 1;
       return a.minutesLeft - b.minutesLeft;
     });
 
-    return processedArrivals;
+    return validArrivals;
   } catch (error) {
     const isTimeout = error instanceof Error && error.name === 'AbortError';
     if (isTimeout) {

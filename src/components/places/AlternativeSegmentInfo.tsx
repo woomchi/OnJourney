@@ -48,12 +48,24 @@ export default function AlternativeSegmentInfo({
   const routes = segmentData[activeTab] || [];
   const selectedRoute = place.selected_route && place.selected_route.destId === destId ? place.selected_route : null;
 
-  const getEmoji = (type: string, name: string) => {
+  const getEmoji = (route: DirectionResult) => {
+    const type = route.type as string;
+    const name = route.name || '';
+
     if (type === 'public') {
+      const firstTransitStep = route.steps?.find(s => s.type !== 'walk');
+      if (firstTransitStep) {
+        if (firstTransitStep.type === 'train') return '🚄';
+        if (firstTransitStep.type === 'subway') return '🚇';
+        if (firstTransitStep.type === 'bus' || firstTransitStep.type === 'expressbus') return '🚌';
+      }
       if (name.includes('기차') || name.includes('KTX') || name.includes('SRT') || name.includes('새마을') || name.includes('무궁화') || name.includes('ITX')) return '🚄';
       if (name.includes('지하철') || name.includes('선')) return '🚇';
       return '🚌';
     }
+    if (type === 'subway') return '🚇';
+    if (type === 'bus' || type === 'expressbus') return '🚌';
+    if (type === 'train') return '🚄';
     if (type === 'taxi') return '🚕';
     if (type === 'car') return '🚗';
     if (type === 'walk') return '🚶';
@@ -106,7 +118,7 @@ export default function AlternativeSegmentInfo({
               : activeRoute 
                 ? activeRoute.id === route.id 
                 : false;
-            const emoji = getEmoji(route.type, route.name);
+            const emoji = getEmoji(route);
 
             return (
               <button

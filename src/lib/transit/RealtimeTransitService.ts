@@ -10,6 +10,8 @@ export interface GetBusArrivalsParams {
   stationId: string;
   stationName?: string;
   cityCode?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export class RealtimeTransitService {
@@ -21,6 +23,8 @@ export class RealtimeTransitService {
     stationId,
     stationName = '정류소',
     cityCode,
+    lat,
+    lng,
   }: GetBusArrivalsParams): Promise<NormalizedRealtimeData> {
     let normalizedRegion = region ? region.toLowerCase() : 'seoul';
     let resolvedCityCode = cityCode;
@@ -34,12 +38,14 @@ export class RealtimeTransitService {
       }
     }
 
-    // 1단계: TAGO 버스 서비스 Promise 생성
-    const tagoPromise = TagoBusService.getArrivalInfo({
+    // 1단계: TAGO 스마트 노드 변화 감지 트래픽 최적화 버스 서비스 Promise 생성
+    const tagoPromise = TagoBusService.getArrivalInfoSmartNodeTrigger({
       cityCode: resolvedCityCode,
       region: normalizedRegion,
       nodeId: stationId,
       stationName,
+      lat,
+      lng,
     });
 
     // 2단계: 시도별 보완 API Promise 생성 (경기도 / 부산)

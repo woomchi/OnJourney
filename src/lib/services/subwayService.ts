@@ -15,11 +15,13 @@ import { OdsayAdapter } from '@/lib/infrastructure/odsayAdapter';
 /** 자정 기준 총 초 수 (시간표 롤오버 보정용) */
 const MIDNIGHT_SECONDS = 24 * 3_600;
 
-/** 역간 거리 JSON 파일명 (보조 Fallback용) */
-const STATION_DISTANCE_FILENAME = '서울교통공사_역간거리.json';
+/** 통합 역간 거리 JSON 파일명 (1~9호선 + 코레일 전구간 통합) */
+const STATION_DISTANCE_UNIFIED_FILENAME = '지하철_통합_역간거리.json';
+const STATION_DISTANCE_FALLBACK_FILENAME = '서울교통공사_역간거리.json';
 
-/** 역간 거리 JSON 경로 (cwd 기준 data 디렉터리) */
-const STATION_DISTANCE_FILEPATH = path.join(process.cwd(), 'data', STATION_DISTANCE_FILENAME);
+/** 역간 거리 JSON 경로 */
+const STATION_DISTANCE_UNIFIED_FILEPATH = path.join(process.cwd(), 'data', STATION_DISTANCE_UNIFIED_FILENAME);
+const STATION_DISTANCE_FALLBACK_FILEPATH = path.join(process.cwd(), 'data', STATION_DISTANCE_FALLBACK_FILENAME);
 
 /** 타임테이블 캐시 유효 시간 (3시간) */
 const TIMETABLE_CACHE_TTL_MS = 3 * 3_600 * 1_000;
@@ -35,14 +37,16 @@ const FALLBACK_DEFAULT_MINUTES = 99;
 
 // ─── 로컬 타입 정의 ──────────────────────────────────────────────────────────
 
-/** 서울교통공사_역간거리.json의 단일 데이터 행 타입 */
+/** 지하철 역간거리 데이터 단일 행 타입 */
 interface StationDistanceRow {
-  sbwy_rout_ln: string | number; // 호선 번호 (예: 1, 2, … 9)
-  sbwy_stns_nm: string;          // 역명 (예: '강남역')
+  sbwy_rout_ln: string | number; // 호선 번호 또는 노선명 (예: 1, 2, '1063', '수인분당선')
+  sbwy_stns_nm: string;          // 역명 (예: '강남역', '수원')
   hm: string;                    // 전역과의 소요 시간 (형식: "M:SS")
+  dist_km?: number;              // 역간 거리 (km)
+  acml_dist?: number;            // 누적 거리 (km)
 }
 
-/** 서울교통공사_역간거리.json 루트 타입 */
+/** 역간 거리 JSON 루트 타입 */
 interface StationDistanceDb {
   DATA: StationDistanceRow[];
 }
@@ -62,6 +66,7 @@ export interface SubwayEtaResult {
   minutesLeft: number;
   arrivalTime: string;
   isApproaching: boolean;
+  isPassed?: boolean;
 }
 
 // ─── 메모리 캐시 ─────────────────────────────────────────────────────────────
@@ -90,14 +95,20 @@ function pruneExpiredTimetableCache(): void {
 // ─── 내부 헬퍼 ───────────────────────────────────────────────────────────────
 
 /**
- * 역간 거리 DB를 로드합니다. 최초 호출 시 파일을 읽고 이후 캐시를 반환합니다.
+ * 역간 거리 DB를 로드합니다. (통합 데이터셋 우선, 부재 시 서울교통공사 원본 fallback)
  */
 function getStationDistanceDb(): StationDistanceDb | null {
   if (stationDistanceDb) return stationDistanceDb;
 
   try {
-    if (!fs.existsSync(STATION_DISTANCE_FILEPATH)) return null;
-    const fileContent = fs.readFileSync(STATION_DISTANCE_FILEPATH, 'utf-8');
+    const targetPath = fs.existsSync(STATION_DISTANCE_UNIFIED_FILEPATH)
+      ? STATION_DISTANCE_UNIFIED_FILEPATH
+      : fs.existsSync(STATION_DISTANCE_FALLBACK_FILEPATH)
+      ? STATION_DISTANCE_FALLBACK_FILEPATH
+      : null;
+
+    if (!targetPath) return null;
+    const fileContent = fs.readFileSync(targetPath, 'utf-8');
     stationDistanceDb = JSON.parse(fileContent) as StationDistanceDb;
     return stationDistanceDb;
   } catch (e) {
@@ -133,16 +144,73 @@ function timeToSeconds(timeStr: string): number {
 }
 
 /**
- * subwayId를 호선 코드 문자열로 변환합니다.
+ * subwayId 또는 노선명을 바탕으로 매칭 가능한 노선 코드/이름 목록을 반환합니다.
  */
-function resolveLineCode(subwayId: string): string {
-  if (subwayId.startsWith('100')) {
-    return subwayId.substring(3); // "1" ~ "8"
+function resolveCandidateLineCodes(subwayId: string): string[] {
+  const cleanId = String(subwayId || '').trim();
+
+  // 1호선
+  if (cleanId === '1001' || cleanId === '1' || cleanId.includes('1호선')) {
+    return ['1', '1001', '1001_경부', '1001_경인', '1001_경원', '1001_장항', '1호선_경부선', '1호선_경인선', '1호선_장항선', '1호선_경원선', '경원선'];
   }
-  if (subwayId === '1009') {
-    return '9';
+  // 2호선
+  if (cleanId === '1002' || cleanId === '2' || cleanId.includes('2호선')) {
+    return ['2', '1002'];
   }
-  return '';
+  // 3호선
+  if (cleanId === '1003' || cleanId === '3' || cleanId.includes('3호선')) {
+    return ['3', '1003', '3호선_일산선', '1003_일산', '일산선'];
+  }
+  // 4호선
+  if (cleanId === '1004' || cleanId === '4' || cleanId.includes('4호선')) {
+    return ['4', '1004', '4호선_과천안산선', '1004_과천안산', '과천선', '안산선'];
+  }
+  // 5호선
+  if (cleanId === '1005' || cleanId === '5' || cleanId.includes('5호선')) {
+    return ['5', '1005'];
+  }
+  // 6호선
+  if (cleanId === '1006' || cleanId === '6' || cleanId.includes('6호선')) {
+    return ['6', '1006'];
+  }
+  // 7호선
+  if (cleanId === '1007' || cleanId === '7' || cleanId.includes('7호선')) {
+    return ['7', '1007'];
+  }
+  // 8호선
+  if (cleanId === '1008' || cleanId === '8' || cleanId.includes('8호선')) {
+    return ['8', '1008'];
+  }
+  // 9호선
+  if (cleanId === '1009' || cleanId === '9' || cleanId.includes('9호선')) {
+    return ['9', '1009'];
+  }
+  // 경의중앙선
+  if (cleanId === '1063' || cleanId.includes('경의중앙') || cleanId.includes('경의선') || cleanId.includes('중앙선')) {
+    return ['1063', '경의중앙선', '경의선', '중앙선'];
+  }
+  // 경춘선
+  if (cleanId === '1067' || cleanId.includes('경춘')) {
+    return ['1067', '경춘선'];
+  }
+  // 수인분당선
+  if (cleanId === '1075' || cleanId.includes('수인분당') || cleanId.includes('분당선') || cleanId.includes('수인선')) {
+    return ['1075', '수인분당선', '분당선', '수인선'];
+  }
+  // 경강선
+  if (cleanId === '1081' || cleanId.includes('경강')) {
+    return ['1081', '경강선'];
+  }
+  // 서해선
+  if (cleanId === '1093' || cleanId.includes('서해')) {
+    return ['1093', '서해선'];
+  }
+
+  // 기본 단일 호선 번호 추출 시도
+  if (cleanId.startsWith('100')) {
+    return [cleanId.substring(3), cleanId];
+  }
+  return [cleanId];
 }
 
 /**
@@ -230,48 +298,70 @@ function parseOdsaySubwayTimeList(timeNodes: any[]): ScheduleItem[] {
 // ─── 공개 유틸리티 ───────────────────────────────────────────────────────────
 
 /**
- * 로컬 DB(서울교통공사_역간거리.json)를 이용하여
+ * 통합 DB(지하철_통합_역간거리.json)를 이용하여
  * 동일 노선의 두 역 사이 소요 시간(초)을 계산합니다 (Fallback용).
  */
 export function calculateTimeBetweenStations(
   subwayId: string,
   currentStation: string,
-  targetStation: string
+  targetStation: string,
+  updnLine?: string
 ): number | null {
   const db = getStationDistanceDb();
   if (!db?.DATA) return null;
 
-  const lineCode = resolveLineCode(subwayId);
-  if (!lineCode) return null;
+  const candidateCodes = resolveCandidateLineCodes(subwayId);
+  if (candidateCodes.length === 0) return null;
 
   const cleanCurrent = normalizeStationName(currentStation);
   const cleanTarget = normalizeStationName(targetStation);
-
-  const lineStations = db.DATA.filter(
-    (row) => String(row.sbwy_rout_ln) === lineCode
-  );
-  if (lineStations.length === 0) return null;
-
   const normalize = (nm: string) => nm.replace(/역$/, '').trim();
 
-  const currentIdx = lineStations.findIndex(
-    (row) => normalize(row.sbwy_stns_nm) === cleanCurrent
-  );
-  const targetIdx = lineStations.findIndex(
-    (row) => normalize(row.sbwy_stns_nm) === cleanTarget
-  );
+  // 각 후보 노선 그룹별로 current와 target 역이 모두 포함된 서브라인 탐색
+  for (const lineCode of candidateCodes) {
+    const lineStations = db.DATA.filter(
+      (row) => String(row.sbwy_rout_ln) === lineCode
+    );
+    if (lineStations.length === 0) continue;
 
-  if (currentIdx === -1 || targetIdx === -1) return null;
+    const currentIdx = lineStations.findIndex(
+      (row) => normalize(row.sbwy_stns_nm) === cleanCurrent
+    );
+    const targetIdx = lineStations.findIndex(
+      (row) => normalize(row.sbwy_stns_nm) === cleanTarget
+    );
 
-  const startIdx = Math.min(currentIdx, targetIdx);
-  const endIdx = Math.max(currentIdx, targetIdx);
+    if (currentIdx !== -1 && targetIdx !== -1 && currentIdx !== targetIdx) {
+      // 방향 검증 (updnLine이 제공된 경우)
+      if (updnLine) {
+        const wayCode = resolveUpDownTypeCode(updnLine);
+        const isLine2 = lineCode === '2' || lineCode === '1002';
 
-  let totalSeconds = 0;
-  for (let i = startIdx + 1; i <= endIdx; i++) {
-    totalSeconds += parseMinSecToSeconds(lineStations[i].hm);
+        if (isLine2) {
+          // 2호선: '1'(내선/상행, 인덱스 증가 방향), '2'(외선/하행, 인덱스 감소 방향)
+          if (wayCode === '1' && currentIdx > targetIdx) continue;
+          if (wayCode === '2' && currentIdx < targetIdx) continue;
+        } else {
+          // 일반 노선 (1~9호선, 국철): Index 0=기점(상행측), Index N=종점(하행측)
+          // '1'(상행): 종점 -> 기점 (currentIdx > targetIdx 이어야 전진)
+          // '2'(하행): 기점 -> 종점 (currentIdx < targetIdx 이어야 전진)
+          if (wayCode === '1' && currentIdx < targetIdx) continue;
+          if (wayCode === '2' && currentIdx > targetIdx) continue;
+        }
+      }
+
+      const startIdx = Math.min(currentIdx, targetIdx);
+      const endIdx = Math.max(currentIdx, targetIdx);
+
+      let totalSeconds = 0;
+      for (let i = startIdx + 1; i <= endIdx; i++) {
+        totalSeconds += parseMinSecToSeconds(lineStations[i].hm);
+      }
+      return totalSeconds;
+    }
   }
 
-  return totalSeconds;
+  return null;
 }
 
 /**
@@ -453,58 +543,69 @@ export async function calculateNextTrainFromTimetable(
   };
 }
 
+import {
+  parseSubwayArrivalMessage,
+  extractCurrentStationRobust,
+  extractRemainingStationsRobust,
+} from './subwayMessageParser';
+import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
+
 // ─── 공개 유틸리티: 실시간 메시지 파싱 ──────────────────────────────────────
 
 /**
- * 실시간 도착 메시지(arvlMsg2)에서 현재 열차의 위치 역명을 추출합니다.
+ * 시간대별 혼잡도 보정 가중치를 반환합니다.
+ * (출근 7~9시: 1.25, 퇴근 17~19시: 1.2, 야간 22~05시: 0.9)
+ */
+function getRushHourFactor(date: Date = new Date()): number {
+  const hours = date.getHours();
+  if (hours >= 7 && hours < 9) return 1.25;
+  if (hours >= 17 && hours < 19) return 1.2;
+  if (hours >= 22 || hours < 5) return 0.9;
+  return 1.0;
+}
+
+/**
+ * 실시간 도착 메시지(arvlMsg2)에서 현재 열차의 위치 역명을 정밀 추출합니다.
  */
 export function extractCurrentStation(
   arvlMsg2: string,
   targetStation: string,
   _updnLine?: string
 ): string {
-  const parenMatch = arvlMsg2.match(/\(([^)]+)\)/);
-  if (parenMatch) {
-    return parenMatch[1].replace(/역$/, '').trim();
-  }
-
-  const suffixMatch = arvlMsg2.match(/^([가-힣a-zA-Z0-9]+)\s*(진입|도착|출발)$/);
-  if (suffixMatch) {
-    const station = suffixMatch[1].replace(/역$/, '').trim();
-    if (station !== '전') return station;
-  }
-
-  return '';
+  return extractCurrentStationRobust(arvlMsg2, targetStation);
 }
 
 /**
- * 실시간 도착 메시지(arvlMsg2)에서 남은 역 수를 추출합니다.
+ * 실시간 도착 메시지(arvlMsg2)에서 남은 역 수를 정밀 추출합니다.
  */
 export function extractRemainingStations(arvlMsg2: string): number | null {
-  const bracketMatch = arvlMsg2.match(/\[(\d+)\]/);
-  if (bracketMatch) return parseInt(bracketMatch[1], 10);
-  if (arvlMsg2.includes('전역')) return 1;
-  if (arvlMsg2.includes('진입') || arvlMsg2.includes('도착')) return 0;
-  return null;
+  return extractRemainingStationsRobust(arvlMsg2);
 }
 
 // ─── 내부 빌더: ETA 응답 객체 생성 ──────────────────────────────────────────
 
 function buildApproachingResponse(arvlMsg2: string, targetClean: string): SubwayEtaResult {
-  const isJustDeparted = arvlMsg2.includes(`${targetClean} 출발`);
-  const detail = isJustDeparted ? '출발함' : '곧 도착';
+  const isJustDeparted = arvlMsg2.includes(`${targetClean} 출발`) || arvlMsg2.includes('출발');
+  if (isJustDeparted) {
+    return {
+      statusText: `${targetClean} 출발함`,
+      minutesLeft: 0,
+      arrivalTime: '',
+      isApproaching: false,
+      isPassed: true,
+    };
+  }
 
-  const subDetail = arvlMsg2.includes(`${targetClean} 진입`)
+  const subDetail = arvlMsg2.includes(`${targetClean} 진입`) || arvlMsg2.includes('진입')
     ? '진입'
-    : arvlMsg2.includes(`${targetClean} 도착`)
-    ? '도착'
-    : '출발';
+    : '도착';
 
   return {
-    statusText: `${detail} [${subDetail}]`,
+    statusText: `곧 도착 [${subDetail}]`,
     minutesLeft: 0,
     arrivalTime: '',
     isApproaching: true,
+    isPassed: false,
   };
 }
 
@@ -518,7 +619,7 @@ function buildBarvlDtResponse(
   if (recptnDt) {
     try {
       const receiptTime = new Date(recptnDt.replace(' ', 'T')).getTime();
-      const currentTime = Date.now();
+      const currentTime = timeOffsetManager.getSynchronizedNow();
       if (!isNaN(receiptTime)) {
         timeDiffSec = Math.max(0, Math.floor((currentTime - receiptTime) / 1_000));
       }
@@ -529,17 +630,20 @@ function buildBarvlDtResponse(
 
   const correctedRemainingSec = Math.max(0, barvlDt - timeDiffSec);
 
+  // 남은 시간이 0초 이하로 경과한 열차는 1분 고정 대신 지나간 열차(isPassed: true)로 처리
   if (correctedRemainingSec === 0) {
     return {
-      statusText: arvlMsg2,
-      minutesLeft: 1,
+      statusText: arvlMsg2.includes('출발') ? '출발함' : '지나침',
+      minutesLeft: 0,
       arrivalTime: '',
-      isApproaching: true,
+      isApproaching: false,
+      isPassed: true,
     };
   }
 
   const minutesLeft = Math.ceil(correctedRemainingSec / 60);
-  const arrivalDate = new Date(Date.now() + correctedRemainingSec * 1_000);
+  const syncNow = timeOffsetManager.getSynchronizedNow();
+  const arrivalDate = new Date(syncNow + correctedRemainingSec * 1_000);
   const hours = String(arrivalDate.getHours()).padStart(2, '0');
   const mins = String(arrivalDate.getMinutes()).padStart(2, '0');
   const arrivalTime = `${hours}:${mins}`;
@@ -560,6 +664,7 @@ function buildBarvlDtResponse(
     minutesLeft,
     arrivalTime,
     isApproaching: minutesLeft <= 1,
+    isPassed: false,
   };
 }
 
@@ -571,15 +676,25 @@ function buildFallbackResponse(
   subwayId: string | undefined,
   updnLine: string | undefined
 ): SubwayEtaResult {
+  const rushFactor = getRushHourFactor();
   let minutesLeft =
     remainingStations !== null
-      ? Math.max(1, remainingStations * (FALLBACK_SECONDS_PER_STATION / 60))
+      ? Math.max(1, Math.round(remainingStations * (FALLBACK_SECONDS_PER_STATION / 60) * rushFactor))
       : FALLBACK_DEFAULT_MINUTES;
 
   if (currentStation && subwayId) {
-    const dbSeconds = calculateTimeBetweenStations(subwayId, currentStation, targetClean);
+    const dbSeconds = calculateTimeBetweenStations(subwayId, currentStation, targetClean, updnLine);
     if (dbSeconds !== null && dbSeconds > 0) {
-      minutesLeft = Math.ceil(dbSeconds / 60);
+      minutesLeft = Math.ceil((dbSeconds * rushFactor) / 60);
+    } else if (dbSeconds === null && updnLine) {
+      // 진행 방향과 반대인 열차 -> 이미 지나간 열차 처리
+      return {
+        statusText: '지나침',
+        minutesLeft: 0,
+        arrivalTime: '',
+        isApproaching: false,
+        isPassed: true,
+      };
     }
   }
 
@@ -614,15 +729,35 @@ export async function calculateSubwayETADynamic(
   trainNo: string,
   updnLine?: string,
   barvlDt?: number,
-  subwayId?: string
+  subwayId?: string,
+  arvlCd?: string | number
 ): Promise<SubwayEtaResult> {
   const targetClean = normalizeStationName(targetStation);
+
+  // 1. 이미 해당 역을 출발한 열차 판별 (arvlCd = '2' 출발 또는 arvlMsg2에 "[target] 출발" / "당역 출발")
+  const arvlCdStr = String(arvlCd ?? '');
+  const isDepartedCode = arvlCdStr === '2';
+  const isDepartedMsg =
+    arvlMsg2.includes(`${targetClean} 출발`) ||
+    arvlMsg2.includes('당역 출발') ||
+    arvlMsg2.includes('당역출발') ||
+    (arvlMsg2.endsWith('출발') && !arvlMsg2.includes('전역'));
+
+  if (isDepartedCode || isDepartedMsg) {
+    return {
+      statusText: `${targetClean} 출발함`,
+      minutesLeft: 0,
+      arrivalTime: '',
+      isApproaching: false,
+      isPassed: true,
+    };
+  }
+
   const remainingStations = extractRemainingStations(arvlMsg2);
 
   const isDirectlyAtTarget =
     arvlMsg2.includes(`${targetClean} 진입`) ||
-    arvlMsg2.includes(`${targetClean} 도착`) ||
-    arvlMsg2.includes(`${targetClean} 출발`);
+    arvlMsg2.includes(`${targetClean} 도착`);
 
   if (isDirectlyAtTarget) {
     return buildApproachingResponse(arvlMsg2, targetClean);

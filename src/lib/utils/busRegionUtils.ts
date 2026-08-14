@@ -13,6 +13,7 @@ export interface BusRegionMapping {
 const ODSAY_CITY_CODE_MAP: Record<string, BusRegionMapping> = {
   '11': { region: 'seoul', tagoCode: '11' },
   '1000': { region: 'seoul', tagoCode: '11' },
+  '1100': { region: 'gyeonggi', tagoCode: '31240' }, // 수도권/화성 권역 CID
   '21': { region: 'busan', tagoCode: '21' },
   '7000': { region: 'busan', tagoCode: '21' },
   '22': { region: 'daegu', tagoCode: '22' },
@@ -30,6 +31,27 @@ const ODSAY_CITY_CODE_MAP: Record<string, BusRegionMapping> = {
   '9000': { region: 'sejong', tagoCode: '12' },
   '31': { region: 'gyeonggi', tagoCode: '31' },
   '2000': { region: 'gyeonggi', tagoCode: '31' },
+  // ODsay 경기도 주요 시군 CID (1200~1300대)
+  '1200': { region: 'gyeonggi', tagoCode: '31010' }, // 수원
+  '1210': { region: 'gyeonggi', tagoCode: '31020' }, // 성남
+  '1220': { region: 'gyeonggi', tagoCode: '31040' }, // 안양
+  '1230': { region: 'gyeonggi', tagoCode: '31240' }, // 화성
+  '1240': { region: 'gyeonggi', tagoCode: '31190' }, // 용인
+  '1250': { region: 'gyeonggi', tagoCode: '31050' }, // 부천
+  '1260': { region: 'gyeonggi', tagoCode: '31100' }, // 고양
+  '1270': { region: 'gyeonggi', tagoCode: '31090' }, // 안산
+  '1280': { region: 'gyeonggi', tagoCode: '31130' }, // 남양주
+  '1290': { region: 'gyeonggi', tagoCode: '31070' }, // 평택
+  '1300': { region: 'gyeonggi', tagoCode: '31160' }, // 군포
+  '1310': { region: 'gyeonggi', tagoCode: '31060' }, // 광명
+  '1320': { region: 'gyeonggi', tagoCode: '31120' }, // 구리
+  '1330': { region: 'gyeonggi', tagoCode: '31200' }, // 파주
+  '1340': { region: 'gyeonggi', tagoCode: '31230' }, // 김포
+  '1350': { region: 'gyeonggi', tagoCode: '31180' }, // 하남
+  '1360': { region: 'gyeonggi', tagoCode: '31150' }, // 시흥
+  '1370': { region: 'gyeonggi', tagoCode: '31250' }, // 광주(경기)
+  '1380': { region: 'gyeonggi', tagoCode: '31260' }, // 양주
+  '1390': { region: 'gyeonggi', tagoCode: '31210' }, // 이천
   '32': { region: 'gangwon', tagoCode: '32' },
   '3200': { region: 'gangwon', tagoCode: '32' },
   '33': { region: 'chungbuk', tagoCode: '33' },
@@ -59,8 +81,9 @@ export function resolveBusRegion(busCityCode?: string | number): string {
     return ODSAY_CITY_CODE_MAP[codeStr].region;
   }
 
-  // 31xxx 형태의 경기도 시군 코드 처리
-  if (codeStr.startsWith('31')) {
+  // 31xxx 형태 또는 ODsay 1200대 경기도 시군 CID 처리
+  const numCode = parseInt(codeStr, 10);
+  if (codeStr.startsWith('31') || (numCode >= 1200 && numCode <= 1390)) {
     return 'gyeonggi';
   }
 
@@ -76,6 +99,11 @@ export function resolveTagoCode(busCityCode?: string | number): string {
 
   if (ODSAY_CITY_CODE_MAP[codeStr]) {
     return ODSAY_CITY_CODE_MAP[codeStr].tagoCode;
+  }
+
+  const numCode = parseInt(codeStr, 10);
+  if (numCode >= 1200 && numCode <= 1390) {
+    return '31'; // 경기도 공통 TAGO cityCode
   }
 
   return codeStr;
@@ -100,11 +128,16 @@ export function generateTagoNodeIdCandidates(
   // 숫자만 추출된 기본 ID
   const pureNumeric = rawId.replace(/[^0-9]/g, '');
 
-  // 1. 경기도: GGB 접두사 (GGB + 9자리/수치형 ID)
+  // 1. 경기도: GGB 접두사 (GGB + 9자리/수치형 ID 또는 2xx로 시작하는 경기도 정류장 ID)
   if (
     normalizedRegion === 'gyeonggi' ||
     normalizedRegion === '경기' ||
-    resolvedCityCode.startsWith('31')
+    resolvedCityCode.startsWith('31') ||
+    pureNumeric.startsWith('233') ||
+    pureNumeric.startsWith('228') ||
+    pureNumeric.startsWith('200') ||
+    pureNumeric.startsWith('234') ||
+    pureNumeric.startsWith('202')
   ) {
     if (pureNumeric) {
       candidates.push(`GGB${pureNumeric}`);

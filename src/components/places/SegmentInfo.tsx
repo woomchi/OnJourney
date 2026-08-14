@@ -15,6 +15,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { formatKmDistance, formatDurationMinutes, inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 import RouteTimelineGaugeBar from '@/components/route/RouteTimelineGaugeBar';
 import { SegmentBusRealtimeChip } from '@/components/transit/SegmentBusRealtimeChip';
+import { SegmentSubwayRealtimeChip } from '@/components/transit/SegmentSubwayRealtimeChip';
 
 // 1. 구간 이동 정보 뼈대 로딩 UI
 export function SegmentInfoSkeleton() {
@@ -217,8 +218,10 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     transferLabel = '도보';
   }
 
-  // 이동 구간 내 첫 번째 버스 정보 추출 (실시간 칩 연결용)
+  // 이동 구간 내 첫 번째 버스/지하철 정보 추출 (실시간 칩 연결용)
   const targetBusStep = data.steps?.find((s: any) => s.type === 'bus' || s.type === 'expressbus') || null;
+  const targetSubwayStep = data.steps?.find((s: any) => s.type === 'subway') || null;
+  const targetSubwayStationName = targetSubwayStep?.startName || originPlace?.place_name;
   const rawStationId =
     (targetBusStep as any)?.realtimeStationId ||
     (targetBusStep as any)?.startStationID ||
@@ -228,6 +231,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   const targetBusStationId = rawStationId ? String(rawStationId) : undefined;
   const targetBusName = targetBusStep?.name || '';
   const inferredRegion = (targetBusStep as any)?.startRegion || inferRegionFromPlace(originPlace);
+  const targetBusLat = (targetBusStep as any)?.startY || (targetBusStep as any)?.startLat || (originPlace as any)?.y || (originPlace as any)?.lat;
+  const targetBusLng = (targetBusStep as any)?.startX || (targetBusStep as any)?.startLng || (originPlace as any)?.x || (originPlace as any)?.lng;
   const targetCityCode = (targetBusStep as any)?.startCityCode;
 
   const getTransportIcon = (tType: string, steps: any[] = []) => {
@@ -306,8 +311,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                   </span>
                 </div>
 
-                {/* 타깃 버스 실시간 수직 독립 레이아웃 */}
-                {targetBusStep && targetBusName && (
+                {/* 타깃 이동 수단 실시간 수직 독립 레이아웃 */}
+                {targetBusStep && targetBusName ? (
                   <div className="flex items-center pt-0.5">
                     <SegmentBusRealtimeChip
                       region={inferredRegion}
@@ -316,9 +321,19 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                       cityCode={targetCityCode}
                       busNo={targetBusName}
                       busColor={targetBusStep?.color}
+                      lat={targetBusLat ? Number(targetBusLat) : undefined}
+                      lng={targetBusLng ? Number(targetBusLng) : undefined}
+                      variant="sidebar"
                     />
                   </div>
-                )}
+                ) : targetSubwayStep && targetSubwayStationName ? (
+                  <div className="flex items-center pt-0.5">
+                    <SegmentSubwayRealtimeChip
+                      stationName={targetSubwayStationName}
+                      variant="sidebar"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -613,8 +628,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               </span>
             </div>
 
-            {/* 타깃 버스 실시간 수직 독립 레이아웃 */}
-            {targetBusStep && targetBusName && (
+            {/* 타깃 이동 수단 실시간 수직 독립 레이아웃 */}
+            {targetBusStep && targetBusName ? (
               <div className="flex items-center pt-0.5">
                 <SegmentBusRealtimeChip
                   region={inferredRegion}
@@ -623,9 +638,19 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                   cityCode={targetCityCode}
                   busNo={targetBusName}
                   busColor={targetBusStep?.color}
+                  lat={targetBusLat ? Number(targetBusLat) : undefined}
+                  lng={targetBusLng ? Number(targetBusLng) : undefined}
+                  variant="sidebar"
                 />
               </div>
-            )}
+            ) : targetSubwayStep && targetSubwayStationName ? (
+              <div className="flex items-center pt-0.5">
+                <SegmentSubwayRealtimeChip
+                  stationName={targetSubwayStationName}
+                  variant="sidebar"
+                />
+              </div>
+            ) : null}
           </div>
 
           {/* 대안 경로 탐색 버튼 */}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { sharedTransitRefreshStore, SharedRefreshState } from '@/lib/transit/sharedTransitRefreshStore';
 
 export type AutoRefreshStatus = 'idle' | 'active' | 'paused';
 
@@ -9,6 +10,9 @@ export interface UseAutoRefreshOptions {
   maxRefreshCount?: number;
   onRefresh: () => void | Promise<unknown>;
   autoStart?: boolean;
+  isFetching?: boolean;
+  minLoadingDurationMs?: number;
+  sharedKey?: string;
 }
 
 export interface AutoRefreshState {
@@ -22,6 +26,7 @@ export interface UseAutoRefreshReturn {
   status: AutoRefreshStatus;
   refreshCount: number;
   countdown: number;
+  isLoading: boolean;
   start: () => void;
   reset: () => void;
   pause: () => void;
@@ -34,7 +39,42 @@ export function useAutoRefresh({
   maxRefreshCount = 3,
   onRefresh,
   autoStart = false,
+  isFetching = false,
+  minLoadingDurationMs = 400,
+  sharedKey,
 }: UseAutoRefreshOptions): UseAutoRefreshReturn {
+  // 공유 키 모드인 경우
+  const [sharedState, setSharedState] = useState<SharedRefreshState | null>(() =>
+    sharedKey ? sharedTransitRefreshStore.getState(sharedKey) : null
+  );
+
+  const onRefreshRef = useRef(onRefresh);
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
+
+  useEffect(() => {
+    if (!sharedKey) return;
+
+    const unsubscribe = sharedTransitRefreshStore.subscribe(
+      sharedKey,
+      () => onRefreshRef.current(),
+      (nextState) => {
+        setSharedState(nextState);
+      },
+      { intervalSeconds, maxRefreshCount, minLoadingDurationMs }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [sharedKey, intervalSeconds, maxRefreshCount, minLoadingDurationMs]);
+
+  useEffect(() => {
+    if (!sharedKey) return;
+    sharedTransitRefreshStore.updateFetching(sharedKey, isFetching);
+  }, [sharedKey, isFetching]);
+
   const [state, setState] = useState<AutoRefreshState>({
     status: autoStart ? 'active' : 'idle',
     refreshCount: 0,
@@ -42,10 +82,9 @@ export function useAutoRefresh({
     sessionId: Date.now(),
   });
 
-  const onRefreshRef = useRef(onRefresh);
-  useEffect(() => {
-    onRefreshRef.current = onRefresh;
-  }, [onRefresh]);
+  const [isDisplayLoading, setIsDisplayLoading] = useState<boolean>(isFetching);
+  const fetchStartTimeRef = useRef<number>(0);
+  const finishTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -56,39 +95,81 @@ export function useAutoRefresh({
     }
   }, []);
 
+  const clearFinishTimer = useCallback(() => {
+    if (finishTimerRef.current !== null) {
+      clearTimeout(finishTimerRef.current);
+      finishTimerRef.current = null;
+    }
+  }, []);
+
   const reset = useCallback(() => {
     clearTimer();
+    clearFinishTimer();
+    setIsDisplayLoading(false);
     setState({
       status: 'idle',
       refreshCount: 0,
       countdown: intervalSeconds,
       sessionId: Date.now(),
     });
-  }, [clearTimer, intervalSeconds]);
+  }, [clearTimer, clearFinishTimer, intervalSeconds]);
 
   const pause = useCallback(() => {
     clearTimer();
+    clearFinishTimer();
+    setIsDisplayLoading(false);
     setState((prev) => ({
       ...prev,
       status: 'paused',
       countdown: intervalSeconds,
     }));
-  }, [clearTimer, intervalSeconds]);
+  }, [clearTimer, clearFinishTimer, intervalSeconds]);
 
   const start = useCallback(() => {
     clearTimer();
+    clearFinishTimer();
+    fetchStartTimeRef.current = Date.now();
+    setIsDisplayLoading(true);
     setState({
       status: 'active',
       refreshCount: 0,
       countdown: intervalSeconds,
       sessionId: Date.now(),
     });
-    // 시작 시 즉시 1회 갱신
+    // 시작 시 갱신 함수 실행
     onRefreshRef.current();
-  }, [clearTimer, intervalSeconds]);
+  }, [clearTimer, clearFinishTimer, intervalSeconds]);
+
+  // isFetching 상태 변화 감지 및 최소 로딩 시간(minLoadingDurationMs) 보장
+  useEffect(() => {
+    if (isFetching) {
+      clearFinishTimer();
+      fetchStartTimeRef.current = Date.now();
+      setIsDisplayLoading(true);
+    } else {
+      // isFetching이 false가 되었을 때 경과 시간 계산
+      const elapsed = Date.now() - fetchStartTimeRef.current;
+      const remaining = Math.max(0, minLoadingDurationMs - elapsed);
+
+      clearFinishTimer();
+      finishTimerRef.current = setTimeout(() => {
+        setIsDisplayLoading(false);
+        if (state.status === 'active') {
+          setState((prev) => ({
+            ...prev,
+            countdown: intervalSeconds,
+          }));
+        }
+      }, remaining);
+    }
+
+    return () => {
+      clearFinishTimer();
+    };
+  }, [isFetching, minLoadingDurationMs, intervalSeconds, state.status, clearFinishTimer]);
 
   useEffect(() => {
-    if (state.status !== 'active') {
+    if (state.status !== 'active' || isDisplayLoading) {
       clearTimer();
       return;
     }
@@ -101,6 +182,8 @@ export function useAutoRefresh({
           const nextRefreshCount = prev.refreshCount + 1;
           // 갱신 함수 실행
           try {
+            fetchStartTimeRef.current = Date.now();
+            setIsDisplayLoading(true);
             onRefreshRef.current();
           } catch {
             // ignore
@@ -133,20 +216,45 @@ export function useAutoRefresh({
     return () => {
       clearTimer();
     };
-  }, [state.status, state.sessionId, maxRefreshCount, intervalSeconds, clearTimer]);
-
+  }, [state.status, state.sessionId, isDisplayLoading, maxRefreshCount, intervalSeconds, clearTimer]);
 
   // 언마운트 시 타이머 정리 보장
   useEffect(() => {
     return () => {
       clearTimer();
+      clearFinishTimer();
     };
-  }, [clearTimer]);
+  }, [clearTimer, clearFinishTimer]);
+
+  const handleStart = useCallback(() => {
+    if (sharedKey) {
+      sharedTransitRefreshStore.triggerRefresh(sharedKey);
+      return;
+    }
+    start();
+  }, [sharedKey, start]);
+
+  if (sharedKey && sharedState) {
+    return {
+      status: sharedState.status,
+      refreshCount: sharedState.refreshCount,
+      countdown: sharedState.countdown,
+      isLoading: sharedState.isDisplayLoading,
+      start: handleStart,
+      reset,
+      pause,
+      buttonText: sharedState.buttonText,
+      buttonTitle: sharedState.buttonTitle,
+    };
+  }
 
   let buttonText = '갱신';
   let buttonTitle = `클릭 시 ${maxRefreshCount}회(${intervalSeconds * maxRefreshCount}초) 자동 갱신 시작`;
 
-  if (state.status === 'active') {
+  if (isDisplayLoading) {
+    buttonText = '갱신 중';
+    buttonTitle = '실시간 도착 정보 확인 중...';
+  } else if (state.status === 'active') {
     buttonText = `${state.countdown}초`;
     buttonTitle = `자동 갱신 진행 중 (${state.refreshCount + 1}/${maxRefreshCount}회)`;
   } else if (state.status === 'paused') {
@@ -158,7 +266,8 @@ export function useAutoRefresh({
     status: state.status,
     refreshCount: state.refreshCount,
     countdown: state.countdown,
-    start,
+    isLoading: isDisplayLoading,
+    start: handleStart,
     reset,
     pause,
     buttonText,

@@ -51,7 +51,7 @@ export function useRealtimeTransit({
     enabled: Boolean(enabled && stationId),
     refetchInterval,
     refetchIntervalInBackground: false, // 탭 비활성화 시 자동 갱신 일시정지
-    staleTime: 0, // 갱신 버튼 클릭 시 즉시 최신 데이터 재조회
+    staleTime: 10000, // 10초 이내 중복 호출 방지 및 캐시 활용
     retry: 2, // 2회까지 자동 재시도
     retryDelay: 1000, // 1초 간격 백오프
   });

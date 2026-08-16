@@ -588,10 +588,10 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
   return (
     <div
-      className="w-full px-4 py-3 rounded-xl transition-all duration-200 border select-none cursor-pointer bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]"
+      className="w-full px-4 py-2.5 rounded-xl transition-all duration-200 border select-none cursor-pointer bg-white border-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-blue-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(59,130,246,0.06)] active:scale-[0.99]"
     >
       {/* 대안 2: 좌/우 Split 구조 (좌: 시간 & 도착예정 수직배치 / 우: 수단·거리 뱃지/요금) */}
-      <div className="flex items-center justify-between gap-3 mb-2.5">
+      <div className="flex items-center justify-between gap-3 mb-1.5">
         {/* 좌측 영역: 소요시간(대형) + 아래 도착예정시간 */}
         <div className="flex flex-col justify-center min-w-0 pr-3 border-r border-zinc-100 shrink-0">
           <span className="text-[17px] font-extrabold text-zinc-900 leading-tight tracking-tight">
@@ -727,7 +727,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
       </div>
 
       {/* 동적 타임라인 바 및 하단 노선 정보 (시인성 기준 조건부 가로 스크롤 적용) */}
-      <RouteTimelineGaugeBar steps={data.steps} className="mt-2 mb-1" />
+      <RouteTimelineGaugeBar steps={data.steps} className="mt-1 mb-0" />
     </div>
   );
 }

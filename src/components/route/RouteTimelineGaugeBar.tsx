@@ -102,7 +102,7 @@ export default function RouteTimelineGaugeBar({ steps, className = '' }: RouteTi
       onTouchMove={(e) => {
         if (needScroll) e.stopPropagation();
       }}
-      className={`w-full relative select-none py-1.5 ${
+      className={`w-full relative select-none py-0.5 ${
         needScroll
           ? 'overflow-x-auto scrollbar-none touch-pan-x cursor-grab active:cursor-grabbing'
           : 'overflow-hidden'

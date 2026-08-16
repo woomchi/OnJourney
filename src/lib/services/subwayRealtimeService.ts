@@ -311,7 +311,14 @@ export async function fetchSubwayRealtime(
           row.btrainSttus
         );
 
-        const { destination: destName, isExpress } = extractTrainMetadata(row.trainLineNm);
+        const { destination: destName, isExpress: isMetaExpress } = extractTrainMetadata(row.trainLineNm);
+        const isExpress =
+          isMetaExpress ||
+          row.btrainSttus === '급행' ||
+          row.btrainSttus === '특급' ||
+          String(row.trainLineNm || '').includes('급행') ||
+          String(row.trainLineNm || '').includes('(급)');
+
         const canBoard = destination ? (reachableMap.get(row) ?? true) : true;
 
         return {

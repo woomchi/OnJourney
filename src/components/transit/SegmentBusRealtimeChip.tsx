@@ -18,6 +18,8 @@ export interface SegmentBusRealtimeChipProps {
   lng?: number;
   manualOnly?: boolean;
   variant?: 'sidebar' | 'compact';
+  hideRefreshButton?: boolean;
+  onlyRefreshButton?: boolean;
 }
 
 function formatCompactTime(seconds: number): { text: string; isImminent: boolean } {
@@ -38,6 +40,8 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   lng,
   manualOnly = false,
   variant = 'sidebar',
+  hideRefreshButton = false,
+  onlyRefreshButton = false,
 }) => {
   const [hasActivated, setHasActivated] = useState<boolean>(!manualOnly);
 
@@ -52,7 +56,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     return match ? match[0].trim() : raw;
   }, [busNo]);
 
-  const { data, isLoading, isError, isFetching, refetch } = useRealtimeTransit({
+  const { data, isLoading: isQueryLoading, isError, isFetching, refetch } = useRealtimeTransit({
     region: region || 'tago',
     stationId: String(stationId || ''),
     stationName,
@@ -62,20 +66,17 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     enabled: Boolean(stationId && cleanBusNo && hasActivated),
   });
 
-  const [isSpinning, setIsSpinning] = useState(false);
+  const sharedKey = stationId && cleanBusNo
+    ? `bus:${region || 'tago'}:${stationId}:${cleanBusNo}`
+    : undefined;
 
-  useEffect(() => {
-    if (isFetching) {
-      setIsSpinning(true);
-      const timer = setTimeout(() => setIsSpinning(false), 600);
-      return () => clearTimeout(timer);
-    }
-  }, [isFetching]);
-
-  const { buttonText, buttonTitle, start, reset } = useAutoRefresh({
+  const { buttonText, buttonTitle, start, reset, isLoading: isRefreshLoading } = useAutoRefresh({
     intervalSeconds: 15,
     maxRefreshCount: 3,
     onRefresh: refetch,
+    isFetching,
+    minLoadingDurationMs: 400,
+    sharedKey,
   });
 
   // 구간 전환(stationId or busNo 변경) 시 초기 상태로 리셋
@@ -87,12 +88,11 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   // 유저가 새로고침 버튼 클릭 시 3회 자동 갱신 세션 시작/재개
   const handleManualRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isFetching) return;
-    setIsSpinning(true);
-    setTimeout(() => setIsSpinning(false), 600);
+    if (isRefreshLoading || isFetching) return;
     if (!hasActivated) {
       setHasActivated(true);
     }
+    refetch();
     start();
   };
 
@@ -126,22 +126,39 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
       <button
         type="button"
         onClick={handleManualRefresh}
-        disabled={isFetching}
+        disabled={isRefreshLoading || isFetching}
         title={buttonTitle}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white hover:bg-zinc-50 text-zinc-700 font-semibold border border-zinc-200/90 shadow-2xs shrink-0 cursor-pointer active:scale-95 text-[10px] transition-all"
+        className={clsx(
+          'inline-flex items-center justify-center w-[70px] min-w-[70px] gap-1 px-2 py-0.5 rounded-full bg-white text-zinc-700 font-semibold border border-zinc-200/90 shadow-2xs shrink-0 text-[10px] transition-all',
+          isRefreshLoading
+            ? 'opacity-90 cursor-wait'
+            : 'hover:bg-zinc-50 cursor-pointer active:scale-95'
+        )}
       >
-        <RefreshCw className={clsx('w-3 h-3 text-zinc-500 shrink-0', isSpinning && 'animate-spin-once')} />
-        <span className="tabular-nums font-semibold text-[10px] text-zinc-700">
+        <RefreshCw
+          className={clsx(
+            'w-3 h-3 text-zinc-500 shrink-0',
+            isRefreshLoading ? 'animate-spin-fast text-blue-600' : 'transition-transform duration-300'
+          )}
+        />
+        <span className="tabular-nums font-semibold text-[10px] text-zinc-700 whitespace-nowrap">
           {buttonText}
         </span>
       </button>
     );
   };
 
-  if (isLoading) {
+  if (onlyRefreshButton) {
+    return renderRefreshButton();
+  }
+
+  const isAnyLoading = isQueryLoading || isFetching || isRefreshLoading;
+  const hasData = targetBuses.length > 0;
+
+  if (isAnyLoading && !hasData) {
     return (
       <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
-        {renderRefreshButton()}
+        {!hideRefreshButton && renderRefreshButton()}
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-400 font-medium shrink-0 animate-pulse text-[10px]">
           <span>확인 중...</span>
         </span>
@@ -149,10 +166,10 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     );
   }
 
-  if (isError || targetBuses.length === 0) {
+  if (!hasData || isError) {
     return (
       <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
-        {renderRefreshButton()}
+        {!hideRefreshButton && renderRefreshButton()}
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-400 font-medium shrink-0 text-[10px]">
           <span>도착 정보 없음</span>
         </span>
@@ -168,7 +185,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     const timeText2 = targetBuses[1] ? formatCompactTime(targetBuses[1].arrivedInSeconds).text : null;
     return (
       <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
-        {renderRefreshButton()}
+        {!hideRefreshButton && renderRefreshButton()}
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs font-bold shrink-0 text-[10px] text-blue-600">
           <span>{timeText1}</span>
           {timeText2 && (
@@ -187,7 +204,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
 
   return (
     <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
-      {renderRefreshButton()}
+      {!hideRefreshButton && renderRefreshButton()}
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs font-bold shrink-0 text-[10px] text-blue-600">
         <span>{timeText1}</span>
         {stopCountText && (

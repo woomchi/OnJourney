@@ -11,12 +11,17 @@ export interface SubwayArrivalItem {
   arrivalTime?: string;
   isApproaching?: boolean;
   isRealtime?: boolean;
+  trainLineNm?: string;
+  arvlCd?: string;
+  arrivalPriority?: number;
 }
 
 export interface UseRealtimeSubwayOptions {
   stationName?: string;
   wayCode?: string;
   subwayId?: string;
+  destination?: string;
+  headsign?: string;
   enabled?: boolean;
   refetchInterval?: number | false;
 }
@@ -25,13 +30,15 @@ export function useRealtimeSubway({
   stationName,
   wayCode,
   subwayId,
+  destination,
+  headsign,
   enabled = true,
   refetchInterval = false,
 }: UseRealtimeSubwayOptions) {
   const cleanStationName = stationName ? stationName.replace(/역$/g, '').trim() : '';
 
   const query = useQuery({
-    queryKey: ['realtimeSubway', cleanStationName, wayCode, subwayId],
+    queryKey: ['realtimeSubway', cleanStationName, wayCode, subwayId, destination, headsign],
     queryFn: async (): Promise<SubwayArrivalItem[]> => {
       if (!cleanStationName) return [];
 
@@ -39,12 +46,18 @@ export function useRealtimeSubway({
       params.append('station', cleanStationName);
       if (wayCode) params.append('wayCode', wayCode);
       if (subwayId) params.append('subwayId', subwayId);
+      if (destination) params.append('destination', destination);
+      if (headsign) params.append('headsign', headsign);
 
       const url = `/api/subway/realtime?${params.toString()}`;
 
 
       const res = await fetch(url, {
-        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+          'Cache-Control': 'no-cache',
+        },
       });
 
       if (!res.ok) {

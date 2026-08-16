@@ -507,6 +507,8 @@ export default function AlternativeRoutePanel({
             stationName={subwayStationName}
             wayCode={firstSubwayStep.wayCode !== undefined ? String(firstSubwayStep.wayCode) : undefined}
             subwayId={firstSubwayStep.name}
+            destination={firstSubwayStep.endName}
+            headsign={firstSubwayStep.headsign}
             variant="compact"
           />
         </div>

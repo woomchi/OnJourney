@@ -8,11 +8,12 @@
 import { calculateSubwayETADynamic } from '@/lib/subwayService';
 import { SubwayTotalQueryType } from '../validations/subway';
 import type { SubwayArrival } from '@/types/journey';
+import { isStaleRow } from './subwayRealtimeService';
 
 // ─── 상수 & 캐시 ─────────────────────────────────────────────────────────────
 
-/** 일괄 API 호출 인메모리 캐시 유지 시간 (30초) */
-const TOTAL_CACHE_TTL_MS = 30_000;
+/** 일괄 API 호출 인메모리 캐시 유지 시간 (15초) */
+const TOTAL_CACHE_TTL_MS = 15_000;
 
 /** API 호출 타임아웃 (밀리초) */
 const FETCH_TIMEOUT_MS = 6_000;
@@ -41,6 +42,15 @@ let pendingFetchPromise: Promise<RawSubwayArrivalRow[]> | null = null;
 
 // ─── 서비스 함수 ─────────────────────────────────────────────────────────────
 
+function getSubwayTotalApiKey(): string {
+  const env = process.env as Record<string, string | undefined>;
+  const rawKey =
+    env.REAL_TIME_SUBWAY_TOTAL_API_KEY ||
+    env['REAL_TIME_SUBWAY_TOTAL_API_KEY '] ||
+    '';
+  return rawKey.trim().replace(/^["']|["']$/g, '');
+}
+
 /**
  * 서울시 지하철 실시간 일괄 도착 정보 API(OA-15799)를 호출하거나 캐시를 반환합니다.
  */
@@ -60,7 +70,7 @@ export async function fetchSubwayTotalArrivals(
     return filterRowsByParams(rows, params);
   }
 
-  const apiKey = process.env.REAL_TIME_SUBWAY_TOTAL_API_KEY;
+  const apiKey = getSubwayTotalApiKey();
 
   if (!apiKey || apiKey === 'PLACEHOLDER' || apiKey.trim() === '') {
     console.warn('[subwayTotalRealtimeService] REAL_TIME_SUBWAY_TOTAL_API_KEY 미설정');
@@ -171,6 +181,10 @@ export async function getStationArrivalsFromTotalCache(
     });
   }
 
+  // 만료된 데이터(수신 시각 초과 또는 출발 완료 열차) 필터링
+  const now = Date.now();
+  filteredRows = filteredRows.filter((row) => !isStaleRow(row, now));
+
   const processed = await Promise.all(
     filteredRows.map(async (row) => {
       const liveMsg = String(row.arvlMsg2 || '');
@@ -187,7 +201,9 @@ export async function getStationArrivalsFromTotalCache(
         lineName,
         barvlDt,
         String(row.subwayId || ''),
-        row.arvlCd
+        row.arvlCd,
+        row.trainLineNm,
+        row.btrainSttus
       );
 
       return {

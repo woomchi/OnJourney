@@ -13,5 +13,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
   const data = await fetchSubwayTotalArrivals(validatedParams);
 
-  return successResponse(data);
+  return successResponse(data, 200, {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  });
 });

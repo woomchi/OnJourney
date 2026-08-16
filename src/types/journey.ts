@@ -209,6 +209,9 @@ export interface SubwayArrival {
   arrivalTime: string;
   isApproaching: boolean;
   isRealtime?: boolean;
+  trainLineNm?: string;
+  arvlCd?: string;
+  arrivalPriority?: number;
 }
 
 /** 버스 실시간 도착 정보 */

@@ -9,10 +9,10 @@ export interface ApiResponse<T = unknown> {
   };
 }
 
-export function successResponse<T>(data: T, status = 200) {
+export function successResponse<T>(data: T, status = 200, headers?: HeadersInit) {
   return NextResponse.json(
     { success: true, data } as ApiResponse<T>,
-    { status }
+    { status, headers }
   );
 }
 

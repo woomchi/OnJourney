@@ -96,18 +96,32 @@ export function parseSubwayArrivalMessage(
     }
   }
 
-  // 2. 상태 키워드 패턴 매칭
-  // 2-A: "X역 진입", "X역 도착", "X역 출발"
-  const stationStatusMatch = normalized.match(/([가-힣A-Za-z0-9\s]+?)\s*(진입|도착|출발)/);
-  if (stationStatusMatch) {
-    const rawStn = stationStatusMatch[1].trim();
-    const action = stationStatusMatch[2];
-    stationName = cleanStationName(rawStn);
-    status = action === '진입' ? 'entering' : action === '도착' ? 'arrived' : 'departed';
-    confidence = 0.95;
+  // 2. 괄호 안 역명 우선 추출 (예: "[4]번째 전역 (진위)", "[11]번째 전역 (두정)")
+  const parenMatch = rawMsg.match(/\(([^)]+)\)/);
+  if (parenMatch) {
+    const candidate = cleanStationName(parenMatch[1]);
+    if (candidate && candidate.length >= 2 && !['전역', '당역', '급행', '일반', '특급'].includes(candidate)) {
+      stationName = candidate;
+    }
   }
 
-  // 2-B: "X전역", "[X]전역", "X개 역 전", "[X]번째 전역"
+  // 3. 상태 키워드 패턴 매칭
+  // 3-A: "X역 진입", "X역 도착", "X역 출발"
+  if (!stationName) {
+    const stationStatusMatch = normalized.match(/([가-힣A-Za-z0-9\s]+?)\s*(진입|도착|출발)/);
+    if (stationStatusMatch) {
+      const rawStn = stationStatusMatch[1].trim();
+      const action = stationStatusMatch[2];
+      const candidate = cleanStationName(rawStn);
+      if (candidate && candidate.length >= 2 && !['전', '전역', '당역', '번째'].includes(candidate)) {
+        stationName = candidate;
+        status = action === '진입' ? 'entering' : action === '도착' ? 'arrived' : 'departed';
+        confidence = 0.95;
+      }
+    }
+  }
+
+  // 3-B: "X전역", "[X]전역", "X개 역 전", "[X]번째 전역"
   const remainingMatch = normalized.match(/(?:\[(\d+)\]|(\d+))(?:\s*개?\s*역\s*전|\s*전역|\s*번째\s*전역)/);
   if (remainingMatch) {
     const numStr = remainingMatch[1] || remainingMatch[2];
@@ -126,7 +140,7 @@ export function parseSubwayArrivalMessage(
     confidence = Math.max(confidence, 0.85);
   }
 
-  // 2-C: "X분 후 도착", "X분"
+  // 3-C: "X분 후 도착", "X분"
   const minutesMatch = normalized.match(/(\d+)\s*분/);
   if (minutesMatch && remainingStations === null) {
     const mins = parseInt(minutesMatch[1], 10);
@@ -135,14 +149,6 @@ export function parseSubwayArrivalMessage(
       remainingStations = Math.max(1, Math.round(mins / 2));
       status = 'approaching';
       confidence = 0.8;
-    }
-  }
-
-  // 역명이 발견되지 않았으나 메시지에 특정 역명이 들어있을 수 있음
-  if (!stationName) {
-    const cleanedWords = normalized.split(/\s+/).map(cleanStationName).filter(w => w.length >= 2);
-    if (cleanedWords.length > 0) {
-      stationName = cleanedWords[0];
     }
   }
 

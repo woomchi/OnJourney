@@ -332,6 +332,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                       stationName={targetSubwayStationName}
                       wayCode={targetSubwayStep.wayCode !== undefined ? String(targetSubwayStep.wayCode) : undefined}
                       subwayId={targetSubwayStep.name}
+                      destination={targetSubwayStep.endName}
+                      headsign={targetSubwayStep.headsign}
                       variant="sidebar"
                     />
                   </div>
@@ -652,6 +654,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                   stationName={targetSubwayStationName}
                   wayCode={targetSubwayStep.wayCode !== undefined ? String(targetSubwayStep.wayCode) : undefined}
                   subwayId={targetSubwayStep.name}
+                  destination={targetSubwayStep.endName}
+                  headsign={targetSubwayStep.headsign}
                   variant="sidebar"
                 />
               </div>

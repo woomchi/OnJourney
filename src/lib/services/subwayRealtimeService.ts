@@ -14,6 +14,8 @@
 import {
   calculateSubwayETADynamic,
   calculateNextTrainFromTimetable,
+  parseSeoulApiDate,
+  isStationReachableOnLine,
 } from '@/lib/subwayService';
 import { SubwayRealtimeQueryType } from '../validations/subway';
 import type { SubwayArrival } from '@/types/journey';
@@ -24,10 +26,13 @@ import { getStationArrivalsFromTotalCache } from './subwayTotalRealtimeService';
 /** 서울시 지하철 실시간 API 캐시 재검증 주기 (초) */
 const REALTIME_REVALIDATE_SECONDS = 5;
 
-/** 실시간 데이터 수신 후 유효 시간 (밀리초, 90초) */
-const STALE_DATA_THRESHOLD_MS = 90_000;
+/** '진입/도착' 상태 데이터 수신 후 유효 시간 (밀리초, 180초 = 3분) */
+const STALE_APPROACHING_THRESHOLD_MS = 180_000;
 
-/** arvlCd = '2'는 '운행 종료'를 의미하여 필터링 대상 */
+/** 일반 운행 상태 데이터 수신 후 유효 시간 (밀리초, 300초 = 5분) */
+const STALE_RUNNING_THRESHOLD_MS = 300_000;
+
+/** arvlCd = '2'는 '출발/운행 종료'를 의미하여 필터링 대상 */
 const ARRIVAL_CODE_ENDED = '2';
 
 /** arvlCd = '0' 또는 '1'은 '진입/도착'으로 수신 시각 기반 만료 검증 필요 */
@@ -39,15 +44,17 @@ const FETCH_TIMEOUT_MS = 5_000;
 // ─── 로컬 타입 ─────────────────────────────────────────────────────────────────
 
 /** 서울시 실시간 API XML row의 최소 필드 타입 */
-interface SubwayRawRow {
+export interface SubwayRawRow {
   subwayId?: string | number;
   updnLine?: string;
   btrainNo?: string | number;
   trainNo?: string | number;
   arvlMsg2?: string;
   recptnDt?: string;
-  barvlDt?: number;
+  barvlDt?: number | string;
   arvlCd?: string | number;
+  trainLineNm?: string;
+  btrainSttus?: string;
 }
 
 // ─── 내부 헬퍼 ────────────────────────────────────────────────────────────────
@@ -109,26 +116,52 @@ async function buildTimetableFallback(
 /**
  * 실시간 API row가 만료된 데이터인지 판별합니다.
  */
-function isStaleRow(row: SubwayRawRow, currentTimeMs: number): boolean {
-  const arvlCd = String(row.arvlCd || '');
+export function isStaleRow(row: SubwayRawRow, currentTimeMs: number): boolean {
+  const arvlCd = String(row.arvlCd ?? '');
+  const arvlMsg2 = String(row.arvlMsg2 ?? '');
 
-  if (arvlCd === ARRIVAL_CODE_ENDED) return true;
+  // 1. 이미 당역 출발 완료된 열차
+  if (arvlMsg2.includes('당역 출발') || arvlMsg2.includes('당역출발')) {
+    return true;
+  }
 
-  if (ARRIVAL_CODES_APPROACHING.has(arvlCd)) {
-    const recptnDt = String(row.recptnDt || '');
-    if (recptnDt) {
-      try {
-        const receiptTimeMs = new Date(recptnDt.replace(' ', 'T')).getTime();
-        if (!isNaN(receiptTimeMs) && currentTimeMs - receiptTimeMs > STALE_DATA_THRESHOLD_MS) {
+  // 2. recptnDt 수신 시각 기반 유효시간 검증
+  const recptnDt = String(row.recptnDt || '');
+  if (recptnDt) {
+    try {
+      const receiptTimeMs = parseSeoulApiDate(recptnDt);
+      if (!isNaN(receiptTimeMs)) {
+        const elapsedMs = currentTimeMs - receiptTimeMs;
+        const isApproachingOrArrived =
+          ARRIVAL_CODES_APPROACHING.has(arvlCd) ||
+          arvlMsg2.includes('진입') ||
+          arvlMsg2.includes('도착');
+
+        const thresholdMs = isApproachingOrArrived
+          ? STALE_APPROACHING_THRESHOLD_MS
+          : STALE_RUNNING_THRESHOLD_MS;
+
+        if (elapsedMs > thresholdMs) {
           return true;
         }
-      } catch {
-        // 날짜 파싱 실패 시 만료로 처리하지 않음
       }
+    } catch {
+      // 날짜 파싱 실패 시 만료로 처리하지 않음
     }
   }
 
   return false;
+}
+
+function getSubwayApiKey(): string {
+  const env = process.env as Record<string, string | undefined>;
+  const rawKey =
+    env.REAL_TIME_SUBWAY_API_KEY ||
+    env['REAL_TIME_SUBWAY_API_KEY '] ||
+    env.REAL_TIME_SEOUL_SUBWAY_API_KEY ||
+    env['REAL_TIME_SEOUL_SUBWAY_API_KEY '] ||
+    '';
+  return rawKey.trim().replace(/^["']|["']$/g, '');
 }
 
 // ─── 공개 API ─────────────────────────────────────────────────────────────────
@@ -143,10 +176,8 @@ function isStaleRow(row: SubwayRawRow, currentTimeMs: number): boolean {
 export async function fetchSubwayRealtime(
   params: SubwayRealtimeQueryType
 ): Promise<SubwayArrival[]> {
-  const { station, wayCode, subwayId } = params;
-  const apiKey =
-    process.env.REAL_TIME_SUBWAY_API_KEY ||
-    process.env.REAL_TIME_SEOUL_SUBWAY_API_KEY;
+  const { station, wayCode, subwayId, destination, headsign } = params;
+  const apiKey = getSubwayApiKey();
   const cleanStation = station.replace(/역$/, '').trim();
 
   // ─ API 키 미설정 → 2차/3차 Fallback ─
@@ -163,7 +194,7 @@ export async function fetchSubwayRealtime(
 
   try {
     const response = await fetch(url, {
-      next: { revalidate: REALTIME_REVALIDATE_SECONDS },
+      cache: 'no-store',
       signal: controller.signal,
     });
 
@@ -183,6 +214,10 @@ export async function fetchSubwayRealtime(
     }
 
     let rows: SubwayRawRow[] = data.realtimeArrivalList || [];
+
+    // 만료된 데이터(수신 시각 초과 또는 출발 완료 열차) 1차 필터링
+    const now = Date.now();
+    rows = rows.filter((row) => !isStaleRow(row, now));
 
     // 요청된 subwayId가 지정된 경우, 환승역 타 노선 데이터 혼선을 방지하기 위해 노선 필터링
     if (subwayId) {
@@ -227,6 +262,18 @@ export async function fetchSubwayRealtime(
       });
     }
 
+    // 하차역(destination) 지정 시 도달 불가능한 분기/지선 열차 필터링
+    if (destination) {
+      rows = rows.filter((row) =>
+        isStationReachableOnLine(
+          String(row.subwayId || subwayId || ''),
+          cleanStation,
+          destination,
+          row.trainLineNm,
+          row.updnLine
+        )
+      );
+    }
 
     // ─ 유효 결과 없음 → 2차/3차 Fallback ─
     if (rows.length === 0) {
@@ -250,7 +297,9 @@ export async function fetchSubwayRealtime(
           lineName,
           barvlDt,
           String(row.subwayId || ''),
-          row.arvlCd
+          row.arvlCd,
+          row.trainLineNm,
+          row.btrainSttus
         );
 
         return {
@@ -260,6 +309,7 @@ export async function fetchSubwayRealtime(
           statnNm: cleanStation,
           arvlMsg2: liveMsg,
           recptnDt: recTime,
+          trainLineNm: row.trainLineNm,
           ...eta,
           isRealtime: true,
         };
@@ -276,11 +326,12 @@ export async function fetchSubwayRealtime(
       return fallbackToTotalOrTimetable(cleanStation, wayCode);
     }
 
-    // 접근 중인 열차 우선, 이후 minutesLeft 오름차순 정렬
+    // 관제 위치 단계(arrivalPriority: 0=도착, 1=진입, 2=전역출발, 3=전역, 4+=N전역) 1차 정렬, 동일 단계 내 minutesLeft 2차 정렬
     validArrivals.sort((a, b) => {
-      if (a.isApproaching && !b.isApproaching) return -1;
-      if (!a.isApproaching && b.isApproaching) return 1;
-      return a.minutesLeft - b.minutesLeft;
+      const pA = a.arrivalPriority ?? (a.isApproaching ? 1 : 10 + (a.minutesLeft || 0));
+      const pB = b.arrivalPriority ?? (b.isApproaching ? 1 : 10 + (b.minutesLeft || 0));
+      if (pA !== pB) return pA - pB;
+      return (a.minutesLeft || 0) - (b.minutesLeft || 0);
     });
 
     return validArrivals;

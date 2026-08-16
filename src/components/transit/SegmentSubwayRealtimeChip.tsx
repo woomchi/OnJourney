@@ -10,6 +10,8 @@ export interface SegmentSubwayRealtimeChipProps {
   stationName?: string;
   wayCode?: string;
   subwayId?: string;
+  destination?: string;
+  headsign?: string;
   variant?: 'sidebar' | 'compact';
 }
 
@@ -17,6 +19,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   stationName,
   wayCode,
   subwayId,
+  destination,
+  headsign,
   variant = 'sidebar',
 }) => {
   const cleanStationName = stationName ? stationName.replace(/역$/g, '').trim() : '';
@@ -25,6 +29,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     stationName: cleanStationName,
     wayCode,
     subwayId,
+    destination,
+    headsign,
     enabled: Boolean(cleanStationName),
   });
 
@@ -33,44 +39,47 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   useEffect(() => {
     if (isFetching) {
       setIsSpinning(true);
-      const timer = setTimeout(() => setIsSpinning(false), 600);
+    } else {
+      const timer = setTimeout(() => setIsSpinning(false), 400);
       return () => clearTimeout(timer);
     }
   }, [isFetching]);
 
-  const { buttonText, buttonTitle, start, reset } = useAutoRefresh({
+  const { buttonText, buttonTitle, start } = useAutoRefresh({
     intervalSeconds: 15,
     maxRefreshCount: 10,
     onRefresh: refetch,
     autoStart: true,
   });
 
-  // 역명, 방면, 노선ID가 실제 변경되었을 때만 타이머를 리셋합니다.
+  // 역명, 방면, 노선ID, 목적지가 실제 변경되었을 때만 타이머를 리셋합니다.
   const prevStationRef = React.useRef<string>(cleanStationName);
   const prevWayCodeRef = React.useRef<string | undefined>(wayCode);
   const prevSubwayIdRef = React.useRef<string | undefined>(subwayId);
+  const prevDestRef = React.useRef<string | undefined>(destination);
 
   useEffect(() => {
     if (
       prevStationRef.current !== cleanStationName ||
       prevWayCodeRef.current !== wayCode ||
-      prevSubwayIdRef.current !== subwayId
+      prevSubwayIdRef.current !== subwayId ||
+      prevDestRef.current !== destination
     ) {
       prevStationRef.current = cleanStationName;
       prevWayCodeRef.current = wayCode;
       prevSubwayIdRef.current = subwayId;
+      prevDestRef.current = destination;
       start();
     }
-  }, [cleanStationName, wayCode, subwayId, start]);
-
-
-
+  }, [cleanStationName, wayCode, subwayId, destination, start]);
 
   const handleManualRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isFetching) return;
     setIsSpinning(true);
-    setTimeout(() => setIsSpinning(false), 600);
+    refetch().finally(() => {
+      setTimeout(() => setIsSpinning(false), 400);
+    });
     start();
   };
 
@@ -85,7 +94,12 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
         title={buttonTitle}
         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white hover:bg-zinc-50 text-zinc-700 font-semibold border border-zinc-200/90 shadow-2xs shrink-0 cursor-pointer active:scale-95 text-[10px] transition-all"
       >
-        <RefreshCw className={clsx('w-3 h-3 text-zinc-500 shrink-0', isSpinning && 'animate-spin-once')} />
+        <RefreshCw
+          className={clsx(
+            'w-3 h-3 text-zinc-500 shrink-0 transition-transform duration-300',
+            (isSpinning || isFetching) && 'animate-spin-once'
+          )}
+        />
         <span className="tabular-nums font-semibold text-[10px] text-zinc-700">
           {buttonText}
         </span>
@@ -119,6 +133,15 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   const item2 = data[1];
 
   const formatItemTime = (item: typeof item1) => {
+    if (item.arvlCd === '1' || item.statusText?.startsWith('도착') || item.statusText === '도착') {
+      return '도착';
+    }
+    if (item.arvlCd === '0' || item.statusText?.includes('진입')) {
+      return '곧 도착 [진입]';
+    }
+    if (item.arvlCd === '3' || item.statusText?.includes('전역출발')) {
+      return '곧 도착 [전역출발]';
+    }
     if (item.minutesLeft !== undefined && item.minutesLeft > 0) {
       return `${item.minutesLeft}분 후`;
     }
@@ -150,8 +173,11 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   }
 
   const isRealtime = item1.isRealtime !== false;
+  const destTag = item1.trainLineNm ? item1.trainLineNm.split(' ')[0] : '';
   const detailText = isRealtime
-    ? item1.arvlMsg2 || item1.updnLine || '실시간'
+    ? destTag
+      ? `${item1.arvlMsg2 || item1.updnLine || '실시간'} (${destTag})`
+      : item1.arvlMsg2 || item1.updnLine || '실시간'
     : item1.statusText || `${item1.updnLine || ''} 시간표`;
 
   return (

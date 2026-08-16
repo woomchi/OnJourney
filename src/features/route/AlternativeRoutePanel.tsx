@@ -261,6 +261,19 @@ export default function AlternativeRoutePanel({
     };
   }, [publicData, carData]);
 
+function isRouteMatch(
+  r1?: DirectionResult | SelectedRoute | null,
+  r2?: DirectionResult | SelectedRoute | null
+): boolean {
+  if (!r1 || !r2) return false;
+  if (r1.id && r2.id && r1.id === r2.id) return true;
+  if (r1.type !== r2.type || r1.duration !== r2.duration) return false;
+  const s1 = r1.steps || [];
+  const s2 = r2.steps || [];
+  if (s1.length !== s2.length) return false;
+  return s1.every((step, idx) => step.type === s2[idx]?.type && step.name === s2[idx]?.name);
+}
+
   const publicLoading = queryClient.getQueryState(publicKey)?.status === 'pending';
   const carLoading = queryClient.getQueryState(carKey)?.status === 'pending';
   const transportType = activeJourney?.transport_type || 'public';
@@ -290,7 +303,16 @@ export default function AlternativeRoutePanel({
 
   const [hoveredPreviewRoute, setHoveredPreviewRoute] = useState<DirectionResult | SelectedRoute | null>(null);
   const activeTabRoutes = segmentData ? (segmentData[activeTab] || []) : [];
-  const previewRoute = (hoveredPreviewRoute && hoveredPreviewRoute.type === activeTab ? hoveredPreviewRoute : null) || activeTabRoutes[0] || activeRoute;
+  
+  const previewRoute = useMemo(() => {
+    if (hoveredPreviewRoute && hoveredPreviewRoute.type === activeTab) {
+      return hoveredPreviewRoute;
+    }
+    if (activeRoute && activeRoute.type === activeTab) {
+      return activeRoute;
+    }
+    return activeTabRoutes[0] || activeRoute;
+  }, [hoveredPreviewRoute, activeRoute, activeTab, activeTabRoutes]);
 
   useEffect(() => {
     setHoveredAlternativeRoute(previewRoute as any);
@@ -300,9 +322,11 @@ export default function AlternativeRoutePanel({
   useEffect(() => {
     if (isOpen) {
       setAnimate(true);
+      setHoveredPreviewRoute(null);
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnimate(false);
+      setHoveredPreviewRoute(null);
     }
   }, [isOpen]);
 
@@ -443,6 +467,30 @@ export default function AlternativeRoutePanel({
 
     return { routeTags: tags, recommendedRouteIds: recIds };
   }, [activeTab, routes, publicRouteGroups]);
+
+  // activeRoute가 속한 서브탭 자동 감지
+  const matchedSubTab = useMemo(() => {
+    if (activeTab !== 'public' || !activeRoute) return '추천';
+    if (recommendedRouteIds.has(activeRoute.id)) return '추천';
+
+    for (const [category, catRoutes] of Object.entries(publicRouteGroups)) {
+      if (catRoutes.some(r => isRouteMatch(r, activeRoute))) {
+        return category;
+      }
+    }
+    return '추천';
+  }, [activeTab, activeRoute, recommendedRouteIds, publicRouteGroups]);
+
+  const hasAutoSelectedSubTabRef = useRef(false);
+  useEffect(() => {
+    if (isOpen && !hasAutoSelectedSubTabRef.current && matchedSubTab) {
+      setActiveSubTab(matchedSubTab);
+      hasAutoSelectedSubTabRef.current = true;
+    }
+    if (!isOpen) {
+      hasAutoSelectedSubTabRef.current = false;
+    }
+  }, [isOpen, matchedSubTab]);
 
   const displayedRoutes = useMemo(() => {
     if (activeTab !== 'public') return routes;
@@ -602,7 +650,7 @@ export default function AlternativeRoutePanel({
   }, []);
 
   const renderRouteButton = (route: DirectionResult) => {
-    const isSelected = previewRoute ? previewRoute.id === route.id : false;
+    const isSelected = isRouteMatch(previewRoute, route);
     const emoji = getEmoji(route);
     const tags = routeTags ? (routeTags[route.id] || []) : [];
 

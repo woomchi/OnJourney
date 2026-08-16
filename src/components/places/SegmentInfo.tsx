@@ -7,6 +7,7 @@ import { calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance
 import { SEQUENCE_COLORS } from '@/constants/colors';
 import FittedDuration from './FittedDuration';
 import { Car, Footprints, Bus, Train, RotateCw } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
@@ -197,6 +198,12 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
   const arrStr = getArrivalTimeStr();
 
+  // 1시간 이상 시 "1시간", "37분" 수직 2줄 분할 렌더링 헬퍼
+  const durationMatch = duration ? duration.match(/^(\d+시간)\s*(\d+분)$/) : null;
+  const isMultiLineDuration = Boolean(durationMatch);
+  const hourPart = durationMatch ? durationMatch[1] : '';
+  const minPart = durationMatch ? durationMatch[2] : '';
+
   const fareVal = data.fare || data.taxiFare;
   const formattedFare = fareVal
     ? (data.taxiFare && !data.fare ? `택시 ${data.taxiFare.toLocaleString()}원` : `${data.fare.toLocaleString()}원`)
@@ -272,14 +279,25 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
             </div>
 
             {/* 소요 시간(좌: 시간/도착예정) & 상세 정보(우: 수단·거리 뱃지/요금) Split 구조 */}
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              {/* 좌: 시간 & 도착예정 (수직 정렬) */}
-              <div className="flex flex-col justify-center min-w-0 pr-3 border-r border-zinc-100 shrink-0">
-                <span className="font-extrabold tracking-tight text-[20px] text-zinc-800 leading-none">
-                  {duration || '이동'}
-                </span>
+            <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+              {/* 좌: 분 단위 기준 너비 고정(w-[58px]) & 1시간 이상 시 수직 2줄 분할 렌더링 */}
+              <div className="flex flex-col justify-center w-[58px] min-w-[58px] max-w-[58px] pr-2.5 border-r border-zinc-100 shrink-0">
+                {isMultiLineDuration ? (
+                  <div className="flex flex-col leading-none gap-0.5">
+                    <span className="font-black text-[15px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
+                      {hourPart}
+                    </span>
+                    <span className="font-black text-[15px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
+                      {minPart}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="font-extrabold text-[20px] text-zinc-800 leading-none whitespace-nowrap text-left tracking-tight">
+                    {duration || '이동'}
+                  </span>
+                )}
                 {arrStr && (
-                  <span className="text-[12px] font-medium text-zinc-400 mt-1 whitespace-nowrap">
+                  <span className={clsx("font-medium text-zinc-400 whitespace-nowrap text-left", isMultiLineDuration ? "text-[10px] mt-0.5" : "text-[11px] mt-1")}>
                     {arrStr} 도착
                   </span>
                 )}
@@ -592,13 +610,24 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     >
       {/* 대안 2: 좌/우 Split 구조 (좌: 시간 & 도착예정 수직배치 / 우: 수단·거리 뱃지/요금) */}
       <div className="flex items-center justify-between gap-3 mb-1.5">
-        {/* 좌측 영역: 소요시간(대형) + 아래 도착예정시간 */}
-        <div className="flex flex-col justify-center min-w-0 pr-3 border-r border-zinc-100 shrink-0">
-          <span className="text-[17px] font-extrabold text-zinc-900 leading-tight tracking-tight">
-            {duration || '이동'}
-          </span>
+        {/* 좌측 영역: 소요시간(분 단위 기준 너비 고정 & 1시간 이상 시 수직 2줄 분할) + 아래 도착예정시간 */}
+        <div className="flex flex-col justify-center w-[58px] min-w-[58px] max-w-[58px] pr-2.5 border-r border-zinc-100 shrink-0">
+          {isMultiLineDuration ? (
+            <div className="flex flex-col leading-none gap-0.5">
+              <span className="font-black text-[15px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
+                {hourPart}
+              </span>
+              <span className="font-black text-[15px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
+                {minPart}
+              </span>
+            </div>
+          ) : (
+            <span className="font-extrabold text-[18px] text-zinc-900 leading-none whitespace-nowrap text-left tracking-tight">
+              {duration || '이동'}
+            </span>
+          )}
           {arrStr && (
-            <span className="text-[11px] font-medium text-zinc-400 mt-0.5 whitespace-nowrap">
+            <span className={clsx("font-medium text-zinc-400 whitespace-nowrap text-left", isMultiLineDuration ? "text-[10px] mt-0.5" : "text-[11px] mt-0.5")}>
               {arrStr} 도착
             </span>
           )}

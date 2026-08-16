@@ -59,8 +59,52 @@ export class RealtimeTransitService {
       }
     }
 
-    // 1단계: TAGO 스마트 노드 변화 감지 트래픽 최적화 버스 서비스 Promise 생성
-    const tagoPromise = TagoBusService.getArrivalInfoSmartNodeTrigger({
+    // 1단계: 경기도 권역 (Primary: 경기도 버스도착정보 API -> Fallback: TAGO)
+    if (normalizedRegion === 'gyeonggi' || normalizedRegion === '경기') {
+      try {
+        const ggResult = await GyeonggiBusService.getArrivalInfo(stationId, stationName);
+        if (ggResult && ggResult.nextArrivals.length > 0) {
+          return ggResult; // 경기도 1순위 데이터 즉시 반환
+        }
+      } catch (err: any) {
+        console.warn(`[RealtimeTransitService] 경기도 1순위 API 호출 실패, TAGO 폴백 진행: ${err?.message}`);
+      }
+
+      // 경기도 API 결과 0건 또는 실패 시 TAGO로 폴백
+      return TagoBusService.getArrivalInfoSmartNodeTrigger({
+        cityCode: resolvedCityCode,
+        region: normalizedRegion,
+        nodeId: stationId,
+        stationName,
+        lat,
+        lng,
+      });
+    }
+
+    // 2단계: 부산 권역 (Primary: 부산 버스정보 API -> Fallback: TAGO)
+    if (normalizedRegion === 'busan' || normalizedRegion === '부산') {
+      try {
+        const busanResult = await BusanBusService.getArrivalInfo(stationId, stationName);
+        if (busanResult && busanResult.nextArrivals.length > 0) {
+          return busanResult; // 부산 1순위 데이터 즉시 반환
+        }
+      } catch (err: any) {
+        console.warn(`[RealtimeTransitService] 부산 1순위 API 호출 실패, TAGO 폴백 진행: ${err?.message}`);
+      }
+
+      // 부산 API 결과 0건 또는 실패 시 TAGO로 폴백
+      return TagoBusService.getArrivalInfoSmartNodeTrigger({
+        cityCode: resolvedCityCode,
+        region: normalizedRegion,
+        nodeId: stationId,
+        stationName,
+        lat,
+        lng,
+      });
+    }
+
+    // 3단계: 전국 및 기타 권역 (Primary: TAGO 스마트 노드 버스 서비스)
+    return TagoBusService.getArrivalInfoSmartNodeTrigger({
       cityCode: resolvedCityCode,
       region: normalizedRegion,
       nodeId: stationId,
@@ -68,46 +112,5 @@ export class RealtimeTransitService {
       lat,
       lng,
     });
-
-    // 2단계: 시도별 보완 API Promise 생성 (경기도 / 부산)
-    let supplementPromise: Promise<NormalizedRealtimeData | null> = Promise.resolve(null);
-    if (normalizedRegion === 'gyeonggi' || normalizedRegion === '경기') {
-      supplementPromise = GyeonggiBusService.getArrivalInfo(stationId, stationName).catch((err) => {
-        console.warn(`[RealtimeTransitService] 경기도 보완 API 호출 실패: ${err?.message}`);
-        return null;
-      });
-    } else if (normalizedRegion === 'busan' || normalizedRegion === '부산') {
-      supplementPromise = BusanBusService.getArrivalInfo(stationId, stationName).catch((err) => {
-        console.warn(`[RealtimeTransitService] 부산 보완 API 호출 실패: ${err?.message}`);
-        return null;
-      });
-    }
-
-    // 3단계: 두 API를 병렬로 동시 대기 후 머지
-    const [tagoSettled, supplementSettled] = await Promise.allSettled([
-      tagoPromise,
-      supplementPromise,
-    ]);
-
-    const tagoResult: NormalizedRealtimeData =
-      tagoSettled.status === 'fulfilled'
-        ? tagoSettled.value
-        : {
-            stationId,
-            stationName,
-            nextArrivals: [],
-            dataSource: 'tago',
-            lastUpdated: Date.now(),
-            reliability: 0.0,
-          };
-
-    const supplementResult: NormalizedRealtimeData | null =
-      supplementSettled.status === 'fulfilled' ? supplementSettled.value : null;
-
-    if (supplementResult) {
-      return MergeService.mergeArrivalData(tagoResult, supplementResult);
-    }
-
-    return tagoResult;
   }
 }

@@ -17,9 +17,13 @@ export class MergeService {
     const sources = new Set<string>([tagoData.dataSource]);
 
     const getMergeKey = (item: ArrivalBusItem): string => {
-      const timeBucket = Math.floor((item.arrivedInSeconds || 0) / 120);
-      const baseKey = item.lineId || item.lineName;
-      return `${baseKey}_${timeBucket}`;
+      const cleanName = (item.lineName || '')
+        .replace(/^(일반|마을|직행|광역|지선|간선|순환|좌석|급행|시외|공항)/g, '')
+        .replace(/버스|번/g, '')
+        .replace(/[^0-9a-zA-Z가-힣]/g, '')
+        .trim();
+      const timeBucket = Math.floor((item.arrivedInSeconds || 0) / 180);
+      return `${cleanName || item.lineId || 'bus'}_${timeBucket}`;
     };
 
     // 1단계: TAGO 기본 노선 적재

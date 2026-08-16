@@ -212,6 +212,9 @@ export interface SubwayArrival {
   trainLineNm?: string;
   arvlCd?: string;
   arrivalPriority?: number;
+  canBoard?: boolean;
+  destinationStationNm?: string;
+  isExpress?: boolean;
 }
 
 /** 버스 실시간 도착 정보 */

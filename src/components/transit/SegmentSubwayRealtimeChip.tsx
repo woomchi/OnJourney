@@ -148,10 +148,24 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     return item.statusText || (item.isRealtime !== false ? '진입 중' : '운행 중');
   };
 
+  const getDestLabel = (item: typeof item1) => {
+    if (item.destinationStationNm) {
+      const expressTag = item.isExpress ? '(급행)' : '';
+      return `${item.destinationStationNm}${expressTag}행`;
+    }
+    if (item.trainLineNm) {
+      const head = item.trainLineNm.split('-')[0].trim();
+      return head.endsWith('행') ? head : `${head}행`;
+    }
+    return item.updnLine || '';
+  };
+
   const timeText1 = formatItemTime(item1);
+  const destText1 = getDestLabel(item1);
 
   if (variant === 'compact') {
     const timeText2 = item2 ? formatItemTime(item2) : null;
+    const destText2 = item2 ? getDestLabel(item2) : null;
     const isRealtime = item1.isRealtime !== false;
 
     return (
@@ -163,9 +177,16 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
             isRealtime ? 'text-blue-600' : 'text-slate-700'
           )}
         >
-          <span>{timeText1}</span>
+          <span>
+            {timeText1}
+            {destText1 && <span className="font-medium text-zinc-500"> ({destText1})</span>}
+          </span>
           {timeText2 && (
-            <span className="text-zinc-400 font-normal"> · {timeText2}</span>
+            <span className="text-zinc-400 font-normal">
+              {' · '}
+              {timeText2}
+              {destText2 && <span className="font-normal text-zinc-400"> ({destText2})</span>}
+            </span>
           )}
         </span>
       </div>
@@ -173,25 +194,27 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   }
 
   const isRealtime = item1.isRealtime !== false;
-  const destTag = item1.trainLineNm ? item1.trainLineNm.split(' ')[0] : '';
-  const detailText = isRealtime
-    ? destTag
-      ? `${item1.arvlMsg2 || item1.updnLine || '실시간'} (${destTag})`
-      : item1.arvlMsg2 || item1.updnLine || '실시간'
-    : item1.statusText || `${item1.updnLine || ''} 시간표`;
+  const isCanBoard = item1.canBoard !== false;
 
   return (
     <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
       {renderRefreshButton()}
       <span
         className={clsx(
-          'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs font-bold shrink-0 text-[10px]',
-          isRealtime ? 'text-blue-600' : 'text-slate-700'
+          'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white border shadow-2xs font-bold shrink-0 text-[10px]',
+          isRealtime ? 'border-blue-200 text-blue-600' : 'border-zinc-200 text-slate-700'
         )}
       >
-        <span>{timeText1}</span>
-        {detailText && detailText !== timeText1 && (
-          <span className="text-zinc-500 font-medium"> · {detailText}</span>
+        <span className="tabular-nums font-semibold">{timeText1}</span>
+        {destText1 && (
+          <span className="text-zinc-600 font-medium border-l border-zinc-200 pl-1.5">
+            {destText1}
+          </span>
+        )}
+        {!isCanBoard && (
+          <span className="text-amber-600 bg-amber-50 px-1 rounded text-[9px] font-semibold">
+            중간종착
+          </span>
         )}
       </span>
     </div>

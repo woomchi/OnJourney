@@ -449,16 +449,126 @@ export function calculateTimeBetweenStations(
   return null;
 }
 
+/** 1호선 메인 축 (신창 ~ 수원 ~ 구로 ~ 서울역 ~ 청량리 ~ 광운대 ~ 소요산) 정렬 역 목록 */
+const LINE_1_MAIN_AXIS = [
+  '신창', '온양온천', '배방', '탕정', '아산', '쌍용', '봉명', '천안', '두정', '직산', '성환', '평택', '평택지제', '서정리', '송탄', '진위', '오산', '오산대', '세마', '병점', '세류', '수원', '화서', '성균관대', '의왕', '당정', '군포', '금정', '명학', '안양', '관악', '석수', '금천구청', '독산', '가산디지털단지', '구로', '신도림', '영등포', '신길', '대방', '노량진', '용산', '남영', '서울역', '시청', '종각', '종로3가', '종로5가', '동대문', '동묘앞', '신설동', '제기동', '청량리', '회기', '외대앞', '신이문', '석계', '광운대', '월계', '녹천', '창동', '방학', '도봉', '도봉산', '망월사', '회룡', '의정부', '가능', '녹양', '양주', '덕계', '덕정', '지행', '보산', '동두천', '소요산'
+];
+
+/** LINE_1_MAIN_AXIS 빠른 인덱스 조회용 Map */
+const line1AxisMap = new Map<string, number>(
+  LINE_1_MAIN_AXIS.map((name, idx) => [name, idx])
+);
+
+/** 1호선 경인선 전용 주요 역 목록 */
+const GYEONGIN_STATIONS = new Set([
+  '구일', '개봉', '오류동', '온수', '역곡', '부천', '중동', '송내', '부개', '부평', '백운', '동암', '간석', '주안', '제물포', '도화', '도원', '동인천', '인천'
+]);
+
+/** 1호선 경부선(구로 이남) 주요 역 목록 */
+const GYEONGBU_SOUTH_STATIONS = new Set([
+  '가산디지털단지', '독산', '금천구청', '석수', '관악', '안양', '명학', '금정', '군포', '당정', '의왕', '성균관대', '화서', '수원', '세류', '병점', '세마', '오산대', '오산', '진위', '송탄', '서정리', '평택지제', '평택', '성환', '직산', '두정', '천안', '봉명', '쌍용', '아산', '탕정', '배방', '온양온천', '신창'
+]);
+
+/** 5호선 하남선 주요 역 목록 */
+const HANAM_STATIONS = new Set([
+  '상일동', '강일', '미사', '하남풍산', '하남시청', '하남검단산'
+]);
+
+/** 5호선 마천선 주요 역 목록 */
+const MACHEON_STATIONS = new Set([
+  '둔촌동', '올림픽공원', '방이', '오금', '개롱', '거여', '마천'
+]);
+
+export interface TrainMetadata {
+  destination: string | null;
+  isExpress: boolean;
+  rawDestination: string;
+}
+
 /**
- * trainLineNm (예: "광운대행 - 세류방면", "서동탄행 - 세마방면", "인천행 - 구일방면")에서 종착역명(Destination)을 추출합니다.
+ * trainLineNm (예: "광운대행 - 세류방면", "동인천(급행)행 - 신도림방면", "청량리행(막차)")에서 종착역과 급행 여부를 추출합니다.
+ */
+export function extractTrainMetadata(trainLineNm?: string): TrainMetadata {
+  if (!trainLineNm) {
+    return { destination: null, isExpress: false, rawDestination: '' };
+  }
+
+  const lineHead = trainLineNm.split('-')[0].trim();
+  const isExpress =
+    lineHead.includes('급행') ||
+    lineHead.includes('(급)') ||
+    lineHead.includes('특급');
+
+  const match = lineHead.match(/^([가-힣A-Za-z0-9]+?)(?:\s*\([^)]*\))?\s*행/);
+  let destination: string | null = null;
+  let rawDestination = '';
+
+  if (match && match[1]) {
+    destination = normalizeStationName(match[1]);
+    rawDestination = match[1];
+  } else {
+    const cleanHead = lineHead
+      .replace(/행.*$/, '')
+      .replace(/\([^)]*\)/g, '')
+      .trim();
+    if (cleanHead) {
+      destination = normalizeStationName(cleanHead);
+      rawDestination = cleanHead;
+    }
+  }
+
+  return { destination, isExpress, rawDestination };
+}
+
+/**
+ * trainLineNm에서 종착역명(Destination)을 추출합니다.
  */
 export function extractTrainDestination(trainLineNm?: string): string | null {
-  if (!trainLineNm) return null;
-  const match = trainLineNm.match(/^([가-힣A-Za-z0-9]+)행/);
-  if (match) {
-    return normalizeStationName(match[1]);
+  return extractTrainMetadata(trainLineNm).destination;
+}
+
+/**
+ * 탑승역, 목표역, 열차 종착역 간의 분기선 불일치(Mismatch) 여부를 판별합니다.
+ */
+function checkBranchMismatch(cleanStart: string, cleanTarget: string, trainDest: string): boolean {
+  // 1. 1호선 구로 이남 분기 (경인선 vs 경부선)
+  const isTargetGyeongin = GYEONGIN_STATIONS.has(cleanTarget);
+  const isTargetGyeongbu = GYEONGBU_SOUTH_STATIONS.has(cleanTarget);
+
+  if (isTargetGyeongin || isTargetGyeongbu) {
+    const isDestGyeongin = GYEONGIN_STATIONS.has(trainDest) || trainDest === '인천' || trainDest === '동인천' || trainDest === '부천';
+    const isDestGyeongbu = GYEONGBU_SOUTH_STATIONS.has(trainDest) || trainDest === '천안' || trainDest === '신창' || trainDest === '병점' || trainDest === '수원' || trainDest === '서동탄' || trainDest === '광명';
+
+    if (isTargetGyeongin && isDestGyeongbu && !isDestGyeongin) {
+      return true;
+    }
+    if (isTargetGyeongbu && isDestGyeongin && !isDestGyeongbu) {
+      return true;
+    }
   }
-  return null;
+
+  // 2. 5호선 강동 이남 분기 (하남선 vs 마천선)
+  const isTargetHanam = HANAM_STATIONS.has(cleanTarget);
+  const isTargetMacheon = MACHEON_STATIONS.has(cleanTarget);
+
+  if (isTargetHanam || isTargetMacheon) {
+    const isDestHanam = HANAM_STATIONS.has(trainDest) || trainDest === '상일동' || trainDest === '하남검단산';
+    const isDestMacheon = MACHEON_STATIONS.has(trainDest) || trainDest === '마천';
+
+    if (isTargetHanam && isDestMacheon && !isDestHanam) return true;
+    if (isTargetMacheon && isDestHanam && !isDestMacheon) return true;
+  }
+
+  // 3. 1호선 서동탄 지선 / 광명 지선 Mismatch
+  if (trainDest === '서동탄' && (cleanTarget === '오산' || cleanTarget === '평택' || cleanTarget === '천안' || cleanTarget === '신창')) {
+    return true;
+  }
+
+  if (trainDest === '광명' && cleanTarget !== '광명' && GYEONGBU_SOUTH_STATIONS.has(cleanTarget) && cleanTarget !== '금천구청') {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -479,17 +589,48 @@ export function isStationReachableOnLine(
 
   if (!cleanTarget || cleanTarget === cleanStart) return true;
 
-  const trainDest = extractTrainDestination(trainLineNm);
+  const { destination: trainDest } = extractTrainMetadata(trainLineNm);
   if (!trainDest) return true;
 
   // 1. 단순 일치 (예: 승객 하차역이 "천안"이고 열차가 "천안행"일 때)
   if (trainDest === cleanTarget) return true;
 
-  // 2. O(1) 노선 인덱스 탐색
+  // 2. 분기선 불일치(Mismatch) 1차 검증
+  if (checkBranchMismatch(cleanStart, cleanTarget, trainDest)) {
+    return false;
+  }
+
+  // 3. 1호선 메인 축 직결 노선 O(1) 위상학적 검증
+  const startLine1Idx = line1AxisMap.get(cleanStart);
+  const targetLine1Idx = line1AxisMap.get(cleanTarget);
+  const destLine1Idx = line1AxisMap.get(trainDest);
+
+  if (startLine1Idx !== undefined && targetLine1Idx !== undefined && destLine1Idx !== undefined) {
+    // 상행 (신창/수원 -> 서울역 -> 소요산 방면)
+    if (startLine1Idx < destLine1Idx && startLine1Idx < targetLine1Idx && targetLine1Idx <= destLine1Idx) {
+      return true;
+    }
+    // 하행 (소요산/서울역 -> 수원 -> 신창 방면)
+    if (startLine1Idx > destLine1Idx && startLine1Idx > targetLine1Idx && targetLine1Idx >= destLine1Idx) {
+      return true;
+    }
+    // 목표역이 열차 종착역을 넘어선 경우 (중간 종착)
+    if ((startLine1Idx < destLine1Idx && targetLine1Idx > destLine1Idx) ||
+        (startLine1Idx > destLine1Idx && targetLine1Idx < destLine1Idx)) {
+      return false;
+    }
+  }
+
+  // 4. O(1) 일반 노선 인덱스 탐색
   const indexMap = getLineDistanceIndexMap();
   if (!indexMap) return true;
 
-  for (const lineIndex of indexMap.values()) {
+  const candidateCodes = subwayId ? resolveCandidateLineCodes(subwayId) : [];
+  const linesToSearch = candidateCodes.length > 0
+    ? candidateCodes.map(code => indexMap.get(code)).filter((l): l is LineDistanceIndex => Boolean(l))
+    : Array.from(indexMap.values());
+
+  for (const lineIndex of linesToSearch) {
     const startInfo = lineIndex.stationMap.get(cleanStart);
     const targetInfo = lineIndex.stationMap.get(cleanTarget);
 
@@ -500,12 +641,13 @@ export function isStationReachableOnLine(
 
       if (destInfo) {
         const destIdx = destInfo.index;
-        // 탑승역 -> 목표역 -> 열차종착역 순으로 배열되어 있는지 검증
         if (startIdx < destIdx && startIdx < targetIdx && targetIdx <= destIdx) return true;
         if (startIdx > destIdx && startIdx > targetIdx && targetIdx >= destIdx) return true;
+
+        if ((startIdx < destIdx && targetIdx > destIdx) || (startIdx > destIdx && targetIdx < destIdx)) {
+          return false;
+        }
       } else {
-        // 열차가 이 서브라인을 벗어나 다른 노선(예: 1호선 경원선, 서울역 북쪽)으로 직결 운행하는 경우:
-        // 탑승역에서 목표역 방향이 열차 진행 방향과 일치하면 유효
         const isUpLine = updnLine === '상행' || updnLine === '1' || updnLine?.includes('내선');
         if (isUpLine && targetIdx <= startIdx) return true;
         if (!isUpLine && targetIdx >= startIdx) return true;
@@ -513,7 +655,31 @@ export function isStationReachableOnLine(
     }
   }
 
-  return false;
+  // fallback 전체 탐색
+  if (candidateCodes.length > 0) {
+    for (const lineIndex of indexMap.values()) {
+      const startInfo = lineIndex.stationMap.get(cleanStart);
+      const targetInfo = lineIndex.stationMap.get(cleanTarget);
+
+      if (startInfo && targetInfo) {
+        const startIdx = startInfo.index;
+        const targetIdx = targetInfo.index;
+        const destInfo = lineIndex.stationMap.get(trainDest);
+
+        if (destInfo) {
+          const destIdx = destInfo.index;
+          if (startIdx < destIdx && startIdx < targetIdx && targetIdx <= destIdx) return true;
+          if (startIdx > destIdx && startIdx > targetIdx && targetIdx >= destIdx) return true;
+
+          if ((startIdx < destIdx && targetIdx > destIdx) || (startIdx > destIdx && targetIdx < destIdx)) {
+            return false;
+          }
+        }
+      }
+    }
+  }
+
+  return true;
 }
 
 /**

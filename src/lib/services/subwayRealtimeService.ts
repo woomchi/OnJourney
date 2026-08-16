@@ -16,6 +16,7 @@ import {
   calculateNextTrainFromTimetable,
   parseSeoulApiDate,
   isStationReachableOnLine,
+  extractTrainMetadata,
 } from '@/lib/subwayService';
 import { SubwayRealtimeQueryType } from '../validations/subway';
 import type { SubwayArrival } from '@/types/journey';
@@ -262,17 +263,25 @@ export async function fetchSubwayRealtime(
       });
     }
 
-    // 하차역(destination) 지정 시 도달 불가능한 분기/지선 열차 필터링
+    // 하차역(destination) 지정 시 도달 가능 여부(canBoard) 사전 판별
+    const reachableMap = new Map<SubwayRawRow, boolean>();
     if (destination) {
-      rows = rows.filter((row) =>
-        isStationReachableOnLine(
+      for (const row of rows) {
+        const canReach = isStationReachableOnLine(
           String(row.subwayId || subwayId || ''),
           cleanStation,
           destination,
           row.trainLineNm,
           row.updnLine
-        )
-      );
+        );
+        reachableMap.set(row, canReach);
+      }
+
+      // 목적지에 도달 가능한 열차가 1개 이상 존재하면, 도달 가능한 열차만 선별
+      const reachableRows = rows.filter((r) => reachableMap.get(r) === true);
+      if (reachableRows.length > 0) {
+        rows = reachableRows;
+      }
     }
 
     // ─ 유효 결과 없음 → 2차/3차 Fallback ─
@@ -280,7 +289,7 @@ export async function fetchSubwayRealtime(
       return fallbackToTotalOrTimetable(cleanStation, wayCode);
     }
 
-    // ─ ETA 계산 (병렬 처리) ─
+    // ─ ETA 및 메타데이터 계산 (병렬 처리) ─
     const processedArrivalsRaw = await Promise.all(
       rows.map(async (row) => {
         const liveMsg = String(row.arvlMsg2 || '');
@@ -302,6 +311,9 @@ export async function fetchSubwayRealtime(
           row.btrainSttus
         );
 
+        const { destination: destName, isExpress } = extractTrainMetadata(row.trainLineNm);
+        const canBoard = destination ? (reachableMap.get(row) ?? true) : true;
+
         return {
           subwayId: String(row.subwayId || ''),
           updnLine: lineName,
@@ -312,6 +324,9 @@ export async function fetchSubwayRealtime(
           trainLineNm: row.trainLineNm,
           ...eta,
           isRealtime: true,
+          canBoard,
+          destinationStationNm: destName || undefined,
+          isExpress,
         };
       })
     );
@@ -326,8 +341,12 @@ export async function fetchSubwayRealtime(
       return fallbackToTotalOrTimetable(cleanStation, wayCode);
     }
 
-    // 관제 위치 단계(arrivalPriority: 0=도착, 1=진입, 2=전역출발, 3=전역, 4+=N전역) 1차 정렬, 동일 단계 내 minutesLeft 2차 정렬
+    // 1차: canBoard(직통 가능 여부: true 우선), 2차: arrivalPriority, 3차: minutesLeft 정렬
     validArrivals.sort((a, b) => {
+      const cbA = a.canBoard !== false ? 1 : 0;
+      const cbB = b.canBoard !== false ? 1 : 0;
+      if (cbA !== cbB) return cbB - cbA; // true(1)가 false(0)보다 우선
+
       const pA = a.arrivalPriority ?? (a.isApproaching ? 1 : 10 + (a.minutesLeft || 0));
       const pB = b.arrivalPriority ?? (b.isApproaching ? 1 : 10 + (b.minutesLeft || 0));
       if (pA !== pB) return pA - pB;

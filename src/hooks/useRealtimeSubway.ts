@@ -14,6 +14,9 @@ export interface SubwayArrivalItem {
   trainLineNm?: string;
   arvlCd?: string;
   arrivalPriority?: number;
+  canBoard?: boolean;
+  destinationStationNm?: string;
+  isExpress?: boolean;
 }
 
 export interface UseRealtimeSubwayOptions {

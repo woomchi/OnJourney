@@ -59,7 +59,7 @@ export class RealtimeTransitService {
       }
     }
 
-    // 1단계: 경기도 권역 (Primary: 경기도 버스도착정보 API -> Fallback: TAGO)
+    // 1단계: 경기도 전용 권역 (Primary: 경기도 버스도착정보 API -> Fallback: TAGO)
     if (normalizedRegion === 'gyeonggi' || normalizedRegion === '경기') {
       try {
         const ggResult = await GyeonggiBusService.getArrivalInfo(stationId, stationName);
@@ -103,7 +103,47 @@ export class RealtimeTransitService {
       });
     }
 
-    // 3단계: 전국 및 기타 권역 (Primary: TAGO 스마트 노드 버스 서비스)
+    // 3단계: 서울 및 수도권 복합 권역 (GBIS 경기도 광역버스 + TAGO 서울/전국 버스 병렬 호출 및 머지)
+    if (normalizedRegion === 'seoul' || normalizedRegion === '서울' || !region) {
+      try {
+        const [ggbSettled, tagoSettled] = await Promise.allSettled([
+          GyeonggiBusService.getArrivalInfo(stationId, stationName),
+          TagoBusService.getArrivalInfoSmartNodeTrigger({
+            cityCode: resolvedCityCode || '11',
+            region: normalizedRegion,
+            nodeId: stationId,
+            stationName,
+            lat,
+            lng,
+          }),
+        ]);
+
+        const ggbResult = ggbSettled.status === 'fulfilled' ? ggbSettled.value : null;
+        const tagoResult = tagoSettled.status === 'fulfilled' ? tagoSettled.value : null;
+
+        const hasGgbArrivals = Boolean(ggbResult && ggbResult.nextArrivals.length > 0);
+        const hasTagoArrivals = Boolean(tagoResult && tagoResult.nextArrivals.length > 0);
+
+        if (hasGgbArrivals && hasTagoArrivals && tagoResult && ggbResult) {
+          // 둘 다 도착 정보가 존재하면 지능형 병합 (TAGO 베이스 + GBIS 광역버스 우선 머지)
+          return MergeService.mergeArrivalData(tagoResult, ggbResult);
+        } else if (hasGgbArrivals && ggbResult) {
+          // GBIS에만 광역버스 데이터가 있으면 GBIS 결과 반환
+          return ggbResult;
+        } else if (hasTagoArrivals && tagoResult) {
+          // TAGO에만 데이터가 있으면 TAGO 결과 반환
+          return tagoResult;
+        } else if (ggbResult && (!tagoResult || ggbResult.reliability >= tagoResult.reliability)) {
+          return ggbResult;
+        } else if (tagoResult) {
+          return tagoResult;
+        }
+      } catch (err: any) {
+        console.warn(`[RealtimeTransitService] 서울/수도권 복합 병렬 호출 에러: ${err?.message}`);
+      }
+    }
+
+    // 4단계: 전국 및 기타 권역 (Primary: TAGO 스마트 노드 버스 서비스)
     return TagoBusService.getArrivalInfoSmartNodeTrigger({
       cityCode: resolvedCityCode,
       region: normalizedRegion,

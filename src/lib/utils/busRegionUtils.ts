@@ -190,3 +190,41 @@ export function generateTagoNodeIdCandidates(
   return Array.from(new Set(candidates.filter(Boolean)));
 }
 
+/**
+ * 버스 노선 번호(busNo/lineName)를 엄격히 정규화하여 실시간 매칭에 적합한 순수 노선 번호로 반환합니다.
+ * (예: "직행좌석9401" -> "9401", "5100예약" -> "5100", "M5107" -> "M5107", "3000(예약)" -> "3000")
+ */
+export function cleanBusNumber(busNo?: string | number): string {
+  if (!busNo) return '';
+  let str = String(busNo).trim();
+
+  // 1. 괄호 및 내부 텍스트 제거 (예: "(예약)", "(출근)", "(퇴근)")
+  str = str.replace(/\s*\([^)]*\)/g, '').trim();
+
+  // 2. 버스 수식 접두사 반복 제거 (직행좌석, 광역급행, 경기순환 등 복합어 대응)
+  const prefixRegex = /^(직행좌석|광역급행|경기순환|일반좌석|마을버스|간선급행|직행|광역|급행|간선|지선|순환|마을|맞춤|시외|공항|일반|좌석|따복)\s*/g;
+  let prevStr = '';
+  while (prevStr !== str) {
+    prevStr = str;
+    str = str.replace(prefixRegex, '').trim();
+  }
+
+  // 3. 버스 접미사 및 상태어 반복 제거 ("버스", "번", "예약", "출근", "퇴근", "심야", "임시")
+  const suffixRegex = /\s*(버스|번|예약|출근|퇴근|심야|임시)\s*$/g;
+  let prevSuffixStr = '';
+  while (prevSuffixStr !== str) {
+    prevSuffixStr = str;
+    str = str.replace(suffixRegex, '').trim();
+  }
+
+  // 4. 영문 광역급행(M, G, P 등) + 숫자(-숫자) 또는 순수 숫자/한글 노선 정규화 추출
+  const match = str.match(/([a-zA-Z]?[0-9]+[a-zA-Z가-힣0-9\-]*|[가-힣]+[0-9\-]*)/);
+  if (match) {
+    let clean = match[0].toUpperCase().trim();
+    clean = clean.replace(/(번|버스)$/g, '');
+    return clean;
+  }
+
+  return str.toUpperCase().trim();
+}
+

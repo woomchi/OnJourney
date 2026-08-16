@@ -12,6 +12,24 @@ export class GyeonggiBusService {
     'https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2';
 
   /**
+   * GBIS routeTypeCd 및 버스 번호를 바탕으로 BusType 분류
+   */
+  private static parseGyeonggiBusType(routeTypeCd?: number | string, routeName?: string): BusType {
+    const cd = Number(routeTypeCd);
+    if (cd === 11 || cd === 12 || cd === 14 || cd === 21 || cd === 22) {
+      return 'express'; // 직행좌석, 좌석, 광역급행(M), 농어촌직행/좌석
+    }
+    if (cd === 15) return 'limited'; // 따복/맞춤형
+    if (cd === 16) return 'circulation'; // 순환형
+
+    const name = String(routeName || '').toUpperCase().trim();
+    if (name.startsWith('M') || name.startsWith('G') || name.startsWith('P')) {
+      return 'express';
+    }
+    return 'normal';
+  }
+
+  /**
    * 경기도 버스 도착 정보 조회
    */
   public static async getArrivalInfo(
@@ -28,11 +46,15 @@ export class GyeonggiBusService {
 
     try {
       const cleanStationId = stationId.replace(/^GGB/i, '').trim();
-      const stationIdCandidates = Array.from(new Set([cleanStationId, stationId.trim()]));
-      const serviceKey = apiKey.trim();
+      const pureNumeric = stationId.replace(/[^0-9]/g, '');
+      const stationIdCandidates = Array.from(
+        new Set([cleanStationId, pureNumeric, stationId.trim()].filter(Boolean))
+      );
+      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey.trim()) : apiKey.trim();
+      const encodedServiceKey = encodeURIComponent(rawServiceKey);
 
       const fetchCandidate = async (candidateId: string): Promise<GyeonggiApiResponse | null> => {
-        const requestUrl = `${this.API_URL}?serviceKey=${serviceKey}&stationId=${encodeURIComponent(candidateId)}&format=json`;
+        const requestUrl = `${this.API_URL}?serviceKey=${encodedServiceKey}&stationId=${encodeURIComponent(candidateId)}&format=json`;
         const res = await fetch(requestUrl, {
           method: 'GET',
           headers: { Accept: 'application/json' },
@@ -51,7 +73,8 @@ export class GyeonggiBusService {
       for (const result of candidateResults) {
         if (result.status === 'fulfilled' && result.value) {
           const json = result.value;
-          if (json.response?.body?.items) {
+          const list = json.response?.msgBody?.busArrivalList || json.response?.body?.items;
+          if (list && (Array.isArray(list) ? list.length > 0 : true)) {
             validJson = json;
             break;
           } else if (!validJson) {
@@ -86,6 +109,10 @@ export class GyeonggiBusService {
         const time2 = rawTime2 !== undefined && rawTime2 !== '' ? Number(rawTime2) || 0 : 0;
         const lineName = String(item.routeName || item.routeNo || '').trim();
         const routeId = String(item.routeId || lineName || '버스');
+        const destination = item.routeDestName || item.stopName || undefined;
+        const busType = this.parseGyeonggiBusType(item.routeTypeCd, lineName);
+
+        const isExpress = busType === 'express';
 
         const parseLocationNo = (val: any): number | undefined => {
           if (val === undefined || val === null || val === '') return undefined;
@@ -93,8 +120,31 @@ export class GyeonggiBusService {
           return !isNaN(num) ? num : undefined;
         };
 
+        const parseRemainSeats = (val: any): number | undefined => {
+          // 일반 시내버스는 좌석 예약제가 아니므로 항상 undefined 반환하여 '만석' 오표시 차단
+          if (!isExpress) return undefined;
+          if (val === undefined || val === null || val === '') return undefined;
+          const num = Number(val);
+          return !isNaN(num) && num >= 0 ? num : undefined;
+        };
+
+        const parseCrowdedStatus = (val: any): string | undefined => {
+          if (val === undefined || val === null || val === '') return undefined;
+          const str = String(val).trim();
+          if (str === '0') return undefined; // 정보 없음
+          if (str === '1') return '여유';
+          if (str === '2') return '보통';
+          if (str === '3') return '혼잡';
+          if (str === '4') return '매우혼잡';
+          return str || undefined;
+        };
+
         const loc1 = parseLocationNo(item.locationNo1 ?? item.locationNumber1);
         const loc2 = parseLocationNo(item.locationNo2 ?? item.locationNumber2);
+        const seats1 = parseRemainSeats(item.remainSeatCnt1);
+        const seats2 = parseRemainSeats(item.remainSeatCnt2);
+        const crowded1 = parseCrowdedStatus(item.crowded1);
+        const crowded2 = parseCrowdedStatus(item.crowded2);
 
         if (time1 > 0) {
           nextArrivals.push({
@@ -102,8 +152,10 @@ export class GyeonggiBusService {
             lineName: lineName || routeId,
             arrivedInSeconds: time1 * 60,
             currentStationSequence: loc1,
-            busType: 'normal' as BusType,
-            destination: item.stopName,
+            busType,
+            destination,
+            remainSeats: seats1,
+            crowded: crowded1,
           });
         }
 
@@ -113,8 +165,10 @@ export class GyeonggiBusService {
             lineName: lineName || routeId,
             arrivedInSeconds: time2 * 60,
             currentStationSequence: loc2,
-            busType: 'normal' as BusType,
-            destination: item.stopName,
+            busType,
+            destination,
+            remainSeats: seats2,
+            crowded: crowded2,
           });
         }
       }

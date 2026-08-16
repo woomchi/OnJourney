@@ -6,6 +6,7 @@ import { clsx } from 'clsx';
 import { useRealtimeTransit } from '@/hooks/useRealtimeTransit';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { ArrivalBusItem } from '@/types/realtimeTransit';
+import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
 
 export interface SegmentBusRealtimeChipProps {
   region?: string;
@@ -30,60 +31,58 @@ function formatBusItemTime(seconds: number): string {
   return `${mins}분 후`;
 }
 
-function getBusLocationText(bus: ArrivalBusItem): string {
+function getBusStationCountText(bus: ArrivalBusItem): string {
   if (typeof bus.currentStationSequence === 'number' && bus.currentStationSequence > 0) {
     return `${bus.currentStationSequence}전`;
-  }
-  if (bus.destination) {
-    return bus.destination.replace(/방향$/, '').trim();
   }
   return '';
 }
 
-function getBusTypeBadge(bus: ArrivalBusItem, rawBusNo?: string) {
-  const line = (rawBusNo || bus.lineName || '').trim();
-  if (
-    bus.busType === 'express' ||
-    line.includes('광역') ||
-    line.includes('직행') ||
-    line.includes('급행') ||
-    line.includes('좌석')
-  ) {
-    return <span className="text-rose-600 font-bold">급행</span>;
+function renderSeatOrCrowdedBadge(bus: ArrivalBusItem, isPrimary: boolean = true) {
+  // 1. 광역/직행좌석버스 여석 정보 우선 표시
+  if (typeof bus.remainSeats === 'number') {
+    if (bus.remainSeats === 0) {
+      return <span className="font-bold text-rose-600">만석</span>;
+    }
+    return (
+      <span className={isPrimary ? 'font-semibold text-emerald-700' : 'font-medium text-emerald-600'}>
+        {bus.remainSeats}석
+      </span>
+    );
   }
-  if (bus.busType === 'circulation' || line.includes('순환')) {
-    return <span className="text-amber-600 font-semibold">순환</span>;
-  }
-  if (line.includes('마을')) {
-    return <span className="text-emerald-600 font-semibold">마을</span>;
-  }
-  if (bus.busType === 'limited' || line.includes('맞춤')) {
-    return <span className="text-purple-600 font-medium">맞춤</span>;
-  }
-  return <span className="text-zinc-500 font-medium">일반</span>;
-}
 
-function getBusTypeBadgeSecondary(bus: ArrivalBusItem, rawBusNo?: string) {
-  const line = (rawBusNo || bus.lineName || '').trim();
-  if (
-    bus.busType === 'express' ||
-    line.includes('광역') ||
-    line.includes('직행') ||
-    line.includes('급행') ||
-    line.includes('좌석')
-  ) {
-    return <span className="text-rose-500 font-bold">급행</span>;
+  // 2. 일반 시내버스 혼잡도 정보 표시
+  if (bus.crowded) {
+    const cr = bus.crowded.trim();
+    if (cr === '여유') {
+      return (
+        <span className={isPrimary ? 'font-semibold text-emerald-700' : 'font-medium text-emerald-600'}>
+          여유
+        </span>
+      );
+    }
+    if (cr === '보통') {
+      return (
+        <span className={isPrimary ? 'font-medium text-blue-600' : 'font-normal text-zinc-600'}>
+          보통
+        </span>
+      );
+    }
+    if (cr === '혼잡') {
+      return <span className="font-bold text-amber-600">혼잡</span>;
+    }
+    if (cr === '매우혼잡') {
+      return <span className="font-bold text-rose-600">혼잡</span>;
+    }
+    return <span className="font-medium text-zinc-600">{cr}</span>;
   }
-  if (bus.busType === 'circulation' || line.includes('순환')) {
-    return <span className="text-amber-600 font-normal">순환</span>;
+
+  // 3. 둘 다 없을 경우 종점 약칭 또는 공백
+  if (bus.destination) {
+    return <span className="text-zinc-400 font-normal truncate">{bus.destination.replace(/방향$/, '').trim()}</span>;
   }
-  if (line.includes('마을')) {
-    return <span className="text-emerald-600 font-normal">마을</span>;
-  }
-  if (bus.busType === 'limited' || line.includes('맞춤')) {
-    return <span className="text-purple-500 font-normal">맞춤</span>;
-  }
-  return <span className="text-zinc-400 font-normal">일반</span>;
+
+  return null;
 }
 
 export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
@@ -100,16 +99,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   hideRefreshButton = false,
   onlyRefreshButton = false,
 }) => {
-  const cleanBusNo = useMemo(() => {
-    if (!busNo) return '';
-    // '일반10', '마을55', '직행5000', '10번 버스' 등 각종 수식어 제거
-    const raw = busNo
-      .replace(/^(일반|마을|직행|광역|지선|간선|순환|좌석|급행|시외|공항)/g, '')
-      .replace(/버스|번/g, '')
-      .trim();
-    const match = raw.match(/([0-9]+[a-zA-Z가-힣\-]*|[가-힣]+[0-9\-]*)/);
-    return match ? match[0].trim() : raw;
-  }, [busNo]);
+  const cleanBusNo = useMemo(() => cleanBusNumber(busNo), [busNo]);
 
   const { data, isLoading: isQueryLoading, isError, isFetching, refetch } = useRealtimeTransit({
     region: region || 'tago',
@@ -166,28 +156,25 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
 
     // arrivedInSeconds가 0 초과인 유효 항목만 대상으로 검색
     const validArrivals = data.nextArrivals.filter((item) => item.arrivedInSeconds > 0);
-    const targetClean = cleanBusNo.trim();
+    const targetClean = cleanBusNo.trim().toUpperCase();
 
-    // 1단계: 완전 일치 (Strict Matching) 우선 탐색으로 유사 번호(10 vs 100 vs 10-1) 오매칭 완전 차단
+    // 1단계: cleanBusNumber 기반 완전 일치 탐색 (Strict Matching)
     let matches = validArrivals.filter((item) => {
-      const line = (item.lineName || '')
-        .replace(/^(일반|마을|직행|광역|지선|간선|순환|좌석|급행|시외|공항)/g, '')
-        .replace(/버스|번/g, '')
-        .trim();
-      return line === targetClean;
+      const lineClean = cleanBusNumber(item.lineName);
+      return lineClean === targetClean;
     });
 
-    // 2단계: 괄호/예약 수식어 제거 후 일치 탐색 (예: "3000(예약)" vs "3000")
+    // 2단계: 분기 노선(예: 5002 -> 5002A, 5002B) 또는 기호 정규화 일치 탐색
     if (matches.length === 0) {
       matches = validArrivals.filter((item) => {
-        const line = (item.lineName || '')
-          .replace(/^(일반|마을|직행|광역|지선|간선|순환|좌석|급행|시외|공항)/g, '')
-          .replace(/버스|번/g, '')
-          .trim();
-        const lineWithoutParen = line.replace(/\(.*\)/g, '').trim();
+        const lineClean = cleanBusNumber(item.lineName);
+        // 5002 vs 5002A, 5002B 등 영문 분기 노선 매칭 (10 vs 100 오매칭은 차단)
+        const isBranchMatch =
+          lineClean.startsWith(targetClean) &&
+          /^[A-Z]$/.test(lineClean.slice(targetClean.length));
         return (
-          lineWithoutParen === targetClean ||
-          line.replace(/[^0-9a-zA-Z가-힣]/g, '') === targetClean.replace(/[^0-9a-zA-Z가-힣]/g, '')
+          isBranchMatch ||
+          lineClean.replace(/[^0-9a-zA-Z]/g, '') === targetClean.replace(/[^0-9a-zA-Z]/g, '')
         );
       });
     }
@@ -270,51 +257,51 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   const bus2 = targetBuses[1];
 
   const timeText1 = formatBusItemTime(bus1.arrivedInSeconds);
-  const locText1 = getBusLocationText(bus1);
-  const typeBadge1 = getBusTypeBadge(bus1, busNo);
+  const stationText1 = getBusStationCountText(bus1);
+  const statusBadge1 = renderSeatOrCrowdedBadge(bus1, true);
 
   const timeText2 = bus2 ? formatBusItemTime(bus2.arrivedInSeconds) : null;
-  const locText2 = bus2 ? getBusLocationText(bus2) : null;
-  const typeBadge2 = bus2 ? getBusTypeBadgeSecondary(bus2, busNo) : null;
+  const stationText2 = bus2 ? getBusStationCountText(bus2) : null;
+  const statusBadge2 = bus2 ? renderSeatOrCrowdedBadge(bus2, false) : null;
 
   return (
     <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
       {!hideRefreshButton && renderRefreshButton()}
       <div className="inline-flex flex-col gap-0.5 justify-center">
         {/* 1번째 버스 (가장 빠른 버스) */}
-        <div className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all border-blue-200 text-blue-600">
-          {/* 1. 잔여 시간 (좌측 정렬: w-[36px]) */}
-          <span className="w-[36px] shrink-0 tabular-nums font-semibold text-blue-600 text-left">
+        <div className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all border-blue-200 text-blue-600">
+          {/* 1. 잔여 시간 (좌측 정렬: w-[40px]) */}
+          <span className="w-[40px] shrink-0 tabular-nums font-semibold text-blue-600 text-left truncate">
             {timeText1}
           </span>
 
-          {/* 2. 잔여 정거장 / 현재 위치 (중앙 정렬: w-[54px]) */}
-          <span className="w-[54px] shrink-0 tabular-nums font-medium text-zinc-600 text-center truncate">
-            {locText1 && locText1 !== timeText1 ? locText1 : ''}
+          {/* 2. 남은 정거장 수 (중앙 정렬: w-[32px]) */}
+          <span className="w-[32px] shrink-0 tabular-nums font-medium text-zinc-500 text-center truncate">
+            {stationText1}
           </span>
 
-          {/* 3. 버스 유형 배지 (우측 정렬: w-[24px]) */}
-          <span className="w-[24px] shrink-0 text-center">
-            {typeBadge1}
+          {/* 3. 여석 / 혼잡도 (우측 정렬: w-[44px]) */}
+          <span className="w-[44px] shrink-0 text-right truncate flex justify-end">
+            {statusBadge1}
           </span>
         </div>
 
         {/* 2번째 버스 (다음 버스: 없을 경우 도착 정보 없음 뱃지 항상 노출) */}
         {timeText2 ? (
-          <div className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all">
-            {/* 1. 잔여 시간 (좌측 정렬: w-[36px]) */}
-            <span className="w-[36px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left">
+          <div className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all">
+            {/* 1. 잔여 시간 (좌측 정렬: w-[40px]) */}
+            <span className="w-[40px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left truncate">
               {timeText2}
             </span>
 
-            {/* 2. 잔여 정거장 / 현재 위치 (중앙 정렬: w-[54px]) */}
-            <span className="w-[54px] shrink-0 tabular-nums font-normal text-zinc-500 text-center truncate">
-              {locText2 && locText2 !== timeText2 ? locText2 : ''}
+            {/* 2. 남은 정거장 수 (중앙 정렬: w-[32px]) */}
+            <span className="w-[32px] shrink-0 tabular-nums font-normal text-zinc-400 text-center truncate">
+              {stationText2}
             </span>
 
-            {/* 3. 버스 유형 배지 (우측 정렬: w-[24px]) */}
-            <span className="w-[24px] shrink-0 text-center">
-              {typeBadge2}
+            {/* 3. 여석 / 혼잡도 (우측 정렬: w-[44px]) */}
+            <span className="w-[44px] shrink-0 text-right truncate flex justify-end">
+              {statusBadge2}
             </span>
           </div>
         ) : (

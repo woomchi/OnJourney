@@ -16,6 +16,8 @@ export interface ArrivalBusItem {
   remainingDistance?: number;       // 남은 거리 (미터)
   destination?: string;             // 종점 지명
   vehicleId?: string;               // 차량 ID
+  remainSeats?: number;             // 잔여 좌석 수 (광역/직행좌석버스 특화)
+  crowded?: string;                 // 혼잡도 정보
 }
 
 export interface NormalizedRealtimeData {
@@ -61,15 +63,24 @@ export interface TagoApiResponse {
 }
 
 /**
- * 경기도 버스 API 원본 응답 인터페이스
+ * 경기도 버스 API 원본 응답 인터페이스 (v2 getBusArrivalListv2)
  */
 export interface GyeonggiBusItem {
-  routeId?: string;
-  routeName: string;                // 버스 번호
-  predictedTime1: number;           // 첫번째 도착시간(초 또는 분)
-  predictedTime2?: number;          // 두번째 도착시간
-  locationNumber1?: number | string;// 정류소 남은 순번
-  stopName?: string;                // 종점/도착지
+  routeId?: string | number;
+  routeName?: string | number;      // 버스 번호
+  predictTime1?: number | string;   // 1번째 도착시간 (분)
+  predictTime2?: number | string;   // 2번째 도착시간 (분)
+  locationNo1?: number | string;    // 1번째 남은 정류장 수
+  locationNo2?: number | string;    // 2번째 남은 정류장 수
+  remainSeatCnt1?: number | string; // 1번째 빈자리/잔여 좌석 수 (-1이면 정보없음 또는 입석)
+  remainSeatCnt2?: number | string; // 2번째 빈자리/잔여 좌석 수
+  routeDestName?: string;           // 종점 지명
+  routeTypeCd?: number | string;    // 11:직행좌석, 12:좌석, 13:일반, 14:광역급행(M), 15:따복/맞춤, 16:순환 등
+  plateNo1?: string;                // 차량 번호 1
+  plateNo2?: string;                // 차량 번호 2
+  crowded1?: string;                // 혼잡도 1
+  crowded2?: string;                // 혼잡도 2
+  stopName?: string;                // fallback 종점 지명
 }
 
 export interface GyeonggiApiResponse {
@@ -78,8 +89,17 @@ export interface GyeonggiApiResponse {
       resultCode: string;
       resultMsg: string;
     };
+    msgHeader?: {
+      resultCode: number;
+      resultMessage: string;
+    };
+    msgBody?: {
+      busArrivalList?: GyeonggiBusItem | GyeonggiBusItem[];
+    };
     body?: {
-      items?: GyeonggiBusItem[];
+      items?: {
+        busArrivalItem?: GyeonggiBusItem | GyeonggiBusItem[];
+      } | GyeonggiBusItem[];
     };
   };
 }

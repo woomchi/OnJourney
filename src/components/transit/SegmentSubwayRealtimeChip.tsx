@@ -44,7 +44,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
 
   const { buttonText, buttonTitle, start, isLoading: isRefreshLoading } = useAutoRefresh({
     intervalSeconds: 15,
-    maxRefreshCount: 10,
+    maxRefreshCount: 3,
     onRefresh: refetch,
     autoStart: true,
     isFetching,

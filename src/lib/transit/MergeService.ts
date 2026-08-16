@@ -17,10 +17,9 @@ export class MergeService {
     const sources = new Set<string>([tagoData.dataSource]);
 
     const getMergeKey = (item: ArrivalBusItem): string => {
-      if (item.lineId) return item.lineId;
-      // 노선번호 + 5분(300초) 단위 버킷으로 동일 버스의 다른 도착 건 보존
-      const timeBucket = Math.floor((item.arrivedInSeconds || 0) / 300);
-      return `${item.lineName}_${timeBucket}`;
+      const timeBucket = Math.floor((item.arrivedInSeconds || 0) / 120);
+      const baseKey = item.lineId || item.lineName;
+      return `${baseKey}_${timeBucket}`;
     };
 
     // 1단계: TAGO 기본 노선 적재

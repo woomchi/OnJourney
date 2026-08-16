@@ -25,7 +25,7 @@ interface KeySession {
 class SharedTransitRefreshStore {
   private sessions = new Map<string, KeySession>();
 
-  private getOrCreateSession(key: string, intervalSeconds = 15, maxRefreshCount = 10, minLoadingDurationMs = 400): KeySession {
+  private getOrCreateSession(key: string, intervalSeconds = 15, maxRefreshCount = 3, minLoadingDurationMs = 400): KeySession {
     let session = this.sessions.get(key);
     if (!session) {
       session = {
@@ -125,7 +125,7 @@ class SharedTransitRefreshStore {
     const session = this.getOrCreateSession(
       key,
       options?.intervalSeconds ?? 15,
-      options?.maxRefreshCount ?? 10,
+      options?.maxRefreshCount ?? 3,
       options?.minLoadingDurationMs ?? 400
     );
 
@@ -166,12 +166,25 @@ class SharedTransitRefreshStore {
       }
       this.updateButtonTexts(session);
       this.notify(key);
+
+      // 💡 안전장치: 어떤 이유로든 isFetching이 3초 이상 false로 전환되지 않을 경우 강제 해제
+      session.finishTimer = setTimeout(() => {
+        if (session.state.isDisplayLoading) {
+          session.state.isDisplayLoading = false;
+          session.state.isFetching = false;
+          session.state.countdown = session.intervalSeconds;
+          this.updateButtonTexts(session);
+          this.notify(key);
+          session.finishTimer = null;
+        }
+      }, 3000);
     } else {
       const elapsed = Date.now() - session.fetchStartTime;
       const remainingTime = Math.max(0, session.minLoadingDurationMs - elapsed);
 
+      if (session.finishTimer) clearTimeout(session.finishTimer);
+
       if (remainingTime > 0) {
-        if (session.finishTimer) clearTimeout(session.finishTimer);
         session.finishTimer = setTimeout(() => {
           session.state.isDisplayLoading = false;
           session.state.countdown = session.intervalSeconds;
@@ -184,6 +197,7 @@ class SharedTransitRefreshStore {
         session.state.countdown = session.intervalSeconds;
         this.updateButtonTexts(session);
         this.notify(key);
+        session.finishTimer = null;
       }
     }
   }
@@ -195,13 +209,32 @@ class SharedTransitRefreshStore {
     session.state.status = 'active';
     session.fetchStartTime = Date.now();
     session.state.isDisplayLoading = true;
+    if (session.finishTimer) {
+      clearTimeout(session.finishTimer);
+      session.finishTimer = null;
+    }
     this.updateButtonTexts(session);
     this.notify(key);
+
+    // 💡 안전장치: fetch 이벤트가 트리거되지 않더라도 최대 2초 후 로딩 강제 해제
+    session.finishTimer = setTimeout(() => {
+      if (session.state.isDisplayLoading && !session.state.isFetching) {
+        session.state.isDisplayLoading = false;
+        session.state.countdown = session.intervalSeconds;
+        this.updateButtonTexts(session);
+        this.notify(key);
+        session.finishTimer = null;
+      }
+    }, 2000);
 
     // 등록된 모든 리프레시 핸들러 실행 (단 1개만 실행해도 됨)
     const handlers = Array.from(session.onRefreshHandlers);
     if (handlers.length > 0) {
-      handlers[0]();
+      try {
+        handlers[0]();
+      } catch (err) {
+        console.warn('[sharedTransitRefreshStore] 리프레시 핸들러 실행 실패:', err);
+      }
     }
 
     if (!session.timer) {

@@ -486,7 +486,7 @@ export interface TrainMetadata {
 }
 
 /**
- * trainLineNm (예: "광운대행 - 세류방면", "동인천(급행)행 - 신도림방면", "청량리행(막차)")에서 종착역과 급행 여부를 추출합니다.
+ * trainLineNm (예: "광운대행 - 세류방면", "동인천(급행)행 - 신도림방면", "청량리행(막차)", "동인천급행", "천안(급행)행")에서 종착역과 급행 여부를 추출합니다.
  */
 export function extractTrainMetadata(trainLineNm?: string): TrainMetadata {
   if (!trainLineNm) {
@@ -497,24 +497,27 @@ export function extractTrainMetadata(trainLineNm?: string): TrainMetadata {
   const isExpress =
     lineHead.includes('급행') ||
     lineHead.includes('(급)') ||
-    lineHead.includes('특급');
+    lineHead.includes('특급') ||
+    lineHead.includes('Express');
 
-  const match = lineHead.match(/^([가-힣A-Za-z0-9]+?)(?:\s*\([^)]*\))?\s*행/);
+  // 1. 접두 "급행 ", "특급 " 제거
+  let cleanHead = lineHead.replace(/^(?:급행|특급|일반)\s*/g, '').trim();
+
+  // 2. 괄호 태그 ("(급행)", "(급)", "(막차)", "(특급)", "(순환)" 등) 제거
+  cleanHead = cleanHead.replace(/\([^)]*\)/g, '').trim();
+
+  // 3. 접미사 ("급행행", "급행", "특급행", "특급", "행" 등) 안전하게 분리 및 제거
+  cleanHead = cleanHead
+    .replace(/(?:급행|특급|일반)\s*행?$/g, '')
+    .replace(/행$/g, '')
+    .trim();
+
   let destination: string | null = null;
   let rawDestination = '';
 
-  if (match && match[1]) {
-    destination = normalizeStationName(match[1]);
-    rawDestination = match[1];
-  } else {
-    const cleanHead = lineHead
-      .replace(/행.*$/, '')
-      .replace(/\([^)]*\)/g, '')
-      .trim();
-    if (cleanHead) {
-      destination = normalizeStationName(cleanHead);
-      rawDestination = cleanHead;
-    }
+  if (cleanHead) {
+    destination = normalizeStationName(cleanHead);
+    rawDestination = cleanHead;
   }
 
   return { destination, isExpress, rawDestination };
@@ -1078,7 +1081,7 @@ function buildBarvlDtResponse(
   const expressTag = isExpress ? ' [급행]' : '';
 
   let statusText = `${minutesLeft}분${expressTag}`;
-  let arrivalPriority = 4 + (remainingStations ?? minutesLeft);
+  let arrivalPriority = isExpress ? Math.max(3, minutesLeft + 1) : 4 + (remainingStations ?? minutesLeft);
 
   if (arvlCdStr === '3' || arvlMsg2.includes('전역 출발') || arvlMsg2.includes('전역출발')) {
     statusText = `${minutesLeft}분 [전역출발]${expressTag}`;
@@ -1092,7 +1095,7 @@ function buildBarvlDtResponse(
       arrivalPriority = 1;
     } else {
       statusText = `${minutesLeft}분 [${remainingStations}전역]${expressTag}`;
-      arrivalPriority = 4 + remainingStations;
+      arrivalPriority = isExpress ? Math.max(3, minutesLeft + 1) : 4 + remainingStations;
     }
   }
 
@@ -1169,7 +1172,7 @@ function buildFallbackResponse(
 
   let statusText = arvlMsg2;
   const expressTag = isExpress ? ' [급행]' : '';
-  let arrivalPriority = 4 + (remainingStations ?? Math.max(1, minutesLeft));
+  let arrivalPriority = isExpress ? Math.max(3, minutesLeft + 1) : 4 + (remainingStations ?? Math.max(1, minutesLeft));
 
   const arvlCdStr = String(arvlCd ?? '');
   if (arvlCdStr === '3' || arvlMsg2.includes('전역 출발') || arvlMsg2.includes('전역출발')) {
@@ -1184,7 +1187,7 @@ function buildFallbackResponse(
       arrivalPriority = 1;
     } else {
       statusText = `${minutesLeft}분 [${remainingStations}전역]${expressTag}`;
-      arrivalPriority = 4 + remainingStations;
+      arrivalPriority = isExpress ? Math.max(3, minutesLeft + 1) : 4 + remainingStations;
     }
   } else {
     statusText = `${minutesLeft}분${expressTag}`;
@@ -1222,10 +1225,13 @@ export async function calculateSubwayETADynamic(
   const isExpress = isExpressTrain(trainLineNm, btrainSttus, arvlMsg2, trainNo);
   const arvlCdStr = String(arvlCd ?? '');
 
-  // 1. 이미 해당 역(targetClean)을 출발한 열차 판별
+  // 1. 이미 해당 역(targetClean)을 출발한 열차 판별 (당역 출발 완료인 경우만 isPassed)
   const isDepartedCode =
     arvlCdStr === '2' &&
-    (arvlMsg2.includes(targetClean) || arvlMsg2.includes('당역') || !arvlMsg2.includes('출발'));
+    (arvlMsg2.includes(`${targetClean} 출발`) ||
+      arvlMsg2.includes('당역 출발') ||
+      arvlMsg2.includes('당역출발') ||
+      arvlMsg2 === '출발');
   const isDepartedMsg =
     arvlMsg2.includes(`${targetClean} 출발`) ||
     arvlMsg2.includes('당역 출발') ||

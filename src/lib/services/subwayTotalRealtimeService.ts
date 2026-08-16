@@ -5,7 +5,7 @@
  * 서울 지하철 전체 역의 실시간 도착 정보를 일괄 조회하고 인메모리에 캐싱합니다.
  */
 
-import { calculateSubwayETADynamic } from '@/lib/subwayService';
+import { calculateSubwayETADynamic, extractTrainMetadata } from '@/lib/subwayService';
 import { SubwayTotalQueryType } from '../validations/subway';
 import type { SubwayArrival } from '@/types/journey';
 import { isStaleRow } from './subwayRealtimeService';
@@ -206,6 +206,14 @@ export async function getStationArrivalsFromTotalCache(
         row.btrainSttus
       );
 
+      const { destination: destName, isExpress: isMetaExpress } = extractTrainMetadata(row.trainLineNm);
+      const isExpress =
+        isMetaExpress ||
+        row.btrainSttus === '급행' ||
+        row.btrainSttus === '특급' ||
+        String(row.trainLineNm || '').includes('급행') ||
+        String(row.trainLineNm || '').includes('(급)');
+
       return {
         subwayId: String(row.subwayId || ''),
         updnLine: lineName,
@@ -213,6 +221,9 @@ export async function getStationArrivalsFromTotalCache(
         statnNm: cleanStation,
         arvlMsg2: liveMsg,
         recptnDt: recTime,
+        trainLineNm: row.trainLineNm,
+        destinationStationNm: destName || undefined,
+        isExpress,
         ...eta,
         isRealtime: true,
       };
@@ -222,9 +233,18 @@ export async function getStationArrivalsFromTotalCache(
   const validArrivals = processed.filter((item) => !item.isPassed) as SubwayArrival[];
 
   validArrivals.sort((a, b) => {
-    if (a.isApproaching && !b.isApproaching) return -1;
-    if (!a.isApproaching && b.isApproaching) return 1;
-    return a.minutesLeft - b.minutesLeft;
+    const pA = a.arrivalPriority ?? (a.isApproaching ? 1 : 10 + (a.minutesLeft || 0));
+    const pB = b.arrivalPriority ?? (b.isApproaching ? 1 : 10 + (b.minutesLeft || 0));
+    if (pA !== pB) return pA - pB;
+
+    const minA = a.minutesLeft || 0;
+    const minB = b.minutesLeft || 0;
+    if (minA !== minB) return minA - minB;
+
+    if (a.isExpress && !b.isExpress) return -1;
+    if (!a.isExpress && b.isExpress) return 1;
+
+    return 0;
   });
 
   return validArrivals;

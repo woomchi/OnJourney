@@ -38,6 +38,27 @@ export class RealtimeTransitService {
       }
     }
 
+    // 0-1단계: stationId 패턴 기반 보조 판별 (경기도 9자리 2xxxxxxxxx ID 또는 GGB/BSB 접두사)
+    const pureId = stationId.replace(/[^0-9]/g, '');
+    if (normalizedRegion === 'tago' || normalizedRegion === 'seoul' || !region) {
+      if (
+        stationId.toUpperCase().startsWith('GGB') ||
+        (pureId.length === 9 &&
+          (pureId.startsWith('20') ||
+            pureId.startsWith('21') ||
+            pureId.startsWith('22') ||
+            pureId.startsWith('23') ||
+            pureId.startsWith('24')))
+      ) {
+        normalizedRegion = 'gyeonggi';
+        if (!resolvedCityCode || resolvedCityCode === '11') {
+          resolvedCityCode = '31';
+        }
+      } else if (stationId.toUpperCase().startsWith('BSB') || resolvedCityCode === '21') {
+        normalizedRegion = 'busan';
+      }
+    }
+
     // 1단계: TAGO 스마트 노드 변화 감지 트래픽 최적화 버스 서비스 Promise 생성
     const tagoPromise = TagoBusService.getArrivalInfoSmartNodeTrigger({
       cityCode: resolvedCityCode,

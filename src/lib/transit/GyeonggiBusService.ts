@@ -77,29 +77,47 @@ export class GyeonggiBusService {
         ? [rawList]
         : [];
 
-      const nextArrivals: ArrivalBusItem[] = itemsArray
-        .map((item) => {
-          const time1 = Number(item.predictTime1 ?? item.predictedTime1) || 0;
-          const time2 = Number(item.predictTime2 ?? item.predictedTime2) || 0;
-          // time1, time2는 '분(minute)' 단위이므로 초 단위(* 60) 변환
-          const arrivalSeconds = time1 > 0 ? time1 * 60 : time2 > 0 ? time2 * 60 : 0;
-          const lineName = String(item.routeName || item.routeNo || '버스');
+      const nextArrivals: ArrivalBusItem[] = [];
 
-          return {
-            lineId: String(item.routeId || lineName),
-            lineName,
-            arrivedInSeconds: arrivalSeconds,
-            currentStationSequence:
-              typeof item.locationNo1 === 'number'
-                ? item.locationNo1
-                : typeof item.locationNumber1 === 'number'
-                ? item.locationNumber1
-                : undefined,
+      for (const item of itemsArray) {
+        const rawTime1 = item.predictTime1 ?? item.predictedTime1;
+        const rawTime2 = item.predictTime2 ?? item.predictedTime2;
+        const time1 = rawTime1 !== undefined && rawTime1 !== '' ? Number(rawTime1) || 0 : 0;
+        const time2 = rawTime2 !== undefined && rawTime2 !== '' ? Number(rawTime2) || 0 : 0;
+        const lineName = String(item.routeName || item.routeNo || '').trim();
+        const routeId = String(item.routeId || lineName || '버스');
+
+        const parseLocationNo = (val: any): number | undefined => {
+          if (val === undefined || val === null || val === '') return undefined;
+          const num = Number(val);
+          return !isNaN(num) ? num : undefined;
+        };
+
+        const loc1 = parseLocationNo(item.locationNo1 ?? item.locationNumber1);
+        const loc2 = parseLocationNo(item.locationNo2 ?? item.locationNumber2);
+
+        if (time1 > 0) {
+          nextArrivals.push({
+            lineId: routeId,
+            lineName: lineName || routeId,
+            arrivedInSeconds: time1 * 60,
+            currentStationSequence: loc1,
             busType: 'normal' as BusType,
             destination: item.stopName,
-          };
-        })
-        .filter((item) => item.arrivedInSeconds > 0);
+          });
+        }
+
+        if (time2 > 0) {
+          nextArrivals.push({
+            lineId: `${routeId}_2`,
+            lineName: lineName || routeId,
+            arrivedInSeconds: time2 * 60,
+            currentStationSequence: loc2,
+            busType: 'normal' as BusType,
+            destination: item.stopName,
+          });
+        }
+      }
 
       nextArrivals.sort((a, b) => a.arrivedInSeconds - b.arrivedInSeconds);
 

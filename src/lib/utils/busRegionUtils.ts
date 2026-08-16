@@ -13,7 +13,13 @@ export interface BusRegionMapping {
 const ODSAY_CITY_CODE_MAP: Record<string, BusRegionMapping> = {
   '11': { region: 'seoul', tagoCode: '11' },
   '1000': { region: 'seoul', tagoCode: '11' },
+  '1040': { region: 'gyeonggi', tagoCode: '31010' }, // 경기도 수원/남부
   '1100': { region: 'gyeonggi', tagoCode: '31240' }, // 수도권/화성 권역 CID
+  '1110': { region: 'gyeonggi', tagoCode: '31190' }, // 경기도 용인/수지 권역
+  '1120': { region: 'gyeonggi', tagoCode: '31020' }, // 경기도 성남 권역
+  '1130': { region: 'gyeonggi', tagoCode: '31040' }, // 경기도 안양 권역
+  '1140': { region: 'gyeonggi', tagoCode: '31050' }, // 경기도 부천 권역
+  '1150': { region: 'gyeonggi', tagoCode: '31100' }, // 경기도 고양 권역
   '21': { region: 'busan', tagoCode: '21' },
   '7000': { region: 'busan', tagoCode: '21' },
   '22': { region: 'daegu', tagoCode: '22' },
@@ -81,9 +87,9 @@ export function resolveBusRegion(busCityCode?: string | number): string {
     return ODSAY_CITY_CODE_MAP[codeStr].region;
   }
 
-  // 31xxx 형태 또는 ODsay 1200대 경기도 시군 CID 처리
+  // 31xxx 형태 또는 ODsay 1040~1390 경기도 시군 CID 처리 (1000 서울 제외)
   const numCode = parseInt(codeStr, 10);
-  if (codeStr.startsWith('31') || (numCode >= 1200 && numCode <= 1390)) {
+  if (codeStr.startsWith('31') || (numCode >= 1040 && numCode <= 1390 && numCode !== 1000)) {
     return 'gyeonggi';
   }
 
@@ -102,7 +108,7 @@ export function resolveTagoCode(busCityCode?: string | number): string {
   }
 
   const numCode = parseInt(codeStr, 10);
-  if (numCode >= 1200 && numCode <= 1390) {
+  if (numCode >= 1040 && numCode <= 1390 && numCode !== 1000) {
     return '31'; // 경기도 공통 TAGO cityCode
   }
 

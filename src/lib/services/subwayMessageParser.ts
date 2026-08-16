@@ -99,8 +99,13 @@ export function parseSubwayArrivalMessage(
   // 2. 괄호 안 역명 우선 추출 (예: "[4]번째 전역 (진위)", "[11]번째 전역 (두정)")
   const parenMatch = rawMsg.match(/\(([^)]+)\)/);
   if (parenMatch) {
-    const candidate = cleanStationName(parenMatch[1]);
-    if (candidate && candidate.length >= 2 && !['전역', '당역', '급행', '일반', '특급'].includes(candidate)) {
+    let candidate = cleanStationName(parenMatch[1]);
+    // 괄호 안에 "천안급행", "동인천(급)" 등 급행/특급 태그가 포함된 경우 제거
+    candidate = candidate
+      .replace(/\[?급행\]?|\(급행\)|\(급\)|\(특급\)|급행|특급|일반/g, '')
+      .replace(/역$/, '')
+      .trim();
+    if (candidate && candidate.length >= 2 && !['전역', '당역', '번째'].includes(candidate)) {
       stationName = candidate;
     }
   }

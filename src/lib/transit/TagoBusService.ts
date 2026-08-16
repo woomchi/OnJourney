@@ -245,7 +245,7 @@ export class TagoBusService {
         const res = await fetch(requestUrl, {
           method: 'GET',
           headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(2000),
           next: { revalidate: 15 },
         });
         if (!res.ok) return null;
@@ -331,13 +331,21 @@ export class TagoBusService {
       }
 
       const nextArrivals: ArrivalBusItem[] = itemsArray
-        .map((item) => ({
-          lineId: item.routeid,
-          lineName: String(item.routeno),
-          arrivedInSeconds: Number(item.arrtime) || 0,
-          currentStationSequence: item.arrprevstationcnt,
-          busType: this.parseBusType(String(item.routeno), item.routety),
-        }))
+        .map((item) => {
+          const rawRouteNo = item.routeno !== undefined && item.routeno !== null ? String(item.routeno).trim() : '';
+          const routeId = item.routeid ? String(item.routeid) : undefined;
+          const lineName = rawRouteNo || routeId || '버스';
+          return {
+            lineId: routeId,
+            lineName,
+            arrivedInSeconds: Number(item.arrtime) || 0,
+            currentStationSequence:
+              item.arrprevstationcnt !== undefined && item.arrprevstationcnt !== null
+                ? Number(item.arrprevstationcnt)
+                : undefined,
+            busType: this.parseBusType(lineName, item.routety),
+          };
+        })
         .filter((item) => {
           if (item.arrivedInSeconds <= 0) return false;
           // 남은 정류장이 0개인데 60초 이하로 넘어오는 비정상 기본값 필터링

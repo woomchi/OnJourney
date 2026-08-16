@@ -122,7 +122,7 @@ export function isStaleRow(row: SubwayRawRow, currentTimeMs: number): boolean {
   const arvlMsg2 = String(row.arvlMsg2 ?? '');
 
   // 1. 이미 당역 출발 완료된 열차
-  if (arvlMsg2.includes('당역 출발') || arvlMsg2.includes('당역출발')) {
+  if (arvlMsg2.includes('당역 출발') || arvlMsg2.includes('당역출발') || arvlMsg2 === '출발') {
     return true;
   }
 
@@ -133,10 +133,13 @@ export function isStaleRow(row: SubwayRawRow, currentTimeMs: number): boolean {
       const receiptTimeMs = parseSeoulApiDate(recptnDt);
       if (!isNaN(receiptTimeMs)) {
         const elapsedMs = currentTimeMs - receiptTimeMs;
+        // 당역 진입/도착인 경우에만 단기 threshold(180초) 적용, 이전 역 접근/운행 중은 300초(5분) 적용
         const isApproachingOrArrived =
           ARRIVAL_CODES_APPROACHING.has(arvlCd) ||
-          arvlMsg2.includes('진입') ||
-          arvlMsg2.includes('도착');
+          arvlMsg2.includes('당역 진입') ||
+          arvlMsg2.includes('당역 도착') ||
+          arvlMsg2 === '진입' ||
+          arvlMsg2 === '도착';
 
         const thresholdMs = isApproachingOrArrived
           ? STALE_APPROACHING_THRESHOLD_MS
@@ -348,7 +351,7 @@ export async function fetchSubwayRealtime(
       return fallbackToTotalOrTimetable(cleanStation, wayCode);
     }
 
-    // 1차: canBoard(직통 가능 여부: true 우선), 2차: arrivalPriority, 3차: minutesLeft 정렬
+    // 1차: canBoard(직통 가능 여부: true 우선), 2차: arrivalPriority, 3차: minutesLeft, 4차: 급행 우선
     validArrivals.sort((a, b) => {
       const cbA = a.canBoard !== false ? 1 : 0;
       const cbB = b.canBoard !== false ? 1 : 0;
@@ -357,7 +360,16 @@ export async function fetchSubwayRealtime(
       const pA = a.arrivalPriority ?? (a.isApproaching ? 1 : 10 + (a.minutesLeft || 0));
       const pB = b.arrivalPriority ?? (b.isApproaching ? 1 : 10 + (b.minutesLeft || 0));
       if (pA !== pB) return pA - pB;
-      return (a.minutesLeft || 0) - (b.minutesLeft || 0);
+
+      const minA = a.minutesLeft || 0;
+      const minB = b.minutesLeft || 0;
+      if (minA !== minB) return minA - minB;
+
+      // 동일 ETA일 경우 급행(isExpress) 우선
+      if (a.isExpress && !b.isExpress) return -1;
+      if (!a.isExpress && b.isExpress) return 1;
+
+      return 0;
     });
 
     return validArrivals;

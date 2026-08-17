@@ -2,7 +2,7 @@
 
 > **온저니(On-Journey)** — 다중 경유지 경로 최적화 서비스  
 > 슬로건: *"당신의 모든 이동이 온전히, 여정이 되도록."*  
-> 마지막 업데이트: 2026-08-12
+> 마지막 업데이트: 2026-08-17
 
 ---
 
@@ -45,6 +45,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | 서울시 실시간 지하철 API | 지하철 실시간 도착 | ✅ |
 | TAGO 전국 버스 도착 API | 버스 실시간 도착 | ✅ |
 | 경기도 버스 도착 API | 경기도 버스 이중 조회 | ✅ |
+| **부산 시내버스 실시간 API** | 부산 버스 도착 조회 | ✅ |
 | **TMAP 보행자 경로 API** | 실제 도보 경로 탐색 (10km 미만) | ✅ |
 
 ### 주요 의존성
@@ -91,7 +92,10 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | **출발 시간 기반 경로 탐색** | ✅ | `DepartureTimePicker` UI + 3시간 단위 캐시 그룹화 |
 | **지형 분류 (산/해변)** | ✅ | GeoJSON + Turf.js BBox+PIP 2단계 검증 |
 | **검색 패턴 기반 장소 추천** | ✅ | `searchPatternService` + Gaussian Decay 거리 점수 |
+| **검색 결과 카테고리 칩 필터링** | ✅ | `MapCategoryChips` + 클라이언트 메모리 필터링 (서버 재호출 없음) |
 | **GPS 트래킹** | ✅ (복구) | `useGPSTracking` hook 재구현 |
+| **지하철 ETA 정밀 파싱** | ✅ | `SubwayMessageParser` (NFD 정규화, 다중 공백/자모 처리) |
+| **클라이언트-서버 시각 동기화** | ✅ | `TimeOffsetManager` (RTT 보정, syncConfidence 산출) |
 
 ### 아직 구현되지 않은 기능 (Phase 2)
 
@@ -130,10 +134,12 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `subwayService.ts` | 지하철 실시간·시간표 조회 (ODsay) |
 | `subwayRealtimeService.ts` | 지하철 실시간 도착 서비스 |
 | `busRealtimeService.ts` | 버스 실시간 도착 서비스 |
-| `placesService.ts` | 카카오 API 장소 검색 + Gaussian Decay 랭킹 |
+| `placesService.ts` | 카카오 API 장소 검색 + Gaussian Decay 랭킹 + 멀티 파이프라인 (v3) |
 | `searchPatternService.ts` | 검색어 패턴 분석 + 카테고리 매핑 |
 | `intercityTransitScheduleService.ts` | 장거리 노선(기차/시외버스) 스케줄 |
 | `directionsService.ts` | 경로 탐색 통합 진입점 |
+| `subwayMessageParser.ts` | 지하철 실시간 메시지(`arvlMsg2`) 정밀 파싱 (NFD 정규화, 신뢰도 산출) |
+| `subwayTotalRealtimeService.ts` | 지하철 전역 실시간 통합 서비스 |
 
 ### 인프라 레이어 (`src/lib/infrastructure/`)
 
@@ -154,6 +160,9 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `journeyUtils.ts` | 여정 관련 유틸 |
 | `externalFetch.ts` | 외부 API 공통 Fetch 래퍼 |
 | `odsayThrottle.ts` | ODsay 요청 쓰로틀 |
+| `timeOffsetManager.ts` | 클라이언트-서버 시각 오프셋 Singleton 관리 (지하철 ETA 보정) |
+| `geoUtils.ts` | 지리 연산 유틸 |
+| `busRegionUtils.ts` | 버스 지역 분류 유틸 |
 
 ### 피처 컴포넌트 (`src/features/`)
 
@@ -175,21 +184,39 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | 파일/디렉터리 | 설명 |
 |------|------|
 | `sidebar/JourneySidebar.tsx` | 사이드바 진입점 (여정/장소 관리) |
+| `sidebar/ActiveJourneySidebar.tsx` | 활성 여정 전용 사이드바 |
 | `sidebar/JourneyListSidebar.tsx` | 여정 목록 사이드바 |
 | `sidebar/SearchOverlay.tsx` | 검색 오버레이 |
 | `sidebar/FixedJourneyTimelineSheet.tsx` | 여정 타임라인 바텀 시트 (모바일) |
+| `sidebar/HorizontalJourneyTimelineBar.tsx` | 가로형 여정 타임라인 바 |
 | `sidebar/JourneyControlFloatingBar.tsx` | 여정 재생 컨트롤 플로팅 바 |
 | `sidebar/JourneyPlayerHeader.tsx` | 여정 플레이어 헤더 |
+| `sidebar/SidebarBottomActions.tsx` | 사이드바 하단 액션 버튼 |
 | `common/CustomBottomSheet.tsx` | 통합 바텀 시트 컴포넌트 (framer-motion) |
 | `common/DepartureTimePicker.tsx` | 출발 시간 선택 UI |
 | `places/PlaceCard.tsx` | 장소 카드 |
+| `places/PlaceList.tsx` | 장소 목록 |
 | `places/SegmentInfo.tsx` | 구간 이동 정보 |
 | `places/AlternativeSegmentInfo.tsx` | 대안 구간 이동 정보 |
+| `places/TimelineNode.tsx` | 타임라인 노드 UI |
+| `places/FittedDuration.tsx` | 소요시간 적응형 표시 |
 | `transit/IntercityTransitScheduleWidget.tsx` | 장거리 노선 스케줄 위젯 |
+| `transit/RealtimeArrivalCard.tsx` | 실시간 도착 정보 카드 |
+| `transit/SegmentBusRealtimeChip.tsx` | 구간 버스 실시간 칩 |
+| `transit/SegmentSubwayRealtimeChip.tsx` | 구간 지하철 실시간 칩 |
+| `transit/ReliabilityBadge.tsx` | 실시간 데이터 신뢰도 배지 |
 | `route/RouteSegmentCard.tsx` | 경로 구간 카드 |
+| `route/RouteSegmentCardStack.tsx` | 구간 카드 스택 레이아웃 |
+| `route/RouteSegmentDetailSheet.tsx` | 구간 상세 바텀 시트 |
+| `route/RouteTimelineGaugeBar.tsx` | 경로 타임라인 게이지 바 |
+| `route/PlaybackBar.tsx` | 재생 컨트롤 바 |
+| `route/FareBreakdownTooltip.tsx` | 요금 내역 툴팁 |
+| `route/CarGuideList.tsx` | 차량 경로 안내 목록 |
 | `route/TransitGuideList.tsx` | 대중교통 상세 안내 목록 |
 | `map/TransferMarkers.tsx` | 환승 마커 |
 | `map/DirectionalStripes.tsx` | 방향 화살표 폴리라인 |
+| `map/MapCategoryChips.tsx` | 검색 결과 카테고리 필터 칩 |
+| `map/CustomOverlayView.tsx` | 범용 커스텀 오버레이 컴포넌트 |
 
 ### API Routes (`src/app/api/`)
 
@@ -199,6 +226,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `api/directions-waypoints/` | 경유지 포함 경로 탐색 |
 | `api/subway/` | 지하철 정보 API |
 | `api/bus/realtime/` | 버스 실시간 도착 API |
+| `api/realtime/bus/` | 실시간 버스 (지역별 통합) |
 | `api/transit/schedule/` | 장거리 노선 스케줄 API |
 | `api/places/` | 장소 검색 API (카카오) |
 | `api/admin/revalidate/` | 캐시 강제 무효화 API |
@@ -218,6 +246,14 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 ---
 
 ## 6. 최근 업데이트 이력
+
+### 2026-08-13 ~ 08-17 — Phase 9: 실시간 정확도 고도화 & 검색 엔진 v3
+- `SubwayMessageParser` 구현 — `arvlMsg2` 메시지 정밀 파싱 (NFD 정규화, 다중 공백/자모 결합 처리, 신뢰도 점수)
+- `TimeOffsetManager` 구현 — 클라이언트-서버 시각 오프셋 동기화 (RTT 보정, ETA 정확도 향상)
+- 장소 검색 엔진 v3 적용 — Drop 방식 → `ServiceCategoryTag` 태깅 방식 전환, 멀티 파이프라인 병합
+- `MapCategoryChips` 컴포넌트 — 검색 결과 카테고리 칩 필터링 (클라이언트 메모리 방식)
+- 부산 시내버스 실시간 API 연동 (`BusanBusService`)
+- UI 컴포넌트 대규모 확충: `HorizontalJourneyTimelineBar`, `ActiveJourneySidebar`, `RealtimeArrivalCard`, `SegmentBusRealtimeChip`, `SegmentSubwayRealtimeChip`, `ReliabilityBadge`, `CustomOverlayView` 등
 
 ### 2026-08-12 — 문서 현행화
 - `project_overview.md` / `development_log.md` 현재 코드 기준으로 전면 업데이트

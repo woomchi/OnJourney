@@ -17,7 +17,9 @@ docs/
 │   └── naver_map_guide.md                   ← 네이버 지도 React 최적화 수칙 & 무한 루프 분석
 │
 ├── 🧮 algorithm/  (알고리즘 & 로직 설계)
-│   └── travel_search_algorithm_v2.md        ← 장소 검색 랭킹 알고리즘 설계서 v2
+│   ├── place_search_engine_v3.md         ← 장소 검색 엔진 통합 설계서 v3 (멀티 파이프라인 + 서비스 카테고리 태깅)
+│   ├── searchFilteringEngine.md           ← 카카오 API 기반 복합 검색 엔진 설계서 (v3에 통합 예정)
+│   └── travel_search_algorithm_v2.md     ← 장소 검색 랭킹 알고리즘 설계서 v2 (v3에 통합됨)
 │
 ├── 🗺️ web/  (웹 기획 / DB / API 설계)
 │   ├── project_overview.md                  ← 프로젝트 개요, 기술 스택, 구현 현황 (메인 레퍼런스)
@@ -40,7 +42,7 @@ docs/
 │   └── issues.md                            ← 모바일/웹 버그 & 개선 사항 통합 목록
 │
 └── 📜 history/  (개발 이력)
-    └── development_log.md                   ← Git 커밋 기반 개발 흐름 로그 (Phase 1~6)
+    └── development_log.md                   ← Git 커밋 기반 개발 흐름 로그 (Phase 1~9)
 ```
 
 ---
@@ -60,8 +62,14 @@ ODsay API 기반 대중교통 경로 조회에서 Rate Limiter, 서킷 브레이
 
 ## 🧮 알고리즘 & 로직 설계 (`docs/algorithm/`)
 
+### [place_search_engine_v3.md](./algorithm/place_search_engine_v3.md) ⭐ 최신
+**searchFilteringEngine.md + travel_search_algorithm_v2.md 통합 설계서** — 카카오 로컬 API 멀티 파이프라인(Pipeline A: accuracy, Pipeline B: distance) 수집, `ServiceCategoryTag` 기반 동적 카테고리 태깅, Gaussian Decay 복합 스코어링, 클라이언트 칩 필터링 전체 파이프라인.
+
 ### [travel_search_algorithm_v2.md](./algorithm/travel_search_algorithm_v2.md)
 카카오 로컬 API를 원천 데이터로 활용해 여행 도메인에 최적화된 복합 점수(카테고리 가중치 + 거리 감쇠 + 인기도)로 검색 결과를 재정렬하는 알고리즘 파이프라인 설계서.
+
+### [searchFilteringEngine.md](./algorithm/searchFilteringEngine.md)
+카카오 API 기반 복합 검색 엔진 초기 설계서 (v3로 통합됨, 참고용 보존).
 
 ---
 
@@ -114,8 +122,8 @@ AI(Antigravity)와의 효율적인 협업을 위한 4단계 워크플로우 및 
 ## 📜 개발 이력 (`docs/history/`)
 
 ### [development_log.md](./history/development_log.md)
-Git 커밋 이력을 기반으로 Phase 1~6까지 개발 흐름, 기능 추가/제거, 주요 기술 도입 이력을 정리한 로그.
+Git 커밋 이력을 기반으로 Phase 1~9까지 개발 흐름, 기능 추가/제거, 주요 기술 도입 이력을 정리한 로그.
 
 ---
 
-*최종 갱신: 2026-07-28 | OnJourney*
+*최종 갱신: 2026-08-17 | OnJourney*

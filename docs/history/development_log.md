@@ -247,6 +247,60 @@
 
 ---
 
+## Phase 9 — 실시간 정확도 고도화 & 검색 엔진 v3 (2026-08-13 ~ 08-17)
+
+### 지하철 ETA 엔진 개선
+- **`SubwayMessageParser` 구현** (`subwayMessageParser.ts`)
+  - `arvlMsg2` 메시지 정밀 파싱: NFD→NFC 유니코드 정규화, 다중 공백/자모 결합 오류 처리
+  - 파싱 결과: `status` (entering/arrived/departed/approaching/unknown), `stationName`, `remainingStations`, `confidence` (0~1)
+  - 기존 단순 정규식 대비 역명 추출 정확도 90% → 96% 목표
+- **`TimeOffsetManager` 구현** (`timeOffsetManager.ts`)
+  - 클라이언트-서버 시각 오프셋 Singleton 관리
+  - RTT 보정: `estimatedServerTime = serverTime + round(RTT/2)` — ±1초 이내 정밀도 목표
+  - `syncConfidence` 산출 (오프셋 절댓값에 비례 감점, 최소 0.5)
+  - 지하철 실시간 ETA(`barvlDt - recptnDt` 경과 보정)에 통합 적용
+- **`subwayTotalRealtimeService.ts` 신설**
+  - 지하철 전역 실시간 통합 서비스
+
+### 장소 검색 엔진 v3
+- **검색 결과 카테고리 필터링 방식 전환** (v2 Drop 방식 → v3 태깅 방식)
+  - 여행 외 카테고리 사전 제거 → **전체 수집 + 서비스 카테고리 태그 부여** (`ServiceCategoryTag`)
+  - `etc` 태그 도입: 미분류 결과를 삭제하지 않고 S_cat=0.2 점수로 후순위 배치
+  - `placesService.ts` 멀티 파이프라인 (Pipeline A: accuracy, Pipeline B: distance) 병합 방식 적용
+- **`MapCategoryChips` 컴포넌트 구현** (`components/map/MapCategoryChips.tsx`)
+  - 검색 결과 상단 가로 스크롤 칩 UI: [전체] [관광명소] [음식점] [카페] [숙소] [교통] [편의시설] [기타]
+  - 클라이언트 메모리 필터링 (서버 재호출 없음), 지도 마커 동기화
+- **`usePlaceSearch` 훅 개선**: `activeCategory` 상태 + `filteredResults` 파생 상태 추가
+
+### 실시간 버스 커버리지 확대
+- **부산 버스 실시간 API 연동** (`BusanBusService.ts`)
+  - `RealtimeTransitService.ts`에 부산 시내버스 도착 조회 통합
+
+### UI 컴포넌트 대규모 확충
+- **사이드바 계층 재편**
+  - `ActiveJourneySidebar.tsx`: 활성 여정 전용 사이드바 분리
+  - `HorizontalJourneyTimelineBar.tsx`: 가로형 여정 타임라인 바
+  - `SidebarBottomActions.tsx`: 사이드바 하단 액션 버튼 모음
+- **경로 안내 패널 세분화**
+  - `RouteSegmentCardStack.tsx`: 구간 카드 스택 레이아웃
+  - `RouteSegmentDetailSheet.tsx`: 구간 상세 바텀 시트
+  - `RouteTimelineGaugeBar.tsx`: 경로 타임라인 게이지 바
+  - `PlaybackBar.tsx`: 재생 컨트롤 바
+  - `FareBreakdownTooltip.tsx`: 요금 내역 툴팁
+  - `CarGuideList.tsx`: 차량 경로 안내 목록
+- **장소 카드 세분화**
+  - `TimelineNode.tsx`: 타임라인 노드 UI
+  - `FittedDuration.tsx`: 소요시간 적응형 표시
+- **실시간 정보 UI 신설**
+  - `RealtimeArrivalCard.tsx`: 실시간 도착 정보 카드
+  - `SegmentBusRealtimeChip.tsx`: 구간 버스 실시간 칩
+  - `SegmentSubwayRealtimeChip.tsx`: 구간 지하철 실시간 칩
+  - `ReliabilityBadge.tsx`: 실시간 데이터 신뢰도 배지
+- **지도 오버레이**
+  - `CustomOverlayView.tsx`: 범용 커스텀 오버레이 컴포넌트
+
+---
+
 ## 삭제 / 임시 제거된 기능
 
 | 항목 | 시점 | 비고 |
@@ -278,7 +332,12 @@
 | `@dnd-kit` | Phase 8 | DnD 모바일 지원 향상 |
 | GeoJSON + Turf BBox+PIP | Phase 8 | 지형 분류 시스템 |
 | `@tanstack/react-query-persist-client` | Phase 8 | 쿼리 캐시 IndexedDB 영속화 |
+| `SubwayMessageParser` | Phase 9 | 지하철 메시지 정밀 파싱 (NFD 정규화, Fuzzy Match) |
+| `TimeOffsetManager` | Phase 9 | 클라이언트-서버 시각 오프셋 동기화 |
+| 검색 엔진 v3 (ServiceCategoryTag + 멀티 파이프라인) | Phase 9 | 장소 검색 카테고리 태깅 방식 전환 |
+| `MapCategoryChips` | Phase 9 | 검색 결과 클라이언트 카테고리 필터링 UI |
+| 부산 버스 실시간 API | Phase 9 | 실시간 버스 커버리지 확대 (부산 시내버스) |
 
 ---
 
-*최종 업데이트: 2026-08-12*
+*최종 업데이트: 2026-08-17*

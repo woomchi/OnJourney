@@ -19,3 +19,12 @@ export const subwayTotalQuerySchema = z.object({
 
 export type SubwayTotalQueryType = z.infer<typeof subwayTotalQuerySchema>;
 
+export const subwayPositionsQuerySchema = z.object({
+  subwayId: z.string().optional(),
+  subwayNm: z.string().optional(),
+  branchId: z.string().optional(),
+  stationName: z.string().optional(),
+});
+
+export type SubwayPositionsQueryType = z.infer<typeof subwayPositionsQuerySchema>;
+

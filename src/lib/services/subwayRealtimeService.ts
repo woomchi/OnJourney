@@ -19,8 +19,9 @@ import {
   extractTrainMetadata,
 } from '@/lib/subwayService';
 import { SubwayRealtimeQueryType } from '../validations/subway';
-import type { SubwayArrival } from '@/types/journey';
+import type { SubwayArrival, SubwayPosition } from '@/types/journey';
 import { getStationArrivalsFromTotalCache } from './subwayTotalRealtimeService';
+import { fetchSubwayPositionsByLine } from './subwayPositionService';
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -287,6 +288,25 @@ export async function fetchSubwayRealtime(
       }
     }
 
+    // ─ 실시간 열차 위치 정보 조회 (해당 노선) 및 trainNo 맵 빌드 ─
+    let positionMap = new Map<string, SubwayPosition>();
+    try {
+      const targetSubwayId = subwayId || (rows[0] ? String(rows[0].subwayId || '') : '');
+      if (targetSubwayId) {
+        const positions = await fetchSubwayPositionsByLine(targetSubwayId);
+        for (const pos of positions) {
+          if (pos.trainNo) {
+            positionMap.set(pos.trainNo, pos);
+            // 4자리 뒤쪽 번호로도 매핑 (예: "0123" vs "123")
+            const trimmedNo = pos.trainNo.replace(/^0+/, '');
+            if (trimmedNo) positionMap.set(trimmedNo, pos);
+          }
+        }
+      }
+    } catch {
+      // 위치 정보 조회 실패 시 기본 도착 정보만으로 계속 진행
+    }
+
     // ─ 유효 결과 없음 → 2차/3차 Fallback ─
     if (rows.length === 0) {
       return fallbackToTotalOrTimetable(cleanStation, wayCode);
@@ -301,6 +321,11 @@ export async function fetchSubwayRealtime(
         const trainNo = String(row.btrainNo || row.trainNo || '');
         const barvlDt = Number(row.barvlDt || 0);
 
+        // 위치 API 조인 (trainNo 기준)
+        const cleanTrainNo = trainNo.trim();
+        const trimmedTrainNo = cleanTrainNo.replace(/^0+/, '');
+        const matchedPos = positionMap.get(cleanTrainNo) || (trimmedTrainNo ? positionMap.get(trimmedTrainNo) : undefined);
+
         const eta = await calculateSubwayETADynamic(
           liveMsg,
           recTime,
@@ -311,12 +336,14 @@ export async function fetchSubwayRealtime(
           String(row.subwayId || ''),
           row.arvlCd,
           row.trainLineNm,
-          row.btrainSttus
+          row.btrainSttus,
+          matchedPos?.statnNm
         );
 
         const { destination: destName, isExpress: isMetaExpress } = extractTrainMetadata(row.trainLineNm);
         const isExpress =
           isMetaExpress ||
+          matchedPos?.isExpress ||
           row.btrainSttus === '급행' ||
           row.btrainSttus === '특급' ||
           String(row.trainLineNm || '').includes('급행') ||
@@ -337,6 +364,7 @@ export async function fetchSubwayRealtime(
           canBoard,
           destinationStationNm: destName || undefined,
           isExpress,
+          currentTrainPosition: matchedPos,
         };
       })
     );

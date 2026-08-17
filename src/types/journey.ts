@@ -194,7 +194,64 @@ export interface FocusedStep {
   subType?: 'start' | 'end' | 'dest';
 }
 
-// ─── 실시간 도착 정보 ─────────────────────────────────────────────────────────
+/** 지하철 실시간 열차 위치 정보 (realtimePosition) */
+export interface SubwayPosition {
+  subwayId: string;
+  subwayNm: string;
+  statnId: string;
+  statnNm: string;
+  trainNo: string;
+  lastRecptnDt?: string;
+  recptnDt: string;
+  updnLine: string; // '0': 상행/내선, '1': 하행/외선
+  statnTid?: string;
+  statnTnm?: string;
+  trainSttus: string; // '0': 진입, '1': 도착, '2': 출발, '3': 전역출발
+  directAt?: string; // '0': 일반, '1': 급행
+  lstcarAt?: string; // '0': 일반, '1': 막차
+  isExpress?: boolean;
+}
+
+/** 노선도 뷰용 정차역 정보 */
+export interface SubwayLineStation {
+  index: number;
+  stationName: string;
+  stationId?: string;
+  hmSeconds?: number;
+  cumulativeSeconds?: number;
+  distKm?: number;
+}
+
+/** 지하철 운행 계통/구간 정보 (네이버 지도 스타일 탭 분기용) */
+export interface SubwayLineBranch {
+  id: string;
+  name: string;
+  startStation: string;
+  endStation: string;
+  stationCount: number;
+}
+
+/** 노선도 뷰 전체 응답 데이터 구조 */
+export interface SubwayLinePositionsData {
+  subwayId: string;
+  subwayNm: string;
+  branches?: SubwayLineBranch[];
+  selectedBranchId?: string;
+  stations: SubwayLineStation[];
+  positions: SubwayPosition[];
+  timestamp: number;
+}
+
+/** 지하철 노선도 패널 열기 대상 정보 */
+export interface SubwayLineMapTarget {
+  stationName: string;
+  subwayId?: string;
+  subwayNm?: string;
+  wayCode?: string;
+  targetTrainNo?: string;
+  targetMinutesLeft?: number;
+  targetStatusText?: string;
+}
 
 /** 지하철 실시간 도착 정보 */
 export interface SubwayArrival {
@@ -215,6 +272,7 @@ export interface SubwayArrival {
   canBoard?: boolean;
   destinationStationNm?: string;
   isExpress?: boolean;
+  currentTrainPosition?: SubwayPosition;
 }
 
 /** 버스 실시간 도착 정보 */

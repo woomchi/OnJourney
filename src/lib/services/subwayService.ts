@@ -211,6 +211,78 @@ export function getLineDistanceIndexMap(): Map<string, LineDistanceIndex> | null
   return lineDistanceIndexMap;
 }
 
+import { getLineBranchesAndStations, normalizeLineKey } from '@/lib/data/subwayBranches';
+import type { SubwayLineBranch } from '@/types/journey';
+
+/**
+ * 특정 노선의 운행 계통 목록과 정차역 목록을 반환합니다 (노선도 뷰용).
+ */
+export function getLineStationListWithBranches(
+  subwayIdOrName: string,
+  branchId?: string,
+  currentStationName?: string
+): {
+  branches: SubwayLineBranch[];
+  selectedBranchId: string;
+  stations: SubwayIndexedStation[];
+} {
+  // 1. 사전 정의된 운행 계통 데이터 우선 확인 (1호선, 2호선, 5호선 등)
+  const branchResult = getLineBranchesAndStations(subwayIdOrName, branchId, currentStationName);
+  if (branchResult.stations && branchResult.stations.length > 0) {
+    return {
+      branches: branchResult.branches,
+      selectedBranchId: branchResult.selectedBranchId,
+      stations: branchResult.stations.map((st) => ({
+        index: st.index,
+        stationName: st.stationName,
+        hmSeconds: 120,
+        cumulativeSeconds: (st.index + 1) * 120,
+        distKm: 1.5,
+      })),
+    };
+  }
+
+  // 2. 단일 계통 노선은 기존 역간거리 DB 인덱스 맵 활용
+  const defaultStations = getLineStationList(subwayIdOrName);
+  return {
+    branches: [],
+    selectedBranchId: '',
+    stations: defaultStations,
+  };
+}
+
+/**
+ * 특정 노선의 전체 정차역 순서 목록을 반환합니다 (노선도 뷰용).
+ */
+export function getLineStationList(subwayIdOrName: string): SubwayIndexedStation[] {
+  const indexMap = getLineDistanceIndexMap();
+  if (!indexMap) return [];
+
+  const candidateCodes = resolveCandidateLineCodes(subwayIdOrName);
+  for (const code of candidateCodes) {
+    const lineIndex = indexMap.get(code);
+    if (lineIndex && lineIndex.stations.length > 0) {
+      return lineIndex.stations.map((st) => ({
+        index: st.index,
+        stationName: st.stationName,
+        hmSeconds: st.hmSeconds,
+        cumulativeSeconds: st.cumulativeSeconds,
+        distKm: st.distKm,
+      }));
+    }
+  }
+
+  return [];
+}
+
+export interface SubwayIndexedStation {
+  index: number;
+  stationName: string;
+  hmSeconds: number;
+  cumulativeSeconds: number;
+  distKm?: number;
+}
+
 /**
  * "M:SS" 형식의 문자열을 초(seconds)로 변환합니다.
  */
@@ -1219,7 +1291,8 @@ export async function calculateSubwayETADynamic(
   subwayId?: string,
   arvlCd?: string | number,
   trainLineNm?: string,
-  btrainSttus?: string
+  btrainSttus?: string,
+  positionStatnNm?: string
 ): Promise<SubwayEtaResult> {
   const targetClean = normalizeStationName(targetStation);
   const isExpress = isExpressTrain(trainLineNm, btrainSttus, arvlMsg2, trainNo);
@@ -1270,7 +1343,11 @@ export async function calculateSubwayETADynamic(
     return buildBarvlDtResponse(barvlDt, recptnDt, arvlMsg2, remainingStations, arvlCd, isExpress);
   }
 
-  const currentStation = extractCurrentStation(arvlMsg2, targetClean, updnLine);
+  // 위치 API에서 제공된 실제 위치 역명이 있으면 최우선 적용, 없으면 메시지 파싱
+  const currentStation = positionStatnNm
+    ? normalizeStationName(positionStatnNm)
+    : extractCurrentStation(arvlMsg2, targetClean, updnLine);
+
   return buildFallbackResponse(
     arvlMsg2,
     remainingStations,

@@ -16,6 +16,8 @@ export function useMapState() {
     setAlternativeSegment: state.setAlternativeSegment,
     hoveredAlternativeRoute: state.hoveredAlternativeRoute,
     isAlternativeFromFocus: state.isAlternativeFromFocus,
+    subwayLineMapTarget: state.subwayLineMapTarget,
+    setSubwayLineMapTarget: state.setSubwayLineMapTarget,
     recommendedPlaces: state.recommendedPlaces,
     activeSearchPlace: state.activeSearchPlace,
     setMapCenterAddress: state.setMapCenterAddress,

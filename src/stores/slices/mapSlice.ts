@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import type { JourneyStore } from '../journey-store';
-import type { LatLngBoundsLiteral, FocusedSegment, FocusedStep, DirectionResult, PlaceResult } from '@/types/journey';
+import type { LatLngBoundsLiteral, FocusedSegment, FocusedStep, DirectionResult, PlaceResult, SubwayLineMapTarget } from '@/types/journey';
 
 export interface MapSlice {
   focusBounds: LatLngBoundsLiteral | null;
@@ -10,6 +10,7 @@ export interface MapSlice {
   alternativeSegment: FocusedSegment | null;
   hoveredAlternativeRoute: DirectionResult | null;
   isAlternativeFromFocus: boolean;
+  subwayLineMapTarget: SubwayLineMapTarget | null;
   mapCenterAddress: string;
   mapCenterCoord: { lat: number; lng: number } | null;
   mapBounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null;
@@ -22,6 +23,7 @@ export interface MapSlice {
   setAlternativeSegment: (segment: FocusedSegment | null) => void;
   setHoveredAlternativeRoute: (route: DirectionResult | null) => void;
   setIsAlternativeFromFocus: (val: boolean) => void;
+  setSubwayLineMapTarget: (target: SubwayLineMapTarget | null) => void;
   setMapCenterAddress: (address: string) => void;
   setMapCenterCoord: (coord: { lat: number; lng: number } | null) => void;
   setMapBounds: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void;
@@ -66,6 +68,7 @@ export const createMapSlice: StateCreator<
   alternativeSegment: null,
   hoveredAlternativeRoute: null,
   isAlternativeFromFocus: false,
+  subwayLineMapTarget: null,
   mapCenterAddress: '',
   mapCenterCoord: null,
   mapBounds: null,
@@ -81,7 +84,7 @@ export const createMapSlice: StateCreator<
   setFocusedSegment: (segment) => set(() => ({ 
     focusedSegment: segment,
     ...(segment 
-      ? { alternativeSegment: null, hoveredAlternativeRoute: null, focusedPlaceId: null } 
+      ? { alternativeSegment: null, hoveredAlternativeRoute: null, focusedPlaceId: null, subwayLineMapTarget: null } 
       : { focusBounds: null, focusedStep: null, alternativeSegment: null, hoveredAlternativeRoute: null, focusedPlaceId: null }
     )
   })),
@@ -92,10 +95,11 @@ export const createMapSlice: StateCreator<
   setFocusedPlaceId: (id) => set({ focusedPlaceId: id }),
   setAlternativeSegment: (segment) => set(() => ({ 
     alternativeSegment: segment,
-    ...(segment ? { focusedSegment: null, focusedStep: null, focusedPlaceId: null } : { hoveredAlternativeRoute: null })
+    ...(segment ? { focusedSegment: null, focusedStep: null, focusedPlaceId: null, subwayLineMapTarget: null } : { hoveredAlternativeRoute: null })
   })),
   setHoveredAlternativeRoute: (route) => set({ hoveredAlternativeRoute: route }),
   setIsAlternativeFromFocus: (val) => set({ isAlternativeFromFocus: val }),
+  setSubwayLineMapTarget: (target) => set({ subwayLineMapTarget: target }),
   setMapCenterAddress: (address) => set({ mapCenterAddress: address }),
   setMapCenterCoord: (coord) => set({ mapCenterCoord: coord }),
   setMapBounds: (bounds) => set({ mapBounds: bounds }),

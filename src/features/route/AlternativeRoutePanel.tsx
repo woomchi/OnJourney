@@ -624,7 +624,11 @@ function isRouteMatch(
     if (firstSubwayStep) {
       const subwayStationName = firstSubwayStep.startName || originPlace.place_name;
       return (
-        <div className="shrink-0 flex items-center">
+        <div
+          className="shrink-0 flex items-center"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <SegmentSubwayRealtimeChip
             stationName={subwayStationName}
             wayCode={firstSubwayStep.wayCode !== undefined ? String(firstSubwayStep.wayCode) : undefined}

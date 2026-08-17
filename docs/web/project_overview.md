@@ -43,6 +43,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | 네이버 Directions 5 | 차량 경로 (단일/다중 경유지) | ✅ |
 | **카카오 로컬 (키워드/카테고리 검색)** | 장소 검색 (네이버 → 카카오로 전환) | ✅ |
 | 서울시 실시간 지하철 API | 지하철 실시간 도착 | ✅ |
+| **서울시 실시간 열차 위치 API** | 열차 위치 조회 및 노선도 뷰 | ✅ |
 | TAGO 전국 버스 도착 API | 버스 실시간 도착 | ✅ |
 | 경기도 버스 도착 API | 경기도 버스 이중 조회 | ✅ |
 | **부산 시내버스 실시간 API** | 부산 버스 도착 조회 | ✅ |
@@ -96,6 +97,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | **GPS 트래킹** | ✅ (복구) | `useGPSTracking` hook 재구현 |
 | **지하철 ETA 정밀 파싱** | ✅ | `SubwayMessageParser` (NFD 정규화, 다중 공백/자모 처리) |
 | **클라이언트-서버 시각 동기화** | ✅ | `TimeOffsetManager` (RTT 보정, syncConfidence 산출) |
+| **지하철 실시간 노선도 현황 뷰** | ✅ | `SubwayLineMapSheet` + `subwayPositionService` (열차 위치 타임라인 시각화) |
 
 ### 아직 구현되지 않은 기능 (Phase 2)
 
@@ -131,8 +133,10 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `directions/walk/tmapWalkingService.ts` | TMAP 보행자 경로 API |
 | `directions/walk/walkFallbackService.ts` | 도보 Fallback (직선 거리 기반) |
 | `naverMapRouteService.ts` | 지도 유틸 (폴리라인 렌더러, Haversine) |
-| `subwayService.ts` | 지하철 실시간·시간표 조회 (ODsay) |
-| `subwayRealtimeService.ts` | 지하철 실시간 도착 서비스 |
+| `subwayService.ts` | 지하철 실시간·시간표 조회 (ODsay) + 정차역 순서 목록 |
+| `subwayRealtimeService.ts` | 지하철 실시간 도착 서비스 (위치 API 조인 ETA 보정) |
+| `subwayPositionService.ts` | 지하철 실시간 열차 위치 서비스 (15초 인메모리 캐시) |
+| `subwayTotalRealtimeService.ts` | 지하철 전역 실시간 통합 서비스 |
 | `busRealtimeService.ts` | 버스 실시간 도착 서비스 |
 | `placesService.ts` | 카카오 API 장소 검색 + Gaussian Decay 랭킹 + 멀티 파이프라인 (v3) |
 | `searchPatternService.ts` | 검색어 패턴 분석 + 카테고리 매핑 |
@@ -203,7 +207,8 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `transit/IntercityTransitScheduleWidget.tsx` | 장거리 노선 스케줄 위젯 |
 | `transit/RealtimeArrivalCard.tsx` | 실시간 도착 정보 카드 |
 | `transit/SegmentBusRealtimeChip.tsx` | 구간 버스 실시간 칩 |
-| `transit/SegmentSubwayRealtimeChip.tsx` | 구간 지하철 실시간 칩 |
+| `transit/SegmentSubwayRealtimeChip.tsx` | 구간 지하철 실시간 칩 (노선도 뷰 트리거) |
+| `transit/SubwayLineMapSheet.tsx` | 지하철 실시간 노선도 현황 뷰 시트/모달 |
 | `transit/ReliabilityBadge.tsx` | 실시간 데이터 신뢰도 배지 |
 | `route/RouteSegmentCard.tsx` | 경로 구간 카드 |
 | `route/RouteSegmentCardStack.tsx` | 구간 카드 스택 레이아웃 |
@@ -225,6 +230,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `api/directions/` | 통합 경로 탐색 API (ODsay + Naver + TMAP) |
 | `api/directions-waypoints/` | 경유지 포함 경로 탐색 |
 | `api/subway/` | 지하철 정보 API |
+| `api/subway/positions/` | 지하철 노선도 및 실시간 열차 위치 API |
 | `api/bus/realtime/` | 버스 실시간 도착 API |
 | `api/realtime/bus/` | 실시간 버스 (지역별 통합) |
 | `api/transit/schedule/` | 장거리 노선 스케줄 API |

@@ -249,7 +249,7 @@
 
 ## Phase 9 — 실시간 정확도 고도화 & 검색 엔진 v3 (2026-08-13 ~ 08-17)
 
-### 지하철 ETA 엔진 개선
+### 지하철 ETA 엔진 개선 & 실시간 위치 연동
 - **`SubwayMessageParser` 구현** (`subwayMessageParser.ts`)
   - `arvlMsg2` 메시지 정밀 파싱: NFD→NFC 유니코드 정규화, 다중 공백/자모 결합 오류 처리
   - 파싱 결과: `status` (entering/arrived/departed/approaching/unknown), `stationName`, `remainingStations`, `confidence` (0~1)
@@ -261,6 +261,11 @@
   - 지하철 실시간 ETA(`barvlDt - recptnDt` 경과 보정)에 통합 적용
 - **`subwayTotalRealtimeService.ts` 신설**
   - 지하철 전역 실시간 통합 서비스
+- **실시간 열차 위치 연동 (`subwayPositionService.ts`) & 노선도 현황 뷰 (`SubwayLineMapSheet.tsx`)**
+  - 서울시 `realtimePosition` API (`REAL_TIME_SUBWAY_LOCATION_API_KEY`) 연동 및 15초 인메모리 캐시
+  - `trainNo` 기준 도착 API와 조인하여 정확한 현재 위치 역명(`statnNm`) 기반 ETA 산출
+  - 지하철 실시간 도착 칩(`SegmentSubwayRealtimeChip`) 클릭 시 해당 노선의 실시간 정차역 타임라인과 열차 위치를 시각화하는 `SubwayLineMapSheet` 노선도 뷰 모달/시트 구현
+  - `api/subway/positions` 엔드포인트 및 `useSubwayLinePositions` 훅 추가
 
 ### 장소 검색 엔진 v3
 - **검색 결과 카테고리 필터링 방식 전환** (v2 Drop 방식 → v3 태깅 방식)

@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import RouteGuidePanel from '@/features/route/RouteGuidePanel';
 import AlternativeRoutePanel from '@/features/route/AlternativeRoutePanel';
+import { SubwayLineMapPanel } from '@/features/route/SubwayLineMapPanel';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMapState } from '@/features/map/useMapState';
 import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
@@ -21,6 +22,8 @@ export function RoutePanels() {
     setAlternativeSegment,
     isAlternativeFromFocus,
     setFocusBounds,
+    subwayLineMapTarget,
+    setSubwayLineMapTarget,
     isSearchMode,
     isDrawerMaximized,
   } = useMapState();
@@ -122,12 +125,35 @@ export function RoutePanels() {
     }
   }, [showAlternative, alternativePlaces]);
 
+  const [cachedSubwayTarget, setCachedSubwayTarget] = useState<typeof subwayLineMapTarget>(null);
+  const showSubwayLineMap = !!subwayLineMapTarget;
+
+  useEffect(() => {
+    if (showSubwayLineMap && subwayLineMapTarget) {
+      setCachedSubwayTarget(subwayLineMapTarget);
+    }
+  }, [showSubwayLineMap, subwayLineMapTarget]);
+
   return (
     <>
+      {/* 지하철 실시간 노선도 패널 */}
+      {(subwayLineMapTarget || cachedSubwayTarget) && (
+        <SubwayLineMapPanel
+          isOpen={showSubwayLineMap && !isSearchMode}
+          target={(subwayLineMapTarget || cachedSubwayTarget)!}
+          onClose={() => setSubwayLineMapTarget(null)}
+          onExited={() => {
+            if (!showSubwayLineMap) {
+              setCachedSubwayTarget(null);
+            }
+          }}
+        />
+      )}
+
       {/* 길안내 패널 */}
       {cachedRouteGuide && (
         <RouteGuidePanel
-          isOpen={showRouteGuide && !isSearchMode && !isDrawerMaximized}
+          isOpen={showRouteGuide && !isSearchMode && !isDrawerMaximized && !showSubwayLineMap}
           originPlace={cachedRouteGuide.originPlace}
           destPlace={cachedRouteGuide.destPlace}
           route={cachedRouteGuide.route}
@@ -220,7 +246,7 @@ export function RoutePanels() {
       {/* 대안 경로 패널 */}
       {(alternativePlaces || cachedAlternative) && (
         <AlternativeRoutePanel
-          isOpen={showAlternative && !isSearchMode}
+          isOpen={showAlternative && !isSearchMode && !showSubwayLineMap}
           originPlace={(alternativePlaces || cachedAlternative)!.originPlace}
           destPlace={(alternativePlaces || cachedAlternative)!.destPlace}
           onClose={(isCancel?: boolean) => {

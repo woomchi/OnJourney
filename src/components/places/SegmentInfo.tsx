@@ -345,7 +345,11 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                     />
                   </div>
                 ) : targetSubwayStep && targetSubwayStationName ? (
-                  <div className="flex items-center pt-0.5">
+                  <div
+                    className="flex items-center pt-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
                     <SegmentSubwayRealtimeChip
                       stationName={targetSubwayStationName}
                       wayCode={targetSubwayStep.wayCode !== undefined ? String(targetSubwayStep.wayCode) : undefined}
@@ -678,7 +682,11 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 />
               </div>
             ) : targetSubwayStep && targetSubwayStationName ? (
-              <div className="flex items-center pt-0.5">
+              <div
+                className="flex items-center pt-0.5"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
                 <SegmentSubwayRealtimeChip
                   stationName={targetSubwayStationName}
                   wayCode={targetSubwayStep.wayCode !== undefined ? String(targetSubwayStep.wayCode) : undefined}

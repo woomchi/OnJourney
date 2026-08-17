@@ -5,6 +5,7 @@ import { RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useRealtimeSubway } from '@/hooks/useRealtimeSubway';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { useJourneyStore } from '@/stores/journey-store';
 
 export interface SegmentSubwayRealtimeChipProps {
   stationName?: string;
@@ -27,6 +28,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   hideRefreshButton = false,
   onlyRefreshButton = false,
 }) => {
+  const setSubwayLineMapTarget = useJourneyStore((state) => state.setSubwayLineMapTarget);
   const cleanStationName = stationName ? stationName.replace(/역$/g, '').trim() : '';
 
   const { data, isLoading: isQueryLoading, isError, isFetching, refetch } = useRealtimeSubway({
@@ -80,12 +82,31 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     start();
   };
 
+  const handleOpenLineMap = (
+    e: React.MouseEvent,
+    trainNo?: string,
+    minutesLeft?: number,
+    statusText?: string
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSubwayLineMapTarget({
+      stationName: cleanStationName,
+      subwayId: subwayId || (data && data[0]?.subwayId) || undefined,
+      wayCode,
+      targetTrainNo: trainNo,
+      targetMinutesLeft: minutesLeft,
+      targetStatusText: statusText,
+    });
+  };
+
   if (!cleanStationName) return null;
 
   const renderRefreshButton = () => {
     return (
       <button
         type="button"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={handleManualRefresh}
         disabled={isRefreshLoading || isFetching}
         title={buttonTitle}
@@ -118,13 +139,23 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
 
   if (isAnyLoading && !hasData) {
     return (
-      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
+      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs" onClick={(e) => e.stopPropagation()}>
         {!hideRefreshButton && renderRefreshButton()}
         <div className="inline-flex flex-col gap-0.5 justify-center">
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-400 font-medium shrink-0 animate-pulse text-[10px]">
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => handleOpenLineMap(e)}
+            title="클릭하여 노선도 및 열차 위치 확인"
+            className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-400 font-medium shrink-0 animate-pulse text-[10px] cursor-pointer hover:border-blue-400 hover:text-blue-600 transition-all"
+          >
             <span>확인 중...</span>
           </div>
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-zinc-300 font-medium shrink-0 animate-pulse text-[10px]">
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => handleOpenLineMap(e)}
+            title="클릭하여 노선도 및 열차 위치 확인"
+            className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-zinc-300 font-medium shrink-0 animate-pulse text-[10px] cursor-pointer hover:border-blue-400 transition-all"
+          >
             <span>확인 중...</span>
           </div>
         </div>
@@ -134,13 +165,23 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
 
   if (!hasData || isError) {
     return (
-      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
+      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs" onClick={(e) => e.stopPropagation()}>
         {!hideRefreshButton && renderRefreshButton()}
         <div className="inline-flex flex-col gap-0.5 justify-center">
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px]">
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => handleOpenLineMap(e)}
+            title="클릭하여 노선도 및 열차 위치 확인"
+            className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px] cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:shadow-xs transition-all active:scale-98"
+          >
             <span>운행 정보 없음</span>
           </div>
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-zinc-400 font-medium shrink-0 text-[10px]">
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => handleOpenLineMap(e)}
+            title="클릭하여 노선도 및 열차 위치 확인"
+            className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-zinc-400 font-medium shrink-0 text-[10px] cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:shadow-xs transition-all active:scale-98"
+          >
             <span>운행 정보 없음</span>
           </div>
         </div>
@@ -212,79 +253,112 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   const isExpress2 = Boolean(item2?.isExpress);
 
   return (
-    <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
-      {!hideRefreshButton && renderRefreshButton()}
-      <div className="inline-flex flex-col gap-0.5 justify-center">
-        {/* 1번째 열차 (가장 빠른 열차) */}
-        <div
-          className={clsx(
-            'inline-flex items-center justify-between w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all',
-            !isCanBoard1
-              ? 'border-amber-300 text-amber-700 bg-amber-50/30'
-              : isRealtime
-              ? 'border-blue-200 text-blue-600'
-              : 'border-zinc-200 text-slate-700'
-          )}
-          title={!isCanBoard1 ? '목적지 미도달 (중간종착 열차)' : undefined}
-        >
-          {/* 1. 잔여 시간 (축소: w-[36px], 좌측 정렬) */}
-          <span className="w-[36px] shrink-0 tabular-nums font-semibold text-blue-600 text-left">
-            {timeText1}
-          </span>
-
-          {/* 2. 잔여 정거장 / 현재 위치 (확장: w-[54px], 중앙 정렬) */}
-          <span className="w-[54px] shrink-0 tabular-nums font-medium text-zinc-600 text-center truncate">
-            {locText1 && locText1 !== timeText1 ? locText1 : ''}
-          </span>
-
-          {/* 3. 열차 종류 (일반 / 급행 / 중간종착, 우측 정렬) */}
-          <span className="w-[24px] shrink-0 text-center">
-            {!isCanBoard1 ? (
-              <span className="text-amber-600 font-bold text-[9px]">종착</span>
-            ) : isExpress1 ? (
-              <span className="text-rose-600 font-bold">급행</span>
-            ) : (
-              <span className="text-zinc-500 font-medium">일반</span>
-            )}
-          </span>
-        </div>
-
-        {/* 2번째 열차 (다음 열차: 없을 경우 운행 정보 없음 뱃지 항상 노출) */}
-        {timeText2 ? (
+    <>
+      <div
+        className="inline-flex items-center gap-1.5 shrink-0 text-xs"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {!hideRefreshButton && renderRefreshButton()}
+        <div className="inline-flex flex-col gap-0.5 justify-center">
+          {/* 1번째 열차 (가장 빠른 열차) */}
           <div
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) =>
+              handleOpenLineMap(
+                e,
+                item1.trainNo ? String(item1.trainNo) : undefined,
+                item1.minutesLeft,
+                timeText1
+              )
+            }
             className={clsx(
-              'inline-flex items-center justify-between w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all',
-              !isCanBoard2 && 'border-amber-200 text-amber-700 bg-amber-50/20'
+              'inline-flex items-center justify-between w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all cursor-pointer hover:border-blue-400 hover:shadow-xs active:scale-98',
+              !isCanBoard1
+                ? 'border-amber-300 text-amber-700 bg-amber-50/30'
+                : isRealtime
+                ? 'border-blue-200 text-blue-600'
+                : 'border-zinc-200 text-slate-700'
             )}
-            title={!isCanBoard2 ? '목적지 미도달 (중간종착 열차)' : undefined}
+            title={
+              !isCanBoard1
+                ? '목적지 미도달 (중간종착 열차) - 클릭하여 노선도 보기'
+                : '클릭하여 실시간 노선도 및 열차 위치 확인'
+            }
           >
             {/* 1. 잔여 시간 (축소: w-[36px], 좌측 정렬) */}
-            <span className="w-[36px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left">
-              {timeText2}
+            <span className="w-[36px] shrink-0 tabular-nums font-semibold text-blue-600 text-left">
+              {timeText1}
             </span>
 
             {/* 2. 잔여 정거장 / 현재 위치 (확장: w-[54px], 중앙 정렬) */}
-            <span className="w-[54px] shrink-0 tabular-nums font-normal text-zinc-500 text-center truncate">
-              {locText2 && locText2 !== timeText2 ? locText2 : ''}
+            <span className="w-[54px] shrink-0 tabular-nums font-medium text-zinc-600 text-center truncate">
+              {locText1 && locText1 !== timeText1 ? locText1 : ''}
             </span>
 
             {/* 3. 열차 종류 (일반 / 급행 / 중간종착, 우측 정렬) */}
             <span className="w-[24px] shrink-0 text-center">
-              {!isCanBoard2 ? (
-                <span className="text-amber-600 font-semibold text-[9px]">종착</span>
-              ) : isExpress2 ? (
-                <span className="text-rose-500 font-bold">급행</span>
+              {!isCanBoard1 ? (
+                <span className="text-amber-600 font-bold text-[9px]">종착</span>
+              ) : isExpress1 ? (
+                <span className="text-rose-600 font-bold">급행</span>
               ) : (
-                <span className="text-zinc-400 font-normal">일반</span>
+                <span className="text-zinc-500 font-medium">일반</span>
               )}
             </span>
           </div>
-        ) : (
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-[10px] text-zinc-400 font-medium whitespace-nowrap">
-            <span>운행 정보 없음</span>
-          </div>
-        )}
+
+          {/* 2번째 열차 (다음 열차: 없을 경우 운행 정보 없음 뱃지 항상 노출) */}
+          {timeText2 && item2 ? (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) =>
+                handleOpenLineMap(
+                  e,
+                  item2.trainNo ? String(item2.trainNo) : undefined,
+                  item2.minutesLeft,
+                  timeText2
+                )
+              }
+              className={clsx(
+                'inline-flex items-center justify-between w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all cursor-pointer hover:border-blue-400 hover:shadow-xs active:scale-98',
+                !isCanBoard2 && 'border-amber-200 text-amber-700 bg-amber-50/20'
+              )}
+              title={
+                !isCanBoard2
+                  ? '목적지 미도달 (중간종착 열차) - 클릭하여 노선도 보기'
+                  : '클릭하여 실시간 노선도 및 열차 위치 확인'
+              }
+            >
+              {/* 1. 잔여 시간 (축소: w-[36px], 좌측 정렬) */}
+              <span className="w-[36px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left">
+                {timeText2}
+              </span>
+
+              {/* 2. 잔여 정거장 / 현재 위치 (확장: w-[54px], 중앙 정렬) */}
+              <span className="w-[54px] shrink-0 tabular-nums font-normal text-zinc-500 text-center truncate">
+                {locText2 && locText2 !== timeText2 ? locText2 : ''}
+              </span>
+
+              {/* 3. 열차 종류 (일반 / 급행 / 중간종착, 우측 정렬) */}
+              <span className="w-[24px] shrink-0 text-center">
+                {!isCanBoard2 ? (
+                  <span className="text-amber-600 font-semibold text-[9px]">종착</span>
+                ) : isExpress2 ? (
+                  <span className="text-rose-500 font-bold">급행</span>
+                ) : (
+                  <span className="text-zinc-400 font-normal">일반</span>
+                )}
+              </span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-[10px] text-zinc-400 font-medium whitespace-nowrap">
+              <span>운행 정보 없음</span>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
+

@@ -207,6 +207,103 @@ const LINE_5_BRANCHES: BranchStationData[] = [
   },
 ];
 
+// ─── 9호선 운행 계통 ─────────────────────────────────────────────────────────
+
+const LINE_9_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: '9-main-all',
+      name: '일반 (개화 - 중앙보훈병원)',
+      startStation: '개화',
+      endStation: '중앙보훈병원',
+      stationCount: 38,
+    },
+    stationNames: [
+      '개화', '김포공항', '공항시장', '신방화', '마곡나루', '양천향교', '가양', '증미', '등촌', '염창',
+      '신목동', '선유도', '당산', '국회의사당', '여의도', '샛강', '노량진', '노들', '흑석', '동작',
+      '구반포', '신반포', '고속터미널', '사평', '신논현', '언주', '선정릉', '삼성중앙', '봉은사', '종합운동장',
+      '삼전', '석촌고분', '석촌', '송파나루', '한성백제', '올림픽공원', '둔촌오륜', '중앙보훈병원'
+    ],
+    downDestinations: ['중앙보훈병원', '신논현', '종합운동장', '삼전', '동작'],
+    upDestinations: ['개화', '김포공항', '가양', '당산', '여의도', '노량진'],
+  },
+  {
+    branch: {
+      id: '9-express-all',
+      name: '급행 (김포공항 - 중앙보훈병원)',
+      startStation: '김포공항',
+      endStation: '중앙보훈병원',
+      stationCount: 16,
+    },
+    stationNames: [
+      '김포공항', '마곡나루', '가양', '염창', '당산', '여의도', '노량진', '동작',
+      '고속터미널', '신논현', '선정릉', '봉은사', '종합운동장', '석촌', '올림픽공원', '중앙보훈병원'
+    ],
+    downDestinations: ['중앙보훈병원', '신논현', '종합운동장'],
+    upDestinations: ['김포공항', '가양', '당산'],
+  },
+];
+
+// ─── 신분당선 운행 계통 ───────────────────────────────────────────────────────
+
+const LINE_SHINBUNDANG_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'shinbundang-main',
+      name: '본선 (신사 - 광교)',
+      startStation: '신사',
+      endStation: '광교',
+      stationCount: 16,
+    },
+    stationNames: [
+      '신사', '논현', '신논현', '강남', '양재', '양재시민의숲', '청계산입구',
+      '판교', '정자', '미금', '동천', '수지구청', '성복', '상현', '광교중앙', '광교'
+    ],
+    downDestinations: ['광교', '광교중앙', '정자'],
+    upDestinations: ['신사', '강남'],
+  },
+];
+
+// ─── 공항철도 운행 계통 ───────────────────────────────────────────────────────
+
+const LINE_AIRPORT_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'airport-main',
+      name: '일반 (서울역 - 인천공항2터미널)',
+      startStation: '서울역',
+      endStation: '인천공항2터미널',
+      stationCount: 14,
+    },
+    stationNames: [
+      '서울역', '공덕', '홍대입구', '디지털미디어시티', '마곡나루', '김포공항', '계양',
+      '검암', '청라국제도시', '영종', '운서', '공항화물청사', '인천공항1터미널', '인천공항2터미널'
+    ],
+    downDestinations: ['인천공항2터미널', '인천공항1터미널', '검암'],
+    upDestinations: ['서울역', '디지털미디어시티'],
+  },
+];
+
+// ─── 우이신설선 운행 계통 ─────────────────────────────────────────────────────
+
+const LINE_UI_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'ui-main',
+      name: '본선 (북한산우이 - 신설동)',
+      startStation: '북한산우이',
+      endStation: '신설동',
+      stationCount: 13,
+    },
+    stationNames: [
+      '북한산우이', '솔밭공원', '4.19민주묘지', '가오리', '화계', '삼양', '삼양사거리',
+      '솔샘', '북한산보국문', '정릉', '성신여대입구', '보문', '신설동'
+    ],
+    downDestinations: ['신설동'],
+    upDestinations: ['북한산우이'],
+  },
+];
+
 // ─── 전체 노선별 계통 매핑 ───────────────────────────────────────────────────
 
 export const LINE_BRANCHES_MAP: Record<string, BranchStationData[]> = {
@@ -219,6 +316,15 @@ export const LINE_BRANCHES_MAP: Record<string, BranchStationData[]> = {
   '5호선': LINE_5_BRANCHES,
   '1005': LINE_5_BRANCHES,
   '5': LINE_5_BRANCHES,
+  '9호선': LINE_9_BRANCHES,
+  '1009': LINE_9_BRANCHES,
+  '9': LINE_9_BRANCHES,
+  '신분당선': LINE_SHINBUNDANG_BRANCHES,
+  '1077': LINE_SHINBUNDANG_BRANCHES,
+  '공항철도': LINE_AIRPORT_BRANCHES,
+  '1065': LINE_AIRPORT_BRANCHES,
+  '우이신설선': LINE_UI_BRANCHES,
+  '1092': LINE_UI_BRANCHES,
 };
 
 /**
@@ -235,10 +341,11 @@ export function normalizeLineKey(subwayIdOrNm: string): string {
   if (clean === '1007' || clean === '7' || clean.includes('7호선')) return '7호선';
   if (clean === '1008' || clean === '8' || clean.includes('8호선')) return '8호선';
   if (clean === '1009' || clean === '9' || clean.includes('9호선')) return '9호선';
-  if (clean.includes('수인분당') || clean.includes('분당')) return '수인분당선';
-  if (clean.includes('신분당')) return '신분당선';
-  if (clean.includes('경의중앙')) return '경의중앙선';
-  if (clean.includes('공항철도')) return '공항철도';
+  if (clean.includes('신분당') || clean === '1077') return '신분당선';
+  if (clean.includes('수인분당') || clean.includes('분당선') || clean.includes('수인선') || clean === '1075') return '수인분당선';
+  if (clean.includes('경의중앙') || clean === '1063') return '경의중앙선';
+  if (clean.includes('공항철도') || clean === '1065') return '공항철도';
+  if (clean.includes('우이신설') || clean === '1092') return '우이신설선';
   return clean;
 }
 

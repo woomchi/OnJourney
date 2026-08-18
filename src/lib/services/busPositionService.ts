@@ -9,6 +9,7 @@
 
 import { OdsayAdapter } from '@/lib/infrastructure/odsayAdapter';
 import { TagoBusService } from '@/lib/transit/TagoBusService';
+import { GyeonggiBusService } from '@/lib/transit/GyeonggiBusService';
 import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
 import { cleanBusNumber, resolveBusRegion, resolveTagoCode, resolveOdsayCid } from '@/lib/utils/busRegionUtils';
 import {
@@ -84,23 +85,24 @@ export class BusPositionService {
       return null;
     }
 
-    // 2. TAGO 공식 routeId 동적 룩업 (파라미터 -> TAGO 공식 룩업 -> ODsay busLocalBlID 순차 확인)
+    // 2. TAGO / 경기도 공식 routeId 동적 룩업 (파라미터 -> ODsay routeId -> TAGO 룩업 순차 확인)
     let targetRouteId = params.routeId;
-    if (!targetRouteId) {
-      // 2-1. 국토교통부 공식 /getRouteNoList API로 TAGO routeId 동적 조회
-      targetRouteId = (await TagoBusService.lookupTagoRouteId(resolvedCityCode, cleanNo)) || undefined;
-    }
     if (!targetRouteId && routeData.routeId) {
-      // 2-2. ODsay busLocalBlID
+      // 2-1. ODsay busLocalBlID (경기도 9자리 노선 ID 등 우선 활용)
       targetRouteId = routeData.routeId;
     }
+    if (!targetRouteId) {
+      // 2-2. 국토교통부 공식 /getRouteNoList API로 TAGO routeId 동적 조회
+      targetRouteId = (await TagoBusService.lookupTagoRouteId(resolvedCityCode, cleanNo)) || undefined;
+    }
 
-    // 3. 실시간 버스 위치 목록 조회 및 3단계 계층형 정합성 매핑
+    // 3. 실시간 버스 위치 목록 조회 및 경기도/TAGO 통합 정합성 매핑
     const positions = await this.getOrFetchRealtimePositions({
       routeId: targetRouteId,
       busId: routeData.busId,
       busNo: cleanNo,
       cityCode: resolvedCityCode,
+      region: resolvedRegion,
       stations: routeData.stations,
       stationIndexMap: routeData.stationIndexMap,
     });
@@ -122,7 +124,7 @@ export class BusPositionService {
   }
 
   /**
-   * ODsay 노선 정류소 목록 조회 및 33%/66% 앵커 포인트 사전 계산 캐싱
+   * ODsay 노선 정류소 목록 조회 및 33%/66% 앵커 포인트 사전 계산 캐싱 (교차 권역 검색 지원)
    */
   private static async getOrFetchRouteStations(params: {
     busNo: string;
@@ -143,14 +145,34 @@ export class BusPositionService {
       let busID = params.busId;
       let busLaneDetailRaw: any = null;
 
-      // 1-1. busId가 없으면 searchBusLane으로 busID 탐색
+      // 1-1. busId가 없으면 searchBusLane으로 busID 탐색 (CID 우선 -> 전국 Fallback 탐색)
       if (!busID) {
         const odsayCid = resolveOdsayCid(params.cityCode);
-        const searchRes = await OdsayAdapter.fetchBusLane(
+        let searchRes = await OdsayAdapter.fetchBusLane(
           params.rawBusNo || params.busNo,
           odsayCid
-        );
-        const lanes = searchRes?.result?.lane;
+        ).catch(() => null);
+
+        let lanes = searchRes?.result?.lane;
+
+        // 1차 검색 실패 시 CID 없이 전국(전체 권역)으로 2차 탐색
+        if (!lanes || (Array.isArray(lanes) && lanes.length === 0)) {
+          const fallbackRes = await OdsayAdapter.fetchBusLane(
+            params.rawBusNo || params.busNo
+          ).catch(() => null);
+          lanes = fallbackRes?.result?.lane;
+        }
+
+        // 그래도 없으면 교차 CID(1000 <-> 1040) 3차 탐색
+        if (!lanes || (Array.isArray(lanes) && lanes.length === 0)) {
+          const crossCid = odsayCid === '1000' ? '1040' : '1000';
+          const crossRes = await OdsayAdapter.fetchBusLane(
+            params.rawBusNo || params.busNo,
+            crossCid
+          ).catch(() => null);
+          lanes = crossRes?.result?.lane;
+        }
+
         if (Array.isArray(lanes) && lanes.length > 0) {
           // 가장 번호가 일치하는 노선 선택
           const exact = lanes.find(
@@ -275,13 +297,14 @@ export class BusPositionService {
   }
 
   /**
-   * 실시간 버스 위치 목록 조회 및 4분위 앵커 최근접 매칭
+   * 실시간 버스 위치 목록 조회 및 경기도/TAGO 4분위 앵커 정밀 매칭
    */
   private static async getOrFetchRealtimePositions(params: {
     routeId?: string;
     busId: string;
     busNo: string;
     cityCode: string;
+    region?: string;
     stations: BusLineStation[];
     stationIndexMap: Map<string, number>;
   }): Promise<BusPosition[]> {
@@ -294,7 +317,75 @@ export class BusPositionService {
     }
 
     try {
-      // 1. TAGO / 지자체 공식 버스 위치 API 호출
+      const cleanRouteId = String(params.routeId || '').trim();
+      const pureNumericId = cleanRouteId.replace(/[^0-9]/g, '');
+      const isGyeonggiRoute =
+        cleanRouteId.toUpperCase().startsWith('GGB') ||
+        params.cityCode.startsWith('31') ||
+        params.region === 'gyeonggi' ||
+        (pureNumericId.length === 9 && (pureNumericId.startsWith('20') || pureNumericId.startsWith('21') || pureNumericId.startsWith('22') || pureNumericId.startsWith('23') || pureNumericId.startsWith('24')));
+
+      // ─── 1. 경기도 버스위치정보 API (GBIS v2 getBusLocationListv2) 1순위 연동 ───
+      if (isGyeonggiRoute && params.routeId) {
+        const ggPosList = await GyeonggiBusService.getBusLocationList(params.routeId);
+
+        if (ggPosList && ggPosList.length > 0) {
+          const positions: BusPosition[] = [];
+
+          for (const item of ggPosList) {
+            const vehicleno = String(item.plateNo || '').trim();
+            const stationSeq = typeof item.stationSeq === 'number' ? item.stationSeq : undefined;
+            const stationId = item.stationId ? String(item.stationId).trim() : undefined;
+
+            // 정류소 인덱스 매핑 (순번 또는 ID 기준)
+            let stationIdx = -1;
+            if (stationSeq !== undefined && params.stationIndexMap.has(`seq:${stationSeq}`)) {
+              stationIdx = params.stationIndexMap.get(`seq:${stationSeq}`)!;
+            } else if (stationId && params.stationIndexMap.has(stationId)) {
+              stationIdx = params.stationIndexMap.get(stationId)!;
+            }
+
+            let stage: BusPositionStage = 'at_station';
+            let progressRate = 1.0;
+            let finalNodeOrd = stationSeq;
+            let nodenm: string | undefined;
+            let gpslati: number | undefined;
+            let gpslong: number | undefined;
+
+            if (stationIdx >= 0 && stationIdx < params.stations.length) {
+              const currStation = params.stations[stationIdx];
+              finalNodeOrd = currStation.stationSeq;
+              nodenm = currStation.stationName;
+              gpslati = currStation.lat;
+              gpslong = currStation.lng;
+            }
+
+            positions.push({
+              vehicleno: vehicleno || '경기버스',
+              nodeid: stationId,
+              nodenm,
+              nodeord: finalNodeOrd,
+              gpslati,
+              gpslong,
+              stage,
+              progressRate,
+              remainSeats: typeof item.remainSeatCnt === 'number' ? item.remainSeatCnt : undefined,
+              lowplate: item.lowPlate === 1,
+              isLastBus: item.endBus === 1,
+            });
+          }
+
+          if (positions.length > 0) {
+            REALTIME_POS_CACHE.set(cacheKey, {
+              positions,
+              expiresAt: now + REALTIME_CACHE_TTL_MS,
+            });
+            return positions;
+          }
+        }
+      }
+
+      // ─── 2. 국토교통부 TAGO 버스 위치 API 호출 ───
       let rawPosList: any[] | null = null;
       if (params.routeId) {
         rawPosList = await TagoBusService.getBusLocationInfo(params.routeId, params.cityCode);

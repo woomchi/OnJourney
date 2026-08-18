@@ -1,15 +1,22 @@
+import { XMLParser } from 'fast-xml-parser';
 import { RELIABILITY_SCORES } from '@/constants/transitConstants';
 import {
   ArrivalBusItem,
   BusType,
   GyeonggiApiResponse,
   GyeonggiBusItem,
+  GyeonggiBusLocationApiResponse,
+  GyeonggiBusLocationItem,
   NormalizedRealtimeData,
 } from '@/types/realtimeTransit';
 
 export class GyeonggiBusService {
   private static API_URL =
     'https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2';
+  private static BUS_POS_API_URL_V2 =
+    'https://apis.data.go.kr/6410000/buslocationservice/v2/getBusLocationListv2';
+  private static BUS_POS_API_URL_V1 =
+    'https://apis.data.go.kr/6410000/buslocationservice/getBusLocationList';
 
   /**
    * GBIS routeTypeCd 및 버스 번호를 바탕으로 BusType 분류
@@ -189,6 +196,114 @@ export class GyeonggiBusService {
       mock.errorMessage = `경기도 API 연동 에러: ${error?.message || '알 수 없는 오류'}`;
       mock.reliability = 0.5;
       return mock;
+    }
+  }
+
+  /**
+   * 경기도 실시간 버스 위치 목록 조회 (v2 getBusLocationListv2 우선 연동)
+   */
+  public static async getBusLocationList(
+    routeId: string
+  ): Promise<GyeonggiBusLocationItem[] | null> {
+    const apiKey =
+      process.env.GYEONGGI_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY;
+
+    if (!apiKey || !routeId) {
+      return null;
+    }
+
+    try {
+      const cleanRouteId = routeId.replace(/^GGB/i, '').trim();
+      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey.trim()) : apiKey.trim();
+      const encodedServiceKey = encodeURIComponent(rawServiceKey);
+
+      // 1. v2 공식 엔드포인트 호출
+      const v2Url = `${this.BUS_POS_API_URL_V2}?serviceKey=${encodedServiceKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
+
+      let response = await fetch(v2Url, {
+        method: 'GET',
+        headers: { Accept: 'application/json, text/xml, */*' },
+        signal: AbortSignal.timeout(3000),
+        next: { revalidate: 15 },
+      }).catch(() => null);
+
+      // 2. v2 응답이 정상이 아니면 v1 엔드포인트로 Fallback
+      if (!response || !response.ok) {
+        const v1Url = `${this.BUS_POS_API_URL_V1}?serviceKey=${encodedServiceKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
+        response = await fetch(v1Url, {
+          method: 'GET',
+          headers: { Accept: 'application/json, text/xml, */*' },
+          signal: AbortSignal.timeout(3000),
+          next: { revalidate: 15 },
+        }).catch(() => null);
+      }
+
+      if (!response || !response.ok) {
+        return null;
+      }
+
+      const text = await response.text();
+      let rawList: any = null;
+
+      // JSON 파싱 시도
+      try {
+        const json = JSON.parse(text);
+        rawList =
+          json.response?.msgBody?.busLocationList ||
+          json.response?.body?.items?.busLocationItem ||
+          json.response?.body?.items ||
+          json.msgBody?.busLocationList;
+      } catch {
+        // XML 파싱 Fallback
+        const parser = new XMLParser();
+        const xml = parser.parse(text);
+        rawList =
+          xml.response?.msgBody?.busLocationList ||
+          xml.response?.body?.items?.busLocationItem ||
+          xml.response?.body?.items ||
+          xml.msgBody?.busLocationList;
+      }
+
+      if (!rawList) {
+        return null;
+      }
+
+      const itemsArray: any[] = Array.isArray(rawList)
+        ? rawList
+        : rawList && typeof rawList === 'object'
+        ? [rawList]
+        : [];
+
+      return itemsArray.map((item) => {
+        const parseRemainSeats = (val: any): number | undefined => {
+          if (val === undefined || val === null || val === '') return undefined;
+          const num = Number(val);
+          return !isNaN(num) ? num : undefined;
+        };
+
+        const parseSeq = (val: any): number | undefined => {
+          if (val === undefined || val === null || val === '') return undefined;
+          const num = Number(val);
+          return !isNaN(num) ? num : undefined;
+        };
+
+        return {
+          routeId: item.routeId ? String(item.routeId) : cleanRouteId,
+          stationId: item.stationId ? String(item.stationId) : undefined,
+          stationSeq: parseSeq(item.stationSeq ?? item.stationSequence),
+          plateNo: item.plateNo ? String(item.plateNo).trim() : undefined,
+          remainSeatCnt: parseRemainSeats(item.remainSeatCnt),
+          plateType: item.plateType !== undefined ? Number(item.plateType) : undefined,
+          lowPlate: item.lowPlate !== undefined ? Number(item.lowPlate) : undefined,
+          endBus: item.endBus !== undefined ? Number(item.endBus) : undefined,
+          density: item.density !== undefined ? Number(item.density) : undefined,
+          vehId: item.vehId ? String(item.vehId) : undefined,
+        };
+      });
+    } catch (err: any) {
+      console.warn('[GyeonggiBusService] 버스 위치 API 연동 실패:', err?.message);
+      return null;
     }
   }
 

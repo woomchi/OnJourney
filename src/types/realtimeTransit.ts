@@ -105,6 +105,43 @@ export interface GyeonggiApiResponse {
 }
 
 /**
+ * 경기도 버스 위치 API 원본 응답 인터페이스 (v2 getBusLocationListv2)
+ */
+export interface GyeonggiBusLocationItem {
+  routeId?: string | number;        // 노선 ID
+  stationId?: string | number;      // 현재 정류소 ID
+  stationSeq?: number | string;     // 현재 정류소 순번 (노선 내 순번)
+  plateNo?: string;                 // 차량 번호 (예: "경기70사1234")
+  remainSeatCnt?: number | string;  // 잔여 좌석 수 (-1: 정보없음/입석, 0~45: 빈자리)
+  plateType?: number | string;      // 차종 (0:정보없음, 1:소형, 2:중형, 3:대형, 4:2층버스)
+  lowPlate?: number | string;       // 저상버스 여부 (0: 일반, 1: 저상)
+  endBus?: number | string;         // 막차 여부 (0: 일반, 1: 막차)
+  density?: number | string;        // 혼잡도
+  vehId?: string | number;          // 차량 고유 ID
+}
+
+export interface GyeonggiBusLocationApiResponse {
+  response?: {
+    header?: {
+      resultCode: string;
+      resultMsg: string;
+    };
+    msgHeader?: {
+      resultCode: number;
+      resultMessage: string;
+    };
+    msgBody?: {
+      busLocationList?: GyeonggiBusLocationItem | GyeonggiBusLocationItem[];
+    };
+    body?: {
+      items?: {
+        busLocationItem?: GyeonggiBusLocationItem | GyeonggiBusLocationItem[];
+      } | GyeonggiBusLocationItem[];
+    };
+  };
+}
+
+/**
  * 부산 버스 API 원본 응답 인터페이스
  */
 export interface BusanBusItem {

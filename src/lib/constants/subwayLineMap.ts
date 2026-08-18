@@ -147,6 +147,44 @@ export function resolveCandidateLineCodes(subwayId: string): string[] {
   if (cleanId === '1093' || cleanId.includes('서해')) {
     return ['1093', '서해선'];
   }
+  // 우이신설선
+  if (cleanId === '1092' || cleanId.includes('우이')) {
+    return ['1092', '우이신설선'];
+  }
+  // 인천 1호선
+  if (cleanId === '1069' || cleanId.includes('인천1') || cleanId.includes('인천 1')) {
+    return ['1069', '인천1호선', '인천 1호선'];
+  }
+  // 인천 2호선
+  if (cleanId === '1070' || cleanId.includes('인천2') || cleanId.includes('인천 2')) {
+    return ['1070', '인천2호선', '인천 2호선'];
+  }
+  // 에버라인 (용인경전철)
+  if (cleanId.includes('에버') || cleanId.includes('용인')) {
+    return ['에버라인', '용인경전철'];
+  }
+  // 의정부경전철
+  if (cleanId.includes('의정부')) {
+    return ['의정부경전철'];
+  }
+  // 부산 1~4호선
+  if (cleanId.includes('부산')) {
+    const m = cleanId.match(/\d/);
+    if (m) return [`부산${m[0]}호선`];
+  }
+  // 대구 1~3호선
+  if (cleanId.includes('대구')) {
+    const m = cleanId.match(/\d/);
+    if (m) return [`대구${m[0]}호선`];
+  }
+  // 대전 1호선
+  if (cleanId.includes('대전')) {
+    return ['대전1호선'];
+  }
+  // 광주 1호선
+  if (cleanId.includes('광주')) {
+    return ['광주1호선'];
+  }
 
   // 기본 단일 호선 번호 추출 시도
   if (cleanId.startsWith('100')) {

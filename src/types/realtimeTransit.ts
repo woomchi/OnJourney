@@ -2,7 +2,7 @@
  * 실시간 대중교통 정보 정규화 타입 정의
  */
 
-export type DataSourceType = 'tago' | 'gyeonggi' | 'busan' | 'odsay';
+export type DataSourceType = 'tago' | 'gyeonggi' | 'busan' | 'incheon' | 'odsay';
 
 export type BusType = 'normal' | 'express' | 'limited' | 'circulation';
 
@@ -169,3 +169,58 @@ export interface BusanApiResponse {
     };
   };
 }
+
+/**
+ * 인천 버스 API 원본 응답 인터페이스 (busArrivalService / getAllRouteBusArrivalList, getBusArrivalList)
+ */
+export interface IncheonBusItem {
+  ARRIVALESTIMATETIME?: number | string; // 도착예정시간 (초)
+  arrivalestimatetime?: number | string;
+  REST_STOP_COUNT?: number | string;     // 남은 정류소 수
+  rest_stop_count?: number | string;
+  ROUTENO?: string | number;             // 노선 번호
+  routeno?: string | number;
+  ROUTEID?: string | number;             // 노선 ID
+  routeid?: string | number;
+  DIR_END?: string;                      // 종점/방향
+  dir_end?: string;
+  BSTOPID?: string | number;             // 정류소 ID
+  bstopid?: string | number;
+  BSTOPNM?: string;                      // 정류소 명
+  bstopnm?: string;
+  BUS_NUM?: string;                      // 차량 번호
+  bus_num?: string;
+  BUS_TYPE?: string | number;            // 버스 타입
+  bus_type?: string | number;
+  LATEST_YN?: string | number;           // 막차 여부
+  latest_yn?: string | number;
+  LOW_TP?: string | number;              // 저상버스 여부
+  low_tp?: string | number;
+}
+
+export interface IncheonApiResponse {
+  response?: {
+    header?: {
+      resultCode: string;
+      resultMsg: string;
+    };
+    msgHeader?: {
+      resultCode: number | string;
+      resultMessage: string;
+    };
+    body?: {
+      items?: {
+        item?: IncheonBusItem | IncheonBusItem[];
+        itemList?: IncheonBusItem | IncheonBusItem[];
+      };
+      itemList?: IncheonBusItem | IncheonBusItem[];
+      numOfRows?: number;
+      pageNo?: number;
+      totalCount?: number;
+    };
+    msgBody?: {
+      itemList?: IncheonBusItem | IncheonBusItem[];
+    };
+  };
+}
+

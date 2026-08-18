@@ -469,23 +469,82 @@ GET http://apis.data.go.kr/6480000/busstationarrinfo/getArsArrInfoList
 
 ---
 
-## 4. 세 API 비교표
+## 4. 인천광역시 버스도착정보 API
 
-| 항목 | TAGO | 경기도 | 부산 |
-|------|------|--------|------|
-| **지역** | 전국 | 경기도만 | 부산만 |
-| **도착정보 엔드포인트** | `/getArrInfoList` | `/getBusArrivalListv2` | `/getStationArrInfoList` |
-| **응답 속도** | ~30초 | ~20초 | 실시간 |
-| **응답 형식** | JSON/XML | JSON/XML | JSON/XML |
-| **정류소ID 형식** | 9자리 (전국 통일) | 경기 기준 (부분 호환) | 부산 기준 (독립) |
-| **검색 방식** | 정류소ID 필수 | 정류소ID (staOrder 추가) | ID/ARS/명칭 복합 |
-| **상행/하행 구분** | routeId로 자동 | routeId + staOrder | direction으로 제공 |
-| **페이지네이션** | 지원 | 미지원 | 지원 |
-| **저상버스 정보** | ❌ | ❌ | ✅ |
-| **거리정보** | ✅ (미터) | ✅ (미터) | ✅ (미터) |
-| **버스 위치** | 별도 API | 별도 API | 별도 API |
-| **신뢰도** | 높음 | 높음 | 높음 |
-| **개발자 친화도** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ |
+### 4.1 기본 정보
+
+| 항목 | 내용 |
+|------|------|
+| **제공기관** | 인천광역시 |
+| **서비스명** | 인천광역시_버스도착정보 |
+| **기본 엔드포인트** | `https://apis.data.go.kr/6280000/busArrivalService` |
+| **지원 범위** | 인천광역시 전역 |
+| **데이터 형식** | JSON / XML |
+| **응답 주기** | 실시간 |
+| **신뢰도** | 높음 (인천시 공식 BIMS 연계) |
+
+### 4.2 주요 API 엔드포인트
+
+#### 4.2.1 정류소별 전체 노선 버스 도착 정보 조회 (`getAllRouteBusArrivalList`)
+```
+GET https://apis.data.go.kr/6280000/busArrivalService/getAllRouteBusArrivalList
+```
+
+**요청 파라미터:**
+
+| 파라미터명 | 타입 | 필수 | 설명 |
+|-----------|------|------|------|
+| `serviceKey` | String | O | 공공데이터포털 인증 키 |
+| `bstopId` | String | O | 정류소 고유번호 |
+| `pageNo` | Integer | X | 페이지 번호 (기본값: 1) |
+| `numOfRows` | Integer | X | 한 페이지 결과 수 (기본값: 10, 최대: 50) |
+
+**주요 응답 필드:**
+
+| 필드명 | 설명 |
+|--------|------|
+| `ARRIVALESTIMATETIME` | 도착 예정 시간 (초 단위) |
+| `REST_STOP_COUNT` | 남은 정류소 수 |
+| `ROUTENO` | 버스 노선 번호 |
+| `ROUTEID` | 노선 고유 ID |
+| `DIR_END` | 종점 / 운행 방향 |
+| `BSTOPID` | 정류소 고유번호 |
+| `BUS_NUM` | 차량 번호 |
+| `LATEST_YN` | 막차 여부 (Y/N) |
+| `LOW_TP` | 저상버스 여부 |
+
+#### 4.2.2 특정 노선 버스 도착 정보 조회 (`getBusArrivalList`)
+```
+GET https://apis.data.go.kr/6280000/busArrivalService/getBusArrivalList
+```
+
+**요청 파라미터:**
+
+| 파라미터명 | 타입 | 필수 | 설명 |
+|-----------|------|------|------|
+| `serviceKey` | String | O | 공공데이터포털 인증 키 |
+| `bstopId` | String | O | 정류소 고유번호 |
+| `routeId` | String | O | 노선 고유번호 |
+| `pageNo` | Integer | X | 페이지 번호 |
+| `numOfRows` | Integer | X | 한 페이지 결과 수 |
+
+---
+
+## 5. 지자체별 API 비교표
+
+| 항목 | TAGO (국토부) | 경기도 (GBIS) | 부산광역시 (BIMS) | 인천광역시 (BIMS) |
+|------|--------------|--------------|-------------------|-------------------|
+| **지역** | 전국 | 경기도만 | 부산만 | 인천만 |
+| **도착정보 엔드포인트** | `/getArrInfoList` | `/getBusArrivalListv2` | `/stopArrByBstopid` | `/getAllRouteBusArrivalList` |
+| **응답 속도** | ~30초 | ~20초 | 실시간 | 실시간 |
+| **응답 형식** | JSON/XML | JSON/XML | JSON/XML | JSON/XML |
+| **정류소ID 형식** | 9자리 (전국 통일) | 경기 기준 (부분 호환) | 부산 기준 (독립) | 인천 기준 (`bstopId`) |
+| **검색 방식** | 정류소ID 필수 | 정류소ID (staOrder 추가) | ID/ARS/명칭 복합 | 정류소ID (`bstopId`) |
+| **상행/하행 구분** | routeId로 자동 | routeId + staOrder | direction으로 제공 | DIR_END 제공 |
+| **페이지네이션** | 지원 | 미지원 | 지원 | 지원 |
+| **저상버스 정보** | ❌ | ❌ | ✅ | ✅ |
+| **신뢰도** | 높음 (0.80) | 높음 (0.85) | 높음 (0.85) | 높음 (0.85) |
+| **개발자 친화도** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
 
 ---
 

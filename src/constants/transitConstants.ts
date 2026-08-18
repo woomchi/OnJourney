@@ -26,6 +26,7 @@ export const RELIABILITY_SCORES = {
   tago: 0.80,
   gyeonggi: 0.85,
   busan: 0.85,
+  incheon: 0.85,
   odsay: 0.50,
   staleCache: 0.50,
 };
@@ -35,5 +36,6 @@ export const CACHE_TTL_SECONDS = {
   tagoOther: 30,
   gyeonggi: 20,
   busan: 15,
+  incheon: 15,
   default: 20,
 };

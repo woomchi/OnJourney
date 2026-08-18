@@ -1,5 +1,6 @@
 import { BusanBusService } from './BusanBusService';
 import { GyeonggiBusService } from './GyeonggiBusService';
+import { IncheonBusService } from './IncheonBusService';
 import { MergeService } from './MergeService';
 import { TagoBusService } from './TagoBusService';
 import { NormalizedRealtimeData } from '@/types/realtimeTransit';
@@ -38,7 +39,7 @@ export class RealtimeTransitService {
       }
     }
 
-    // 0-1단계: stationId 패턴 기반 보조 판별 (경기도 9자리 2xxxxxxxxx ID 또는 GGB/BSB 접두사)
+    // 0-1단계: stationId 패턴 기반 보조 판별 (경기도 9자리 2xxxxxxxxx ID 또는 GGB/BSB/ICB 접두사)
     const pureId = stationId.replace(/[^0-9]/g, '');
     if (normalizedRegion === 'tago' || normalizedRegion === 'seoul' || !region) {
       if (
@@ -56,6 +57,12 @@ export class RealtimeTransitService {
         }
       } else if (stationId.toUpperCase().startsWith('BSB') || resolvedCityCode === '21') {
         normalizedRegion = 'busan';
+      } else if (
+        stationId.toUpperCase().startsWith('ICB') ||
+        stationId.toUpperCase().startsWith('INB') ||
+        resolvedCityCode === '23'
+      ) {
+        normalizedRegion = 'incheon';
       }
     }
 
@@ -103,7 +110,29 @@ export class RealtimeTransitService {
       });
     }
 
-    // 3단계: 서울 및 수도권 복합 권역 (GBIS 경기도 광역버스 + TAGO 서울/전국 버스 병렬 호출 및 머지)
+    // 3단계: 인천 권역 (Primary: 인천 버스도착정보 API -> Fallback: TAGO)
+    if (normalizedRegion === 'incheon' || normalizedRegion === '인천') {
+      try {
+        const incheonResult = await IncheonBusService.getArrivalInfo(stationId, stationName);
+        if (incheonResult && incheonResult.nextArrivals.length > 0) {
+          return incheonResult; // 인천 1순위 데이터 즉시 반환
+        }
+      } catch (err: any) {
+        console.warn(`[RealtimeTransitService] 인천 1순위 API 호출 실패, TAGO 폴백 진행: ${err?.message}`);
+      }
+
+      // 인천 API 결과 0건 또는 실패 시 TAGO로 폴백
+      return TagoBusService.getArrivalInfoSmartNodeTrigger({
+        cityCode: resolvedCityCode || '23',
+        region: normalizedRegion,
+        nodeId: stationId,
+        stationName,
+        lat,
+        lng,
+      });
+    }
+
+    // 4단계: 서울 및 수도권 복합 권역 (GBIS 경기도 광역버스 + TAGO 서울/전국 버스 병렬 호출 및 머지)
     if (normalizedRegion === 'seoul' || normalizedRegion === '서울' || !region) {
       try {
         const [ggbSettled, tagoSettled] = await Promise.allSettled([
@@ -143,7 +172,7 @@ export class RealtimeTransitService {
       }
     }
 
-    // 4단계: 전국 및 기타 권역 (Primary: TAGO 스마트 노드 버스 서비스)
+    // 5단계: 전국 및 기타 권역 (Primary: TAGO 스마트 노드 버스 서비스)
     return TagoBusService.getArrivalInfoSmartNodeTrigger({
       cityCode: resolvedCityCode,
       region: normalizedRegion,

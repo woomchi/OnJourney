@@ -22,6 +22,8 @@ import { SubwayRealtimeQueryType } from '../validations/subway';
 import type { SubwayArrival, SubwayPosition } from '@/types/journey';
 import { getStationArrivalsFromTotalCache } from './subwayTotalRealtimeService';
 import { fetchSubwayPositionsByLine } from './subwayPositionService';
+import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
+import { isMatchingSubwayId, resolveWayCode } from '@/lib/constants/subwayLineMap';
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -162,9 +164,7 @@ function getSubwayApiKey(): string {
   const env = process.env as Record<string, string | undefined>;
   const rawKey =
     env.REAL_TIME_SUBWAY_API_KEY ||
-    env['REAL_TIME_SUBWAY_API_KEY '] ||
     env.REAL_TIME_SEOUL_SUBWAY_API_KEY ||
-    env['REAL_TIME_SEOUL_SUBWAY_API_KEY '] ||
     '';
   return rawKey.trim().replace(/^["']|["']$/g, '');
 }
@@ -221,50 +221,17 @@ export async function fetchSubwayRealtime(
     let rows: SubwayRawRow[] = data.realtimeArrivalList || [];
 
     // 만료된 데이터(수신 시각 초과 또는 출발 완료 열차) 1차 필터링
-    const now = Date.now();
+    const now = timeOffsetManager.getSynchronizedNow();
     rows = rows.filter((row) => !isStaleRow(row, now));
 
     // 요청된 subwayId가 지정된 경우, 환승역 타 노선 데이터 혼선을 방지하기 위해 노선 필터링
     if (subwayId) {
-      const cleanId = String(subwayId).trim();
-      rows = rows.filter((row) => {
-        const rowSubwayId = String(row.subwayId || '').trim();
-        if (!rowSubwayId) return true;
-        if (rowSubwayId === cleanId) return true;
-        if (parseInt(rowSubwayId, 10) === parseInt(cleanId, 10)) return true;
-
-        if ((cleanId === '1' || cleanId.includes('1호선')) && rowSubwayId === '1001') return true;
-        if ((cleanId === '2' || cleanId.includes('2호선')) && rowSubwayId === '1002') return true;
-        if ((cleanId === '3' || cleanId.includes('3호선')) && rowSubwayId === '1003') return true;
-        if ((cleanId === '4' || cleanId.includes('4호선')) && rowSubwayId === '1004') return true;
-        if ((cleanId === '5' || cleanId.includes('5호선')) && rowSubwayId === '1005') return true;
-        if ((cleanId === '6' || cleanId.includes('6호선')) && rowSubwayId === '1006') return true;
-        if ((cleanId === '7' || cleanId.includes('7호선')) && rowSubwayId === '1007') return true;
-        if ((cleanId === '8' || cleanId.includes('8호선')) && rowSubwayId === '1008') return true;
-        if ((cleanId === '9' || cleanId.includes('9호선')) && rowSubwayId === '1009') return true;
-        if ((cleanId.includes('수인분당') || cleanId.includes('분당선')) && rowSubwayId === '1075') return true;
-        if (cleanId.includes('신분당') && rowSubwayId === '1077') return true;
-        if ((cleanId.includes('경의중앙') || cleanId.includes('경의선')) && rowSubwayId === '1063') return true;
-        if (cleanId.includes('공항철도') && rowSubwayId === '1065') return true;
-
-        return false;
-      });
+      rows = rows.filter((row) => isMatchingSubwayId(row.subwayId, subwayId));
     }
 
     // 요청된 wayCode 방향과 일치하는 열차만 필터링 ('1': 상행/내선, '2': 하행/외선)
     if (wayCode) {
-      rows = rows.filter((row) => {
-        const lineStr = String(row.updnLine || '');
-        const isUpLine =
-          lineStr === '상행' ||
-          lineStr === '0' ||
-          lineStr.includes('상선') ||
-          lineStr.includes('내선') ||
-          lineStr.includes('서울') ||
-          lineStr.includes('청량리');
-        const trainWayCode = isUpLine ? '1' : '2';
-        return trainWayCode === wayCode;
-      });
+      rows = rows.filter((row) => resolveWayCode(row.updnLine) === wayCode);
     }
 
     // 하차역(destination) 지정 시 도달 가능 여부(canBoard) 사전 판별
@@ -312,62 +279,60 @@ export async function fetchSubwayRealtime(
       return fallbackToTotalOrTimetable(cleanStation, wayCode);
     }
 
-    // ─ ETA 및 메타데이터 계산 (병렬 처리) ─
-    const processedArrivalsRaw = await Promise.all(
-      rows.map(async (row) => {
-        const liveMsg = String(row.arvlMsg2 || '');
-        const recTime = String(row.recptnDt || '');
-        const lineName = String(row.updnLine || '');
-        const trainNo = String(row.btrainNo || row.trainNo || '');
-        const barvlDt = Number(row.barvlDt || 0);
+    // ─ ETA 및 메타데이터 계산 ─
+    const processedArrivalsRaw = rows.map((row) => {
+      const liveMsg = String(row.arvlMsg2 || '');
+      const recTime = String(row.recptnDt || '');
+      const lineName = String(row.updnLine || '');
+      const trainNo = String(row.btrainNo || row.trainNo || '');
+      const barvlDt = Number(row.barvlDt || 0);
 
-        // 위치 API 조인 (trainNo 기준)
-        const cleanTrainNo = trainNo.trim();
-        const trimmedTrainNo = cleanTrainNo.replace(/^0+/, '');
-        const matchedPos = positionMap.get(cleanTrainNo) || (trimmedTrainNo ? positionMap.get(trimmedTrainNo) : undefined);
+      // 위치 API 조인 (trainNo 기준)
+      const cleanTrainNo = trainNo.trim();
+      const trimmedTrainNo = cleanTrainNo.replace(/^0+/, '');
+      const matchedPos = positionMap.get(cleanTrainNo) || (trimmedTrainNo ? positionMap.get(trimmedTrainNo) : undefined);
 
-        const eta = await calculateSubwayETADynamic(
-          liveMsg,
-          recTime,
-          cleanStation,
-          trainNo,
-          lineName,
-          barvlDt,
-          String(row.subwayId || ''),
-          row.arvlCd,
-          row.trainLineNm,
-          row.btrainSttus,
-          matchedPos?.statnNm
-        );
+      const eta = calculateSubwayETADynamic(
+        liveMsg,
+        recTime,
+        cleanStation,
+        trainNo,
+        lineName,
+        barvlDt,
+        String(row.subwayId || ''),
+        row.arvlCd,
+        row.trainLineNm,
+        row.btrainSttus,
+        matchedPos?.statnNm
+      );
 
-        const { destination: destName, isExpress: isMetaExpress } = extractTrainMetadata(row.trainLineNm);
-        const isExpress =
-          isMetaExpress ||
-          matchedPos?.isExpress ||
-          row.btrainSttus === '급행' ||
-          row.btrainSttus === '특급' ||
-          String(row.trainLineNm || '').includes('급행') ||
-          String(row.trainLineNm || '').includes('(급)');
+      const { destination: destName, isExpress: isMetaExpress } = extractTrainMetadata(row.trainLineNm);
+      const isExpress =
+        isMetaExpress ||
+        matchedPos?.isExpress ||
+        row.btrainSttus === '급행' ||
+        row.btrainSttus === '특급' ||
+        String(row.trainLineNm || '').includes('급행') ||
+        String(row.trainLineNm || '').includes('(급)');
 
-        const canBoard = destination ? (reachableMap.get(row) ?? true) : true;
+      const canBoard = destination ? (reachableMap.get(row) ?? true) : true;
 
-        return {
-          subwayId: String(row.subwayId || ''),
-          updnLine: lineName,
-          trainNo,
-          statnNm: cleanStation,
-          arvlMsg2: liveMsg,
-          recptnDt: recTime,
-          trainLineNm: row.trainLineNm,
-          ...eta,
-          isRealtime: true,
-          canBoard,
-          destinationStationNm: destName || undefined,
-          isExpress,
-          currentTrainPosition: matchedPos,
-        };
-      })
-    );
+      return {
+        subwayId: String(row.subwayId || ''),
+        updnLine: lineName,
+        trainNo,
+        statnNm: cleanStation,
+        arvlMsg2: liveMsg,
+        recptnDt: recTime,
+        trainLineNm: row.trainLineNm,
+        ...eta,
+        isRealtime: true,
+        canBoard,
+        destinationStationNm: destName || undefined,
+        isExpress,
+        currentTrainPosition: matchedPos,
+      };
+    });
 
     // 지나간 열차(isPassed === true) 제외
     const validArrivals = processedArrivalsRaw.filter(

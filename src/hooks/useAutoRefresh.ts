@@ -234,6 +234,22 @@ export function useAutoRefresh({
     start();
   }, [sharedKey, start]);
 
+  const handleReset = useCallback(() => {
+    if (sharedKey) {
+      sharedTransitRefreshStore.reset(sharedKey);
+      return;
+    }
+    reset();
+  }, [sharedKey, reset]);
+
+  const handlePause = useCallback(() => {
+    if (sharedKey) {
+      sharedTransitRefreshStore.pause(sharedKey);
+      return;
+    }
+    pause();
+  }, [sharedKey, pause]);
+
   if (sharedKey && sharedState) {
     return {
       status: sharedState.status,
@@ -241,8 +257,8 @@ export function useAutoRefresh({
       countdown: sharedState.countdown,
       isLoading: sharedState.isDisplayLoading,
       start: handleStart,
-      reset,
-      pause,
+      reset: handleReset,
+      pause: handlePause,
       buttonText: sharedState.buttonText,
       buttonTitle: sharedState.buttonTitle,
     };

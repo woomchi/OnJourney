@@ -309,74 +309,17 @@ function timeToSeconds(timeStr: string): number {
   return h * 3_600 + m * 60 + s;
 }
 
+import {
+  resolveCandidateLineCodes as resolveCandidateCodesFromMap,
+  resolveWayCode,
+} from '@/lib/constants/subwayLineMap';
+
 /**
  * subwayId 또는 노선명을 바탕으로 매칭 가능한 노선 코드/이름 목록을 반환합니다.
+ * (subwayLineMap으로 위임)
  */
-function resolveCandidateLineCodes(subwayId: string): string[] {
-  const cleanId = String(subwayId || '').trim();
-
-  // 1호선
-  if (cleanId === '1001' || cleanId === '1' || cleanId.includes('1호선')) {
-    return ['1', '1001', '1001_경부', '1001_경인', '1001_경원', '1001_장항', '1호선_경부선', '1호선_경인선', '1호선_장항선', '1호선_경원선', '경원선'];
-  }
-  // 2호선
-  if (cleanId === '1002' || cleanId === '2' || cleanId.includes('2호선')) {
-    return ['2', '1002'];
-  }
-  // 3호선
-  if (cleanId === '1003' || cleanId === '3' || cleanId.includes('3호선')) {
-    return ['3', '1003', '3호선_일산선', '1003_일산', '일산선'];
-  }
-  // 4호선
-  if (cleanId === '1004' || cleanId === '4' || cleanId.includes('4호선')) {
-    return ['4', '1004', '4호선_과천안산선', '1004_과천안산', '과천선', '안산선'];
-  }
-  // 5호선
-  if (cleanId === '1005' || cleanId === '5' || cleanId.includes('5호선')) {
-    return ['5', '1005'];
-  }
-  // 6호선
-  if (cleanId === '1006' || cleanId === '6' || cleanId.includes('6호선')) {
-    return ['6', '1006'];
-  }
-  // 7호선
-  if (cleanId === '1007' || cleanId === '7' || cleanId.includes('7호선')) {
-    return ['7', '1007'];
-  }
-  // 8호선
-  if (cleanId === '1008' || cleanId === '8' || cleanId.includes('8호선')) {
-    return ['8', '1008'];
-  }
-  // 9호선
-  if (cleanId === '1009' || cleanId === '9' || cleanId.includes('9호선')) {
-    return ['9', '1009'];
-  }
-  // 경의중앙선
-  if (cleanId === '1063' || cleanId.includes('경의중앙') || cleanId.includes('경의선') || cleanId.includes('중앙선')) {
-    return ['1063', '경의중앙선', '경의선', '중앙선'];
-  }
-  // 경춘선
-  if (cleanId === '1067' || cleanId.includes('경춘')) {
-    return ['1067', '경춘선'];
-  }
-  // 수인분당선
-  if (cleanId === '1075' || cleanId.includes('수인분당') || cleanId.includes('분당선') || cleanId.includes('수인선')) {
-    return ['1075', '수인분당선', '분당선', '수인선'];
-  }
-  // 경강선
-  if (cleanId === '1081' || cleanId.includes('경강')) {
-    return ['1081', '경강선'];
-  }
-  // 서해선
-  if (cleanId === '1093' || cleanId.includes('서해')) {
-    return ['1093', '서해선'];
-  }
-
-  // 기본 단일 호선 번호 추출 시도
-  if (cleanId.startsWith('100')) {
-    return [cleanId.substring(3), cleanId];
-  }
-  return [cleanId];
+export function resolveCandidateLineCodes(subwayId: string): string[] {
+  return resolveCandidateCodesFromMap(subwayId);
 }
 
 /**
@@ -391,13 +334,7 @@ function normalizeStationName(name: string): string {
  * @returns '1' (상행) | '2' (하행)
  */
 function resolveUpDownTypeCode(updnLine: string): '1' | '2' {
-  const isUpLine =
-    updnLine === '상행' ||
-    updnLine?.includes('상선') ||
-    updnLine?.includes('내선') ||
-    updnLine?.includes('서울') ||
-    updnLine?.includes('청량리');
-  return isUpLine ? '1' : '2';
+  return resolveWayCode(updnLine);
 }
 
 /**
@@ -915,7 +852,16 @@ export async function calculateNextTrainFromTimetable(
         timeToSeconds(String(b.arrTime || b.depTime))
     );
 
-  if (upcoming.length === 0) return null;
+  if (upcoming.length === 0) {
+    return {
+      trainNo: 'LAST_TRAIN_ENDED',
+      endSubwayStationNm: '운행 종료',
+      minutesLeft: 999,
+      arrivalTime: '--:--',
+      statusText: '[시간표] 금일 운행 종료',
+      isApproaching: false,
+    };
+  }
 
   const next = upcoming[0];
   const targetSec = timeToSeconds(String(next.arrTime || next.depTime));
@@ -946,14 +892,13 @@ import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
 // ─── 공개 유틸리티: 실시간 메시지 파싱 ──────────────────────────────────────
 
 /**
- * 시간대별 혼잡도 보정 가중치를 반환합니다.
- * (출근 7~9시: 1.25, 퇴근 17~19시: 1.2, 야간 22~05시: 0.9)
+ * 시간대별 혼잡도 정차 지연 가중치 (기본 1.0, 출퇴근 시간 정차 지연 보정)
  */
 function getRushHourFactor(date: Date = new Date()): number {
   const hours = date.getHours();
-  if (hours >= 7 && hours < 9) return 1.25;
-  if (hours >= 17 && hours < 19) return 1.2;
-  if (hours >= 22 || hours < 5) return 0.9;
+  if ((hours >= 7 && hours < 9) || (hours >= 17 && hours < 19)) {
+    return 1.1; // 출퇴근 시간대 승하차 정차 지연 10% 보정
+  }
   return 1.0;
 }
 
@@ -1281,7 +1226,7 @@ function buildFallbackResponse(
 /**
  * 실시간 도착 정보를 바탕으로 지하철 ETA를 동적으로 계산합니다.
  */
-export async function calculateSubwayETADynamic(
+export function calculateSubwayETADynamic(
   arvlMsg2: string,
   recptnDt: string,
   targetStation: string,
@@ -1293,7 +1238,7 @@ export async function calculateSubwayETADynamic(
   trainLineNm?: string,
   btrainSttus?: string,
   positionStatnNm?: string
-): Promise<SubwayEtaResult> {
+): SubwayEtaResult {
   const targetClean = normalizeStationName(targetStation);
   const isExpress = isExpressTrain(trainLineNm, btrainSttus, arvlMsg2, trainNo);
   const arvlCdStr = String(arvlCd ?? '');

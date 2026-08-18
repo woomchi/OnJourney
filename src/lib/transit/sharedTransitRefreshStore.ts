@@ -140,12 +140,14 @@ class SharedTransitRefreshStore {
       session.subscribers.delete(callback);
       session.onRefreshHandlers.delete(onRefresh);
 
-      // 더 이상 구독자가 없으면 세션 정리
+      // 더 이상 구독자가 없으면 세션 및 타이머 완전 정리
       if (session.subscribers.size === 0) {
         this.stopTimer(key);
         if (session.finishTimer) {
           clearTimeout(session.finishTimer);
+          session.finishTimer = null;
         }
+        session.onRefreshHandlers.clear();
         this.sessions.delete(key);
       }
     };
@@ -240,6 +242,42 @@ class SharedTransitRefreshStore {
     if (!session.timer) {
       this.startTimer(key);
     }
+  }
+
+  public reset(key: string): void {
+    this.stopTimer(key);
+    const session = this.sessions.get(key);
+    if (!session) return;
+
+    if (session.finishTimer) {
+      clearTimeout(session.finishTimer);
+      session.finishTimer = null;
+    }
+
+    session.state.status = 'idle';
+    session.state.refreshCount = 0;
+    session.state.countdown = session.intervalSeconds;
+    session.state.isDisplayLoading = false;
+    session.state.isFetching = false;
+    this.updateButtonTexts(session);
+    this.notify(key);
+  }
+
+  public pause(key: string): void {
+    this.stopTimer(key);
+    const session = this.sessions.get(key);
+    if (!session) return;
+
+    if (session.finishTimer) {
+      clearTimeout(session.finishTimer);
+      session.finishTimer = null;
+    }
+
+    session.state.status = 'paused';
+    session.state.countdown = session.intervalSeconds;
+    session.state.isDisplayLoading = false;
+    this.updateButtonTexts(session);
+    this.notify(key);
   }
 
   public getState(key: string): SharedRefreshState | null {

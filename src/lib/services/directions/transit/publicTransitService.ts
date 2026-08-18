@@ -4,22 +4,11 @@ import { odsayCircuitBreaker } from '@/lib/infrastructure/circuitBreaker';
 import { OdsayAdapter, AppError } from '@/lib/infrastructure/odsayAdapter';
 import { parseMaasRPResponse } from './maasRPParser';
 
+import { toKstSearchTime } from '../common/timeUtils';
+
 type MaasRPApiCacheResult =
   | { ok: true; data: any }
   | { ok: false; error: string; code: string };
-
-/**
- * departureTime (timestamp ms) 또는 현재 시각을 yyyyMMddHHmm 문자열로 변환하는 유틸
- */
-function toSearchTime(departureTime?: number): string {
-  const d = departureTime ? new Date(departureTime) : new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${year}${month}${day}${hours}${minutes}`;
-}
 
 /**
  * ODsay 멀티모달(maasRP) 대중교통 경로 캐시 함수 (시간대별 5분 캐싱)
@@ -73,7 +62,7 @@ export async function fetchPublicTransitOptions(
   const rsy = sy.toFixed(4);
   const rex = ex.toFixed(4);
   const rey = ey.toFixed(4);
-  const searchTime = toSearchTime(departureTime);
+  const searchTime = toKstSearchTime(departureTime);
 
   // console.log(`[PublicTransitService][DEBUG] ▶ fetchPublicTransitOptions 호출`);
   // console.log(`[PublicTransitService][DEBUG]   좌표: SX=${rsx}, SY=${rsy}, EX=${rex}, EY=${rey}`);

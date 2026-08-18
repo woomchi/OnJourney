@@ -53,11 +53,15 @@ export default function DepartureTimeSelector() {
     const date = new Date(departureTime);
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
-    const hh = String(date.getHours()).padStart(2, '0');
+    const rawHours = date.getHours();
     const min = String(date.getMinutes()).padStart(2, '0');
-    // 요일 구하기
     const week = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
-    return `${mm}.${dd}(${week}) ${hh}:${min} 출발`;
+
+    const period = rawHours < 12 ? '오전' : '오후';
+    const hour12 = rawHours % 12 === 0 ? 12 : rawHours % 12;
+    const hour24 = String(rawHours).padStart(2, '0');
+
+    return `${mm}.${dd}(${week}) ${period} ${hour12}:${min} (${hour24}:${min}) 출발`;
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,6 +80,21 @@ export default function DepartureTimeSelector() {
     setIsOpen(false);
   };
 
+  // 현재 입력값의 오전/오후 텍스트 요약
+  const getSelectedPreviewText = () => {
+    if (!inputValue) return '';
+    try {
+      const [datePart, timePart] = inputValue.split('T');
+      if (!timePart) return '';
+      const [h, m] = timePart.split(':').map(Number);
+      const period = h < 12 ? '오전' : '오후';
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      return `${datePart} ${period} ${h12}시 ${String(m).padStart(2, '0')}분 (${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')})`;
+    } catch {
+      return '';
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative inline-block text-left z-[3000]">
       {/* 트리거 버튼 */}
@@ -85,7 +104,7 @@ export default function DepartureTimeSelector() {
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 focus:outline-none transition-colors"
       >
         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span className="max-w-[150px] truncate">{getLabel()}</span>
+        <span className="max-w-[200px] truncate">{getLabel()}</span>
         <svg
           className="w-3.5 h-3.5 text-gray-400"
           fill="none"
@@ -98,7 +117,7 @@ export default function DepartureTimeSelector() {
 
       {/* 팝오버 드롭다운 (아래 방향으로 열리도록 top-full mt-2 설정) */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl ring-1 ring-black/5 focus:outline-none p-4 transition-all z-[3000]">
+        <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-xl ring-1 ring-black/5 focus:outline-none p-4 transition-all z-[3000]">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <span className="text-xs font-bold text-gray-800">출발 시각 설정</span>
@@ -112,18 +131,27 @@ export default function DepartureTimeSelector() {
             </div>
 
             {/* 시각 변경 입력창 */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <label className="text-[10px] text-gray-400 font-semibold uppercase">날짜 및 시간 선택</label>
               <input
                 type="datetime-local"
                 value={inputValue}
                 onChange={handleTimeChange}
-                className="w-full px-2.5 py-1.5 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full px-2.5 py-1.5 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 font-medium"
               />
+              {getSelectedPreviewText() && (
+                <div className="text-[11px] font-semibold text-emerald-600 bg-emerald-50/70 px-2 py-1 rounded-md">
+                  선택 시각: {getSelectedPreviewText()}
+                </div>
+              )}
             </div>
 
-            <div className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-              * 설정 시 대중교통 배차 간격 및 SRT/KTX, 고속/시외버스 연계 시간표가 지정 시각 기준으로 재조회됩니다.
+            <div className="text-[10px] text-gray-400 mt-1 leading-relaxed bg-zinc-50 p-2 rounded-lg border border-zinc-100">
+              <span className="font-semibold text-zinc-600">안내</span>
+              <ul className="list-disc pl-3 mt-1 space-y-0.5 text-zinc-500">
+                <li>SRT/KTX, 고속/시외버스는 지정 시각 이후의 실시간 운행 시간표가 반영됩니다.</li>
+                <li>시내버스/지하철은 지정 시각의 표준 운행 배차 간격 기준으로 최적 경로를 산출합니다.</li>
+              </ul>
             </div>
           </div>
         </div>

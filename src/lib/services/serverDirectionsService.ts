@@ -7,7 +7,7 @@
 
 // 1. 공통 유틸리티
 export { haversineDistance, roundCoord } from './directions/common/distanceUtils';
-export { getTimeSlot, getTimeGroup, getCacheDuration } from './directions/common/timeUtils';
+export { getTimeSlot, getTimeGroup, getCacheDuration, toKstSearchTime, normalizeTimestampToMs, getKstDateComponents } from './directions/common/timeUtils';
 
 // 2. 대중교통 도메인 서비스
 export { getSubwayColor, cleanSubwayName, getBusColor } from './directions/transit/transitColorUtils';

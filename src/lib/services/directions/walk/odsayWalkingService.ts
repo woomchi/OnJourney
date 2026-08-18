@@ -4,18 +4,7 @@ import { OdsayAdapter } from '@/lib/infrastructure/odsayAdapter';
 import { haversineDistance, roundCoord } from '../common/distanceUtils';
 import { buildWalkFallbackResults } from './walkFallbackService';
 
-/**
- * departureTime 또는 현재 시각을 yyyyMMddHHmm 문자열로 변환 유틸
- */
-function toSearchTime(departureTime?: number): string {
-  const d = departureTime ? new Date(departureTime) : new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${year}${month}${day}${hours}${minutes}`;
-}
+
 
 /**
  * ODsay maasRP graph 파라미터 ("x y|x y|...") 파싱 유틸

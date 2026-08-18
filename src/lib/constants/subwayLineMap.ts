@@ -182,18 +182,45 @@ export function isMatchingSubwayId(rowSubwayId: string | number | undefined, tar
 // ─── 5. 방향 판별 단일 공통 함수 ──────────────────────────────────────────
 
 /**
- * 문자열이 상행/내선 방향인지 판별합니다.
+ * 문자열/코드가 상행/내선 방향인지 판별합니다.
+ *
+ * 공공 API 및 내부 표준 매핑:
+ * - '상행', '내선', '내선순환', '상선', '0', '1'(wayCode) -> true
+ * - '하행', '외선', '외선순환', '하선', '1'(위치API), '2'(wayCode) -> false
  */
 export function isUpLine(updnLine: string | number | undefined): boolean {
   const s = String(updnLine || '').trim();
-  return (
+  if (!s) return true;
+
+  // 1. 하행/외선 명시적 확인
+  if (
+    s === '하행' ||
+    s === '외선' ||
+    s === '외선순환' ||
+    s === '하선' ||
+    s === '2' // wayCode: 2 (하행)
+  ) {
+    return false;
+  }
+
+  // 2. 상행/내선 명시적 확인
+  if (
     s === '상행' ||
-    s === '0' ||
-    s.includes('상선') ||
-    s.includes('내선') ||
-    s.includes('서울') ||
-    s.includes('청량리')
-  );
+    s === '내선' ||
+    s === '내선순환' ||
+    s === '상선' ||
+    s === '0' // 위치 API updnLine: 0 (상행)
+  ) {
+    return true;
+  }
+
+  // 3. '1'의 경우: wayCode '1'은 상행이지만 위치 API '1'은 하행임.
+  // 기본적으로 문자열 '상'/'내' 포함 여부로 1차 안전 판별
+  if (s.includes('상') || s.includes('내')) return true;
+  if (s.includes('하') || s.includes('외')) return false;
+
+  // wayCode 기본값 ('1' = 상행)
+  return s === '1';
 }
 
 /**
@@ -201,4 +228,11 @@ export function isUpLine(updnLine: string | number | undefined): boolean {
  */
 export function resolveWayCode(updnLine: string | number | undefined): '1' | '2' {
   return isUpLine(updnLine) ? '1' : '2';
+}
+
+/**
+ * wayCode ('1'/'2') 또는 updnLine 문자열을 서울시 실시간 열차 위치 API 방향 ('0': 상행, '1': 하행)으로 변환합니다.
+ */
+export function resolvePositionDirection(wayCodeOrUpdnLine: string | number | undefined): '0' | '1' {
+  return isUpLine(wayCodeOrUpdnLine) ? '0' : '1';
 }

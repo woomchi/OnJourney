@@ -948,7 +948,8 @@ function buildApproachingResponse(
     arvlCdStr === '2' ||
     arvlMsg2.includes(`${targetClean} 출발`) ||
     arvlMsg2.includes('당역 출발') ||
-    arvlMsg2.includes('당역출발');
+    arvlMsg2.includes('당역출발') ||
+    arvlMsg2 === '출발';
   if (isJustDeparted) {
     return {
       statusText: `${targetClean} 출발함`,
@@ -1243,17 +1244,13 @@ export function calculateSubwayETADynamic(
   const isExpress = isExpressTrain(trainLineNm, btrainSttus, arvlMsg2, trainNo);
   const arvlCdStr = String(arvlCd ?? '');
 
-  // 1. 이미 해당 역(targetClean)을 출발한 열차 판별 (당역 출발 완료인 경우만 isPassed)
-  const isDepartedCode =
-    arvlCdStr === '2' &&
-    (arvlMsg2.includes(`${targetClean} 출발`) ||
-      arvlMsg2.includes('당역 출발') ||
-      arvlMsg2.includes('당역출발') ||
-      arvlMsg2 === '출발');
+  // 1. 이미 해당 역(targetClean)을 출발한 열차 판별 (arvlCd === '2' 또는 당역 출발 완료)
+  const isDepartedCode = arvlCdStr === '2';
   const isDepartedMsg =
     arvlMsg2.includes(`${targetClean} 출발`) ||
     arvlMsg2.includes('당역 출발') ||
-    arvlMsg2.includes('당역출발');
+    arvlMsg2.includes('당역출발') ||
+    arvlMsg2 === '출발';
 
   if (isDepartedCode || isDepartedMsg) {
     return {

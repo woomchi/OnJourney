@@ -23,7 +23,7 @@ import type { SubwayArrival, SubwayPosition } from '@/types/journey';
 import { getStationArrivalsFromTotalCache } from './subwayTotalRealtimeService';
 import { fetchSubwayPositionsByLine } from './subwayPositionService';
 import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
-import { isMatchingSubwayId, resolveWayCode } from '@/lib/constants/subwayLineMap';
+import { isMatchingSubwayId, resolveWayCode, resolvePositionDirection } from '@/lib/constants/subwayLineMap';
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -124,8 +124,13 @@ export function isStaleRow(row: SubwayRawRow, currentTimeMs: number): boolean {
   const arvlCd = String(row.arvlCd ?? '');
   const arvlMsg2 = String(row.arvlMsg2 ?? '');
 
-  // 1. 이미 당역 출발 완료된 열차
-  if (arvlMsg2.includes('당역 출발') || arvlMsg2.includes('당역출발') || arvlMsg2 === '출발') {
+  // 1. 이미 당역 출발 완료된 열차 (arvlCd === '2' 또는 출발 메시지)
+  if (
+    arvlCd === ARRIVAL_CODE_ENDED ||
+    arvlMsg2.includes('당역 출발') ||
+    arvlMsg2.includes('당역출발') ||
+    arvlMsg2 === '출발'
+  ) {
     return true;
   }
 
@@ -220,21 +225,16 @@ export async function fetchSubwayRealtime(
 
     let rows: SubwayRawRow[] = data.realtimeArrivalList || [];
 
-    // 만료된 데이터(수신 시각 초과 또는 출발 완료 열차) 1차 필터링
+    // 1. 만료된 데이터(수신 시각 초과 또는 출발 완료 열차) 1차 필터링
     const now = timeOffsetManager.getSynchronizedNow();
     rows = rows.filter((row) => !isStaleRow(row, now));
 
-    // 요청된 subwayId가 지정된 경우, 환승역 타 노선 데이터 혼선을 방지하기 위해 노선 필터링
+    // 2. 요청된 subwayId가 지정된 경우, 환승역 타 노선 데이터 혼선을 방지하기 위해 노선 필터링
     if (subwayId) {
       rows = rows.filter((row) => isMatchingSubwayId(row.subwayId, subwayId));
     }
 
-    // 요청된 wayCode 방향과 일치하는 열차만 필터링 ('1': 상행/내선, '2': 하행/외선)
-    if (wayCode) {
-      rows = rows.filter((row) => resolveWayCode(row.updnLine) === wayCode);
-    }
-
-    // 하차역(destination) 지정 시 도달 가능 여부(canBoard) 사전 판별
+    // 3. 하차역(destination) 지정 시 도달 가능 여부(canBoard) 사전 판별
     const reachableMap = new Map<SubwayRawRow, boolean>();
     if (destination) {
       for (const row of rows) {
@@ -255,7 +255,13 @@ export async function fetchSubwayRealtime(
       }
     }
 
-    // ─ 실시간 열차 위치 정보 조회 (해당 노선) 및 trainNo 맵 빌드 ─
+    // 4. 요청된 wayCode 방향과 일치하는 열차만 엄격 필터링 ('1': 상행/내선, '2': 하행/외선)
+    if (wayCode) {
+      rows = rows.filter((row) => resolveWayCode(row.updnLine) === wayCode);
+    }
+
+    // ─ 실시간 열차 위치 정보 조회 (해당 노선) 및 방향 복합키 Map 빌드 ─
+    // Key: `${posDirection}_${trainNo}` (예: '0_1234' = 상행 1234호, '1_1234' = 하행 1234호)
     let positionMap = new Map<string, SubwayPosition>();
     try {
       const targetSubwayId = subwayId || (rows[0] ? String(rows[0].subwayId || '') : '');
@@ -263,10 +269,12 @@ export async function fetchSubwayRealtime(
         const positions = await fetchSubwayPositionsByLine(targetSubwayId);
         for (const pos of positions) {
           if (pos.trainNo) {
-            positionMap.set(pos.trainNo, pos);
-            // 4자리 뒤쪽 번호로도 매핑 (예: "0123" vs "123")
-            const trimmedNo = pos.trainNo.replace(/^0+/, '');
-            if (trimmedNo) positionMap.set(trimmedNo, pos);
+            const dir = String(pos.updnLine ?? '0'); // '0': 상행/내선, '1': 하행/외선
+            const fullNo = pos.trainNo.trim();
+            const trimmedNo = fullNo.replace(/^0+/, '');
+
+            positionMap.set(`${dir}_${fullNo}`, pos);
+            if (trimmedNo) positionMap.set(`${dir}_${trimmedNo}`, pos);
           }
         }
       }
@@ -287,10 +295,14 @@ export async function fetchSubwayRealtime(
       const trainNo = String(row.btrainNo || row.trainNo || '');
       const barvlDt = Number(row.barvlDt || 0);
 
-      // 위치 API 조인 (trainNo 기준)
+      // 위치 API 조인 (방향 + trainNo 복합키 기준)
       const cleanTrainNo = trainNo.trim();
       const trimmedTrainNo = cleanTrainNo.replace(/^0+/, '');
-      const matchedPos = positionMap.get(cleanTrainNo) || (trimmedTrainNo ? positionMap.get(trimmedTrainNo) : undefined);
+      const rowPosDir = resolvePositionDirection(row.updnLine); // '0': 상행/내선, '1': 하행/외선
+
+      const matchedPos =
+        positionMap.get(`${rowPosDir}_${cleanTrainNo}`) ||
+        (trimmedTrainNo ? positionMap.get(`${rowPosDir}_${trimmedTrainNo}`) : undefined);
 
       const eta = calculateSubwayETADynamic(
         liveMsg,

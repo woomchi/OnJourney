@@ -16,7 +16,7 @@ export function useSubwayLinePositions({
   branchId,
   stationName,
   enabled = true,
-  refetchInterval = 60000,
+  refetchInterval = 15000,
 }: UseSubwayLinePositionsOptions) {
   const target = subwayNm || subwayId || '';
 
@@ -53,7 +53,8 @@ export function useSubwayLinePositions({
     enabled: Boolean(enabled && target),
     refetchInterval,
     refetchIntervalInBackground: false,
-    staleTime: 10000,
+    staleTime: 30000,
+    placeholderData: (previousData) => previousData,
     retry: 2,
     retryDelay: 1000,
   });

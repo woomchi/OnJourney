@@ -237,7 +237,7 @@ export const SubwayLineMapSheet: React.FC<SubwayLineMapSheetProps> = ({
     subwayId,
     subwayNm,
     enabled: isOpen,
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -248,17 +248,15 @@ export const SubwayLineMapSheet: React.FC<SubwayLineMapSheetProps> = ({
   const upLabel = isLine2 ? '내선 순환' : '상행';
   const downLabel = isLine2 ? '외선 순환' : '하행';
 
-  // 정차역 목록 (방향에 맞춰 순서 반전 또는 정렬)
+  // 정차역 목록 (진행 방향에 맞춰 순서 정렬)
+  // - 일반 노선: 기본 DB는 하행(인천/신창 방면) 순서이므로 상행('0')일 때 반전(reverse)
+  // - 2호선: 기본 DB는 내선순환(시계방향) 순서이므로 외선순환('1')일 때 반전(reverse)
   const orderedStations = useMemo(() => {
     if (!data?.stations || data.stations.length === 0) return [];
     const stationsCopy = [...data.stations];
 
-    // 상행('0'): 기본 정렬(종점->기점 또는 기점->종점)
-    // 하행('1'): 2호선이 아닌 경우 역방향 정렬 필요 시 처리
-    if (selectedDirection === '1' && !isLine2) {
-      return stationsCopy.reverse();
-    }
-    return stationsCopy;
+    const shouldReverse = isLine2 ? selectedDirection === '1' : selectedDirection === '0';
+    return shouldReverse ? stationsCopy.reverse() : stationsCopy;
   }, [data?.stations, selectedDirection, isLine2]);
 
   // 역별 실시간 열차 위치 맵 (stationName -> SubwayPosition[])

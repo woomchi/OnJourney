@@ -510,8 +510,10 @@ function isRouteMatch(
   const [isCarRefreshing, setIsCarRefreshing] = useState(false);
 
   const RouteRealtimeRefreshButton = useCallback(({ route, originPlace }: { route: DirectionResult; originPlace: Place }) => {
-    const firstBusStep = route.steps?.find(s => s.type === 'bus' || s.type === 'expressbus');
-    if (firstBusStep) {
+    const firstTransitStep = route.steps?.find(s => s.type !== 'walk');
+    
+    if (firstTransitStep && (firstTransitStep.type === 'bus' || firstTransitStep.type === 'expressbus')) {
+      const firstBusStep = firstTransitStep;
       const busStationId =
         firstBusStep.realtimeStationId ||
         firstBusStep.startStationID ||
@@ -544,8 +546,8 @@ function isRouteMatch(
       }
     }
 
-    const firstSubwayStep = route.steps?.find(s => s.type === 'subway');
-    if (firstSubwayStep) {
+    if (firstTransitStep && (firstTransitStep.type === 'subway' || firstTransitStep.type === 'train')) {
+      const firstSubwayStep = firstTransitStep;
       const subwayStationName = firstSubwayStep.startName || originPlace.place_name;
       return (
         <SegmentSubwayRealtimeChip
@@ -584,8 +586,10 @@ function isRouteMatch(
   }, [isCarRefreshing]);
 
   const RouteRealtimeArrivalChip = useCallback(({ route, originPlace }: { route: DirectionResult; originPlace: Place }) => {
-    const firstBusStep = route.steps?.find(s => s.type === 'bus' || s.type === 'expressbus');
-    if (firstBusStep) {
+    const firstTransitStep = route.steps?.find(s => s.type !== 'walk');
+
+    if (firstTransitStep && (firstTransitStep.type === 'bus' || firstTransitStep.type === 'expressbus')) {
+      const firstBusStep = firstTransitStep;
       const busStationId =
         firstBusStep.realtimeStationId ||
         firstBusStep.startStationID ||
@@ -620,8 +624,8 @@ function isRouteMatch(
       }
     }
 
-    const firstSubwayStep = route.steps?.find(s => s.type === 'subway');
-    if (firstSubwayStep) {
+    if (firstTransitStep && (firstTransitStep.type === 'subway' || firstTransitStep.type === 'train')) {
+      const firstSubwayStep = firstTransitStep;
       const subwayStationName = firstSubwayStep.startName || originPlace.place_name;
       return (
         <div

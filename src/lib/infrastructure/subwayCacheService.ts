@@ -14,7 +14,7 @@ import type { RawSubwayArrivalRow } from '../services/subwayTotalRealtimeService
 import type { SubwayPosition } from '@/types/journey';
 
 const TOTAL_ARRIVAL_REVALIDATE = 15; // 초
-const POSITION_REVALIDATE = 15;      // 초
+const POSITION_REVALIDATE = 30;      // 초 (지하철 노선뷰 30초 주기 동기화)
 const FETCH_TIMEOUT_MS = 6_000;
 
 /**

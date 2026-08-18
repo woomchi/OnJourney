@@ -225,9 +225,10 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     transferLabel = '도보';
   }
 
-  // 이동 구간 내 첫 번째 버스/지하철 정보 추출 (실시간 칩 연결용)
-  const targetBusStep = data.steps?.find((s: any) => s.type === 'bus' || s.type === 'expressbus') || null;
-  const targetSubwayStep = data.steps?.find((s: any) => s.type === 'subway') || null;
+  // 이동 구간 내 첫 번째 대중교통 정보 추출 (실시간 칩 연결용 - 첫 번째 이동 수단 우선)
+  const firstTransitStep = data.steps?.find((s: any) => s.type !== 'walk') || null;
+  const targetBusStep = firstTransitStep && (firstTransitStep.type === 'bus' || firstTransitStep.type === 'expressbus') ? firstTransitStep : null;
+  const targetSubwayStep = firstTransitStep && (firstTransitStep.type === 'subway' || firstTransitStep.type === 'train') ? firstTransitStep : null;
   const targetSubwayStationName = targetSubwayStep?.startName || originPlace?.place_name;
   const rawStationId =
     (targetBusStep as any)?.realtimeStationId ||

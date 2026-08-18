@@ -270,7 +270,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     branchId: selectedBranchId,
     stationName: cleanTargetStation,
     enabled: isOpen,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 
   // 서버에서 기본 추천된 branchId가 오면 동기화 (초기 1회)
@@ -288,15 +288,15 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   const upLabel = isLine2 ? '내선 순환' : '상행';
   const downLabel = isLine2 ? '외선 순환' : '하행';
 
-  // 정차역 목록 (방향에 맞춰 순서 반전)
+  // 정차역 목록 (진행 방향에 맞춰 순서 정렬)
+  // - 일반 노선: 기본 DB는 하행(인천/신창 방면) 순서이므로 상행('0')일 때 반전(reverse)
+  // - 2호선: 기본 DB는 내선순환(시계방향) 순서이므로 외선순환('1')일 때 반전(reverse)
   const orderedStations = useMemo(() => {
     if (!data?.stations || data.stations.length === 0) return [];
     const stationsCopy = [...data.stations];
 
-    if (selectedDirection === '1' && !isLine2) {
-      return stationsCopy.reverse();
-    }
-    return stationsCopy;
+    const shouldReverse = isLine2 ? selectedDirection === '1' : selectedDirection === '0';
+    return shouldReverse ? stationsCopy.reverse() : stationsCopy;
   }, [data?.stations, selectedDirection, isLine2]);
 
   // 현재 활성화된 운행 계통 데이터
@@ -340,7 +340,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     );
   }, [orderedStations, cleanTargetStation]);
 
-  // 탑승역으로 접근 중인 열차 분석 (역순 정렬: 당역/1역전/2역전...)
+  // 탑승역으로 접근 중인 열차 분석 (역순 정렬: 당역/1역전/2역전... + 종착역 도달 가능 여부 동적 판별)
   const approachingTrainsAnalysis = useMemo(() => {
     if (targetStationIdx === -1) {
       return {
@@ -352,7 +352,12 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
 
     const trainAwayMap = new Map<string, number>();
     const trainObjectMap = new Map<string, SubwayPosition>();
-    const approachingList: Array<{ trainNo: string; stationsAway: number; train: SubwayPosition }> = [];
+    const approachingList: Array<{
+      trainNo: string;
+      stationsAway: number;
+      canReachTarget: boolean;
+      train: SubwayPosition;
+    }> = [];
 
     // 탑승역 및 그 이전 역들(0 <= idx <= targetStationIdx)에 있는 열차 수집
     for (let idx = 0; idx <= targetStationIdx; idx++) {
@@ -367,31 +372,56 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         trainAwayMap.set(t.trainNo, stationsAway);
         trainObjectMap.set(cleanNo, t);
         trainObjectMap.set(t.trainNo, t);
-        approachingList.push({ trainNo: cleanNo, stationsAway, train: t });
+
+        // API statnTnm 기반 탑승역 도달 가능 여부 동적 계산
+        const cleanDest = t.statnTnm ? t.statnTnm.replace(/역$/, '').trim() : '';
+        const destIdx = cleanDest
+          ? orderedStations.findIndex(
+              (s) => s.stationName.replace(/역$/, '').trim() === cleanDest
+            )
+          : -1;
+        // 종착역이 탑승역보다 앞서 있으면 중간종착(미도달) 열차
+        const canReachTarget = destIdx === -1 || destIdx >= targetStationIdx;
+
+        // 탑승역(stationsAway === 0)에서 이미 '출발'(trainSttus === '2')한 열차는 제외
+        const isDepartedAtTarget = stationsAway === 0 && String(t.trainSttus) === '2';
+        if (!isDepartedAtTarget) {
+          approachingList.push({
+            trainNo: cleanNo,
+            stationsAway,
+            canReachTarget,
+            train: t,
+          });
+        }
       }
     }
 
-    // stationsAway 오름차순 정렬 (0: 당역, 1: 1역전, ...)
-    approachingList.sort((a, b) => a.stationsAway - b.stationsAway);
+    // 1차: canReachTarget(탑승역 도달 가능 열차 우선), 2차: stationsAway 오름차순
+    approachingList.sort((a, b) => {
+      const crA = a.canReachTarget ? 1 : 0;
+      const crB = b.canReachTarget ? 1 : 0;
+      if (crA !== crB) return crB - crA;
+      return a.stationsAway - b.stationsAway;
+    });
 
     // 하이라이트할 최우선 열차 번호 결정:
     // 1) 사용자가 수동으로 선택한 열차가 있으면 우선 반영
-    // 2) 칩에서 전달된 targetTrainNo가 접근 목록에 있고 3역 이내면 유지
-    // 3) 그렇지 않고 접근 중인 열차가 존재하면 가장 가까운 1순위 열차로 자동 선정
+    // 2) 칩에서 전달된 targetTrainNo가 접근 목록에 아직 유효하게 남아있으면 유지
+    // 3) 도달 가능한 1순위 다가오는 열차로 자동 승계(Auto Handover)
     let primaryTrainNo = '';
     if (userSelectedTrainNo) {
       primaryTrainNo = userSelectedTrainNo.replace(/^0+/, '');
     } else {
-      const matchedTarget = approachingList.find(
-        (item) => item.trainNo === cleanTargetTrainNo
-      );
+      const matchedTarget = cleanTargetTrainNo
+        ? approachingList.find((item) => item.trainNo === cleanTargetTrainNo)
+        : null;
 
-      if (matchedTarget && matchedTarget.stationsAway <= 3) {
+      if (matchedTarget) {
         primaryTrainNo = matchedTarget.trainNo;
       } else if (approachingList.length > 0) {
         primaryTrainNo = approachingList[0].trainNo;
       } else {
-        primaryTrainNo = cleanTargetTrainNo;
+        primaryTrainNo = '';
       }
     }
 
@@ -413,8 +443,11 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     if (!trainObj) return null;
 
     const eta = calculateDynamicETA(away, trainObj.trainSttus, targetMinutesLeft);
+    const destName = trainObj.statnTnm ? trainObj.statnTnm.replace(/역$/, '').trim() : '';
+
     return {
       train: trainObj,
+      destinationName: destName ? `${destName}행` : '',
       stationsAway: away,
       eta,
     };
@@ -455,7 +488,6 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
 
   const displayLineName = data?.subwayNm || subwayNm || (subwayId ? `${subwayId}호선` : '지하철');
   const branches = data?.branches || [];
-  const activeBranch = branches.find((b) => b.id === (selectedBranchId || data?.selectedBranchId));
 
   // ─── 가로 탭 바 마우스 드래그 & 휠 스와이프 핸들러 ──────────────────────
   const branchTabsRef = useRef<HTMLDivElement>(null);
@@ -476,7 +508,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     if (!isDraggingTabsRef.current || !branchTabsRef.current) return;
     e.preventDefault();
     const x = e.pageX - branchTabsRef.current.offsetLeft;
-    const walk = (x - startXRef.current) * 1.5; // 드래그 감도
+    const walk = (x - startXRef.current) * 1.5;
     dragDistanceRef.current = Math.abs(x - startXRef.current);
     branchTabsRef.current.scrollLeft = scrollLeftRef.current - walk;
   };
@@ -492,7 +524,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     }
   };
 
-  // ─── 패널 헤더 (여백 최적화 & 운행 계통 탭 바) ───────────────────────────
+  // ─── 패널 헤더 ─────────────────────────────────────────────────────────
   const headerContent = (
     <div className="flex flex-col border-b border-zinc-100 shrink-0 bg-white select-none">
       {/* 1층: 뒤로가기 + 호선 뱃지 + 역명 + 새로고침/닫기 */}
@@ -548,7 +580,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         </div>
       </div>
 
-      {/* 2층: 네이버 지도 스타일 운행 구간(계통) 가로 스와이프 탭 바 (2개 이상 계통 시 표출) */}
+      {/* 2층: 운행 계통 가로 스와이프 탭 바 */}
       {branches.length > 1 && (
         <div
           ref={branchTabsRef}
@@ -566,7 +598,6 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
                 key={b.id}
                 type="button"
                 onClick={(e) => {
-                  // 드래그 중인 경우 클릭 전환 방지 (5px 이상 이동 시)
                   if (dragDistanceRef.current > 5) {
                     e.preventDefault();
                     return;
@@ -588,7 +619,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         </div>
       )}
 
-      {/* 3층: 콤팩트 방향 전환 탭 (대안 패널 탭 스타일) */}
+      {/* 3층: 방향 전환 탭 */}
       <div className="flex px-3 pb-2.5 gap-1.5">
         <button
           type="button"
@@ -622,11 +653,13 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     </div>
   );
 
-  // ─── 타임라인 바디 (엣지-노드 완벽 중앙 정렬 & 호버 하이라이트 제거) ─────
+  // ─── 2. 버스 스타일 3열 고정 간선 & 비율적 Absolute Overlay 타임라인 바디 ───
+  const ROW_HEIGHT_PX = 48;
+
   const listContent = (
     <div
       ref={scrollContainerRef}
-      className="flex-1 overflow-y-auto px-3 py-2 space-y-0 relative bg-white scrollbar-thin select-none"
+      className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0 relative bg-white scrollbar-thin select-none"
     >
       {isLoading && (
         <div className="py-14 flex flex-col items-center justify-center text-center space-y-2.5">
@@ -643,35 +676,63 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
 
       {!isLoading && orderedStations.length > 0 && (
         <div className="relative py-1">
-          {/* 정차역 목록 */}
           {orderedStations.map((station: SubwayLineStation, idx: number) => {
             const isFirst = idx === 0;
             const isLast = idx === orderedStations.length - 1;
-            const isTargetStation =
-              station.stationName.replace(/역$/, '').trim() === cleanTargetStation;
-            const trainsAtStation = stationTrainsMap.get(
-              station.stationName.replace(/역$/, '').trim()
-            ) || [];
+            const isTargetStation = targetStationIdx === idx;
+            const cleanStatn = station.stationName.replace(/역$/, '').trim();
+
+            const trainsAtStation = stationTrainsMap.get(cleanStatn) || [];
+
+            // 열차 상태별 오버레이 배치를 위한 가공
+            const edgeTrains: Array<{
+              train: SubwayPosition;
+              ratio: number;
+              stageText: string;
+            }> = [];
+
+            trainsAtStation.forEach((t) => {
+              let ratio = 0.0;
+              let stageText = 'at_station';
+
+              if (t.trainSttus === '2' && !isLast) {
+                // 출발 (해당 역 출발 33% 구간)
+                ratio = 0.33;
+                stageText = 'departed';
+              } else if (t.trainSttus === '3') {
+                // 전역출발 (간선 중간 50% 구간)
+                ratio = !isFirst ? -0.5 : 0.0;
+                stageText = 'departed';
+              } else if (t.trainSttus === '0') {
+                // 진입 (이전 역에서 66% 구간 = 해당 역 진입 직전)
+                ratio = !isFirst ? -0.34 : 0.0;
+                stageText = 'approaching';
+              } else {
+                // 도착/정차 (정차역 노드 정중앙 0%)
+                ratio = 0.0;
+                stageText = 'at_station';
+              }
+
+              edgeTrains.push({ train: t, ratio, stageText });
+            });
 
             return (
               <div
                 key={`${station.stationName}-${idx}`}
                 ref={isTargetStation ? targetStationNodeRef : undefined}
-                className={clsx(
-                  'relative flex items-center justify-between py-1.5 px-0 transition-none',
-                  isTargetStation && 'my-0'
-                )}
+                style={{ height: `${ROW_HEIGHT_PX}px` }}
+                className="relative w-full transition-none group"
               >
-                {/* 탑승역 강조 배경 (간선 라인과 충돌/끊김 없이 은은하게 강조) */}
+                {/* 💡 탑승역 눈에 띄는 배경 하이라이트 */}
                 {isTargetStation && (
-                  <div className="absolute inset-0 bg-blue-50/70 rounded-xl -z-10 pointer-events-none" />
+                  <div className="absolute inset-0 bg-blue-50/90 rounded-2xl -z-10 pointer-events-none border-2 border-blue-400/80 shadow-2xs" />
                 )}
 
-                {/* 각 역 단위 수직 간선 (첫 역의 위쪽, 마지막 역의 아래쪽 선 제거 & 끊김 없는 연속성) */}
+                {/* 💡 수직 간선 (left-[109px] 2px 간선 - 노드 중심 x=110px와 일치) */}
                 {orderedStations.length > 1 && (
                   <div
                     className={clsx(
-                      'absolute left-[11px] w-[2px] pointer-events-none opacity-60 z-0',
+                      'absolute left-[109px] w-[2px] pointer-events-none opacity-60 z-0',
                       theme.line,
                       isFirst && 'top-1/2 bottom-0',
                       isLast && 'top-0 bottom-1/2',
@@ -680,112 +741,184 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
                   />
                 )}
 
-                {/* 왼쪽: [고정 24px 노드 컬럼 (중앙 정렬)] + 역명 */}
-                <div className="flex items-center gap-1.5 relative z-10 min-w-0">
-                  {/* 정차역 점(Dot) 컨테이너 (x축 24px 내에서 정확히 중앙 정렬) */}
-                  <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                    <div
-                      className={clsx(
-                        'rounded-full transition-all shrink-0',
-                        isTargetStation
-                          ? 'w-3 h-3 bg-blue-600 ring-2 ring-blue-400/40 shadow-xs'
-                          : clsx('w-2 h-2', theme.badgeBg)
-                      )}
-                    />
-                  </div>
-
-                  {/* 역명 & 탑승역 뱃지 */}
-                  <div className="flex items-center gap-1 min-w-0 truncate">
-                    <span
-                      className={clsx(
-                        'text-xs truncate',
-                        isTargetStation
-                          ? 'font-black text-blue-700 text-[13px]'
-                          : 'font-semibold text-zinc-800'
-                      )}
-                    >
-                      {station.stationName}
-                    </span>
-
-                    {isTargetStation && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[9px] font-bold shadow-2xs shrink-0 animate-pulse">
-                        <Navigation className="w-2 h-2 fill-current" />
-                        탑승역
-                      </span>
+                {/* 💡 기본 정차역 도트(Dot) - Y축 정중앙 배치 (top: 50%, left: 98px) */}
+                <div className="absolute left-[98px] top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center shrink-0 z-10 pointer-events-none">
+                  <div
+                    className={clsx(
+                      'rounded-full transition-all shrink-0',
+                      isTargetStation
+                        ? 'w-3.5 h-3.5 bg-blue-600 ring-4 ring-blue-300/80 shadow-md'
+                        : clsx('w-2 h-2', theme.badgeBg)
                     )}
-                  </div>
+                  />
                 </div>
 
-                {/* 오른쪽: 정차역에 위치한 열차 뱃지 */}
-                <div className="flex flex-col items-end gap-1 z-10 shrink-0 pr-1">
-                  {trainsAtStation.map((train, trainIdx) => {
-                    const cleanNo = train.trainNo.replace(/^0+/, '');
-                    const isTargetTrain =
-                      Boolean(primaryTrainNo) && (cleanNo === primaryTrainNo || train.trainNo === primaryTrainNo);
-                    const stationsAway = trainAwayMap.get(cleanNo);
-                    const statusBadge = getTrainStatusBadge(train.trainSttus);
-                    const trainEta = calculateDynamicETA(stationsAway, train.trainSttus, targetMinutesLeft);
+                {/* 💡 우측 정차역명 & 탑승역 정보 - Y축 정중앙 고정 배치 */}
+                <div className="absolute left-[126px] right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 min-w-0 truncate z-10">
+                  <span
+                    className={clsx(
+                      'truncate',
+                      isTargetStation
+                        ? 'font-black text-blue-700 text-[13.5px]'
+                        : 'font-semibold text-zinc-800 text-xs'
+                    )}
+                  >
+                    {station.stationName}
+                  </span>
 
-                    return (
-                      <button
-                        type="button"
-                        key={`${train.trainNo}-${trainIdx}`}
-                        onClick={() => setUserSelectedTrainNo(train.trainNo)}
-                        title={`열차 #${train.trainNo} 선택`}
-                        className={clsx(
-                          'flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] shadow-2xs border transition-all cursor-pointer select-none text-left',
-                          isTargetTrain
-                            ? 'bg-blue-600 text-white border-blue-700 font-bold scale-105 ring-2 ring-blue-300 shadow-xs'
-                            : train.isExpress
-                            ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                            : 'bg-white text-zinc-800 border-zinc-200 hover:bg-zinc-50'
-                        )}
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        <Train className="w-3 h-3 shrink-0" />
-                        <span className="tabular-nums font-bold text-[10px]">
-                          #{train.trainNo}
-                        </span>
+                  {isTargetStation && (
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[9.5px] font-extrabold shadow-xs shrink-0 animate-pulse">
+                      <Navigation className="w-2.5 h-2.5 fill-current" />
+                      승차역
+                    </span>
+                  )}
+                </div>
 
-                        {train.isExpress && (
-                          <span className="px-1 py-0.2 rounded text-[8px] font-extrabold bg-rose-600 text-white">
-                            급행
-                          </span>
-                        )}
+                {/* ─────────────────────────────────────────────────────────
+                    🚆 Absolute Overlay 열차 레이어 (버스 스타일 말풍선 툴팁 + 마커)
+                   ───────────────────────────────────────────────────────── */}
+                {edgeTrains.map((item, tIdx) => {
+                  const { train, ratio, stageText } = item;
+                  const cleanNo = train.trainNo.replace(/^0+/, '');
+                  const isTarget =
+                    Boolean(primaryTrainNo) &&
+                    (cleanNo === primaryTrainNo || train.trainNo === primaryTrainNo);
 
-                        <span
+                  const statusBadge = getTrainStatusBadge(train.trainSttus);
+
+                  // API statnTnm 기반 종착역(행선지) 동적 텍스트 산출
+                  const cleanDest = train.statnTnm
+                    ? train.statnTnm.replace(/역$/, '').trim()
+                    : '';
+                  const destBadgeText = cleanDest ? `${cleanDest}행` : '';
+
+                  // 탑승역 도달 가능 여부 동적 계산
+                  const destStationIdx = cleanDest
+                    ? orderedStations.findIndex(
+                        (s) => s.stationName.replace(/역$/, '').trim() === cleanDest
+                      )
+                    : -1;
+                  const isTerminatingEarly =
+                    destStationIdx !== -1 &&
+                    targetStationIdx !== -1 &&
+                    destStationIdx < targetStationIdx;
+
+                  const topOffsetPx = ratio * ROW_HEIGHT_PX;
+
+                  return (
+                    <div
+                      key={`overlay_train_${train.trainNo}_${stageText}_${tIdx}`}
+                      style={{
+                        top: `calc(50% + ${topOffsetPx}px)`,
+                      }}
+                      className="absolute left-0 right-0 -translate-y-1/2 flex items-center z-20 pointer-events-none"
+                    >
+                      {/* 1) 좌측 말풍선 카드 (네이버 지도 버스 스타일 Tooltip) */}
+                      <div className="w-[98px] min-w-[98px] flex items-center justify-end pr-2 shrink-0 pointer-events-auto">
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedTrainNo(train.trainNo)}
+                          title={`열차 #${train.trainNo} (${destBadgeText || '운행'}) 선택`}
                           className={clsx(
-                            'px-1 py-0.2 rounded text-[8px] font-bold border',
-                            isTargetTrain ? 'bg-white text-blue-700 border-white' : statusBadge.color
+                            'relative flex flex-col justify-center gap-0.5 px-1.5 py-1 rounded-lg text-[9px] font-bold shadow-2xs border transition-all cursor-pointer select-none text-left w-[88px]',
+                            isTarget
+                              ? 'bg-blue-600 border-blue-700 text-white scale-105 ring-2 ring-blue-300/80 shadow-xs'
+                              : isTerminatingEarly
+                              ? 'bg-amber-50/90 border-amber-300 text-amber-900 hover:bg-amber-100'
+                              : stageText === 'departed'
+                              ? 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100'
+                              : 'bg-white text-zinc-800 border-zinc-200 hover:bg-zinc-50'
                           )}
+                          onPointerDown={(e) => e.stopPropagation()}
                         >
-                          {statusBadge.text}
-                        </span>
+                          {/* 1층: 종착역(행선지) 뱃지 + 급행 여부 */}
+                          <div className="flex items-center justify-between gap-1 w-full min-w-0">
+                            <span
+                              className={clsx(
+                                'font-extrabold truncate text-[9.5px]',
+                                isTarget ? 'text-white' : isTerminatingEarly ? 'text-amber-800' : 'text-zinc-900'
+                              )}
+                            >
+                              {destBadgeText || `#${train.trainNo}`}
+                            </span>
 
-                        {/* 도달 역 수 뱃지 (N역 전) */}
-                        {stationsAway !== undefined && (
-                          <span
-                            className={clsx(
-                              'px-1 py-0.2 rounded text-[8px] font-bold',
-                              isTargetTrain
-                                ? 'bg-blue-700 text-white'
-                                : 'bg-zinc-100 text-zinc-600'
+                            {train.isExpress && (
+                              <span className="px-1 py-0.2 rounded text-[7.5px] font-black bg-rose-600 text-white shrink-0">
+                                급행
+                              </span>
                             )}
-                          >
-                            {stationsAway === 0 ? '당역' : `${stationsAway}역 전`}
-                          </span>
-                        )}
 
-                        {/* 실시간 위치 기반 보정된 잔여 시간 */}
-                        {isTargetTrain && (
-                          <span className="text-[9px] font-black ml-0.5">
-                            {trainEta.text}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                            {isTerminatingEarly && (
+                              <span className="px-1 py-0.2 rounded text-[7.5px] font-extrabold bg-amber-200 text-amber-900 shrink-0">
+                                종착
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 2층: 열차 번호 + 운행 상태 */}
+                          <div className="flex items-center justify-between gap-1 w-full min-w-0 text-[8.5px]">
+                            <span
+                              className={clsx(
+                                'tabular-nums font-semibold truncate',
+                                isTarget ? 'text-blue-100' : 'text-zinc-500'
+                              )}
+                            >
+                              #{train.trainNo}
+                            </span>
+
+                            <span
+                              className={clsx(
+                                'px-1 py-0.2 rounded text-[7.5px] font-bold border shrink-0',
+                                isTarget
+                                  ? 'bg-white/20 text-white border-transparent'
+                                  : statusBadge.color
+                              )}
+                            >
+                              {statusBadge.text}
+                            </span>
+                          </div>
+
+                          {/* 말풍선 꼬리 (중앙 간선 마커 방향) */}
+                          <div
+                            className={clsx(
+                              'absolute -right-[5px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-[4px] border-y-transparent border-l-[5px]',
+                              isTarget
+                                ? 'border-l-blue-600'
+                                : isTerminatingEarly
+                                ? 'border-l-amber-300'
+                                : stageText === 'departed'
+                                ? 'border-l-indigo-200'
+                                : 'border-l-zinc-300'
+                            )}
+                          />
+                        </button>
+                      </div>
+
+                      {/* 2) 중앙 간선 위 열차 아이콘 마커 */}
+                      <div className="w-6 h-6 flex items-center justify-center shrink-0 pointer-events-auto">
+                        <button
+                          type="button"
+                          onClick={() => setUserSelectedTrainNo(train.trainNo)}
+                          className={clsx(
+                            'rounded-full flex items-center justify-center transition-all cursor-pointer select-none shrink-0 shadow-xs border border-white',
+                            isTarget
+                              ? clsx(
+                                  theme.badgeBg,
+                                  'w-6 h-6 ring-2 ring-blue-400 scale-115 animate-bounce-subtle z-30'
+                                )
+                              : stageText === 'departed'
+                              ? 'w-5 h-5 bg-indigo-600 hover:scale-110 z-20'
+                              : 'w-5 h-5 bg-blue-600 hover:scale-110 z-20'
+                          )}
+                          title={`열차 #${train.trainNo} (${destBadgeText || '운행'})`}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          <Train className="text-white w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -794,7 +927,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     </div>
   );
 
-  // ─── 패널 풋터 (산뜻한 화이트/그레이 요약 바) ─────────────────────────────
+  // ─── 3. 패널 풋터 (행선지 포함 요약 바) ──────────────────────────────────
   const footerContent = (
     <div className="px-3 py-2 border-t border-zinc-100 bg-zinc-50/90 flex items-center justify-between text-[10px] text-zinc-500 shrink-0 select-none">
       <div className="flex items-center gap-1.5 min-w-0 truncate">
@@ -802,13 +935,28 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         <span className="truncate">
           {activeHighlightedTrain ? (
             <span className="font-medium text-zinc-700">
-              추적 열차: <strong className="text-blue-700">#{activeHighlightedTrain.train.trainNo}</strong>
+              추적 열차:{' '}
+              {activeHighlightedTrain.destinationName && (
+                <span className="font-bold text-zinc-900 mr-1">
+                  [{activeHighlightedTrain.destinationName}]
+                </span>
+              )}
+              <strong className="text-blue-700">
+                #{activeHighlightedTrain.train.trainNo}
+              </strong>
               {activeHighlightedTrain.stationsAway !== undefined && (
-                <span> ({activeHighlightedTrain.stationsAway === 0 ? '당역' : `${activeHighlightedTrain.stationsAway}역 전`})</span>
+                <span>
+                  {' '}
+                  (
+                  {activeHighlightedTrain.stationsAway === 0
+                    ? '당역'
+                    : `${activeHighlightedTrain.stationsAway}역 전`}
+                  )
+                </span>
               )}
             </span>
           ) : (
-            <span>실시간 운행 (1분 자동 갱신)</span>
+            <span>실시간 운행 (30초 자동 갱신)</span>
           )}
         </span>
       </div>

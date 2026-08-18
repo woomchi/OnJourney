@@ -5,6 +5,7 @@ import { RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useRealtimeTransit } from '@/hooks/useRealtimeTransit';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { useJourneyStore } from '@/stores/journey-store';
 import { ArrivalBusItem } from '@/types/realtimeTransit';
 import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
 
@@ -18,63 +19,54 @@ export interface SegmentBusRealtimeChipProps {
   lat?: number;
   lng?: number;
   manualOnly?: boolean;
-  variant?: 'sidebar' | 'compact';
+  variant?: 'card' | 'sidebar' | 'compact';
   hideRefreshButton?: boolean;
   onlyRefreshButton?: boolean;
 }
 
 function formatBusItemTime(seconds: number): string {
   if (seconds <= 0) return '도착';
-  if (seconds < 60) return '곧 도착';
   const mins = Math.floor(seconds / 60);
-  if (mins <= 0) return '곧 도착';
-  return `${mins}분 후`;
+  const secs = seconds % 60;
+  if (mins === 0) return `${secs}초`;
+  return `${mins}분`;
 }
 
 function getBusStationCountText(bus: ArrivalBusItem): string {
   if (typeof bus.currentStationSequence === 'number' && bus.currentStationSequence > 0) {
     return `${bus.currentStationSequence}전`;
   }
-  return '';
+  return '전역';
 }
 
 function renderSeatOrCrowdedBadge(bus: ArrivalBusItem, isPrimary: boolean = true) {
-  // 1. 광역/직행좌석버스 여석 정보 우선 표시
+  // 1. 잔여 좌석 (광역/직행 등)
   if (typeof bus.remainSeats === 'number') {
     if (bus.remainSeats === 0) {
-      return <span className="font-bold text-rose-600">만석</span>;
+      return <span className="text-red-500 font-bold">만석</span>;
     }
     return (
-      <span className={isPrimary ? 'font-semibold text-emerald-700' : 'font-medium text-emerald-600'}>
+      <span className={clsx('font-semibold', isPrimary ? 'text-blue-600' : 'text-zinc-600')}>
         {bus.remainSeats}석
       </span>
     );
   }
 
-  // 2. 일반 시내버스 혼잡도 정보 표시
+  // 2. 혼잡도 (서울/시내 등)
   if (bus.crowded) {
     const cr = bus.crowded.trim();
-    if (cr === '여유') {
-      return (
-        <span className={isPrimary ? 'font-semibold text-emerald-700' : 'font-medium text-emerald-600'}>
-          여유
-        </span>
-      );
+    if (cr.includes('여유') || cr === '1' || cr === '3') {
+      return <span className="text-emerald-600 font-medium">여유</span>;
     }
-    if (cr === '보통') {
-      return (
-        <span className={isPrimary ? 'font-medium text-blue-600' : 'font-normal text-zinc-600'}>
-          보통
-        </span>
-      );
+    if (cr.includes('보통') || cr === '2' || cr === '4') {
+      return <span className="text-amber-600 font-medium">보통</span>;
     }
-    if (cr === '혼잡') {
-      return <span className="font-bold text-amber-600">혼잡</span>;
+    if (cr.includes('혼잡') || cr === '3' || cr === '5') {
+      return <span className="text-red-500 font-bold">혼잡</span>;
     }
-    if (cr === '매우혼잡') {
-      return <span className="font-bold text-rose-600">혼잡</span>;
+    if (cr.includes('매우') || cr === '6') {
+      return <span className="text-rose-600 font-extrabold">포화</span>;
     }
-    return <span className="font-medium text-zinc-600">{cr}</span>;
   }
 
   // 3. 둘 다 없을 경우 종점 약칭 또는 공백
@@ -100,6 +92,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   onlyRefreshButton = false,
 }) => {
   const cleanBusNo = useMemo(() => cleanBusNumber(busNo), [busNo]);
+  const setBusLineMapTarget = useJourneyStore((state) => state.setBusLineMapTarget);
 
   const { data, isLoading: isQueryLoading, isError, isFetching, refetch } = useRealtimeTransit({
     region: region || 'tago',
@@ -149,6 +142,26 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     if (isRefreshLoading || isFetching) return;
     refetch();
     start();
+  };
+
+  const handleOpenBusLineMap = (e: React.MouseEvent, targetBus?: ArrivalBusItem) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!cleanBusNo) return;
+
+    setBusLineMapTarget({
+      stationName: stationName || '정류소',
+      stationId: stationId ? String(stationId) : undefined,
+      busNo: cleanBusNo,
+      routeId: targetBus?.lineId,
+      busColor,
+      busCityCode: cityCode,
+      region,
+      targetVehicleNo: undefined,
+      targetMinutesLeft: targetBus ? Math.max(1, Math.round(targetBus.arrivedInSeconds / 60)) : undefined,
+      targetStationsLeft: targetBus?.currentStationSequence,
+      targetStatusText: targetBus ? formatBusItemTime(targetBus.arrivedInSeconds) : undefined,
+    });
   };
 
   const targetBuses = useMemo(() => {
@@ -241,8 +254,12 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     return (
       <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
         {!hideRefreshButton && renderRefreshButton()}
-        <div className="inline-flex flex-col gap-0.5 justify-center">
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px]">
+        <div
+          onClick={(e) => handleOpenBusLineMap(e)}
+          title="버스 실시간 노선도 보기"
+          className="inline-flex flex-col gap-0.5 justify-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px] hover:border-blue-300">
             <span>도착 정보 없음</span>
           </div>
           <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-zinc-400 font-medium shrink-0 text-[10px]">
@@ -267,9 +284,13 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   return (
     <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
       {!hideRefreshButton && renderRefreshButton()}
-      <div className="inline-flex flex-col gap-0.5 justify-center">
+      <div
+        onClick={(e) => handleOpenBusLineMap(e, bus1)}
+        title="버스 실시간 노선도 보기"
+        className="inline-flex flex-col gap-0.5 justify-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+      >
         {/* 1번째 버스 (가장 빠른 버스) */}
-        <div className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all border-blue-200 text-blue-600">
+        <div className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all border-blue-200 text-blue-600 hover:border-blue-400 hover:shadow-xs">
           {/* 1. 잔여 시간 (좌측 정렬: w-[40px]) */}
           <span className="w-[40px] shrink-0 tabular-nums font-semibold text-blue-600 text-left truncate">
             {timeText1}
@@ -288,7 +309,10 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
 
         {/* 2번째 버스 (다음 버스: 없을 경우 도착 정보 없음 뱃지 항상 노출) */}
         {timeText2 ? (
-          <div className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all">
+          <div
+            onClick={(e) => handleOpenBusLineMap(e, bus2)}
+            className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all hover:border-zinc-300 hover:shadow-xs"
+          >
             {/* 1. 잔여 시간 (좌측 정렬: w-[40px]) */}
             <span className="w-[40px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left truncate">
               {timeText2}

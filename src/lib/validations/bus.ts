@@ -6,3 +6,16 @@ export const busRealtimeQuerySchema = z.object({
 });
 
 export type BusRealtimeQueryType = z.infer<typeof busRealtimeQuerySchema>;
+
+export const busPositionsQuerySchema = z.object({
+  busNo: z.string().min(1, '버스 노선 번호(busNo) 파라미터가 필요합니다.'),
+  busId: z.string().optional(),
+  routeId: z.string().optional(),
+  cityCode: z.string().optional(),
+  region: z.string().optional(),
+  stationId: z.string().optional(),
+  stationName: z.string().optional(),
+});
+
+export type BusPositionsQueryType = z.infer<typeof busPositionsQuerySchema>;
+

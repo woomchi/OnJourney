@@ -20,6 +20,8 @@ export interface FetchTagoParams {
 
 // 정류소 검색 캐시 (stationId/nodeno -> TAGO nodeId & cityCode, 24시간 메모리 캐시)
 const NODE_ID_CACHE = new Map<string, { nodeId: string; cityCode?: string; expiresAt: number }>();
+// 노선 검색 캐시 (cityCode_routeNo -> TAGO routeId, 24시간 메모리 캐시)
+const ROUTE_ID_CACHE = new Map<string, { routeId: string; expiresAt: number }>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export class TagoBusService {
@@ -28,7 +30,13 @@ export class TagoBusService {
     'https://apis.data.go.kr/1613000/ArvlInfoInqireService/getSttnAcctoArvlPrearngeInfoList';
   // 국토교통부 버스위치정보 목록조회 서비스 공식 엔드포인트
   private static BUS_POS_API_URL =
-    'https://apis.data.go.kr/1613000/BusLcInfoInqireService/getRouteAcctoBusPosList';
+    'https://apis.data.go.kr/1613000/BusLcInfoInqireService/getRouteAcctoBusLcList';
+  // 국토교통부 특정 정류소 접근 버스위치 정보조회 공식 엔드포인트
+  private static BUS_STTN_ACCESS_LC_URL =
+    'https://apis.data.go.kr/1613000/BusLcInfoInqireService/getRouteAcctoSpcifySttnAccesBusLcInfo';
+  // 국토교통부 버스노선정보조회 서비스 (BusRouteInfoInqireService) 공식 엔드포인트
+  private static SEARCH_ROUTE_NO_LIST_URL =
+    'https://apis.data.go.kr/1613000/BusRouteInfoInqireService/getRouteNoList';
   // 국토교통부 정류소정보조회 서비스 (BusSttnInfoInqireService) 공식 엔드포인트
   private static SEARCH_STTN_NO_LIST_URL =
     'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList';
@@ -134,6 +142,63 @@ export class TagoBusService {
       }
     } catch {
       // ignore lookup error
+    }
+
+    return null;
+  }
+
+  /**
+   * 노선 번호(routeNo) 및 도시코드(cityCode)로 국토교통부 표준 routeId 조회 (/getRouteNoList API 활용)
+   */
+  public static async lookupTagoRouteId(
+    cityCode: string,
+    routeNo: string
+  ): Promise<string | null> {
+    const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
+    if (!apiKey || !routeNo) return null;
+
+    const cleanNo = routeNo.trim();
+    const cacheKey = `${cityCode}_${cleanNo}`;
+    const cached = ROUTE_ID_CACHE.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.routeId;
+    }
+
+    try {
+      const serviceKey = apiKey.trim();
+      const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
+      const keyParam = encodeURIComponent(rawServiceKey);
+
+      const requestUrl = `${this.SEARCH_ROUTE_NO_LIST_URL}?serviceKey=${keyParam}&cityCode=${cityCode}&routeNo=${encodeURIComponent(cleanNo)}&pageNo=1&numOfRows=10&_type=json`;
+
+      const res = await fetch(requestUrl, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(2500),
+        next: { revalidate: 86400 },
+      });
+
+      if (!res.ok) return null;
+      const json = await res.json().catch(() => null);
+      const items = json?.response?.body?.items?.item;
+      let targetItem: any = null;
+
+      if (Array.isArray(items) && items.length > 0) {
+        targetItem =
+          items.find((it: any) => String(it.routeno || '').trim() === cleanNo) || items[0];
+      } else if (items && typeof items === 'object') {
+        targetItem = items;
+      }
+
+      if (targetItem?.routeid) {
+        const foundRouteId = String(targetItem.routeid).trim();
+        ROUTE_ID_CACHE.set(cacheKey, {
+          routeId: foundRouteId,
+          expiresAt: Date.now() + CACHE_TTL_MS,
+        });
+        return foundRouteId;
+      }
+    } catch (err: any) {
+      console.warn('[TagoBusService] TAGO routeId 룩업 실패:', err?.message);
     }
 
     return null;

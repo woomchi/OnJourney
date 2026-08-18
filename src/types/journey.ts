@@ -275,6 +275,91 @@ export interface SubwayArrival {
   currentTrainPosition?: SubwayPosition;
 }
 
+// ─── 버스 노선도 및 실시간 위치 타입 ─────────────────────────────────────────
+
+/** 노드 사이 엣지에서의 4분위 버스 위치 스테이지 */
+export type BusPositionStage =
+  | 'at_prev_station' // 0% (이전 정류소 정차)
+  | 'departed'        // 33% (출발 직후 주행)
+  | 'approaching'     // 66% (다음 정류소 진입 중)
+  | 'at_station';      // 100% (해당 정류소 도착/정차)
+
+/** 정류소 간 33%, 66% 사전 계산 앵커 좌표 */
+export interface EdgeAnchorPoints {
+  departurePoint: {
+    lat: number;
+    lng: number;
+    ratio: number;
+  };
+  approachingPoint: {
+    lat: number;
+    lng: number;
+    ratio: number;
+  };
+}
+
+/** 버스 노선 경유 정류소 정보 */
+export interface BusLineStation {
+  stationId: string;
+  stationName: string;
+  stationSeq: number;
+  lat: number;
+  lng: number;
+  arsNo?: string;
+  isTurningPoint?: boolean;
+  edgePoints?: EdgeAnchorPoints | null;
+  subwayTransferList?: string[];
+}
+
+/** 실시간 버스 위치 정보 */
+export interface BusPosition {
+  vehicleno: string;
+  nodeid?: string;
+  nodenm?: string;
+  nodeord?: number;
+  gpslati?: number;
+  gpslong?: number;
+  stage?: BusPositionStage;
+  progressRate?: number; // 0.0 ~ 1.0
+  lowplate?: boolean | number;
+  remainSeats?: number;
+  crowded?: string;
+  isLastBus?: boolean;
+}
+
+/** 버스 실시간 노선도 API 응답 규격 */
+export interface BusLinePositionsData {
+  busNo: string;
+  busId?: string;
+  routeId?: string;
+  busType?: string;
+  busColor?: string;
+  startStationName?: string;
+  endStationName?: string;
+  turningStationName?: string;
+  turningStationSeq?: number;
+  stations: BusLineStation[];
+  positions: BusPosition[];
+  timestamp: number;
+}
+
+/** 버스 노선도 패널 열기 대상 정보 */
+export interface BusLineMapTarget {
+  stationName: string;
+  stationId?: string;
+  busNo: string;
+  busId?: string;
+  routeId?: string;
+  busCityCode?: string;
+  region?: string;
+  busColor?: string;
+  busType?: string;
+  targetVehicleNo?: string;
+  targetMinutesLeft?: number;
+  targetStationsLeft?: number;
+  targetStatusText?: string;
+}
+
 /** 버스 실시간 도착 정보 */
 export interface BusArrival {
   busNo: string;

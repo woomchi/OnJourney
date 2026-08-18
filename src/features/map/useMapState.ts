@@ -18,6 +18,8 @@ export function useMapState() {
     isAlternativeFromFocus: state.isAlternativeFromFocus,
     subwayLineMapTarget: state.subwayLineMapTarget,
     setSubwayLineMapTarget: state.setSubwayLineMapTarget,
+    busLineMapTarget: state.busLineMapTarget,
+    setBusLineMapTarget: state.setBusLineMapTarget,
     recommendedPlaces: state.recommendedPlaces,
     activeSearchPlace: state.activeSearchPlace,
     setMapCenterAddress: state.setMapCenterAddress,

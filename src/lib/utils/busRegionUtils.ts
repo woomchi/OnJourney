@@ -116,6 +116,26 @@ export function resolveTagoCode(busCityCode?: string | number): string {
 }
 
 /**
+ * ODsay API 호출에 적합한 CID(도시 코드)를 반환합니다. (서울: 1000, 부산: 7000 등)
+ */
+export function resolveOdsayCid(cityCode?: string | number): string {
+  if (!cityCode) return '1000';
+  const codeStr = String(cityCode).trim();
+
+  if (codeStr === '11' || codeStr === '1000' || codeStr === 'seoul') return '1000';
+  if (codeStr === '21' || codeStr === '7000' || codeStr === 'busan') return '7000';
+  if (codeStr === '22' || codeStr === '4000' || codeStr === 'daegu') return '4000';
+  if (codeStr === '23' || codeStr === '3000' || codeStr === 'incheon') return '3000';
+  if (codeStr === '24' || codeStr === '5000' || codeStr === 'gwangju') return '5000';
+  if (codeStr === '25' || codeStr === '6000' || codeStr === 'daejeon') return '6000';
+  if (codeStr === '26' || codeStr === '8000' || codeStr === 'ulsan') return '8000';
+  if (codeStr === '12' || codeStr === '29' || codeStr === '9000' || codeStr === 'sejong') return '9000';
+  if (codeStr.startsWith('31') || codeStr === 'gyeonggi') return '1040';
+
+  return codeStr;
+}
+
+/**
  * 주어진 stationId와 지역 정보를 바탕으로 TAGO API에서 사용 가능한 nodeId 후보군 목록을 생성합니다.
  */
 export function generateTagoNodeIdCandidates(

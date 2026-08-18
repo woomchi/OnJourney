@@ -77,7 +77,8 @@ export function useRealtimeSubway({
     enabled: Boolean(enabled && cleanStationName),
     refetchInterval,
     refetchIntervalInBackground: false,
-    staleTime: 10000,
+    staleTime: 15000,
+    placeholderData: (previousData) => previousData,
     retry: 2,
     retryDelay: 1000,
   });

@@ -1,9 +1,10 @@
-"use client";
+'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
 import RouteGuidePanel from '@/features/route/RouteGuidePanel';
 import AlternativeRoutePanel from '@/features/route/AlternativeRoutePanel';
 import { SubwayLineMapPanel } from '@/features/route/SubwayLineMapPanel';
+import { BusLineMapPanel } from '@/features/route/BusLineMapPanel';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMapState } from '@/features/map/useMapState';
 import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
@@ -24,6 +25,8 @@ export function RoutePanels() {
     setFocusBounds,
     subwayLineMapTarget,
     setSubwayLineMapTarget,
+    busLineMapTarget,
+    setBusLineMapTarget,
     isSearchMode,
     isDrawerMaximized,
   } = useMapState();
@@ -134,6 +137,15 @@ export function RoutePanels() {
     }
   }, [showSubwayLineMap, subwayLineMapTarget]);
 
+  const [cachedBusTarget, setCachedBusTarget] = useState<typeof busLineMapTarget>(null);
+  const showBusLineMap = !!busLineMapTarget;
+
+  useEffect(() => {
+    if (showBusLineMap && busLineMapTarget) {
+      setCachedBusTarget(busLineMapTarget);
+    }
+  }, [showBusLineMap, busLineMapTarget]);
+
   return (
     <>
       {/* 지하철 실시간 노선도 패널 */}
@@ -150,10 +162,24 @@ export function RoutePanels() {
         />
       )}
 
+      {/* 버스 실시간 노선도 패널 */}
+      {(busLineMapTarget || cachedBusTarget) && (
+        <BusLineMapPanel
+          isOpen={showBusLineMap && !isSearchMode}
+          target={(busLineMapTarget || cachedBusTarget)!}
+          onClose={() => setBusLineMapTarget(null)}
+          onExited={() => {
+            if (!showBusLineMap) {
+              setCachedBusTarget(null);
+            }
+          }}
+        />
+      )}
+
       {/* 길안내 패널 */}
       {cachedRouteGuide && (
         <RouteGuidePanel
-          isOpen={showRouteGuide && !isSearchMode && !isDrawerMaximized && !showSubwayLineMap}
+          isOpen={showRouteGuide && !isSearchMode && !isDrawerMaximized && !showSubwayLineMap && !showBusLineMap}
           originPlace={cachedRouteGuide.originPlace}
           destPlace={cachedRouteGuide.destPlace}
           route={cachedRouteGuide.route}

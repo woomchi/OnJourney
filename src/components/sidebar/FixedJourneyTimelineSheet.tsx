@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import type { Journey, Place } from '@/types/journey';
-import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins, RefreshCw } from 'lucide-react';
+import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins, RefreshCw, ArrowRight } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon, AlternativeRouteIcon } from '@/components/ui/icons';
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
@@ -16,6 +16,8 @@ import { motion, useDragControls, useMotionValue, animate } from 'framer-motion'
 import { formatKmDistance, formatDurationMinutes } from '@/lib/utils/journeyUtils';
 
 import { usePWA } from '@/components/PWAProvider';
+import SegmentRealtimeArrivalHero from '@/components/transit/SegmentRealtimeArrivalHero';
+import HorizontalTransitRouteStepLine from '@/components/route/HorizontalTransitRouteStepLine';
 
 interface FixedJourneyTimelineSheetProps {
   activeJourney: Journey;
@@ -52,13 +54,17 @@ export default function FixedJourneyTimelineSheet({
     isCacheRestored,
     setTargetChangePlaceId,
     departureTime,
+    subwayLineMapTarget,
+    busLineMapTarget,
   } = useJourneyStore();
+
+  const isLineMapOpen = Boolean(subwayLineMapTarget || busLineMapTarget);
 
   const dragControls = useDragControls();
   const y = useMotionValue(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const addPlaceRef = useRef<HTMLDivElement>(null);
-  
+
   const [fullHeight, setFullHeight] = useState(0);
   const [addButtonHeight, setAddButtonHeight] = useState(86);
   const [activeSnap, setActiveSnap] = useState<'full' | 'reduced'>('full');
@@ -84,7 +90,7 @@ export default function FixedJourneyTimelineSheet({
   }, []);
 
   useEffect(() => {
-    const isHidden = !!(focusedSegment || alternativeSegment);
+    const isHidden = !!alternativeSegment || isLineMapOpen;
     const targetY = isHidden
       ? (fullHeight > 0 ? fullHeight + 50 : 500)
       : 0;
@@ -95,7 +101,7 @@ export default function FixedJourneyTimelineSheet({
       damping: 30,
     });
     return () => controls.stop();
-  }, [addButtonHeight, y, focusedSegment, alternativeSegment, fullHeight]);
+  }, [addButtonHeight, y, alternativeSegment, isLineMapOpen, fullHeight]);
 
   useEffect(() => {
     if (fullHeight > 0) {
@@ -151,6 +157,177 @@ export default function FixedJourneyTimelineSheet({
   const prevJourney = activeIndex > 0 ? journeys[activeIndex - 1] : null;
   const nextJourney = activeIndex >= 0 && activeIndex < journeys.length - 1 ? journeys[activeIndex + 1] : null;
 
+  // 세그먼트 포커스 상태 및 네비게이션 계산
+  const isFocusedMode = !!(focusedSegment && !alternativeSegment);
+
+  const focusedOrigin = useMemo(() => {
+    if (!focusedSegment) return null;
+    return places.find(p => String(p.id) === String(focusedSegment.originId)) || null;
+  }, [focusedSegment, places]);
+
+  const focusedDest = useMemo(() => {
+    if (!focusedSegment) return null;
+    return places.find(p => String(p.id) === String(focusedSegment.destId)) || null;
+  }, [focusedSegment, places]);
+
+  const focusedIndex = useMemo(() => {
+    if (!focusedOrigin || !focusedDest) return -1;
+    return places.findIndex(p => String(p.id) === String(focusedOrigin.id));
+  }, [focusedOrigin, focusedDest, places]);
+
+  const hasPrevSegment = focusedIndex > 0;
+  const hasNextSegment = focusedIndex >= 0 && focusedIndex < places.length - 2;
+
+  const handlePrevSegment = () => {
+    if (!hasPrevSegment) return;
+    const prevOrigin = places[focusedIndex - 1];
+    const prevDest = places[focusedIndex];
+    if (!prevOrigin || !prevDest) return;
+    const cacheKey = `${prevOrigin.id}-${prevDest.id}`;
+    const segmentData = directionsCache[cacheKey];
+    const route = getDefaultRoute(prevOrigin, prevDest, segmentData, transportType as 'public' | 'car' | 'walk');
+    setFocusedSegment({ originId: prevOrigin.id, destId: prevDest.id });
+    setFocusedStep(null);
+    setFocusedPlaceId(null);
+    if (route) {
+      const bounds = calculateSegmentBounds(prevOrigin, prevDest, route);
+      setFocusBounds(bounds);
+    }
+  };
+
+  const handleNextSegment = () => {
+    if (!hasNextSegment) return;
+    const nextOrigin = places[focusedIndex + 1];
+    const nextDest = places[focusedIndex + 2];
+    if (!nextOrigin || !nextDest) return;
+    const cacheKey = `${nextOrigin.id}-${nextDest.id}`;
+    const segmentData = directionsCache[cacheKey];
+    const route = getDefaultRoute(nextOrigin, nextDest, segmentData, transportType as 'public' | 'car' | 'walk');
+    setFocusedSegment({ originId: nextOrigin.id, destId: nextDest.id });
+    setFocusedStep(null);
+    setFocusedPlaceId(null);
+    if (route) {
+      const bounds = calculateSegmentBounds(nextOrigin, nextDest, route);
+      setFocusBounds(bounds);
+    }
+  };
+
+  const handleExitFocus = () => {
+    setFocusedSegment(null);
+    setFocusedStep(null);
+    setFocusedPlaceId(null);
+    setFocusBounds(null);
+    setAlternativeSegment(null);
+  };
+
+  const activeFocusedRoute = useMemo(() => {
+    if (!focusedOrigin || !focusedDest) return null;
+    let r: any = focusedOrigin.selected_route && focusedOrigin.selected_route.destId === focusedDest.id ? focusedOrigin.selected_route : null;
+    if (!r) {
+      const cacheKey = `${focusedOrigin.id}-${focusedDest.id}`;
+      const segmentData = directionsCache[cacheKey];
+      r = getDefaultRoute(focusedOrigin, focusedDest, segmentData, transportType as 'public' | 'car' | 'walk') || null;
+    }
+    return r;
+  }, [focusedOrigin, focusedDest, directionsCache, transportType]);
+
+  // 세그먼트 내 스텝 페이지 목록 및 재생 제어
+  const segmentSteps = useMemo(() => {
+    return activeFocusedRoute?.steps || [];
+  }, [activeFocusedRoute]);
+
+  const currentStepIdx = useMemo(() => {
+    if (!focusedStep || !focusedOrigin || !focusedDest) return -1;
+    if (focusedStep.originId !== focusedOrigin.id || focusedStep.destId !== focusedDest.id) return -1;
+    return typeof focusedStep.stepIndex === 'number' ? focusedStep.stepIndex : -1;
+  }, [focusedStep, focusedOrigin, focusedDest]);
+
+  const totalStepsCount = segmentSteps.length;
+  const isStepPlaying = currentStepIdx >= 0;
+  const isAtStepEnd = currentStepIdx >= totalStepsCount - 1;
+  const showStepPlayIcon = !isStepPlaying || isAtStepEnd;
+  const stepProgressPercent = totalStepsCount > 0 && currentStepIdx >= 0 ? ((currentStepIdx + 1) / totalStepsCount) * 100 : 0;
+
+  const handlePrevStep = () => {
+    if (segmentSteps.length === 0 || !focusedOrigin || !focusedDest) return;
+    if (currentStepIdx > 0) {
+      const prevIdx = currentStepIdx - 1;
+      const step = segmentSteps[prevIdx];
+      setFocusedStep({
+        originId: focusedOrigin.id,
+        destId: focusedDest.id,
+        stepIndex: prevIdx,
+      });
+      if (step?.startLat && step?.startLng) {
+        setFocusBounds({
+          sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
+          ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
+        });
+      }
+    } else if (currentStepIdx === 0 && hasPrevSegment) {
+      handlePrevSegment();
+    }
+  };
+
+  const handleNextStep = () => {
+    if (segmentSteps.length === 0 || !focusedOrigin || !focusedDest) return;
+    if (currentStepIdx === -1) {
+      const step = segmentSteps[0];
+      setFocusedStep({
+        originId: focusedOrigin.id,
+        destId: focusedDest.id,
+        stepIndex: 0,
+      });
+      if (step?.startLat && step?.startLng) {
+        setFocusBounds({
+          sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
+          ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
+        });
+      }
+    } else if (currentStepIdx < totalStepsCount - 1) {
+      const nextIdx = currentStepIdx + 1;
+      const step = segmentSteps[nextIdx];
+      setFocusedStep({
+        originId: focusedOrigin.id,
+        destId: focusedDest.id,
+        stepIndex: nextIdx,
+      });
+      if (step?.startLat && step?.startLng) {
+        setFocusBounds({
+          sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
+          ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
+        });
+      }
+    } else if (currentStepIdx === totalStepsCount - 1 && hasNextSegment) {
+      handleNextSegment();
+    }
+  };
+
+  const handlePlayStepToggle = () => {
+    if (segmentSteps.length === 0 || !focusedOrigin || !focusedDest) return;
+    if (isStepPlaying && !isAtStepEnd) {
+      setFocusedStep(null);
+      if (activeFocusedRoute) {
+        const bounds = calculateSegmentBounds(focusedOrigin, focusedDest, activeFocusedRoute);
+        setFocusBounds(bounds);
+      }
+    } else {
+      const targetIdx = currentStepIdx >= 0 && !isAtStepEnd ? currentStepIdx : 0;
+      const step = segmentSteps[targetIdx];
+      setFocusedStep({
+        originId: focusedOrigin.id,
+        destId: focusedDest.id,
+        stepIndex: targetIdx,
+      });
+      if (step?.startLat && step?.startLng) {
+        setFocusBounds({
+          sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
+          ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
+        });
+      }
+    }
+  };
+
   const formattedDate = activeJourney.journey_date
     ? activeJourney.journey_date.replace(/-/g, '.').slice(2)
     : '미지정';
@@ -187,7 +364,7 @@ export default function FixedJourneyTimelineSheet({
         const isSegLoading = !isCacheRestored || (
           !hasData &&
           (!publicQueryState || publicQueryState.status === 'pending' ||
-           !carQueryState || carQueryState.status === 'pending')
+            !carQueryState || carQueryState.status === 'pending')
         );
 
         if (isSegLoading) {
@@ -336,7 +513,7 @@ export default function FixedJourneyTimelineSheet({
       isSegLoading = !isCacheRestored || (
         !hasData &&
         (!publicQueryState || publicQueryState.status === 'pending' ||
-         !carQueryState || carQueryState.status === 'pending')
+          !carQueryState || carQueryState.status === 'pending')
       );
 
       const segmentData = cachedData || {
@@ -427,18 +604,17 @@ export default function FixedJourneyTimelineSheet({
                 else cardRefs.current.delete(key);
               }}
               onClick={() => handleSegmentClick(origin, dest, route)}
-              className={`relative z-10 px-2 py-1.5 rounded-xl flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-xs border w-[130px] h-[86px] ${
-                isFocused
+              className={`relative z-10 px-2 py-1.5 rounded-xl flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-xs border w-[130px] h-[86px] ${isFocused
                   ? 'bg-zinc-950 text-white border-zinc-950 shadow-md scale-105'
                   : 'bg-white text-zinc-800 border-zinc-200 hover:border-zinc-350 hover:bg-zinc-50'
-              }`}
+                }`}
               title={`${origin.place_name} → ${dest.place_name} 이동정보`}
             >
               {/* 좌측 정보 영역 (수직으로 쌓음) */}
               <div className="flex flex-col items-start justify-center min-w-0 flex-1 leading-tight gap-1">
                 {/* 1행: 수단 아이콘 + 소요 시간 */}
                 <div className="flex items-center gap-1 font-extrabold text-[14px] w-full leading-none">
-                  <span 
+                  <span
                     style={{ color: isFocused ? '#FFFFFF' : theme.hex }}
                     className="shrink-0"
                   >
@@ -465,7 +641,7 @@ export default function FixedJourneyTimelineSheet({
                   </span>
                   <span className="truncate">{duration || '이동'}</span>
                 </div>
-                
+
                 {/* 2행: 이동 거리 */}
                 <span className={`text-[12px] font-bold leading-none truncate max-w-full ${isFocused ? 'text-white/80' : 'text-zinc-600'}`}>
                   {formattedDistance || '거리 미정'}
@@ -503,7 +679,7 @@ export default function FixedJourneyTimelineSheet({
                   e.stopPropagation();
                   e.preventDefault();
                   const isCurrentlyOpen = alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id;
-                  
+
                   if (!isCurrentlyOpen) {
                     const wasFocused = focusedSegment?.originId === origin.id && focusedSegment?.destId === dest.id;
                     setIsAlternativeFromFocus(wasFocused);
@@ -537,7 +713,7 @@ export default function FixedJourneyTimelineSheet({
                 aria-label="대안 경로 탐색"
                 title="대안 경로 탐색"
               >
-                <AlternativeRouteIcon 
+                <AlternativeRouteIcon
                   isActive={alternativeSegment?.originId === origin.id && alternativeSegment?.destId === dest.id}
                   className="w-3.5 h-3.5"
                 />
@@ -572,7 +748,7 @@ export default function FixedJourneyTimelineSheet({
         zIndex: 100,
         borderTopLeftRadius: '24px',
         borderTopRightRadius: '24px',
-        pointerEvents: (focusedSegment || alternativeSegment) ? 'none' : 'auto',
+        pointerEvents: (alternativeSegment || isLineMapOpen) ? 'none' : 'auto',
       }}
       className="md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/90 shadow-[0_-4px_24px_rgba(0,0,0,0.12)] flex flex-col"
     >
@@ -582,343 +758,496 @@ export default function FixedJourneyTimelineSheet({
         className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] pointer-events-none *:pointer-events-auto"
       />
 
-      {/* 1. 슬림 상단 컨트롤 헤더 (여정 제목 + 날짜 & 이동 수단 설정 정보) */}
-      <div
-        onPointerDown={(e) => {
-          if ((e.target as HTMLElement).closest('button')) return;
-        }}
-        className="w-full px-4 pt-3 pb-1 flex items-center justify-between gap-2 shrink-0 select-none touch-none"
-      >
-        {/* 좌측: 목록 / 취소 / 뒤로가기 버튼 */}
-        <button
-          type="button"
-          onClick={() => {
-            if (isEditMode) {
-              setEditMode(false);
-            } else if (focusedSegment || alternativeSegment) {
-              setFocusedSegment(null);
-              setAlternativeSegment(null);
-              setFocusedStep(null);
-              setFocusBounds(null);
-            } else {
-              clearJourney();
-            }
-          }}
-          className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 shrink-0 cursor-pointer"
-          title={isEditMode ? "편집 취소" : (focusedSegment || alternativeSegment) ? "이동 상세 닫기" : "여정 목록으로 돌아가기"}
-          aria-label={isEditMode ? "편집 취소" : (focusedSegment || alternativeSegment) ? "이동 상세 닫기" : "여정 목록으로 돌아가기"}
+      {/* 1. 슬림 상단 컨트롤 헤더 (isFocusedMode vs 일반 모드 분기) */}
+      {isFocusedMode && focusedOrigin && focusedDest ? (
+        <div
+          className="w-full px-4 pt-3 pb-1 flex items-center justify-between gap-2 shrink-0 select-none border-b border-zinc-100/80"
         >
-          {isEditMode ? (
-            '취소'
-          ) : (focusedSegment || alternativeSegment) ? (
-            <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
-          ) : (
-            <>
-              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
-              <span>목록</span>
-            </>
-          )}
-        </button>
-
-        {/* 중앙: 여정 정보 수정 영역 (제목, 날짜, 이동수단 설정 정보 전체 포함 버튼) */}
-        <div className="flex-1 flex justify-center min-w-0 px-1">
+          {/* 좌측: 전체 여정 복귀 버튼 */}
           <button
             type="button"
-            onClick={() => setIsEditModalOpen(true)}
-            className="inline-flex flex-col items-center max-w-full px-2.5 py-1 rounded-xl hover:bg-zinc-100/90 active:bg-zinc-200/80 transition-all cursor-pointer group shrink border border-transparent hover:border-zinc-200/80"
-            title="여정 정보 수정"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleExitFocus();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex items-center gap-0.5 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/80 active:scale-95 transition-all text-xs font-bold rounded-lg px-1.5 py-1 shrink-0 cursor-pointer"
+            title="전체 여정으로 돌아가기"
+            aria-label="전체 여정으로 돌아가기"
           >
-            {/* 1행: [Pencil 아이콘] 여정 제목 & 이동 수단 설정 정보 */}
-            <div className="flex items-center gap-1.5 max-w-full">
-              <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors shrink-0" strokeWidth={2} />
-              <h2 className="text-sm font-extrabold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
-                {activeJourney.title}
-              </h2>
-              <span className="text-zinc-300 font-light select-none shrink-0">·</span>
-              <div className="flex items-center gap-1 shrink-0 text-xs font-semibold text-zinc-600">
-                {activeJourney.transport_type === 'car' ? (
-                  <Car className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                ) : activeJourney.transport_type === 'walk' ? (
-                  <Footprints className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                ) : (
-                  <Bus className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                )}
-                <span>{transportTypeLabel}</span>
-              </div>
-            </div>
-
-            {/* 2행: 여정 제목 밑: 날짜 */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900 mt-0.5 truncate max-w-full transition-colors">
-              <div className="flex items-center gap-1 shrink-0">
-                <Calendar className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 shrink-0 transition-colors" />
-                <span>{formattedDate}</span>
-              </div>
-            </div>
+            <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
+            <span>뒤로</span>
           </button>
-        </div>
 
-        {/* 우측: 동기화 & 편집 버튼 */}
-        <div className="flex items-center gap-1 shrink-0">
-          {isSyncing && (
-            <div className="flex items-center mr-0.5" title="동기화 중">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+          {/* 중앙: 현재 포커스된 구간 (출발지 ➔ 도착지) */}
+          <div className="flex-1 flex items-center justify-center min-w-0 px-1">
+            <div className="inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-xl bg-zinc-100/80 border border-zinc-200/60 text-zinc-800 text-xs font-bold truncate">
+              <span className="truncate max-w-[85px]" title={focusedOrigin.place_name}>
+                {focusedOrigin.place_name}
+              </span>
+              <ArrowRight className="w-3 h-3 text-zinc-400 shrink-0" strokeWidth={2.5} />
+              <span className="truncate max-w-[85px]" title={focusedDest.place_name}>
+                {focusedDest.place_name}
+              </span>
             </div>
-          )}
+          </div>
 
+          {/* 우측: 이전 구간 / 다음 구간 이동 네비게이션 */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              disabled={!hasPrevSegment}
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrevSegment();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 active:scale-90 disabled:opacity-20 disabled:pointer-events-none transition-all rounded-md cursor-pointer"
+              title="이전 구간"
+              aria-label="이전 구간"
+            >
+              <SkipBackIcon className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              disabled={!hasNextSegment}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNextSegment();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 active:scale-90 disabled:opacity-20 disabled:pointer-events-none transition-all rounded-md cursor-pointer"
+              title="다음 구간"
+              aria-label="다음 구간"
+            >
+              <SkipForwardIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          onPointerDown={(e) => {
+            if ((e.target as HTMLElement).closest('button')) return;
+          }}
+          className="w-full px-4 pt-3 pb-1 flex items-center justify-between gap-2 shrink-0 select-none touch-none"
+        >
+          {/* 좌측: 목록 / 취소 버튼 */}
           <button
             type="button"
             onClick={() => {
-              setEditMode(!isEditMode);
-              if (!isEditMode) setDrawerSnapPoint(1);
+              if (isEditMode) {
+                setEditMode(false);
+              } else {
+                clearJourney();
+              }
             }}
-            className={`flex items-center gap-0.5 text-xs font-semibold transition-colors px-1 py-0.5 rounded-md cursor-pointer ${isEditMode ? 'text-blue-600 font-bold' : 'text-zinc-500 hover:text-zinc-800'
-              }`}
+            className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-800 transition-colors text-xs font-semibold rounded-md px-1 py-0.5 shrink-0 cursor-pointer"
+            title={isEditMode ? "편집 취소" : "여정 목록으로 돌아가기"}
+            aria-label={isEditMode ? "편집 취소" : "여정 목록으로 돌아가기"}
           >
             {isEditMode ? (
-              <>
-                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                완료
-              </>
+              '취소'
             ) : (
               <>
-                <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                편집
+                <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+                <span>목록</span>
               </>
             )}
           </button>
-        </div>
-      </div>
 
-      {/* 2. 가로 연결형 타임라인 바로 위에 붙은 재생 플레이어 & 요약 정보 헤더 바 */}
-      <div
-        onPointerDown={(e) => {
-          if ((e.target as HTMLElement).closest('button')) return;
-        }}
-        className="w-full px-4 pt-1.5 pb-1 flex items-center justify-between gap-2 shrink-0 border-b border-zinc-100/80 select-none touch-none"
-      >
-        {/* 좌측: 소요 시간 & 비용 (목록 폰트 크기 text-xs/text-sm로 확대) */}
-        <div className="flex-1 flex flex-col items-start justify-center min-w-0 leading-tight">
-          {isAnySegmentLoading ? (
-            <div className="flex flex-col gap-1 animate-pulse">
-              <div className="h-4 w-16 bg-zinc-200 rounded-md" />
-              <div className="h-3 w-12 bg-zinc-150 rounded-md" />
-            </div>
-          ) : (
-            <>
-              <span className="font-extrabold text-sm text-zinc-900 truncate">
-                {totalDurationMin > 0 ? formatTotalDuration(totalDurationMin) : '0분'}
-              </span>
-              <span className="font-semibold text-xs text-zinc-600 truncate mt-0.5">
-                {hasFare ? `${totalFareSum.toLocaleString()}원` : (totalFareSum > 0 ? `${totalFareSum.toLocaleString()}원` : '0원')}
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* 중앙: 재생 플레이어 UI (정확히 중앙 정렬, 복원된 w-11 h-11 크기) */}
-        {!isEditMode ? (
-          <div className="flex items-center justify-center gap-1.5 shrink-0">
+          {/* 중앙: 여정 정보 수정 영역 (제목, 날짜, 이동수단 설정 정보 전체 포함 버튼) */}
+          <div className="flex-1 flex justify-center min-w-0 px-1">
             <button
               type="button"
-              disabled={!prevJourney}
-              onClick={() => {
-                if (prevJourney) {
-                  setFocusedStep(null);
-                  setFocusedSegment(null);
-                  setAlternativeSegment(null);
-                  setFocusBounds(null);
-                  setActiveJourney(prevJourney);
-                }
-              }}
-              className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 active:scale-90 disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
-              title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
+              onClick={() => setIsEditModalOpen(true)}
+              className="inline-flex flex-col items-center max-w-full px-2.5 py-1 rounded-xl hover:bg-zinc-100/90 active:bg-zinc-200/80 transition-all cursor-pointer group shrink border border-transparent hover:border-zinc-200/80"
+              title="여정 정보 수정"
             >
-              <SkipBackIcon className="w-5 h-5" />
-            </button>
+              {/* 1행: [Pencil 아이콘] 여정 제목 & 이동 수단 설정 정보 */}
+              <div className="flex items-center gap-1.5 max-w-full">
+                <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors shrink-0" strokeWidth={2} />
+                <h2 className="text-sm font-extrabold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors truncate">
+                  {activeJourney.title}
+                </h2>
+                <span className="text-zinc-300 font-light select-none shrink-0">·</span>
+                <div className="flex items-center gap-1 shrink-0 text-xs font-semibold text-zinc-600">
+                  {activeJourney.transport_type === 'car' ? (
+                    <Car className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  ) : activeJourney.transport_type === 'walk' ? (
+                    <Footprints className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <Bus className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  )}
+                  <span>{transportTypeLabel}</span>
+                </div>
+              </div>
 
-            {places.length >= 2 ? (
-              <button
-                type="button"
-                onClick={handlePlayToggle}
-                className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-95 shrink-0 group overflow-hidden cursor-pointer shadow-sm ${isPlaying
-                  ? 'bg-white border border-zinc-200 text-zinc-950 shadow-xs'
-                  : 'bg-zinc-950 text-white shadow-xs'
-                  }`}
-                title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                {isPlaying ? (
-                  <PauseBarsIcon className="w-5 h-5 relative z-10 group-hover:text-white transition-colors duration-300" />
-                ) : (
-                  <PlayTriangleIcon className="w-5 h-5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
-                )}
-              </button>
-            ) : (
-              <div
-                className="w-11 h-11 rounded-full flex items-center justify-center bg-zinc-100 border border-zinc-200/60 text-zinc-300 shrink-0 cursor-not-allowed"
-                title="장소를 2개 이상 등록해주세요"
-              >
-                <PlayTriangleIcon className="w-5 h-5 ml-0.5 text-zinc-300" />
+              {/* 2행: 여정 제목 밑: 날짜 */}
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900 mt-0.5 truncate max-w-full transition-colors">
+                <div className="flex items-center gap-1 shrink-0">
+                  <Calendar className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 shrink-0 transition-colors" />
+                  <span>{formattedDate}</span>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* 우측: 동기화 & 편집 버튼 */}
+          <div className="flex items-center gap-1 shrink-0">
+            {isSyncing && (
+              <div className="flex items-center mr-0.5" title="동기화 중">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
               </div>
             )}
 
             <button
               type="button"
-              disabled={!nextJourney}
               onClick={() => {
-                if (nextJourney) {
-                  setFocusedStep(null);
-                  setFocusedSegment(null);
-                  setAlternativeSegment(null);
-                  setFocusBounds(null);
-                  setActiveJourney(nextJourney);
-                }
+                setEditMode(!isEditMode);
+                if (!isEditMode) setDrawerSnapPoint(1);
               }}
-              className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 active:scale-90 disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
-              title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
+              className={`flex items-center gap-0.5 text-xs font-semibold transition-colors px-1 py-0.5 rounded-md cursor-pointer ${isEditMode ? 'text-blue-600 font-bold' : 'text-zinc-500 hover:text-zinc-800'
+                }`}
             >
-              <SkipForwardIcon className="w-5 h-5" />
+              {isEditMode ? (
+                <>
+                  <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  완료
+                </>
+              ) : (
+                <>
+                  <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
+                  편집
+                </>
+              )}
             </button>
           </div>
-        ) : null}
-
-        {/* 우측 끝: 목적지 N개 (flex-1 영역으로 우측 정렬) */}
-        <div className="flex-1 flex items-center justify-end gap-1 text-xs font-bold text-zinc-900 min-w-0">
-          <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-          <span className="shrink-0 text-zinc-900 font-bold">장소 {places.length}/{MAX_JOURNEY_PLACES}</span>
         </div>
-      </div>
+      )}
 
-      {/* 2. 중단 컴팩트 노선 타임라인 바 */}
-      <div
-        ref={timelineContainerRef}
-        className="w-full px-5 py-2 flex items-center overflow-x-auto scrollbar-none shrink-0"
-      >
-        {places.map((place, idx) => {
-          const categoryLabel = place.category ? (place.category.split(' > ').pop() || place.category) : '';
-          const shortAddress = place.address ? place.address.split(' ').slice(0, 2).join(' ') : '';
-          const placeTheme = getSequenceTheme(idx, places.length);
+      {/* 2. 가로 연결형 타임라인 바로 위에 붙은 재생 플레이어 & 요약 정보 헤더 바 (isFocusedMode 분기) */}
+      {isFocusedMode ? (
+        <SegmentRealtimeArrivalHero
+          route={activeFocusedRoute}
+          originPlace={focusedOrigin}
+          destPlace={focusedDest}
+        />
+      ) : (
+        <div
+          onPointerDown={(e) => {
+            if ((e.target as HTMLElement).closest('button')) return;
+          }}
+          className="w-full px-4 pt-1.5 pb-1 flex items-center justify-between gap-2 shrink-0 border-b border-zinc-100/80 select-none touch-none"
+        >
+          {/* 좌측: 소요 시간 & 비용 (목록 폰트 크기 text-xs/text-sm로 확대) */}
+          <div className="flex-1 flex flex-col items-start justify-center min-w-0 leading-tight">
+            {isAnySegmentLoading ? (
+              <div className="flex flex-col gap-1 animate-pulse">
+                <div className="h-4 w-16 bg-zinc-200 rounded-md" />
+                <div className="h-3 w-12 bg-zinc-150 rounded-md" />
+              </div>
+            ) : (
+              <>
+                <span className="font-extrabold text-sm text-zinc-900 truncate">
+                  {totalDurationMin > 0 ? formatTotalDuration(totalDurationMin) : '0분'}
+                </span>
+                <span className="font-semibold text-xs text-zinc-600 truncate mt-0.5">
+                  {hasFare ? `${totalFareSum.toLocaleString()}원` : (totalFareSum > 0 ? `${totalFareSum.toLocaleString()}원` : '0원')}
+                </span>
+              </>
+            )}
+          </div>
 
-          return (
-            <div key={place.id} className="flex items-center shrink-0">
-              {/* 장소 노드 항목 (수직 정렬: 상단 스페이서, 중앙 핀 노드, 하단 장소명 & 태그) */}
-              <div className="flex flex-col items-center justify-between w-[96px] shrink-0 h-[100px] relative">
-                {/* 상단 핀 위 영역 (장소 정보 변경 버튼 배치) */}
-                <div className="h-[32px] w-full flex items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTargetChangePlaceId(place.id);
-                      openSearchMode();
-                    }}
-                    className="w-7.5 h-7.5 rounded-lg text-zinc-500 hover:text-blue-600 bg-zinc-50 hover:bg-blue-50/80 border border-zinc-200 hover:border-blue-300 flex items-center justify-center transition-all duration-300 cursor-pointer shadow-2xs active:scale-95 group/mobile-change-btn shrink-0"
-                    title="장소 정보 변경"
-                  >
-                    <RefreshCw className="w-4 h-4 text-zinc-500 group-hover/mobile-change-btn:text-blue-600 transition-colors" strokeWidth={2.2} />
-                  </button>
-                </div>
+          {/* 중앙: 재생 플레이어 UI (정확히 중앙 정렬, 복원된 w-11 h-11 크기) */}
+          {!isEditMode ? (
+            <div className="flex items-center justify-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                disabled={!prevJourney}
+                onClick={() => {
+                  if (prevJourney) {
+                    setFocusedStep(null);
+                    setFocusedSegment(null);
+                    setAlternativeSegment(null);
+                    setFocusBounds(null);
+                    setActiveJourney(prevJourney);
+                  }
+                }}
+                className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 active:scale-90 disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+                title={prevJourney ? `이전 여정: ${prevJourney.title}` : "이전 여정 없음"}
+              >
+                <SkipBackIcon className="w-5 h-5" />
+              </button>
 
-                {/* 중앙: 원형 핀 노드 (컬러스킴 적용) */}
-                <div className="relative w-full flex items-center justify-center h-[26px]">
-                  {/* 이전 구간 연결 엣지 선 (노드 핀 좌측, 8px 여백 적용) */}
-                  {idx > 0 && (() => {
-                    const prevInfo = getSegmentInfo(places[idx - 1], place);
-                    return (
-                      <svg className="absolute left-0 w-1/2 top-1/2 -translate-y-1/2 h-[4px] pointer-events-none z-0">
-                        <line
-                          x1="3px"
-                          y1="50%"
-                          x2="calc(100% - 22px)"
-                          y2="50%"
-                          stroke={prevInfo.isFocused ? '#09090b' : '#e4e4e7'}
-                          strokeWidth="2.5"
-                          strokeDasharray={prevInfo.type === 'walk' ? '4 7' : undefined}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    );
-                  })()}
-
-                  {/* 다음 구간 연결 엣지 선 (노드 핀 우측, 8px 여백 적용) */}
-                  {idx < places.length - 1 && (() => {
-                    const nextInfo = getSegmentInfo(place, places[idx + 1]);
-                    return (
-                      <svg className="absolute right-0 w-1/2 top-1/2 -translate-y-1/2 h-[4px] pointer-events-none z-0">
-                        <line
-                          x1="22px"
-                          y1="50%"
-                          x2="calc(100% - 3px)"
-                          y2="50%"
-                          stroke={nextInfo.isFocused ? '#09090b' : '#e4e4e7'}
-                          strokeWidth="2.5"
-                          strokeDasharray={nextInfo.type === 'walk' ? '4 7' : undefined}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    );
-                  })()}
-
-                  {/* 핀 버튼 (노드 테마 컬러스킴 적용) */}
-                  <button
-                    ref={(el) => {
-                      const key = `place-${place.id}`;
-                      if (el) cardRefs.current.set(key, el);
-                      else cardRefs.current.delete(key);
-                    }}
-                    type="button"
-                    onClick={() => handlePlaceClick(place)}
-                    className={`relative z-10 w-7 h-7 rounded-full text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95 ${
-                      focusedPlaceId === place.id ? 'ring-4 ring-indigo-500/40 scale-110 shadow-lg z-20' : ''
-                    }`}
-                    style={{ backgroundColor: placeTheme.color }}
-                    title={`${place.place_name} (${place.address || ''})`}
-                  >
-                    <span className="text-[11px] font-black leading-none">{idx + 1}</span>
-                  </button>
-                </div>
-
-                {/* 하단: 장소 이름 및 아래 배치된 장소 태그/카테고리 */}
+              {places.length >= 2 ? (
                 <button
                   type="button"
-                  onClick={() => handlePlaceClick(place)}
-                  className="flex flex-col items-center justify-start h-[36px] w-full text-center px-0.5 cursor-pointer group"
+                  onClick={handlePlayToggle}
+                  className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-95 shrink-0 group overflow-hidden cursor-pointer shadow-sm ${isPlaying
+                    ? 'bg-white border border-zinc-200 text-zinc-950 shadow-xs'
+                    : 'bg-zinc-950 text-white shadow-xs'
+                    }`}
+                  title={isPlaying ? "전체 여정 보기 해제" : "전체 여정 재생"}
                 >
-                  <span className={`truncate text-[12px] transition-colors leading-tight max-w-full ${
-                    focusedPlaceId === place.id
-                      ? 'font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600'
-                      : 'font-bold text-zinc-900 group-hover:text-blue-600'
-                  }`}>
-                    {place.place_name}
-                  </span>
-                  <span className={`truncate text-[9.5px] font-medium leading-tight max-w-full mt-0.5 ${
-                    focusedPlaceId === place.id ? 'text-indigo-600 font-bold' : 'text-zinc-400'
-                  }`}>
-                    {categoryLabel || shortAddress || '장소'}
-                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  {isPlaying ? (
+                    <PauseBarsIcon className="w-5 h-5 relative z-10 group-hover:text-white transition-colors duration-300" />
+                  ) : (
+                    <PlayTriangleIcon className="w-5 h-5 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
+                  )}
                 </button>
-              </div>
+              ) : (
+                <div
+                  className="w-11 h-11 rounded-full flex items-center justify-center bg-zinc-100 border border-zinc-200/60 text-zinc-300 shrink-0 cursor-not-allowed"
+                  title="장소를 2개 이상 등록해주세요"
+                >
+                  <PlayTriangleIcon className="w-5 h-5 ml-0.5 text-zinc-300" />
+                </div>
+              )}
 
-              {/* 다음 장소와의 구간 이동 트랙 & 상단 칩 */}
-              {idx < places.length - 1 && renderSegmentBadge(place, places[idx + 1], idx)}
+              <button
+                type="button"
+                disabled={!nextJourney}
+                onClick={() => {
+                  if (nextJourney) {
+                    setFocusedStep(null);
+                    setFocusedSegment(null);
+                    setAlternativeSegment(null);
+                    setFocusBounds(null);
+                    setActiveJourney(nextJourney);
+                  }
+                }}
+                className="w-8 h-8 flex items-center justify-center text-zinc-700 hover:text-zinc-950 active:scale-90 disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+                title={nextJourney ? `다음 여정: ${nextJourney.title}` : "다음 여정 없음"}
+              >
+                <SkipForwardIcon className="w-5 h-5" />
+              </button>
             </div>
-          );
-        })}
-      </div>
+          ) : null}
 
-      {/* 3. 최하단 장소 추가 버튼 */}
+          {/* 우측 끝: 목적지 N개 (flex-1 영역으로 우측 정렬) */}
+          <div className="flex-1 flex items-center justify-end gap-1 text-xs font-bold text-zinc-900 min-w-0">
+            <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+            <span className="shrink-0 text-zinc-900 font-bold">장소 {places.length}/{MAX_JOURNEY_PLACES}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 2. 중단 노선 타임라인 바 (isFocusedMode vs 일반 모드 분기) */}
+      {isFocusedMode && focusedOrigin && focusedDest ? (
+        <HorizontalTransitRouteStepLine
+          route={activeFocusedRoute}
+          originPlace={focusedOrigin}
+          destPlace={focusedDest}
+        />
+      ) : (
+        <div
+          ref={timelineContainerRef}
+          className="w-full px-5 py-2 flex items-center overflow-x-auto scrollbar-none shrink-0"
+        >
+          {places.map((place, idx) => {
+            const categoryLabel = place.category ? (place.category.split(' > ').pop() || place.category) : '';
+            const shortAddress = place.address ? place.address.split(' ').slice(0, 2).join(' ') : '';
+            const placeTheme = getSequenceTheme(idx, places.length);
+
+            return (
+              <div key={place.id} className="flex items-center shrink-0">
+                {/* 장소 노드 항목 (수직 정렬: 상단 스페이서, 중앙 핀 노드, 하단 장소명 & 태그) */}
+                <div className="flex flex-col items-center justify-between w-[96px] shrink-0 h-[100px] relative">
+                  {/* 상단 핀 위 영역 (장소 정보 변경 버튼 배치) */}
+                  <div className="h-[32px] w-full flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTargetChangePlaceId(place.id);
+                        openSearchMode();
+                      }}
+                      className="w-7.5 h-7.5 rounded-lg text-zinc-500 hover:text-blue-600 bg-zinc-50 hover:bg-blue-50/80 border border-zinc-200 hover:border-blue-300 flex items-center justify-center transition-all duration-300 cursor-pointer shadow-2xs active:scale-95 group/mobile-change-btn shrink-0"
+                      title="장소 정보 변경"
+                    >
+                      <RefreshCw className="w-4 h-4 text-zinc-500 group-hover/mobile-change-btn:text-blue-600 transition-colors" strokeWidth={2.2} />
+                    </button>
+                  </div>
+
+                  {/* 중앙: 원형 핀 노드 (컬러스킴 적용) */}
+                  <div className="relative w-full flex items-center justify-center h-[26px]">
+                    {/* 이전 구간 연결 엣지 선 (노드 핀 좌측, 8px 여백 적용) */}
+                    {idx > 0 && (() => {
+                      const prevInfo = getSegmentInfo(places[idx - 1], place);
+                      return (
+                        <svg className="absolute left-0 w-1/2 top-1/2 -translate-y-1/2 h-[4px] pointer-events-none z-0">
+                          <line
+                            x1="3px"
+                            y1="50%"
+                            x2="calc(100% - 22px)"
+                            y2="50%"
+                            stroke={prevInfo.isFocused ? '#09090b' : '#e4e4e7'}
+                            strokeWidth="2.5"
+                            strokeDasharray={prevInfo.type === 'walk' ? '4 7' : undefined}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      );
+                    })()}
+
+                    {/* 원형 핀 버튼 */}
+                    <button
+                      type="button"
+                      onClick={() => handlePlaceClick(place)}
+                      ref={(el) => {
+                        const key = `place-${place.id}`;
+                        if (el) cardRefs.current.set(key, el as any);
+                        else cardRefs.current.delete(key);
+                      }}
+                      className={`relative z-10 w-[24px] h-[24px] rounded-full flex items-center justify-center text-white text-[11px] font-black tracking-tighter cursor-pointer transition-all duration-300 shrink-0 ${focusedPlaceId === place.id
+                          ? 'scale-125 ring-3 ring-blue-500/40 ring-offset-2 ring-offset-white shadow-md z-20'
+                          : 'hover:scale-115 shadow-xs'
+                        }`}
+                      style={{
+                        background: `linear-gradient(135deg, ${placeTheme.gradientStart}, ${placeTheme.gradientEnd})`
+                      }}
+                      title={`${place.place_name} 지도 위치로 이동`}
+                    >
+                      {idx + 1}
+                    </button>
+
+                    {/* 다음 구간 연결 엣지 선 (노드 핀 우측, 8px 여백 적용) */}
+                    {idx < places.length - 1 && (() => {
+                      const nextInfo = getSegmentInfo(place, places[idx + 1]);
+                      return (
+                        <svg className="absolute right-0 w-1/2 top-1/2 -translate-y-1/2 h-[4px] pointer-events-none z-0">
+                          <line
+                            x1="22px"
+                            y1="50%"
+                            x2="calc(100% - 3px)"
+                            y2="50%"
+                            stroke={nextInfo.isFocused ? '#09090b' : '#e4e4e7'}
+                            strokeWidth="2.5"
+                            strokeDasharray={nextInfo.type === 'walk' ? '4 7' : undefined}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      );
+                    })()}
+                  </div>
+
+                  {/* 하단: 장소 이름 및 아래 배치된 장소 태그/카테고리 */}
+                  <button
+                    type="button"
+                    onClick={() => handlePlaceClick(place)}
+                    className="flex flex-col items-center justify-start h-[36px] w-full text-center px-0.5 cursor-pointer group"
+                  >
+                    <span className={`truncate text-[12px] transition-colors leading-tight max-w-full ${focusedPlaceId === place.id
+                        ? 'font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600'
+                        : 'font-bold text-zinc-900 group-hover:text-blue-600'
+                      }`}>
+                      {place.place_name}
+                    </span>
+                    <span className={`truncate text-[9.5px] font-medium leading-tight max-w-full mt-0.5 ${focusedPlaceId === place.id ? 'text-indigo-600 font-bold' : 'text-zinc-400'
+                      }`}>
+                      {categoryLabel || shortAddress || '장소'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* 다음 장소와의 구간 이동 트랙 & 상단 칩 */}
+                {idx < places.length - 1 && renderSegmentBadge(place, places[idx + 1], idx)}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 3. 최하단 액션 영역 (isFocusedMode: 재생 컨트롤 바 UI / 일반 모드: 장소 추가 버튼) */}
       <div
         ref={addPlaceRef}
         className="w-full px-4 pt-1.5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shrink-0"
       >
-        <button
-          type="button"
-          onClick={handleAddPlaceClick}
-          className="w-full py-3.5 bg-zinc-950 hover:bg-zinc-900 active:scale-[0.99] text-white font-bold text-sm rounded-xl shadow-xs transition-all cursor-pointer flex justify-center items-center gap-2 border border-white/10"
-        >
-          <Plus className="w-4 h-4 text-white" strokeWidth={2.5} />
-          <span className="tracking-wide">장소 추가</span>
-        </button>
+        {isFocusedMode ? (
+          <div className="relative w-full bg-zinc-50/80 border border-zinc-200/70 rounded-2xl shadow-2xs overflow-hidden flex items-center px-4 py-2 gap-3 select-none">
+            {/* 왼쪽: 컨트롤 영역 (이전 단계, 재생/일시정지, 다음 단계) */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handlePrevStep}
+                disabled={currentStepIdx <= 0 && !hasPrevSegment}
+                className="w-8 h-8 flex items-center justify-center text-zinc-600 hover:text-zinc-950 disabled:opacity-20 disabled:pointer-events-none active:scale-90 transition-all rounded-lg hover:bg-zinc-200/50 cursor-pointer"
+                aria-label="이전 단계"
+                title="이전 단계"
+              >
+                <PlayTriangleIcon className="w-4 h-4 rotate-180" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePlayStepToggle}
+                className={`relative z-10 w-9 h-9 flex items-center justify-center rounded-full transition-all active:scale-95 group shadow-xs flex-shrink-0 overflow-hidden cursor-pointer ${showStepPlayIcon
+                    ? 'bg-zinc-950 text-white shadow-2xs'
+                    : 'bg-white border border-zinc-200 text-zinc-900 shadow-2xs'
+                  }`}
+                aria-label={showStepPlayIcon ? "여정 재생" : "여정 일시정지"}
+                title={showStepPlayIcon ? "단계별 재생" : "일시정지"}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {!showStepPlayIcon ? (
+                  <PauseBarsIcon className="w-4 h-4 relative z-10 group-hover:text-white transition-colors duration-300" />
+                ) : (
+                  <PlayTriangleIcon className="w-4 h-4 ml-0.5 relative z-10 group-hover:text-white transition-colors duration-300" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextStep}
+                disabled={currentStepIdx >= totalStepsCount - 1 && !hasNextSegment}
+                className="w-8 h-8 flex items-center justify-center text-zinc-600 hover:text-zinc-950 disabled:opacity-20 disabled:pointer-events-none active:scale-90 transition-all rounded-lg hover:bg-zinc-200/50 cursor-pointer"
+                aria-label="다음 단계"
+                title="다음 단계"
+              >
+                <PlayTriangleIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* 오른쪽: 텍스트 정보 */}
+            <div
+              className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer select-none items-end text-right pl-2"
+              onClick={handlePlayStepToggle}
+            >
+              <div className="text-xs font-extrabold text-zinc-800 flex items-center justify-end gap-1.5 truncate w-full">
+                <span className="truncate max-w-[100px]" title={focusedOrigin?.place_name}>
+                  {focusedOrigin?.place_name}
+                </span>
+                <ArrowRight className="w-3 h-3 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
+                <span className="truncate max-w-[100px]" title={focusedDest?.place_name}>
+                  {focusedDest?.place_name}
+                </span>
+              </div>
+              <div className="text-[11px] font-bold text-zinc-500 flex items-center justify-end gap-1.5 mt-0.5 w-full">
+                <span>
+                  {currentStepIdx >= 0 ? `${currentStepIdx + 1} / ${totalStepsCount} 단계` : `총 ${totalStepsCount}단계`}
+                </span>
+              </div>
+            </div>
+
+            {/* 하단 진행바 */}
+            <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-zinc-200/70">
+              <div
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 transition-all duration-300 ease-out"
+                style={{ width: `${stepProgressPercent}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleAddPlaceClick}
+            className="w-full py-3.5 bg-zinc-950 hover:bg-zinc-900 active:scale-[0.99] text-white font-bold text-sm rounded-xl shadow-xs transition-all cursor-pointer flex justify-center items-center gap-2 border border-white/10"
+          >
+            <Plus className="w-4 h-4 text-white" strokeWidth={2.5} />
+            <span className="tracking-wide">장소 추가</span>
+          </button>
+        )}
       </div>
 
       {/* 바텀 시트 위쪽 탄성 동작 시 하단의 빈 공간이 노출되는 현상을 방지하는 절대 위치 가림막 (Skirt) */}

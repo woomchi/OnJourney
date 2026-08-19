@@ -6,6 +6,7 @@ import { clsx } from 'clsx';
 import { useRealtimeSubway } from '@/hooks/useRealtimeSubway';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useJourneyStore } from '@/stores/journey-store';
+import { resolveSubwayNameForApi } from '@/lib/constants/subwayLineMap';
 
 export interface SegmentSubwayRealtimeChipProps {
   stationName?: string;
@@ -99,11 +100,12 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   ) => {
     e.stopPropagation();
     e.preventDefault();
-    const targetSubwayIdentifier = subwayId || (data && data[0]?.subwayId) || undefined;
+    const rawIdentifier = subwayId || (data && data[0]?.subwayId) || undefined;
+    const targetSubwayIdentifier = resolveSubwayNameForApi(rawIdentifier || '');
     setSubwayLineMapTarget({
       stationName: cleanStationName,
-      subwayId: targetSubwayIdentifier,
-      subwayNm: targetSubwayIdentifier,
+      subwayId: targetSubwayIdentifier || rawIdentifier,
+      subwayNm: targetSubwayIdentifier || rawIdentifier,
       wayCode,
       targetTrainNo: trainNo,
       targetMinutesLeft: minutesLeft,

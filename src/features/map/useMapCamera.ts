@@ -180,12 +180,26 @@ export function useMapCamera({
         const cacheKey = `${originPlace.id}-${destPlace.id}`;
         const segmentData = directionsCache[cacheKey];
         const transportType = activeJourney?.transport_type || 'public';
-        const activeRoute = getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+        const activeRoute = (originPlace.selected_route && originPlace.selected_route.destId === destPlace.id)
+          ? originPlace.selected_route
+          : getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
         const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
         
         lastFittedFocusBoundsRef.current = '';
         setFocusBounds({ ...bounds });
         setFocusedStep(null);
+
+        // 지도가 준비되어 있으면 즉시 fitBounds 실행
+        if (map && window.naver?.maps) {
+          const padding = currentMapPaddingRef.current;
+          map.setOptions({ padding });
+          const expanded = expandBounds(bounds, 0.01);
+          const naverBounds = new window.naver.maps.LatLngBounds(
+            new window.naver.maps.LatLng(expanded.sw.lat, expanded.sw.lng),
+            new window.naver.maps.LatLng(expanded.ne.lat, expanded.ne.lng)
+          );
+          map.fitBounds(naverBounds, { maxZoom: 18 });
+        }
         return;
       }
     }
@@ -198,18 +212,29 @@ export function useMapCamera({
         const cacheKey = `${originPlace.id}-${destPlace.id}`;
         const segmentData = directionsCache[cacheKey];
         const transportType = activeJourney?.transport_type || 'public';
-        const activeRoute = hoveredAlternativeRoute || getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk');
+        const activeRoute = hoveredAlternativeRoute || (originPlace.selected_route && originPlace.selected_route.destId === destPlace.id ? originPlace.selected_route : getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk'));
         const bounds = calculateSegmentBounds(originPlace, destPlace, activeRoute);
         
         lastFittedFocusBoundsRef.current = '';
         setFocusBounds({ ...bounds });
         setFocusedStep(null);
+
+        if (map && window.naver?.maps) {
+          const padding = currentMapPaddingRef.current;
+          map.setOptions({ padding });
+          const expanded = expandBounds(bounds, 0.01);
+          const naverBounds = new window.naver.maps.LatLngBounds(
+            new window.naver.maps.LatLng(expanded.sw.lat, expanded.sw.lng),
+            new window.naver.maps.LatLng(expanded.ne.lat, expanded.ne.lng)
+          );
+          map.fitBounds(naverBounds, { maxZoom: 18 });
+        }
         return;
       }
     }
 
     performFullJourneyFit();
-  }, [focusedSegment, alternativeSegment, performFullJourneyFit, places, directionsCache, activeJourney?.transport_type, hoveredAlternativeRoute, setFocusBounds, setFocusedStep]);
+  }, [focusedSegment, alternativeSegment, performFullJourneyFit, places, directionsCache, activeJourney?.transport_type, hoveredAlternativeRoute, setFocusBounds, setFocusedStep, map]);
 
   const lastFittedDataStringRef = useRef<string>('');
   const lastFocusStateRef = useRef<boolean>(false);
@@ -217,10 +242,13 @@ export function useMapCamera({
   const prevFocusedSegmentRef = useRef<string | null>(null);
   const fitTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // focusedSegment가 변경될 때마다 fitBounds 캐시를 즉시 무효화
-  // → 동일 구간 재진입 + 동일 패딩 상황에서도 Effect #4가 fitBounds를 재실행할 수 있도록 보장
+  // focusedSegment가 변경되거나 해제(null)될 때마다 fitBounds 캐시 및 전체 여정 핏팅 캐시를 무효화
   useEffect(() => {
     lastFittedFocusBoundsRef.current = '';
+    if (!focusedSegment) {
+      lastFocusStateRef.current = true;
+      lastFittedDataStringRef.current = '';
+    }
   }, [focusedSegment]);
 
   // 3-1. 이동 상세(focusedSegment) 전환 시 또는 해당 구간 경로 데이터 로드 완료 시 이동 구간 전체 경로로 줌 정렬

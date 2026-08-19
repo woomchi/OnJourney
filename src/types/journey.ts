@@ -374,7 +374,10 @@ export interface BusLineMapTarget {
   tagoRouteId?: string;
   routeId?: string;
   busCityCode?: string;
+  cityCode?: string;
   region?: string;
+  lat?: number;
+  lng?: number;
   busColor?: string;
   busType?: string;
   targetVehicleNo?: string;

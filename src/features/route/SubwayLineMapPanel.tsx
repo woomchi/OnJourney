@@ -966,15 +966,15 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
                           type="button"
                           onClick={() => setUserSelectedTrainNo(train.trainNo)}
                           className={clsx(
-                            'rounded-full flex items-center justify-center transition-all cursor-pointer select-none shrink-0 shadow-xs border border-white',
+                            'rounded-full flex items-center justify-center cursor-pointer select-none shrink-0 shadow-xs border border-white',
                             isTarget
                               ? clsx(
                                   theme.badgeBg,
-                                  'w-6 h-6 ring-2 ring-blue-400 scale-115 animate-bounce-subtle z-30'
+                                  'w-6 h-6 ring-2 ring-blue-400 z-30'
                                 )
                               : stageText === 'departed'
-                              ? 'w-5 h-5 bg-indigo-600 hover:scale-110 z-20'
-                              : 'w-5 h-5 bg-blue-600 hover:scale-110 z-20'
+                              ? 'w-5 h-5 bg-indigo-600 z-20'
+                              : 'w-5 h-5 bg-blue-600 z-20'
                           )}
                           title={`열차 #${train.trainNo} (${destBadgeText || '운행'})`}
                           onPointerDown={(e) => e.stopPropagation()}

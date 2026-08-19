@@ -274,13 +274,15 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
 
   const theme = useMemo(() => getBusLineTheme(busType, busColor), [busType, busColor]);
 
+  const effectiveCityCode = (target as any).cityCode || busCityCode;
+
   const { data, isLoading, isFetching, refetch } = useBusLinePositions({
     busNo,
     busId,
     odsayBusId,
     tagoRouteId,
     routeId,
-    cityCode: busCityCode,
+    cityCode: effectiveCityCode,
     region,
     stationId,
     stationName: cleanTargetStation,
@@ -950,10 +952,10 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
                             onClick={() => setUserSelectedVehNo(bus.vehicleno)}
                             title={`차량번호: ${bus.vehicleno}`}
                             className={clsx(
-                              'w-5 h-5 rounded-full flex items-center justify-center text-white transition-all cursor-pointer shadow-md active:scale-95',
+                              'w-5 h-5 rounded-full flex items-center justify-center text-white cursor-pointer shadow-md',
                               isTarget
-                                ? 'bg-blue-600 ring-3 ring-blue-400 animate-pulse scale-110'
-                                : clsx(theme.speechBubbleActiveBg, 'hover:scale-105')
+                                ? 'bg-blue-600 ring-3 ring-blue-400'
+                                : theme.speechBubbleActiveBg
                             )}
                             onPointerDown={(e) => e.stopPropagation()}
                           >

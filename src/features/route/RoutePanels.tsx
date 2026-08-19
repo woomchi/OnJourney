@@ -10,6 +10,7 @@ import { useMapState } from '@/features/map/useMapState';
 import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/routeUtils';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 
 export function RoutePanels() {
@@ -31,6 +32,7 @@ export function RoutePanels() {
     isDrawerMaximized,
   } = useMapState();
 
+  const isMobile = useMediaQuery('(max-width: 767px)');
   const activeJourney = useJourneyStore((state) => state.activeJourney);
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
   const directionsCache = useJourneyDirectionsCache(places);
@@ -176,10 +178,10 @@ export function RoutePanels() {
         />
       )}
 
-      {/* 길안내 패널 */}
+      {/* 길안내 패널 (데스크톱 웹 환경 전용) */}
       {cachedRouteGuide && (
         <RouteGuidePanel
-          isOpen={showRouteGuide && !isSearchMode && !isDrawerMaximized && !showSubwayLineMap && !showBusLineMap}
+          isOpen={!isMobile && showRouteGuide && !isSearchMode && !isDrawerMaximized && !showSubwayLineMap && !showBusLineMap}
           originPlace={cachedRouteGuide.originPlace}
           destPlace={cachedRouteGuide.destPlace}
           route={cachedRouteGuide.route}

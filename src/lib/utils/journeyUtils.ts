@@ -236,7 +236,8 @@ export function inferRegionFromPlace(place?: any): string {
   if (fullText.includes('대구')) return 'daegu';
   if (fullText.includes('인천')) return 'incheon';
   if (fullText.includes('광주')) return 'gwangju';
-  if (fullText.includes('대전')) return 'daejeon';
+  const DAEJEON_KEYWORDS = ['대전', '유성구', '대덕구', '카이스트', 'kaist', '충남대', '한밭대', '성심당', '으능정이', '유성온천', '정부대전청사', '한밭수목원', '엑스포'];
+  if (DAEJEON_KEYWORDS.some(kw => fullText.toLowerCase().includes(kw))) return 'daejeon';
   if (fullText.includes('울산')) return 'ulsan';
   if (fullText.includes('세종')) return 'sejong';
   const GYEONGGI_CITIES = [
@@ -255,12 +256,16 @@ export function inferRegionFromPlace(place?: any): string {
   if (fullText.includes('경남') || fullText.includes('경상남도')) return 'gyeongnam';
   if (fullText.includes('제주')) return 'jeju';
 
-  // 위도/경도 기반 경계 fallback (부산, 대구, 인천 등)
-  const lat = Number(place.lat);
-  const lng = Number(place.lng);
+  // 위도/경도 기반 경계 fallback (부산, 대구, 대전, 광주, 울산, 인천 등)
+  const lat = Number(place.lat ?? place.y);
+  const lng = Number(place.lng ?? place.x);
   if (!isNaN(lat) && !isNaN(lng)) {
     if (lat >= 35.0 && lat <= 35.35 && lng >= 128.8 && lng <= 129.3) return 'busan';
     if (lat >= 35.7 && lat <= 36.0 && lng >= 128.4 && lng <= 128.8) return 'daegu';
+    if (lat >= 36.18 && lat <= 36.49 && lng >= 127.26 && lng <= 127.47) return 'daejeon';
+    if (lat >= 35.08 && lat <= 35.25 && lng >= 126.68 && lng <= 127.00) return 'gwangju';
+    if (lat >= 35.40 && lat <= 35.65 && lng >= 129.15 && lng <= 129.45) return 'ulsan';
+    if (lat >= 36.45 && lat <= 36.65 && lng >= 127.20 && lng <= 127.35) return 'sejong';
     if (lat >= 37.35 && lat <= 37.65 && lng >= 126.5 && lng <= 126.85) return 'incheon';
   }
 

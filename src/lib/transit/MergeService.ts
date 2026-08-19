@@ -14,27 +14,29 @@ export class MergeService {
       return tagoData;
     }
 
-    const mergedMap = new Map<string, ArrivalBusItem>();
-    const sources = new Set<string>([tagoData.dataSource]);
-
-    const getMergeKey = (item: ArrivalBusItem): string => {
-      const cleanName = cleanBusNumber(item.lineName);
-      const timeBucket = Math.floor((item.arrivedInSeconds || 0) / 180);
-      return `${cleanName || item.lineId || 'bus'}_${timeBucket}`;
-    };
-
-    // 1단계: TAGO 기본 노선 적재
-    for (const item of tagoData.nextArrivals) {
-      mergedMap.set(getMergeKey(item), item);
-    }
-
-    // 2단계: 보완 API 노선 추가 및 동일 노선 덮어쓰기
-    sources.add(supplementData.dataSource);
+    // 보완 API(대전/인천/경기도 등)는 정밀 실시간 정보를 제공하므로 보완 API 데이터를 최우선으로 등록
+    const supplementMap = new Map<string, ArrivalBusItem[]>();
     for (const item of supplementData.nextArrivals) {
-      mergedMap.set(getMergeKey(item), item);
+      const cleanName = cleanBusNumber(item.lineName) || item.lineName;
+      if (!supplementMap.has(cleanName)) {
+        supplementMap.set(cleanName, []);
+      }
+      supplementMap.get(cleanName)!.push(item);
     }
 
-    const nextArrivals = Array.from(mergedMap.values()).sort(
+    const sources = new Set<string>([tagoData.dataSource]);
+    const mergedList: ArrivalBusItem[] = [...supplementData.nextArrivals];
+    sources.add(supplementData.dataSource);
+
+    // TAGO 데이터 중 보완 API에 없는 노선만 추가 등록
+    for (const item of tagoData.nextArrivals) {
+      const cleanName = cleanBusNumber(item.lineName) || item.lineName;
+      if (!supplementMap.has(cleanName)) {
+        mergedList.push(item);
+      }
+    }
+
+    const nextArrivals = mergedList.sort(
       (a, b) => a.arrivedInSeconds - b.arrivedInSeconds
     );
 

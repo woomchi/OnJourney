@@ -527,21 +527,43 @@ function isRouteMatch(
       const busLat = (firstBusStep as any).startY || (firstBusStep as any).startLat || (originPlace as any)?.y || (originPlace as any)?.lat;
       const busLng = (firstBusStep as any).startX || (firstBusStep as any).startLng || (originPlace as any)?.x || (originPlace as any)?.lng;
       const busCityCode = (firstBusStep as any).startCityCode;
+      const odsayBusId = (firstBusStep as any).odsayBusId || (firstBusStep as any).busID;
+      const tagoRouteId = (firstBusStep as any).tagoRouteId || (firstBusStep as any).busLocalBlID;
+      const busId = odsayBusId || tagoRouteId;
+      const busType = (firstBusStep as any).busType;
+      const busDestination = firstBusStep.endName;
+      const busHeadsign = firstBusStep.headsign;
+      const busIntervalTime = (firstBusStep as any).intervalTime;
+      const busStartDateTime = (firstBusStep as any).startDateTime;
 
       if (busStationId && busNo) {
         return (
-          <SegmentBusRealtimeChip
-            region={busRegion}
-            stationId={String(busStationId)}
-            stationName={busStationName}
-            busNo={busNo}
-            busColor={firstBusStep.busLaneColor || firstBusStep.color}
-            cityCode={busCityCode}
-            lat={busLat ? Number(busLat) : undefined}
-            lng={busLng ? Number(busLng) : undefined}
-            variant="compact"
-            onlyRefreshButton
-          />
+          <div
+            className="shrink-0 flex items-center"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <SegmentBusRealtimeChip
+              region={busRegion}
+              stationId={String(busStationId)}
+              stationName={busStationName}
+              busNo={busNo}
+              busId={busId}
+              odsayBusId={odsayBusId}
+              tagoRouteId={tagoRouteId}
+              destination={busDestination}
+              headsign={busHeadsign}
+              intervalTime={busIntervalTime}
+              startDateTime={busStartDateTime}
+              busType={busType}
+              busColor={firstBusStep.busLaneColor || firstBusStep.color}
+              cityCode={busCityCode}
+              lat={busLat ? Number(busLat) : undefined}
+              lng={busLng ? Number(busLng) : undefined}
+              variant="compact"
+              onlyRefreshButton
+            />
+          </div>
         );
       }
     }
@@ -550,15 +572,21 @@ function isRouteMatch(
       const firstSubwayStep = firstTransitStep;
       const subwayStationName = firstSubwayStep.startName || originPlace.place_name;
       return (
-        <SegmentSubwayRealtimeChip
-          stationName={subwayStationName}
-          wayCode={firstSubwayStep.wayCode !== undefined ? String(firstSubwayStep.wayCode) : undefined}
-          subwayId={firstSubwayStep.name}
-          destination={firstSubwayStep.endName}
-          headsign={firstSubwayStep.headsign}
-          variant="compact"
-          onlyRefreshButton
-        />
+        <div
+          className="shrink-0 flex items-center"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <SegmentSubwayRealtimeChip
+            stationName={subwayStationName}
+            wayCode={firstSubwayStep.wayCode !== undefined ? String(firstSubwayStep.wayCode) : undefined}
+            subwayId={firstSubwayStep.rawLineName || firstSubwayStep.name}
+            destination={firstSubwayStep.endName}
+            headsign={firstSubwayStep.headsign}
+            variant="compact"
+            onlyRefreshButton
+          />
+        </div>
       );
     }
 
@@ -603,15 +631,35 @@ function isRouteMatch(
       const busLat = (firstBusStep as any).startY || (firstBusStep as any).startLat || (originPlace as any)?.y || (originPlace as any)?.lat;
       const busLng = (firstBusStep as any).startX || (firstBusStep as any).startLng || (originPlace as any)?.x || (originPlace as any)?.lng;
       const busCityCode = (firstBusStep as any).startCityCode;
+      const odsayBusId = (firstBusStep as any).odsayBusId || (firstBusStep as any).busID;
+      const tagoRouteId = (firstBusStep as any).tagoRouteId || (firstBusStep as any).busLocalBlID;
+      const busId = odsayBusId || tagoRouteId;
+      const busType = (firstBusStep as any).busType;
+      const busDestination = firstBusStep.endName;
+      const busHeadsign = firstBusStep.headsign;
+      const busIntervalTime = (firstBusStep as any).intervalTime;
+      const busStartDateTime = (firstBusStep as any).startDateTime;
 
       if (busStationId && busNo) {
         return (
-          <div className="shrink-0 flex items-center">
+          <div
+            className="shrink-0 flex items-center"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             <SegmentBusRealtimeChip
               region={busRegion}
               stationId={String(busStationId)}
               stationName={busStationName}
               busNo={busNo}
+              busId={busId}
+              odsayBusId={odsayBusId}
+              tagoRouteId={tagoRouteId}
+              destination={busDestination}
+              headsign={busHeadsign}
+              intervalTime={busIntervalTime}
+              startDateTime={busStartDateTime}
+              busType={busType}
               busColor={firstBusStep.busLaneColor || firstBusStep.color}
               cityCode={busCityCode}
               lat={busLat ? Number(busLat) : undefined}
@@ -636,7 +684,7 @@ function isRouteMatch(
           <SegmentSubwayRealtimeChip
             stationName={subwayStationName}
             wayCode={firstSubwayStep.wayCode !== undefined ? String(firstSubwayStep.wayCode) : undefined}
-            subwayId={firstSubwayStep.name}
+            subwayId={firstSubwayStep.rawLineName || firstSubwayStep.name}
             destination={firstSubwayStep.endName}
             headsign={firstSubwayStep.headsign}
             variant="compact"

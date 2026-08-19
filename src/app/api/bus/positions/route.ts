@@ -14,6 +14,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const data = await BusPositionService.getBusLinePositions({
     busNo: validatedParams.busNo,
     busId: validatedParams.busId,
+    odsayBusId: validatedParams.odsayBusId,
+    tagoRouteId: validatedParams.tagoRouteId,
     routeId: validatedParams.routeId,
     cityCode: validatedParams.cityCode,
     region: validatedParams.region,

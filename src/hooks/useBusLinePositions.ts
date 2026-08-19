@@ -4,6 +4,8 @@ import { BusLinePositionsData } from '@/types/journey';
 export interface UseBusLinePositionsOptions {
   busNo?: string;
   busId?: string;
+  odsayBusId?: string;
+  tagoRouteId?: string;
   routeId?: string;
   cityCode?: string;
   region?: string;
@@ -16,6 +18,8 @@ export interface UseBusLinePositionsOptions {
 export function useBusLinePositions({
   busNo,
   busId,
+  odsayBusId,
+  tagoRouteId,
   routeId,
   cityCode,
   region,
@@ -29,6 +33,8 @@ export function useBusLinePositions({
       'busLinePositions',
       busNo || '',
       busId || '',
+      odsayBusId || '',
+      tagoRouteId || '',
       routeId || '',
       cityCode || '',
       region || '',
@@ -41,6 +47,8 @@ export function useBusLinePositions({
       const params = new URLSearchParams();
       params.append('busNo', busNo);
       if (busId) params.append('busId', busId);
+      if (odsayBusId) params.append('odsayBusId', odsayBusId);
+      if (tagoRouteId) params.append('tagoRouteId', tagoRouteId);
       if (routeId) params.append('routeId', routeId);
       if (cityCode) params.append('cityCode', cityCode);
       if (region) params.append('region', region);

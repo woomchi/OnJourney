@@ -25,10 +25,10 @@ const ODSAY_CITY_CODE_MAP: Record<string, BusRegionMapping> = {
   '22': { region: 'daegu', tagoCode: '22' },
   '4000': { region: 'daegu', tagoCode: '22' },
   '23': { region: 'incheon', tagoCode: '23' },
-  '3000': { region: 'incheon', tagoCode: '23' },
   '24': { region: 'gwangju', tagoCode: '24' },
   '5000': { region: 'gwangju', tagoCode: '24' },
   '25': { region: 'daejeon', tagoCode: '25' },
+  '3000': { region: 'daejeon', tagoCode: '25' }, // ODsay 대전광역시 표준 CID (3000)
   '6000': { region: 'daejeon', tagoCode: '25' },
   '26': { region: 'ulsan', tagoCode: '26' },
   '8000': { region: 'ulsan', tagoCode: '26' },
@@ -125,9 +125,9 @@ export function resolveOdsayCid(cityCode?: string | number): string {
   if (codeStr === '11' || codeStr === '1000' || codeStr === 'seoul') return '1000';
   if (codeStr === '21' || codeStr === '7000' || codeStr === 'busan') return '7000';
   if (codeStr === '22' || codeStr === '4000' || codeStr === 'daegu') return '4000';
-  if (codeStr === '23' || codeStr === '3000' || codeStr === 'incheon') return '3000';
+  if (codeStr === '23' || codeStr === 'incheon') return '1040';
   if (codeStr === '24' || codeStr === '5000' || codeStr === 'gwangju') return '5000';
-  if (codeStr === '25' || codeStr === '6000' || codeStr === 'daejeon') return '6000';
+  if (codeStr === '25' || codeStr === '3000' || codeStr === '6000' || codeStr === 'daejeon') return '3000';
   if (codeStr === '26' || codeStr === '8000' || codeStr === 'ulsan') return '8000';
   if (codeStr === '12' || codeStr === '29' || codeStr === '9000' || codeStr === 'sejong') return '9000';
   if (codeStr.startsWith('31') || codeStr === 'gyeonggi') return '1040';
@@ -189,7 +189,105 @@ export function generateTagoNodeIdCandidates(
     }
   }
 
-  // 3. 서울 / 기타 지자체
+  // 3. 대전: DJB 접두사
+  if (
+    normalizedRegion === 'daejeon' ||
+    normalizedRegion === '대전' ||
+    resolvedCityCode === '25' ||
+    resolvedCityCode === '6000'
+  ) {
+    if (pureNumeric) {
+      candidates.push(`DJB${pureNumeric}`);
+      candidates.push(pureNumeric);
+    }
+    if (rawId.toUpperCase().startsWith('DJB')) {
+      candidates.push(rawId.replace(/^DJB/i, ''));
+    }
+  }
+
+  // 4. 인천: ICB / INB 접두사
+  if (
+    normalizedRegion === 'incheon' ||
+    normalizedRegion === '인천' ||
+    resolvedCityCode === '23' ||
+    resolvedCityCode === '3000'
+  ) {
+    if (pureNumeric) {
+      candidates.push(`ICB${pureNumeric}`);
+      candidates.push(`INB${pureNumeric}`);
+      candidates.push(pureNumeric);
+    }
+    if (rawId.toUpperCase().startsWith('ICB') || rawId.toUpperCase().startsWith('INB')) {
+      candidates.push(rawId.replace(/^(ICB|INB)/i, ''));
+    }
+  }
+
+  // 5. 대구: DGB 접두사
+  if (
+    normalizedRegion === 'daegu' ||
+    normalizedRegion === '대구' ||
+    resolvedCityCode === '22' ||
+    resolvedCityCode === '4000'
+  ) {
+    if (pureNumeric) {
+      candidates.push(`DGB${pureNumeric}`);
+      candidates.push(pureNumeric);
+    }
+    if (rawId.toUpperCase().startsWith('DGB')) {
+      candidates.push(rawId.replace(/^DGB/i, ''));
+    }
+  }
+
+  // 6. 광주: GJB 접두사
+  if (
+    normalizedRegion === 'gwangju' ||
+    normalizedRegion === '광주' ||
+    resolvedCityCode === '24' ||
+    resolvedCityCode === '5000'
+  ) {
+    if (pureNumeric) {
+      candidates.push(`GJB${pureNumeric}`);
+      candidates.push(pureNumeric);
+    }
+    if (rawId.toUpperCase().startsWith('GJB')) {
+      candidates.push(rawId.replace(/^GJB/i, ''));
+    }
+  }
+
+  // 7. 울산: USB 접두사
+  if (
+    normalizedRegion === 'ulsan' ||
+    normalizedRegion === '울산' ||
+    resolvedCityCode === '26' ||
+    resolvedCityCode === '8000'
+  ) {
+    if (pureNumeric) {
+      candidates.push(`USB${pureNumeric}`);
+      candidates.push(pureNumeric);
+    }
+    if (rawId.toUpperCase().startsWith('USB')) {
+      candidates.push(rawId.replace(/^USB/i, ''));
+    }
+  }
+
+  // 8. 세종: SJB 접두사
+  if (
+    normalizedRegion === 'sejong' ||
+    normalizedRegion === '세종' ||
+    resolvedCityCode === '12' ||
+    resolvedCityCode === '29' ||
+    resolvedCityCode === '9000'
+  ) {
+    if (pureNumeric) {
+      candidates.push(`SJB${pureNumeric}`);
+      candidates.push(pureNumeric);
+    }
+    if (rawId.toUpperCase().startsWith('SJB')) {
+      candidates.push(rawId.replace(/^SJB/i, ''));
+    }
+  }
+
+  // 9. 서울 / 기타 지자체
   if (
     normalizedRegion === 'seoul' ||
     normalizedRegion === '서울' ||
@@ -202,7 +300,7 @@ export function generateTagoNodeIdCandidates(
     }
   }
 
-  // 4. 일반적인 접두사 제거/포함 후보
+  // 10. 일반적인 접두사 제거/포함 후보
   if (pureNumeric && pureNumeric !== rawId) {
     candidates.push(pureNumeric);
   }
@@ -222,7 +320,7 @@ export function cleanBusNumber(busNo?: string | number): string {
   str = str.replace(/\s*\([^)]*\)/g, '').trim();
 
   // 2. 버스 수식 접두사 반복 제거 (직행좌석, 광역급행, 경기순환 등 복합어 대응)
-  const prefixRegex = /^(직행좌석|광역급행|경기순환|일반좌석|마을버스|간선급행|직행|광역|급행|간선|지선|순환|마을|맞춤|시외|공항|일반|좌석|따복)\s*/g;
+  const prefixRegex = /^(직행좌석|광역급행|경기순환|일반좌석|마을버스|간선급행|직행|광역|급행|간선|지선|순환|마을|맞춤|외곽|시외|공항|일반|좌석|따복)\s*/g;
   let prevStr = '';
   while (prevStr !== str) {
     prevStr = str;

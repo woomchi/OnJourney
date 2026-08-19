@@ -47,7 +47,7 @@ export class IncheonBusService {
       const res = await fetch(requestUrl, {
         method: 'GET',
         signal: AbortSignal.timeout(3500),
-        next: { revalidate: 15 },
+        cache: 'no-store',
       });
 
       if (!res.ok) {

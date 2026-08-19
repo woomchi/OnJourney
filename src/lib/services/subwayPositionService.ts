@@ -44,7 +44,9 @@ export async function fetchSubwayPositionsByLine(
   const apiKey = getSubwayLocationApiKey();
   let positions: SubwayPosition[] = [];
 
-  if (apiKey && apiKey !== 'PLACEHOLDER' && apiKey.trim() !== '') {
+  const isRegional = /^(대전|부산|대구|광주)/.test(subwayNm);
+
+  if (!isRegional && apiKey && apiKey !== 'PLACEHOLDER' && apiKey.trim() !== '') {
     positions = await fetchCachedPositionsByLine(apiKey, subwayNm);
   }
 

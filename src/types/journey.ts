@@ -144,7 +144,12 @@ export interface DirectionStep {
   startCityCode?: string;    // 버스 정류소 도시 코드
   startRegion?: string;      // 버스 정류소 지역 식별자
   busLocalBlID?: string;     // 지자체 버스 노선 고유 ID (경기도 등)
+  odsayBusId?: string;       // ODsay 고유 노선 ID (5자리, fetchBusLaneDetail 전용)
+  tagoRouteId?: string;      // 국토교통부 표준 routeId (TAGO 실시간 버스 위치 전용)
   realtimeStationId?: string;// TAGO/지자체 실시간 조회용 정류소 ID
+  intervalTime?: number;     // 버스/지하철 배차 간격 (분)
+  rawLineName?: string;      // 지하철 원본 노선명 (예: '대전 1호선', '수도권 1호선')
+  subwayCode?: number | string; // 지하철 고유 노선 코드 (ODsay: 500 등)
 }
 
 /** 차량 경로 안내 단일 노드 (거리·시간 포함) */
@@ -231,6 +236,18 @@ export interface SubwayLineBranch {
   stationCount: number;
 }
 
+/** 지하철 시간표 단일 항목 구조 */
+export interface SubwayTimetableEntry {
+  trainNo: string;
+  depTime: string;          // "15:25"
+  destStation: string;      // "반석" 또는 "판암"
+  drctType: string;         // '1': 상행/판암, '2': 하행/반석
+  directionName: string;    // "판암 방면" 또는 "반석 방면"
+  minutesLeft: number;      // 현재 시각 기준 잔여 분
+  statusText: string;       // "5분 후" 또는 "곧 도착"
+  isUpcoming: boolean;      // 가장 빠른 다음 열차 여부
+}
+
 /** 노선도 뷰 전체 응답 데이터 구조 */
 export interface SubwayLinePositionsData {
   subwayId: string;
@@ -239,6 +256,7 @@ export interface SubwayLinePositionsData {
   selectedBranchId?: string;
   stations: SubwayLineStation[];
   positions: SubwayPosition[];
+  timetable?: SubwayTimetableEntry[];
   timestamp: number;
 }
 
@@ -317,6 +335,7 @@ export interface BusPosition {
   nodeid?: string;
   nodenm?: string;
   nodeord?: number;
+  direction?: '0' | '1'; // '0': 상행/순방향(종점/회차지 방면), '1': 하행/역방향(기점 방면)
   gpslati?: number;
   gpslong?: number;
   stage?: BusPositionStage;
@@ -347,8 +366,12 @@ export interface BusLinePositionsData {
 export interface BusLineMapTarget {
   stationName: string;
   stationId?: string;
+  destination?: string;
+  headsign?: string;
   busNo: string;
   busId?: string;
+  odsayBusId?: string;
+  tagoRouteId?: string;
   routeId?: string;
   busCityCode?: string;
   region?: string;

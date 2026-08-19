@@ -10,6 +10,8 @@ export type BusRealtimeQueryType = z.infer<typeof busRealtimeQuerySchema>;
 export const busPositionsQuerySchema = z.object({
   busNo: z.string().min(1, '버스 노선 번호(busNo) 파라미터가 필요합니다.'),
   busId: z.string().optional(),
+  odsayBusId: z.string().optional(),
+  tagoRouteId: z.string().optional(),
   routeId: z.string().optional(),
   cityCode: z.string().optional(),
   region: z.string().optional(),

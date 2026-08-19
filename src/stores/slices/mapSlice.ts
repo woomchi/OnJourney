@@ -38,6 +38,8 @@ export interface MapSlice {
   triggerSearch: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  busLiveStationsAwayMap: Record<string, { stationsAway: number; vehicleNo?: string; updatedAt: number }>;
+  setBusLiveStationsAway: (key: string, stationsAway: number, vehicleNo?: string) => void;
   activeSearchPlace: PlaceResult | null;
   setActiveSearchPlace: (place: PlaceResult | null) => void;
 }
@@ -113,6 +115,17 @@ export const createMapSlice: StateCreator<
   setIsSearchLoading: (loading) => set({ isSearchLoading: loading }),
   triggerSearch: () => set((state) => ({ searchTriggerCount: state.searchTriggerCount + 1 })),
   setSearchQuery: (query) => set({ searchQuery: query }),
+  busLiveStationsAwayMap: {},
+  setBusLiveStationsAway: (key, stationsAway, vehicleNo) => set((state) => ({
+    busLiveStationsAwayMap: {
+      ...state.busLiveStationsAwayMap,
+      [key]: {
+        stationsAway,
+        vehicleNo,
+        updatedAt: Date.now(),
+      },
+    },
+  })),
   activeSearchPlace: null,
   setActiveSearchPlace: (place) => set({ activeSearchPlace: place }),
 });

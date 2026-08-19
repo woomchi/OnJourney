@@ -14,6 +14,14 @@ export interface SegmentBusRealtimeChipProps {
   stationId?: string;
   stationName?: string;
   busNo?: string;
+  busId?: string;
+  odsayBusId?: string;
+  tagoRouteId?: string;
+  destination?: string;
+  headsign?: string;
+  intervalTime?: number;
+  startDateTime?: string;
+  busType?: any;
   busColor?: string;
   cityCode?: string;
   lat?: number;
@@ -32,11 +40,62 @@ function formatBusItemTime(seconds: number): string {
   return `${mins}분`;
 }
 
-function getBusStationCountText(bus: ArrivalBusItem): string {
-  if (typeof bus.currentStationSequence === 'number' && bus.currentStationSequence > 0) {
-    return `${bus.currentStationSequence}전`;
+function getBusStationCountText(bus: ArrivalBusItem, liveStationCount?: number): string {
+  // 1. 💡 [최우선] 노선도를 켰을 때 실제 버스 위치(GPS/노선 순번)로 계산된 liveStationCount가 있으면 최우선 표시
+  if (typeof liveStationCount === 'number') {
+    if (liveStationCount > 0) return `${liveStationCount}전`;
+    if (liveStationCount === 0) return '진입';
   }
-  return '전역';
+
+  // 2. API에서 직접 반환된 정류소 수(currentStationSequence)가 유효한 경우
+  if (typeof bus.currentStationSequence === 'number') {
+    if (bus.currentStationSequence > 0) return `${bus.currentStationSequence}전`;
+    // 20분 등 장시간 소요 시 API가 0을 반환하더라도 '진입'으로 잘못 뜨지 않도록 방어 (2분 이하일 때만 진입)
+    if (bus.currentStationSequence === 0 && bus.arrivedInSeconds <= 120) return '진입';
+  }
+
+  // 3. 60초 이하 도착 임박
+  if (bus.arrivedInSeconds <= 60) {
+    return '곧도착';
+  }
+
+  // 4. 차고지/기점/종점 출발 대기 상태이거나 10분 이상 소요되는 경우
+  if (bus.isWaiting || bus.arrivedInSeconds >= 600) {
+    return '대기';
+  }
+
+  return '대기';
+}
+
+function checkIsFutureDeparture(storeDepartureTime?: number | null, startDateTime?: string): boolean {
+  const nowMs = Date.now();
+  // 1. 유저가 UI에서 설정한 출발 시각(departureTime)이 있는 경우 최우선 판별
+  if (storeDepartureTime && typeof storeDepartureTime === 'number') {
+    const diffMinutes = (storeDepartureTime - nowMs) / (1000 * 60);
+    // 현재 시점 대비 30분 이상 미래인 경우에만 미래/예정 모드
+    // ⚠️ 과거 시각이라도 isFuture로 처리하지 않음 (경로가 오래 됐어도 실시간 표시)
+    if (diffMinutes > 30) return true;
+  }
+
+  // 2. 길찾기 결과의 startDateTime 판별
+  if (startDateTime && startDateTime.length >= 12) {
+    try {
+      const year = parseInt(startDateTime.slice(0, 4), 10);
+      const month = parseInt(startDateTime.slice(4, 6), 10) - 1;
+      const day = parseInt(startDateTime.slice(6, 8), 10);
+      const hour = parseInt(startDateTime.slice(8, 10), 10);
+      const min = parseInt(startDateTime.slice(10, 12), 10);
+      const departureDate = new Date(year, month, day, hour, min);
+      if (isNaN(departureDate.getTime())) return false;
+      const diffMinutes = (departureDate.getTime() - nowMs) / (1000 * 60);
+      // 30분 초과 미래인 경우에만 미래 모드 (과거 시각은 실시간 모드 유지)
+      if (diffMinutes > 30) return true;
+    } catch {
+      // ignore
+    }
+  }
+
+  return false;
 }
 
 function renderSeatOrCrowdedBadge(bus: ArrivalBusItem, isPrimary: boolean = true) {
@@ -82,6 +141,14 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   stationId,
   stationName,
   busNo,
+  busId,
+  odsayBusId,
+  tagoRouteId,
+  destination,
+  headsign,
+  intervalTime,
+  startDateTime,
+  busType,
   busColor,
   cityCode,
   lat,
@@ -92,6 +159,31 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   onlyRefreshButton = false,
 }) => {
   const cleanBusNo = useMemo(() => cleanBusNumber(busNo), [busNo]);
+  const storeDepartureTime = useJourneyStore((state) => state.departureTime);
+  const busLiveStationsAwayMap = useJourneyStore((state) => state.busLiveStationsAwayMap);
+  const cleanTargetStation = useMemo(
+    () => (stationName ? stationName.replace(/정류소$|정류장$|역$/, '').trim().toUpperCase() : ''),
+    [stationName]
+  );
+
+  const liveStationCount = useMemo(() => {
+    if (!cleanBusNo || !busLiveStationsAwayMap) return undefined;
+    const cleanNo = cleanBusNo.toUpperCase();
+    if (stationId) {
+      const byId = busLiveStationsAwayMap[`bus:${cleanNo}:${stationId}`];
+      if (byId && Date.now() - byId.updatedAt < 180000) return byId.stationsAway;
+    }
+    if (cleanTargetStation) {
+      const byName = busLiveStationsAwayMap[`bus:${cleanNo}:${cleanTargetStation}`];
+      if (byName && Date.now() - byName.updatedAt < 180000) return byName.stationsAway;
+    }
+    return undefined;
+  }, [busLiveStationsAwayMap, cleanBusNo, stationId, cleanTargetStation]);
+
+  const isFuture = useMemo(
+    () => checkIsFutureDeparture(storeDepartureTime, startDateTime),
+    [storeDepartureTime, startDateTime]
+  );
   const setBusLineMapTarget = useJourneyStore((state) => state.setBusLineMapTarget);
 
   const { data, isLoading: isQueryLoading, isError, isFetching, refetch } = useRealtimeTransit({
@@ -99,9 +191,11 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     stationId: String(stationId || ''),
     stationName,
     cityCode,
+    destination,
+    headsign,
     lat,
     lng,
-    enabled: Boolean(stationId && cleanBusNo),
+    enabled: Boolean(stationId && cleanBusNo && !isFuture),
   });
 
   const sharedKey = stationId && cleanBusNo
@@ -152,12 +246,18 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     setBusLineMapTarget({
       stationName: stationName || '정류소',
       stationId: stationId ? String(stationId) : undefined,
+      destination: destination || targetBus?.destination,
+      headsign: headsign,
       busNo: cleanBusNo,
-      routeId: targetBus?.lineId,
+      busId: busId,
+      odsayBusId: odsayBusId || (busId && busId.length <= 6 ? busId : undefined),
+      tagoRouteId: tagoRouteId || (targetBus?.lineId && targetBus.lineId.length > 6 ? targetBus.lineId : undefined),
+      routeId: tagoRouteId || targetBus?.lineId,
       busColor,
+      busType: busType || targetBus?.busType,
       busCityCode: cityCode,
       region,
-      targetVehicleNo: undefined,
+      targetVehicleNo: targetBus?.vehicleId ? String(targetBus.vehicleId) : undefined,
       targetMinutesLeft: targetBus ? Math.max(1, Math.round(targetBus.arrivedInSeconds / 60)) : undefined,
       targetStationsLeft: targetBus?.currentStationSequence,
       targetStatusText: targetBus ? formatBusItemTime(targetBus.arrivedInSeconds) : undefined,
@@ -171,13 +271,25 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     const validArrivals = data.nextArrivals.filter((item) => item.arrivedInSeconds > 0);
     const targetClean = cleanBusNo.trim().toUpperCase();
 
-    // 1단계: cleanBusNumber 기반 완전 일치 탐색 (Strict Matching)
+    // 1단계: cleanBusNumber 및 원본 노선명 완전 일치 탐색 (Strict Match)
     let matches = validArrivals.filter((item) => {
       const lineClean = cleanBusNumber(item.lineName);
-      return lineClean === targetClean;
+      if (lineClean === targetClean) return true;
+
+      const rawLineClean = String(item.lineName || '').replace(/\s+/g, '').toUpperCase();
+      const rawTargetClean = String(busNo || '').replace(/\s+/g, '').toUpperCase();
+      if (rawLineClean === rawTargetClean) return true;
+      if (rawLineClean.replace(/번$/, '') === rawTargetClean.replace(/번$/, '')) return true;
+
+      // 급행/지선/간선/외곽/마을/특구/첨단 등 접두사 유연 매칭 (예: "급행1" vs "1", "특구1" vs "1", "외곽20" vs "20")
+      const lineWithoutPrefix = rawLineClean.replace(/^(급행|간선|지선|외곽|마을|특구|첨단|순환|좌석|직행|BRT)/, '').replace(/번$/, '');
+      const targetWithoutPrefix = rawTargetClean.replace(/^(급행|간선|지선|외곽|마을|특구|첨단|순환|좌석|직행|BRT)/, '').replace(/번$/, '');
+      if (lineWithoutPrefix && lineWithoutPrefix === targetWithoutPrefix) return true;
+
+      return false;
     });
 
-    // 2단계: 분기 노선(예: 5002 -> 5002A, 5002B) 또는 기호 정규화 일치 탐색
+    // 2단계: 분기 노선(예: 5002 -> 5002A, 5002B) 또는 숫자/영문 정규화 매칭
     if (matches.length === 0) {
       matches = validArrivals.filter((item) => {
         const lineClean = cleanBusNumber(item.lineName);
@@ -185,15 +297,42 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
         const isBranchMatch =
           lineClean.startsWith(targetClean) &&
           /^[A-Z]$/.test(lineClean.slice(targetClean.length));
+        if (isBranchMatch) return true;
+
+        const numOnlyTarget = targetClean.replace(/[^0-9]/g, '');
+        const numOnlyLine = lineClean.replace(/[^0-9]/g, '');
+        if (numOnlyTarget && numOnlyLine && numOnlyTarget === numOnlyLine) {
+          return true;
+        }
+
         return (
-          isBranchMatch ||
           lineClean.replace(/[^0-9a-zA-Z]/g, '') === targetClean.replace(/[^0-9a-zA-Z]/g, '')
         );
       });
     }
 
-    return matches.sort((a, b) => a.arrivedInSeconds - b.arrivedInSeconds);
-  }, [data, cleanBusNo]);
+    const rawTargetDir = (destination || headsign || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+    // 만약 targetDir가 버스 번호 자체(예: "101", "101번", cleanBusNo)인 경우 방면 필터링에서 제외하여 불필요한 왜곡 방지
+    const targetDir =
+      rawTargetDir &&
+      rawTargetDir !== targetClean.toLowerCase() &&
+      rawTargetDir !== `${targetClean.toLowerCase()}번` &&
+      !rawTargetDir.endsWith('번')
+        ? rawTargetDir
+        : '';
+
+    return matches.sort((a, b) => {
+      if (targetDir) {
+        const aDest = (a.destination || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+        const bDest = (b.destination || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+        const aMatch = aDest && (aDest.includes(targetDir) || targetDir.includes(aDest));
+        const bMatch = bDest && (bDest.includes(targetDir) || targetDir.includes(bDest));
+        if (aMatch && !bMatch) return -1;
+        if (!aMatch && bMatch) return 1;
+      }
+      return a.arrivedInSeconds - b.arrivedInSeconds;
+    });
+  }, [data, cleanBusNo, destination, headsign, busNo]);
 
   if (!stationId || !cleanBusNo) return null;
 
@@ -206,7 +345,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
         disabled={isRefreshLoading || isFetching}
         title={buttonTitle}
         className={clsx(
-          'inline-flex items-center justify-center w-[70px] min-w-[70px] gap-1 px-2 py-0.5 rounded-full bg-white text-zinc-700 font-semibold border border-zinc-200/90 shadow-2xs shrink-0 text-[10px] transition-all',
+          'inline-flex items-center justify-center w-[70px] min-w-[70px] h-[20px] min-h-[20px] max-h-[20px] gap-1 px-2 py-0.5 rounded-full bg-white text-zinc-700 font-semibold border border-zinc-200/90 shadow-2xs shrink-0 text-[10px] transition-all',
           isRefreshLoading
             ? 'opacity-90 cursor-wait'
             : 'hover:bg-zinc-50 cursor-pointer active:scale-95'
@@ -229,19 +368,36 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     return renderRefreshButton();
   }
 
+  // 0. 미래 출발 시각: 배차 간격 안내 단일 뱃지 중앙 정렬 노출
+  if (isFuture) {
+    const intervalLabel = intervalTime ? `배차 ${intervalTime}분` : '배차 운행';
+    return (
+      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs h-[42px] min-h-[42px]">
+        {!hideRefreshButton && renderRefreshButton()}
+        <div className="inline-flex flex-col justify-center h-[42px] min-h-[42px]">
+          <div
+            onClick={(e) => handleOpenBusLineMap(e)}
+            title="버스 실시간 노선도 보기"
+            className="inline-flex items-center justify-between w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-zinc-50/90 border border-zinc-200/90 shadow-2xs text-zinc-600 font-medium shrink-0 text-[10px] cursor-pointer hover:border-blue-300 hover:bg-zinc-100 transition-all active:scale-95"
+          >
+            <span className="font-semibold text-zinc-700">{intervalLabel}</span>
+            <span className="text-zinc-400 text-[9px]">노선도</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isAnyLoading = isQueryLoading || isFetching || isRefreshLoading;
   const hasData = targetBuses.length > 0;
 
-  // 1. 로딩 상태: 초기 로딩 중이거나 새로고침 진행 중일 때만 2슬롯 펄스 스켈레톤
+  // 1. 로딩 상태: 단일 펄스 스켈레톤 중앙 정렬
   if (isAnyLoading && !hasData && (!data || isQueryLoading || isFetching)) {
     return (
-      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
+      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs h-[42px] min-h-[42px]">
         {!hideRefreshButton && renderRefreshButton()}
-        <div className="inline-flex flex-col gap-0.5 justify-center">
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-400 font-medium shrink-0 animate-pulse text-[10px]">
-            <span>확인 중...</span>
-          </div>
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-zinc-300 font-medium shrink-0 animate-pulse text-[10px]">
+        <div className="inline-flex flex-col justify-center h-[42px] min-h-[42px]">
+          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-400 font-medium shrink-0 animate-pulse text-[10px]">
             <span>확인 중...</span>
           </div>
         </div>
@@ -249,20 +405,17 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     );
   }
 
-  // 2. 에러 또는 데이터 없음: 항상 2개의 '도착 정보 없음' 슬롯 노출
+  // 2. 에러 또는 데이터 없음: 1개의 '도착 정보 없음' 슬롯 중앙 정렬
   if (!hasData || isError) {
     return (
-      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
+      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs h-[42px] min-h-[42px]">
         {!hideRefreshButton && renderRefreshButton()}
-        <div
-          onClick={(e) => handleOpenBusLineMap(e)}
-          title="버스 실시간 노선도 보기"
-          className="inline-flex flex-col gap-0.5 justify-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px] hover:border-blue-300">
-            <span>도착 정보 없음</span>
-          </div>
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-zinc-400 font-medium shrink-0 text-[10px]">
+        <div className="inline-flex flex-col justify-center h-[42px] min-h-[42px]">
+          <div
+            onClick={(e) => handleOpenBusLineMap(e)}
+            title="버스 실시간 노선도 보기"
+            className="inline-flex items-center justify-center w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px] hover:border-blue-300 cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
             <span>도착 정보 없음</span>
           </div>
         </div>
@@ -270,69 +423,57 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     );
   }
 
-  const bus1 = targetBuses[0];
-  const bus2 = targetBuses[1];
-
-  const timeText1 = formatBusItemTime(bus1.arrivedInSeconds);
-  const stationText1 = getBusStationCountText(bus1);
-  const statusBadge1 = renderSeatOrCrowdedBadge(bus1, true);
-
-  const timeText2 = bus2 ? formatBusItemTime(bus2.arrivedInSeconds) : null;
-  const stationText2 = bus2 ? getBusStationCountText(bus2) : null;
-  const statusBadge2 = bus2 ? renderSeatOrCrowdedBadge(bus2, false) : null;
-
   return (
-    <div className="inline-flex items-center gap-1.5 shrink-0 text-xs">
+    <div className="inline-flex items-center gap-1.5 shrink-0 text-xs h-[42px] min-h-[42px]">
       {!hideRefreshButton && renderRefreshButton()}
       <div
-        onClick={(e) => handleOpenBusLineMap(e, bus1)}
         title="버스 실시간 노선도 보기"
-        className="inline-flex flex-col gap-0.5 justify-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        className="inline-flex flex-col gap-0.5 justify-center h-[42px] min-h-[42px]"
       >
-        {/* 1번째 버스 (가장 빠른 버스) */}
-        <div className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all border-blue-200 text-blue-600 hover:border-blue-400 hover:shadow-xs">
-          {/* 1. 잔여 시간 (좌측 정렬: w-[40px]) */}
-          <span className="w-[40px] shrink-0 tabular-nums font-semibold text-blue-600 text-left truncate">
-            {timeText1}
-          </span>
+        {targetBuses.slice(0, 2).map((bus, idx) => {
+          const isFirst = idx === 0;
+          const timeText = formatBusItemTime(bus.arrivedInSeconds);
+          const stationText = getBusStationCountText(bus, isFirst ? liveStationCount : undefined);
+          const statusBadge = renderSeatOrCrowdedBadge(bus, isFirst);
 
-          {/* 2. 남은 정거장 수 (중앙 정렬: w-[32px]) */}
-          <span className="w-[32px] shrink-0 tabular-nums font-medium text-zinc-500 text-center truncate">
-            {stationText1}
-          </span>
+          return (
+            <div
+              key={`${bus.lineId || bus.lineName}-${bus.vehicleId || idx}`}
+              onClick={(e) => handleOpenBusLineMap(e, bus)}
+              className={clsx(
+                'inline-flex items-center justify-between w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2 py-0.5 rounded-full shadow-2xs text-[10px] whitespace-nowrap transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]',
+                isFirst
+                  ? 'bg-white border border-blue-200 text-blue-600 hover:border-blue-400 hover:shadow-xs'
+                  : 'bg-zinc-50/80 border border-zinc-200/90 text-zinc-600 hover:border-zinc-300 hover:shadow-xs'
+              )}
+            >
+              {/* 1. 잔여 시간 */}
+              <span
+                className={clsx(
+                  'w-[40px] shrink-0 tabular-nums font-semibold text-left truncate',
+                  isFirst ? 'text-blue-600' : 'text-zinc-700'
+                )}
+              >
+                {timeText}
+              </span>
 
-          {/* 3. 여석 / 혼잡도 (우측 정렬: w-[44px]) */}
-          <span className="w-[44px] shrink-0 text-right truncate flex justify-end">
-            {statusBadge1}
-          </span>
-        </div>
+              {/* 2. 남은 정거장 수 */}
+              <span
+                className={clsx(
+                  'w-[32px] shrink-0 tabular-nums text-center truncate',
+                  isFirst ? 'font-medium text-zinc-500' : 'font-normal text-zinc-400'
+                )}
+              >
+                {stationText}
+              </span>
 
-        {/* 2번째 버스 (다음 버스: 없을 경우 도착 정보 없음 뱃지 항상 노출) */}
-        {timeText2 ? (
-          <div
-            onClick={(e) => handleOpenBusLineMap(e, bus2)}
-            className="inline-flex items-center justify-between w-[148px] min-w-[148px] px-2 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all hover:border-zinc-300 hover:shadow-xs"
-          >
-            {/* 1. 잔여 시간 (좌측 정렬: w-[40px]) */}
-            <span className="w-[40px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left truncate">
-              {timeText2}
-            </span>
-
-            {/* 2. 남은 정거장 수 (중앙 정렬: w-[32px]) */}
-            <span className="w-[32px] shrink-0 tabular-nums font-normal text-zinc-400 text-center truncate">
-              {stationText2}
-            </span>
-
-            {/* 3. 여석 / 혼잡도 (우측 정렬: w-[44px]) */}
-            <span className="w-[44px] shrink-0 text-right truncate flex justify-end">
-              {statusBadge2}
-            </span>
-          </div>
-        ) : (
-          <div className="inline-flex items-center justify-center w-[148px] min-w-[148px] px-2.5 py-0.5 rounded-full bg-zinc-50/60 border border-zinc-200/70 shadow-2xs text-[10px] text-zinc-400 font-medium whitespace-nowrap text-center">
-            <span>도착 정보 없음</span>
-          </div>
-        )}
+              {/* 3. 여석 / 혼잡도 */}
+              <span className="w-[44px] shrink-0 text-right truncate flex justify-end">
+                {statusBadge}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

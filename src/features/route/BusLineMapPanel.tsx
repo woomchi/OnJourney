@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ArrowLeft, X, RefreshCw, Bus, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Bus, ArrowDown, ArrowUp, Navigation, Info } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBusLinePositions } from '@/hooks/useBusLinePositions';
 import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useJourneyStore } from '@/stores/journey-store';
 import { BusPosition, BusLineStation, BusLineMapTarget } from '@/types/journey';
 
 export interface BusLineMapPanelProps {
@@ -140,30 +141,19 @@ function getBusStatusBadge(stage?: string) {
   }
 }
 
-/** 정류소 명칭 정규화 헬퍼 (공백, 특수문자, 정류소/역 접미사 제거) */
+/** 정류소 명칭 정규화 헬퍼 (공백, 특수문자, 정류소/역 접미사, 출구 제거) */
 function normalizeStationName(name?: string): string {
   if (!name) return '';
   return name
+    .replace(/\([^)]*\)/g, '') // 괄호 및 괄호 안 텍스트 제거
+    .replace(/\s*\d+번출구$/, '') // 출구 제거
     .replace(/정류소$|정류장$|역$/, '')
     .replace(/[\s\.\(\)\[\]\-_,\/·]/g, '')
     .trim()
     .toLowerCase();
 }
 
-/** 정류소 명칭에서 핵심 키워드 토큰 분리 (예: "기흥역 수인분당선" -> ["기흥", "수인분당"]) */
-function extractStationTokens(name?: string): string[] {
-  if (!name) return [];
-  const clean = name
-    .replace(/정류소$|정류장$|역$/, '')
-    .replace(/[\.\(\)\[\]\-_,\/·]/g, ' ')
-    .trim();
-  return clean
-    .split(/\s+/)
-    .map((t) => t.replace(/역$|선$/, '').trim())
-    .filter((t) => t.length >= 2);
-}
-
-/** 대상 탑승 정류소 일치 여부 정밀 다단계 판별 */
+/** 대상 탑승 정류소 일치 여부 정밀 판별 */
 function isTargetStationMatch(
   station: BusLineStation,
   targetStationId?: string,
@@ -172,34 +162,43 @@ function isTargetStationMatch(
   if (!rawTargetStationName && !targetStationId) return false;
 
   // Tier 1: ID / ARS 번호 일치
-  if (targetStationId && station.stationId && String(station.stationId) === String(targetStationId)) {
-    return true;
-  }
-  if (targetStationId && station.arsNo && String(station.arsNo) === String(targetStationId)) {
-    return true;
+  if (targetStationId) {
+    const rawTarget = String(targetStationId).trim();
+    const pureTargetId = rawTarget.replace(/[^0-9]/g, '');
+
+    if (station.stationId) {
+      const rawStation = String(station.stationId).trim();
+      const pureStationId = rawStation.replace(/[^0-9]/g, '');
+      if (rawStation === rawTarget || (pureTargetId && pureStationId && pureTargetId === pureStationId)) {
+        return true;
+      }
+    }
+    if (station.arsNo) {
+      const rawArs = String(station.arsNo).trim();
+      const pureArs = rawArs.replace(/[^0-9]/g, '');
+      if (rawArs === rawTarget || (pureTargetId && pureArs && pureTargetId === pureArs)) {
+        return true;
+      }
+    }
   }
 
   const normTarget = normalizeStationName(rawTargetStationName);
   const normStation = normalizeStationName(station.stationName);
   if (!normTarget || !normStation) return false;
 
-  // Tier 2: 정규화 문자열 완전 일치
+  // Tier 2: 정규화 문자열 완전 일치 (예: "dcc종점" === "dcc종점")
   if (normStation === normTarget) return true;
 
-  // Tier 3: 부분 포함 일치 (예: "기흥" in "기흥수인분당" or "기흥수인분당" in "기흥")
-  if (normStation.includes(normTarget) || normTarget.includes(normStation)) {
+  // Tier 3: 접두사/접미사 일치 (예: "카이스트정문" vs "카이스트")
+  if (normStation.startsWith(normTarget) || normTarget.startsWith(normStation)) {
     return true;
   }
 
-  // Tier 4: 핵심 토큰 일치 (첫 번째 핵심 지명 토큰이 정확히 일치하는지)
-  const targetTokens = extractStationTokens(rawTargetStationName);
-  const stationTokens = extractStationTokens(station.stationName);
-  if (targetTokens.length > 0 && stationTokens.length > 0) {
-    if (targetTokens[0] === stationTokens[0]) return true;
-    const hasSharedToken = targetTokens.some((tt) =>
-      stationTokens.some((st) => st.includes(tt) || tt.includes(st))
-    );
-    if (hasSharedToken) return true;
+  // Tier 4: 상호 포함 일치 (글자 수가 3자 이상일 때만 안전하게 허용)
+  if (normTarget.length >= 3 && normStation.length >= 3) {
+    if (normStation.includes(normTarget) || normTarget.includes(normStation)) {
+      return true;
+    }
   }
 
   return false;
@@ -213,21 +212,22 @@ function findBestMatchingStationIndex(
 ): number {
   if (!stations || stations.length === 0) return -1;
 
-  // 1순위: isTargetStationMatch
-  const matchIdx = stations.findIndex((st) =>
-    isTargetStationMatch(st, targetStationId, rawTargetName)
-  );
-  if (matchIdx !== -1) return matchIdx;
-
-  // 2순위: 첫 단어(2자 이상) 포함 검색
-  const normTarget = normalizeStationName(rawTargetName);
-  if (normTarget.length >= 2) {
-    const prefix = normTarget.slice(0, 2);
-    const prefixIdx = stations.findIndex((st) =>
-      normalizeStationName(st.stationName).includes(prefix)
-    );
-    if (prefixIdx !== -1) return prefixIdx;
+  // 1순위: ID/ARS 완전 일치
+  if (targetStationId) {
+    const idIdx = stations.findIndex((st) => isTargetStationMatch(st, targetStationId, undefined));
+    if (idIdx !== -1) return idIdx;
   }
+
+  // 2순위: 정규화 명칭 완전 일치
+  const normTarget = normalizeStationName(rawTargetName);
+  if (normTarget) {
+    const exactIdx = stations.findIndex((st) => normalizeStationName(st.stationName) === normTarget);
+    if (exactIdx !== -1) return exactIdx;
+  }
+
+  // 3순위: 접두사 또는 포함 매칭
+  const matchIdx = stations.findIndex((st) => isTargetStationMatch(st, targetStationId, rawTargetName));
+  if (matchIdx !== -1) return matchIdx;
 
   return -1;
 }
@@ -242,8 +242,12 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
   const {
     stationName,
     stationId,
+    destination,
+    headsign,
     busNo,
     busId,
+    odsayBusId,
+    tagoRouteId,
     routeId,
     busCityCode,
     region,
@@ -273,6 +277,8 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
   const { data, isLoading, isFetching, refetch } = useBusLinePositions({
     busNo,
     busId,
+    odsayBusId,
+    tagoRouteId,
     routeId,
     cityCode: busCityCode,
     region,
@@ -284,53 +290,104 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const targetStationNodeRef = useRef<HTMLDivElement>(null);
+  const turningStationNodeRef = useRef<HTMLDivElement>(null);
+  const hasInitialScrolled = useRef(false);
 
-  // 💡 [핵심 개선 1] 회차 노선에서 탑승 정류소가 속한 상행/하행 방향 탭 자동 선택
-  useEffect(() => {
-    if (isOpen && data?.stations && data.stations.length > 0) {
-      const all = data.stations;
-      const turningSeq = data.turningStationSeq;
-
-      if (turningSeq && turningSeq > 1 && turningSeq < all.length) {
-        const dir0Stations = all.slice(0, turningSeq);
-        const dir1Stations = all.slice(turningSeq - 1);
-
-        const matchInDir0 = findBestMatchingStationIndex(dir0Stations, stationId, stationName);
-        const matchInDir1 = findBestMatchingStationIndex(dir1Stations, stationId, stationName);
-
-        if (matchInDir0 !== -1 && matchInDir1 === -1) {
-          setSelectedDirection('0');
-        } else if (matchInDir1 !== -1 && matchInDir0 === -1) {
-          setSelectedDirection('1');
-        }
-      }
-    }
-  }, [isOpen, data?.stations, data?.turningStationSeq, stationId, stationName]);
-
-  // 회차지점 정보 기준 상행(기점->회차지) / 하행(회차지->종점) 정류소 필터링
+  // 💡 [단일 통합 노선도] 기점 ➔ 회차점 ➔ 종점 전체 정류소 목록 단일 연속 렌더링
   const orderedStations = useMemo(() => {
     if (!data?.stations || data.stations.length === 0) return [];
-    const all = data.stations;
-    const turningSeq = data.turningStationSeq;
+    return data.stations;
+  }, [data?.stations]);
 
-    if (turningSeq && turningSeq > 1 && turningSeq < all.length) {
-      if (selectedDirection === '0') {
-        // 순방향: 기점 ~ 회차지
-        return all.slice(0, turningSeq);
+  // 💡 [핵심 UX 정합성] 이동 정보(Journey)에 따른 단일 고유 실제 승차 정류소 및 방향 확정
+  const actualBoardingInfo = useMemo(() => {
+    if (!data?.stations || data.stations.length === 0) {
+      return { index: -1, seq: -1, direction: '0' as '0' | '1' };
+    }
+    const stations = data.stations;
+    const turningSeq = data.turningStationSeq || Math.ceil(stations.length / 2);
+
+    let finalIndex = -1;
+
+    // 1단계: stationId / ARS 번호 기반 완전 일치 탐색 (상행/하행 정류소는 고유 ID/ARS가 다름)
+    if (stationId) {
+      const pureTarget = String(stationId).replace(/[^0-9]/g, '').trim();
+      const rawTarget = String(stationId).trim();
+
+      finalIndex = stations.findIndex((st) => {
+        const pureStId = String(st.stationId || '').replace(/[^0-9]/g, '').trim();
+        const pureArs = String(st.arsNo || '').replace(/[^0-9]/g, '').trim();
+        const rawStId = String(st.stationId || '').trim();
+        const rawArs = String(st.arsNo || '').trim();
+
+        if (rawStId && (rawStId === rawTarget || (pureTarget && pureStId === pureTarget))) return true;
+        if (rawArs && (rawArs === rawTarget || (pureTarget && pureArs === pureTarget))) return true;
+        return false;
+      });
+    }
+
+    // 2단계: stationId로 못 찾았거나 이름으로 매칭해야 하는 경우 (동일 명칭 다중 후보 처리)
+    if (finalIndex === -1) {
+      const dir0Stations = stations.slice(0, turningSeq);
+      const dir1Stations = stations.slice(turningSeq - 1);
+
+      const match0 = findBestMatchingStationIndex(dir0Stations, stationId, stationName);
+      const match1 = findBestMatchingStationIndex(dir1Stations, stationId, stationName);
+
+      // destination / headsign 기반 방향 힌트 검증
+      const targetDirText = (destination || headsign || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+      let preferDir1 = false;
+
+      if (targetDirText) {
+        const startName = (data.startStationName || stations[0]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+        const endName = (data.endStationName || stations[stations.length - 1]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+        const turningName = (data.turningStationName || stations[turningSeq - 1]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+
+        // 기점(startName) 방면으로 가는 경우 -> 회차 후 하행('1')
+        if (startName && (targetDirText.includes(startName) || startName.includes(targetDirText))) {
+          preferDir1 = true;
+        } else if (turningName && (targetDirText.includes(turningName) || turningName.includes(targetDirText))) {
+          preferDir1 = false; // 회차지 방면 -> 상행('0')
+        } else if (endName && (targetDirText.includes(endName) || endName.includes(targetDirText))) {
+          // 회차지가 별도로 있는 노선의 endName은 상행 종점 또는 하행 종점
+          preferDir1 = Boolean(data.turningStationName);
+        }
+      }
+
+      if (match0 !== -1 && match1 === -1) {
+        finalIndex = match0;
+      } else if (match1 !== -1 && match0 === -1) {
+        finalIndex = (turningSeq - 1) + match1;
+      } else if (match0 !== -1 && match1 !== -1) {
+        finalIndex = preferDir1 ? (turningSeq - 1) + match1 : match0;
       } else {
-        // 역방향: 회차지 ~ 종점
-        return all.slice(turningSeq - 1);
+        finalIndex = findBestMatchingStationIndex(stations, stationId, stationName);
       }
     }
 
-    if (selectedDirection === '1') {
-      return [...all].reverse();
+    if (finalIndex === -1) {
+      return { index: -1, seq: -1, direction: '0' as '0' | '1' };
     }
-    return all;
-  }, [data?.stations, data?.turningStationSeq, selectedDirection]);
+
+    // 💡 최종 인덱스로부터 해당 정류소가 상행 구간(0 ~ turningSeq-1)인지 하행 구간(turningSeq-1 ~ N)인지 결정
+    const finalDirection: '0' | '1' = finalIndex >= (turningSeq - 1) ? '1' : '0';
+    const finalSeq = stations[finalIndex].stationSeq;
+
+    return {
+      index: finalIndex,
+      seq: finalSeq,
+      direction: finalDirection,
+    };
+  }, [data?.stations, data?.turningStationSeq, data?.startStationName, data?.endStationName, data?.turningStationName, stationId, stationName, destination, headsign]);
+
+  // 💡 패널이 열렸을 때 실제 승차 방향으로 탭 기본 선택
+  useEffect(() => {
+    if (isOpen && actualBoardingInfo.index !== -1) {
+      setSelectedDirection(actualBoardingInfo.direction);
+    }
+  }, [isOpen, actualBoardingInfo.direction, actualBoardingInfo.index]);
 
   // 4분위별 실시간 버스 맵핑
-  // key: `${stationSeq}_${stage}` -> BusPosition[]
   const busPositionsMap = useMemo(() => {
     const map = new Map<string, BusPosition[]>();
     if (!data?.positions) return map;
@@ -348,24 +405,25 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
     return map;
   }, [data?.positions]);
 
-  // 탑승 정류소 인덱스 (정밀 다단계 매칭 엔진)
-  const targetStationIdx = useMemo(() => {
-    return findBestMatchingStationIndex(orderedStations, stationId, stationName);
-  }, [orderedStations, stationId, stationName]);
+  // 💡 [단일 통합 노선도] 승차 정류소는 전체 노선도 상에서 언제나 명확하게 하이라이트 유지
+  const targetStationIdx = actualBoardingInfo.index;
 
-  // 탑승 정류소로 접근 중인 버스 분석 (승차 대상 버스 목록 및 자동 타겟 산정)
+  // 탑승 정류소로 접근 중인 버스 분석
   const approachingBusesAnalysis = useMemo(() => {
     if (targetStationIdx === -1) {
       return {
         approachingBus: null,
         primaryVehNo: userSelectedVehNo || targetVehicleNo || '',
+        busStationsAwayMap: new Map<string, number>(),
       };
     }
 
+    // 💡 회차점/종점(예: DCC종점) 및 하행 정류소에서도 상행선에서 다가오는 버스를 온전히 찾을 수 있도록 전체 이전 구간(0까지) 탐색
+    const sectionStartIdx = 0;
+
     const approachingList: Array<{ bus: BusPosition; stationsAway: number }> = [];
 
-    // 탑승역 및 이전 역들에 위치한 버스 수집 (0 <= idx <= targetStationIdx)
-    for (let idx = targetStationIdx; idx >= 0; idx--) {
+    for (let idx = targetStationIdx; idx >= sectionStartIdx; idx--) {
       const seq = orderedStations[idx].stationSeq;
       const atBuses = busPositionsMap.get(`${seq}_at_station`) || [];
       const appBuses = busPositionsMap.get(`${seq}_approaching`) || [];
@@ -374,8 +432,6 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
 
       const stationsAway = targetStationIdx - idx;
 
-      // 💡 탑승 정류소(stationsAway === 0)에서 'departed'(출발/다음 정류소로 이동)인 버스는
-      // 이미 정류소를 떠나 승차할 수 없는 지나간 버스이므로 승차 접근 목록에서 제외
       const validAtTarget =
         stationsAway === 0
           ? [...atBuses, ...appBuses, ...prevBuses]
@@ -386,16 +442,9 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
       }
     }
 
-    // stationsAway 오름차순 정렬 (0: 당역 진입/도착, 1: 1정류소전, ...)
     approachingList.sort((a, b) => a.stationsAway - b.stationsAway);
-
     const firstApproaching = approachingList[0] || null;
 
-    // 하이라이트할 타겟 버스 번호 결정:
-    // 1) 사용자가 수동 선택한 버스 최우선
-    // 2) 전달된 targetVehicleNo가 접근 목록에 아직 유효하게 남아있다면 유지
-    // 3) 전달된 버스가 이미 정류소를 지나쳤거나 목록에 없으면, 가장 가까이 오고 있는 1순위 버스로 자동 승계(Auto Handover)
-    // 4) 접근 중인 버스가 없으면 빈 문자열 (지나간 버스 재하이라이트 방지)
     let primaryVehNo = '';
     if (userSelectedVehNo) {
       primaryVehNo = userSelectedVehNo;
@@ -414,47 +463,132 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
       }
     }
 
+    const busStationsAwayMap = new Map<string, number>();
+    for (const item of approachingList) {
+      if (!busStationsAwayMap.has(item.bus.vehicleno)) {
+        busStationsAwayMap.set(item.bus.vehicleno, item.stationsAway);
+      }
+    }
+
     return {
       approachingBus: firstApproaching,
       primaryVehNo,
+      busStationsAwayMap,
     };
-  }, [targetStationIdx, orderedStations, busPositionsMap, userSelectedVehNo, targetVehicleNo]);
+  }, [targetStationIdx, orderedStations, busPositionsMap, userSelectedVehNo, targetVehicleNo, data?.turningStationSeq, actualBoardingInfo.direction]);
 
-  const { approachingBus, primaryVehNo } = approachingBusesAnalysis;
+  const { approachingBus, primaryVehNo, busStationsAwayMap } = approachingBusesAnalysis;
+  const setBusLiveStationsAway = useJourneyStore((state) => state.setBusLiveStationsAway);
 
-  // 💡 [핵심 개선 2] offsetTop 기반 2단계 무결점 자동 스크롤
+  // 💡 [핵심 연동] 노선도를 켰을 때 실제 버스 위치 기반으로 산출된 승차 정류소 기준 남은 정류소 수(stationsAway)를 전역 스토어에 동기화
   useEffect(() => {
-    if (!isOpen || isLoading || orderedStations.length === 0) return;
+    if (approachingBus && approachingBus.stationsAway !== undefined && busNo) {
+      const cleanBus = busNo.trim().toUpperCase();
+      if (stationId) {
+        setBusLiveStationsAway(`bus:${cleanBus}:${stationId}`, approachingBus.stationsAway, approachingBus.bus.vehicleno);
+      }
+      if (cleanTargetStation) {
+        setBusLiveStationsAway(`bus:${cleanBus}:${cleanTargetStation}`, approachingBus.stationsAway, approachingBus.bus.vehicleno);
+      }
+    }
+  }, [approachingBus, busNo, stationId, cleanTargetStation, setBusLiveStationsAway]);
 
-    const performScroll = (behavior: ScrollBehavior = 'smooth') => {
+  // 💡 방면 탭 클릭 시 해당 방면 시작 위치로 즉시 부드럽게 스크롤
+  const handleDirectionTabClick = (direction: '0' | '1') => {
+    setSelectedDirection(direction);
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    if (direction === '0') {
+      // 상행 시작 위치 (기점/최상단)으로 스크롤
+      container.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    } else {
+      // 하행 시작 위치 (회차점)으로 스크롤
+      const turningEl = turningStationNodeRef.current;
+      if (turningEl) {
+        container.scrollTo({
+          top: Math.max(0, turningEl.offsetTop - 8),
+          behavior: 'smooth',
+        });
+      } else {
+        const turningSeq = data?.turningStationSeq || Math.ceil(orderedStations.length / 2);
+        const turningIdx = Math.max(0, turningSeq - 1);
+        container.scrollTo({
+          top: turningIdx * ROW_HEIGHT_PX,
+          behavior: 'smooth',
+        });
+      }
+    }
+  };
+
+  // 💡 스크롤 위치에 따른 상/하행 탭 활성 상태 자동 동기화 (Scroll Spy)
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container || !data?.stations || data.stations.length === 0) return;
+
+    const turningEl = turningStationNodeRef.current;
+    const turningOffset = turningEl
+      ? turningEl.offsetTop
+      : ((data.turningStationSeq || Math.ceil(data.stations.length / 2)) - 1) * ROW_HEIGHT_PX;
+
+    if (container.scrollTop >= turningOffset - 60) {
+      if (selectedDirection !== '1') setSelectedDirection('1');
+    } else {
+      if (selectedDirection !== '0') setSelectedDirection('0');
+    }
+  };
+
+  // 💡 초기 진입 시 탑승역 중앙 자동 포커싱 스크롤
+  useEffect(() => {
+    if (isOpen) {
+      hasInitialScrolled.current = false;
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || isLoading || orderedStations.length === 0 || hasInitialScrolled.current) return;
+
+    const performInitialScroll = (behavior: ScrollBehavior = 'smooth') => {
       const container = scrollContainerRef.current;
       const targetEl = targetStationNodeRef.current;
-      if (!container || !targetEl) return;
+      if (!container) return;
 
-      const offsetTop = targetEl.offsetTop;
-      const centerScrollTop = offsetTop - container.clientHeight / 2 + targetEl.clientHeight / 2;
-
-      container.scrollTo({
-        top: Math.max(0, centerScrollTop),
-        behavior,
-      });
+      if (targetEl) {
+        const offsetTop = targetEl.offsetTop;
+        const centerScrollTop = offsetTop - container.clientHeight / 2 + targetEl.clientHeight / 2;
+        container.scrollTo({
+          top: Math.max(0, centerScrollTop),
+          behavior,
+        });
+        hasInitialScrolled.current = true;
+      } else if (actualBoardingInfo.direction === '1') {
+        const turningEl = turningStationNodeRef.current;
+        if (turningEl) {
+          container.scrollTo({
+            top: Math.max(0, turningEl.offsetTop - 8),
+            behavior,
+          });
+          hasInitialScrolled.current = true;
+        }
+      }
     };
 
-    // 1차: DOM 마운트 직후 신속 스크롤
     const rafId = requestAnimationFrame(() => {
-      performScroll('auto');
+      performInitialScroll('auto');
     });
 
-    // 2차: 슬라이드/바텀시트 애니메이션 완료 시점(350ms) 부드러운 정밀 센터 스크롤
     const timer = setTimeout(() => {
-      performScroll('smooth');
-    }, 350);
+      performInitialScroll('smooth');
+    }, 300);
 
     return () => {
       cancelAnimationFrame(rafId);
       clearTimeout(timer);
     };
-  }, [isOpen, isLoading, orderedStations, selectedDirection]);
+  }, [isOpen, isLoading, orderedStations, actualBoardingInfo]);
 
   // 데스크톱 애니메이션 상태
   const [animate, setAnimate] = useState(false);
@@ -468,15 +602,32 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
   }, [isOpen]);
 
   const displayBusName = data?.busNo || busNo || '버스 노선';
-  const startStation = data?.startStationName || orderedStations[0]?.stationName || '기점';
-  const endStation =
-    data?.endStationName || orderedStations[orderedStations.length - 1]?.stationName || '종점';
+  const firstStation = orderedStations[0]?.stationName || data?.startStationName || '기점';
+  const lastStation =
+    orderedStations[orderedStations.length - 1]?.stationName || data?.endStationName || '종점';
   const turningStation = data?.turningStationName;
 
-  const dir0Label = turningStation ? `${turningStation} 방면` : `${endStation} 방면`;
-  const dir1Label = turningStation ? `${endStation} 방면` : `${startStation} 방면`;
+  // 상행 (순방향 / 기점 ➔ 회차점) 방면 라벨
+  const dir0Target = turningStation || lastStation;
+  const dir0Label = `${dir0Target} 방면`;
 
-  // ─── 1. 패널 헤더 (SubwayLineMapPanel과 1:1 완벽 일치) ────────────────────
+  // 하행 (역방향 / 회차점 ➔ 종점 또는 기점으로 복귀) 방면 라벨
+  let dir1Target = lastStation;
+  if (turningStation) {
+    if (dir1Target === turningStation) {
+      dir1Target = firstStation;
+    }
+  } else {
+    dir1Target = firstStation;
+  }
+  const dir1Label = `${dir1Target} 방면`;
+
+  // 2층 기점 ↔ 종점 정보 텍스트
+  const startStationDisplay = firstStation;
+  const endStationDisplay =
+    turningStation && firstStation === lastStation ? turningStation : lastStation;
+
+  // ─── 1. 패널 헤더 ────────────────────────────────────────────────────────
   const headerContent = (
     <div className="flex flex-col border-b border-zinc-100 shrink-0 bg-white select-none">
       {/* 1층: 뒤로가기 + 버스 번호 뱃지 + 정류소명 + 새로고침/닫기 */}
@@ -510,40 +661,32 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center">
           <button
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
             title="실시간 위치 새로고침"
-            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors disabled:opacity-50 cursor-pointer"
+            className="p-1 -mr-0.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors disabled:opacity-50 cursor-pointer"
             onPointerDown={(e) => e.stopPropagation()}
           >
-            <RefreshCw className={clsx('w-3.5 h-3.5', isFetching && 'animate-spin')} />
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <X className="w-4 h-4" />
+            <RefreshCw className={clsx('w-4 h-4', isFetching && 'animate-spin')} />
           </button>
         </div>
       </div>
 
       {/* 2층: 기점 ↔ 종점 정보 */}
       <div className="px-3 pb-2 flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium truncate">
-        <span className="truncate">{startStation}</span>
+        <span className="truncate">{startStationDisplay}</span>
         <span className="text-zinc-300 shrink-0">↔</span>
-        <span className="truncate">{endStation}</span>
+        <span className="truncate">{endStationDisplay}</span>
       </div>
 
-      {/* 3층: 콤팩트 방향 전환 탭 */}
+      {/* 3층: 콤팩트 방향 전환 탭 (클릭 시 해당 방면 시작 위치로 스크롤) */}
       <div className="flex px-3 pb-2.5 gap-1.5">
         <button
           type="button"
-          onClick={() => setSelectedDirection('0')}
+          onClick={() => handleDirectionTabClick('0')}
           className={clsx(
             'flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer select-none truncate',
             selectedDirection === '0'
@@ -557,7 +700,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => setSelectedDirection('1')}
+          onClick={() => handleDirectionTabClick('1')}
           className={clsx(
             'flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer select-none truncate',
             selectedDirection === '1'
@@ -573,14 +716,13 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
     </div>
   );
 
-  // ─── 2. 네이버 지도 스타일 고정 간선 & 비율적 Absolute Overlay 타임라인 ───
-  // 각 정류소 행의 높이를 h-[46px]로 고정하여 간선 길이가 왜곡되지 않도록 보장하고,
-  // 운행 중인 버스를 간선 위 비율적 위치(0%/33%/66%)에 Absolute Overlay로 매끄럽게 배치합니다.
-  const ROW_HEIGHT_PX = 46;
+  // ─── 2. 단일 통합 노선도 & 비율적 Absolute Overlay 타임라인 ───────────────
+  const ROW_HEIGHT_PX = 48;
 
   const listContent = (
     <div
       ref={scrollContainerRef}
+      onScroll={handleScroll}
       className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0 relative bg-white scrollbar-thin select-none"
     >
       {isLoading && (
@@ -602,6 +744,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
             const isFirst = idx === 0;
             const isLast = idx === orderedStations.length - 1;
             const isTargetStation = targetStationIdx === idx;
+            const isTurningStation = station.isTurningPoint;
 
             const seq = station.stationSeq;
             const atStationBuses = busPositionsMap.get(`${seq}_at_station`) || [];
@@ -638,185 +781,190 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
             }
 
             return (
-              <div
-                key={`${station.stationId || idx}_${station.stationSeq}`}
-                ref={isTargetStation ? targetStationNodeRef : undefined}
-                style={{ height: `${ROW_HEIGHT_PX}px` }}
-                className="relative w-full transition-none group"
-              >
-                {/* 💡 탑승 정류소 눈에 띄는 배경 하이라이트 */}
-                {isTargetStation && (
-                  <div className="absolute inset-0 bg-blue-50/90 rounded-2xl -z-10 pointer-events-none border-2 border-blue-400/80 shadow-2xs" />
-                )}
-
-                {/* 💡 수직 간선 (left-[99px] 2px 간선 - 노드 중심 x=100px와 정확히 일치) */}
-                {orderedStations.length > 1 && (
-                  <div
-                    className={clsx(
-                      'absolute left-[99px] w-[2px] pointer-events-none opacity-60 z-0',
-                      theme.line,
-                      isFirst && 'top-1/2 bottom-0',
-                      isLast && 'top-0 bottom-1/2',
-                      !isFirst && !isLast && 'top-0 bottom-0'
-                    )}
-                  />
-                )}
-
-                {/* 💡 기본 정차역 도트(Dot) - Y축 정중앙 배치 (top: 50%, left: 88px) */}
-                <div className="absolute left-[88px] top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center shrink-0 z-10 pointer-events-none">
-                  <div
-                    className={clsx(
-                      'rounded-full transition-all shrink-0',
-                      isTargetStation
-                        ? 'w-3.5 h-3.5 bg-blue-600 ring-4 ring-blue-300/80 shadow-md'
-                        : clsx('w-2 h-2', theme.badgeBg)
-                    )}
-                  />
-                </div>
-
-                {/* 💡 우측 정류소명 & 탑승지/회차 정보 - Y축 정중앙 고정 배치 */}
-                <div className="absolute left-[116px] right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 min-w-0 truncate z-10">
-                  <span
-                    className={clsx(
-                      'truncate',
-                      isTargetStation
-                        ? 'font-black text-blue-700 text-[13.5px]'
-                        : 'font-semibold text-zinc-800 text-xs'
-                    )}
-                  >
-                    {station.stationName}
-                  </span>
-
-                  {station.arsNo && (
-                    <span className="text-[10px] text-zinc-400 shrink-0 font-mono">
-                      {station.arsNo}
-                    </span>
-                  )}
-
-                  {station.isTurningPoint && (
-                    <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold bg-zinc-100 text-zinc-600 border border-zinc-200 shrink-0">
-                      회차
-                    </span>
-                  )}
-
+              <React.Fragment key={`${station.stationId || idx}_${station.stationSeq}`}>
+                <div
+                  ref={isTargetStation ? targetStationNodeRef : isTurningStation ? turningStationNodeRef : undefined}
+                  style={{ height: `${ROW_HEIGHT_PX}px` }}
+                  className="relative w-full transition-none group"
+                >
+                  {/* 💡 탑승 정류소 배경 하이라이트 */}
                   {isTargetStation && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[9.5px] font-extrabold shadow-xs shrink-0 animate-pulse">
-                      <Navigation className="w-2.5 h-2.5 fill-current" />
-                      승차 정류장
-                    </span>
+                    <div className="absolute inset-0 bg-blue-50/90 rounded-2xl -z-10 pointer-events-none border-2 border-blue-400/80 shadow-2xs" />
                   )}
-                </div>
 
-                {/* ─────────────────────────────────────────────────────────
-                    🚌 Absolute Overlay 버스 레이어 (간선 위 비율적 위치 0%/33%/66% 배치)
-                   ───────────────────────────────────────────────────────── */}
-                {edgeBuses.map((item, bIdx) => {
-                  const { bus, ratio, stage } = item;
-                  const cleanVeh = bus.vehicleno.slice(-4);
-                  const isTarget =
-                    Boolean(primaryVehNo) &&
-                    (bus.vehicleno === primaryVehNo ||
-                      bus.vehicleno.includes(primaryVehNo) ||
-                      (userSelectedVehNo && bus.vehicleno === userSelectedVehNo));
-                  const badge = getBusStatusBadge(stage);
-
-                  // 정류소 중심(50%)에서 시작하여 다음 정류소 방향으로 ratio * ROW_HEIGHT_PX 만큼 오프셋
-                  const topOffsetPx = ratio * ROW_HEIGHT_PX;
-
-                  return (
+                  {/* 💡 깔끔한 단색 수직 간선 트랙 (left-[98px], 중심 x=100px) */}
+                  {orderedStations.length > 1 && (
                     <div
-                      key={`overlay_bus_${bus.vehicleno}_${stage}_${bIdx}`}
-                      style={{
-                        top: `calc(50% + ${topOffsetPx}px)`,
-                      }}
-                      className="absolute left-0 right-0 -translate-y-1/2 flex items-center z-20 pointer-events-none"
-                    >
-                      {/* 1) 좌측 말풍선 카드 (네이버 지도 스타일 Tooltip) */}
-                      <div className="w-[88px] min-w-[88px] flex items-center justify-end pr-2 shrink-0 pointer-events-auto">
-                        <button
-                          type="button"
-                          onClick={() => setUserSelectedVehNo(bus.vehicleno)}
-                          title={`버스 #${bus.vehicleno} 선택`}
-                          className={clsx(
-                            'relative flex items-center justify-between gap-1 px-1.5 py-0.8 rounded-lg text-[9px] font-bold shadow-2xs border transition-all cursor-pointer select-none text-left w-[78px]',
-                            isTarget
-                              ? clsx(
-                                  theme.speechBubbleActiveBg,
-                                  theme.speechBubbleActiveBorder,
-                                  theme.speechBubbleActiveText,
-                                  'scale-105 ring-2 ring-blue-300/80 shadow-xs'
-                                )
-                              : stage === 'departed'
-                              ? 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100'
-                              : stage === 'approaching'
-                              ? 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
-                              : 'bg-white text-zinc-800 border-zinc-200 hover:bg-zinc-50'
-                          )}
-                          onPointerDown={(e) => e.stopPropagation()}
-                        >
-                          <span className="tabular-nums font-extrabold truncate">
-                            #{cleanVeh}
-                          </span>
+                      className={clsx(
+                        'absolute left-[98px] w-[3px] rounded-full pointer-events-none z-0',
+                        theme.line,
+                        isFirst && 'top-1/2 bottom-0',
+                        isLast && 'top-0 bottom-1/2',
+                        !isFirst && !isLast && 'top-0 bottom-0'
+                      )}
+                    />
+                  )}
 
-                          <span
-                            className={clsx(
-                              'px-1 py-0.2 rounded text-[8px] font-bold shrink-0',
-                              isTarget ? 'bg-white/20 text-white' : badge.color
-                            )}
-                          >
-                            {badge.text}
-                          </span>
+                  {/* 💡 기본 정차역 도트(Dot) - Y축 정중앙 배치 (top: 50%, left: 88px) */}
+                  <div className="absolute left-[88px] top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center shrink-0 z-10 pointer-events-none">
+                    <div
+                      className={clsx(
+                        'rounded-full transition-all shrink-0',
+                        isTargetStation
+                          ? 'w-4 h-4 bg-blue-600 ring-4 ring-blue-300/80 shadow-md'
+                          : clsx('w-2.5 h-2.5 bg-white border-2', theme.dot)
+                      )}
+                    />
+                  </div>
 
-                          {/* 말풍선 꼬리 */}
-                          <div
-                            className={clsx(
-                              'absolute -right-[5px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-[4px] border-y-transparent border-l-[5px]',
-                              isTarget
-                                ? theme.primary === '#DC2626'
-                                  ? 'border-l-red-600'
-                                  : theme.primary === '#16A34A'
-                                  ? 'border-l-emerald-600'
-                                  : theme.primary === '#D97706'
-                                  ? 'border-l-amber-500'
-                                  : 'border-l-blue-600'
-                                : stage === 'departed'
-                                ? 'border-l-indigo-300'
-                                : stage === 'approaching'
-                                ? 'border-l-amber-300'
-                                : 'border-l-zinc-300'
-                            )}
-                          />
-                        </button>
-                      </div>
-
-                      {/* 2) 중앙 간선 위 버스 아이콘 마커 */}
-                      <div className="w-6 h-6 flex items-center justify-center shrink-0 pointer-events-auto">
-                        <button
-                          type="button"
-                          onClick={() => setUserSelectedVehNo(bus.vehicleno)}
-                          className={clsx(
-                            'rounded-full flex items-center justify-center transition-all cursor-pointer select-none shrink-0 shadow-xs border border-white',
-                            isTarget
-                              ? clsx(
-                                  theme.badgeBg,
-                                  'w-6 h-6 ring-2 ring-blue-400 scale-115 animate-bounce-subtle z-30'
-                                )
-                              : stage === 'departed'
-                              ? 'w-5 h-5 bg-indigo-600 hover:scale-110 z-20'
-                              : stage === 'approaching'
-                              ? 'w-5 h-5 bg-amber-500 hover:scale-110 z-20'
-                              : clsx(theme.badgeBg, 'w-6 h-6 hover:scale-110 z-20')
-                          )}
-                          title={`버스 #${bus.vehicleno} (${badge.text})`}
-                          onPointerDown={(e) => e.stopPropagation()}
-                        >
-                          <Bus className={clsx('text-white', ratio === 0 ? 'w-3.5 h-3.5' : 'w-3 h-3')} />
-                        </button>
-                      </div>
+                  {/* 💡 노드선 좌측 회차지점 뱃지 (노드선 왼쪽 x=0~84px 영역에 정확히 배치) */}
+                  {station.isTurningPoint && (
+                    <div className="absolute left-0 w-[84px] top-1/2 -translate-y-1/2 flex items-center justify-end pr-1.5 z-10 pointer-events-none">
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200/90 shadow-2xs">
+                        <RefreshCw className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+                        회차지점
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+
+                  {/* 💡 우측 정류소명 & 고유 번호(아래 배치) & 승차 뱃지 - Y축 정중앙 배치 (left-[116px]) */}
+                  <div className="absolute left-[116px] right-2 top-1/2 -translate-y-1/2 flex flex-col justify-center min-w-0 z-10">
+                    {/* 1층: 정류소명 + 승차 정류장 뱃지 */}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span
+                        className={clsx(
+                          'truncate',
+                          isTargetStation
+                            ? 'font-black text-blue-700 text-[13.5px]'
+                            : 'font-semibold text-zinc-800 text-[12px]'
+                        )}
+                      >
+                        {station.stationName}
+                      </span>
+
+                      {isTargetStation && (
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[9.5px] font-extrabold shadow-xs shrink-0 animate-pulse">
+                          <Navigation className="w-2.5 h-2.5 fill-current" />
+                          승차 정류장
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 2층: 정류소 고유 번호(arsNo) */}
+                    {station.arsNo && (
+                      <span className="text-[10px] text-zinc-400 font-mono leading-tight truncate">
+                        {station.arsNo}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* ─────────────────────────────────────────────────────────
+                      🚌 Absolute Overlay 버스 레이어 (간선 위 비율적 위치 0%/33%/66% 배치)
+                     ───────────────────────────────────────────────────────── */}
+                  {edgeBuses.map((item, bIdx) => {
+                    const { bus, ratio, stage } = item;
+                    const cleanVeh = bus.vehicleno.slice(-4);
+                    const isTarget =
+                      Boolean(primaryVehNo) &&
+                      (bus.vehicleno === primaryVehNo ||
+                        bus.vehicleno.includes(primaryVehNo) ||
+                        (userSelectedVehNo && bus.vehicleno === userSelectedVehNo));
+                    const stationsAway = busStationsAwayMap.get(bus.vehicleno);
+                    const badge = getBusStatusBadge(stage);
+                    const statusText = stationsAway !== undefined
+                      ? (stationsAway === 0 ? '당역' : `${stationsAway}전`)
+                      : badge.text;
+
+                    const topOffsetPx = ratio * ROW_HEIGHT_PX;
+
+                    return (
+                      <div
+                        key={`overlay_bus_${bus.vehicleno}_${stage}_${bIdx}`}
+                        style={{
+                          top: `calc(50% + ${topOffsetPx}px)`,
+                        }}
+                        className="absolute left-0 right-0 -translate-y-1/2 flex items-center z-20 pointer-events-none"
+                      >
+                        {/* 1) 좌측 말풍선 카드 (네이버 지도 스타일 Tooltip) */}
+                        <div className="w-[86px] min-w-[86px] flex items-center justify-end pr-2 shrink-0 pointer-events-auto z-20">
+                          <button
+                            type="button"
+                            onClick={() => setUserSelectedVehNo(bus.vehicleno)}
+                            title={`버스 #${bus.vehicleno} (${stationsAway !== undefined ? `${stationsAway}정류장 전` : badge.text})`}
+                            className={clsx(
+                              'relative flex items-center justify-between gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-bold shadow-2xs border transition-all cursor-pointer select-none text-left w-[74px]',
+                              isTarget
+                                ? clsx(
+                                    theme.speechBubbleActiveBg,
+                                    theme.speechBubbleActiveBorder,
+                                    theme.speechBubbleActiveText,
+                                    'scale-105 ring-2 ring-blue-300/80 shadow-xs'
+                                  )
+                                : stage === 'departed'
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100'
+                                : stage === 'approaching'
+                                ? 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
+                                : 'bg-white text-zinc-800 border-zinc-200 hover:bg-zinc-50'
+                            )}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <span className="tabular-nums font-extrabold truncate">
+                              #{cleanVeh}
+                            </span>
+                            <span
+                              className={clsx(
+                                'text-[8px] font-extrabold px-1 py-0.2 rounded shrink-0 shadow-2xs border',
+                                stationsAway !== undefined
+                                  ? (isTarget ? 'bg-white/20 text-white border-white/30' : 'bg-blue-100 text-blue-800 border-blue-200')
+                                  : badge.color
+                              )}
+                            >
+                              {statusText}
+                            </span>
+                            {/* 말풍선 꼬리 */}
+                            <div
+                              className={clsx(
+                                'absolute -right-[4px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-[3.5px] border-y-transparent border-l-[4px]',
+                                isTarget
+                                  ? theme.primary === '#DC2626'
+                                    ? 'border-l-red-600'
+                                    : theme.primary === '#16A34A'
+                                    ? 'border-l-emerald-600'
+                                    : theme.primary === '#D97706'
+                                    ? 'border-l-amber-500'
+                                    : 'border-l-blue-600'
+                                  : stage === 'departed'
+                                  ? 'border-l-indigo-300'
+                                  : stage === 'approaching'
+                                  ? 'border-l-amber-300'
+                                  : 'border-l-zinc-300'
+                              )}
+                            />
+                          </button>
+                        </div>
+
+                        {/* 2) 간선 위 버스 원형 아이콘 (간선 중심 x=100px과 완벽 일치) */}
+                        <div className="w-6 h-6 flex items-center justify-center shrink-0 pointer-events-auto z-30">
+                          <button
+                            type="button"
+                            onClick={() => setUserSelectedVehNo(bus.vehicleno)}
+                            title={`차량번호: ${bus.vehicleno}`}
+                            className={clsx(
+                              'w-5 h-5 rounded-full flex items-center justify-center text-white transition-all cursor-pointer shadow-md active:scale-95',
+                              isTarget
+                                ? 'bg-blue-600 ring-3 ring-blue-400 animate-pulse scale-110'
+                                : clsx(theme.speechBubbleActiveBg, 'hover:scale-105')
+                            )}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <Bus className="w-2.8 h-2.8 stroke-[2.5]" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </React.Fragment>
             );
           })}
         </div>
@@ -852,7 +1000,16 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
           )}
         </span>
       </div>
-      {targetMinutesLeft !== undefined ? (
+      {approachingBus?.stationsAway !== undefined ? (
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {targetMinutesLeft !== undefined && (
+            <span className="text-zinc-500 font-medium">약 {targetMinutesLeft}분 후</span>
+          )}
+          <span className="font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 shadow-2xs">
+            {approachingBus.stationsAway === 0 ? '곧 도착' : `${approachingBus.stationsAway}번째 전`}
+          </span>
+        </div>
+      ) : targetMinutesLeft !== undefined ? (
         <span className="font-bold text-blue-600 shrink-0 ml-2">
           약 {targetMinutesLeft}분 후 도착
         </span>
@@ -875,7 +1032,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
         minHeight={sheetHeight}
         defaultHeight={sheetHeight}
         maxHeight={windowHeight - 16}
-        zIndex={45}
+        zIndex={120}
         onClose={onClose}
         onExited={onExited}
       >
@@ -897,7 +1054,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
         }
       }}
       style={{
-        zIndex: 45,
+        zIndex: 120,
         transition: animate
           ? 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms ease-out'
           : 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms ease-out',

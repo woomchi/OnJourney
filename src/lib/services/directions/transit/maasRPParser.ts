@@ -269,7 +269,11 @@ export function parseMaasRPPath(
       lastStation?.arsID ||
       rp.endStationID ||
       rp.endID;
-    const busLocalBlID = rp.lane?.[0]?.busLocalBlID || rp.lane?.[0]?.busID || rp.lane?.[0]?.localBusID;
+    const odsayBusId = rp.lane?.[0]?.busID ? String(rp.lane[0].busID) : undefined;
+    const tagoRouteId = rp.lane?.[0]?.busLocalBlID || rp.lane?.[0]?.localBusID
+      ? String(rp.lane[0].busLocalBlID || rp.lane[0].localBusID)
+      : undefined;
+    const busLocalBlID = tagoRouteId || odsayBusId;
     const cityCodeRaw = rp.startStationCityCode || rp.lane?.[0]?.busCityCode;
 
     return {
@@ -291,16 +295,21 @@ export function parseMaasRPPath(
       startStationID: resolvedStartStationID,
       endStationID: resolvedEndStationID,
       realtimeStationId: resolvedStartStationID ? String(resolvedStartStationID) : undefined,
+      odsayBusId,
+      tagoRouteId,
       busLocalBlID: busLocalBlID ? String(busLocalBlID) : undefined,
       startCityCode: cityCodeRaw ? resolveTagoCode(cityCodeRaw) : undefined,
       startRegion: cityCodeRaw ? resolveBusRegion(cityCodeRaw) : undefined,
       startDateTime: rp.startDateTime,
       endDateTime: rp.endDateTime,
       waitingTime: rp.waitingTime,
+      intervalTime: rp.intervalTime ? Number(rp.intervalTime) : undefined,
       trainSubType: trainSubTypeStr,
       trainSpSeatYn: rp.trainSpSeatYn,
       trainSpSeatFare: rp.trainSpSeatPayment,
       busLaneColor: rp.lane?.[0]?.busLaneColor,
+      rawLineName: type === 'subway' ? (rp.lane?.[0]?.name || name) : undefined,
+      subwayCode: type === 'subway' ? (rp.lane?.[0]?.subwayCode || rp.lane?.[0]?.subwayCityCode) : undefined,
       passStopList: passStopStationList.length > 0 ? { stationList: passStopStationList } : undefined,
     };
   });

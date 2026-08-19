@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ArrowLeft, X, RefreshCw, Train, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Train, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSubwayLinePositions } from '@/hooks/useSubwayLinePositions';
 import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
@@ -30,7 +30,20 @@ interface SubwayColorTheme {
 function getSubwayLineTheme(subwayNmOrId: string): SubwayColorTheme {
   const clean = String(subwayNmOrId || '').trim();
 
-  if (clean === '1001' || clean === '1' || clean.includes('1호선')) {
+  // 1. 지방 도시철도
+  if (clean.includes('대전')) {
+    return {
+      primary: '#007448',
+      badgeBg: 'bg-[#007448]',
+      badgeText: 'text-white',
+      line: 'bg-[#007448]',
+      dot: 'border-[#007448]',
+      activeTabBg: 'bg-[#007448] text-white',
+    };
+  }
+
+  // 2. 수도권 1~9호선
+  if (clean === '1001' || clean === '1' || clean === '1호선' || clean === '수도권 1호선') {
     return {
       primary: '#0052A4',
       badgeBg: 'bg-[#0052A4]',
@@ -120,16 +133,6 @@ function getSubwayLineTheme(subwayNmOrId: string): SubwayColorTheme {
       activeTabBg: 'bg-[#8C7B58] text-white',
     };
   }
-  if (clean.includes('수인분당') || clean.includes('분당선')) {
-    return {
-      primary: '#F5A200',
-      badgeBg: 'bg-[#F5A200]',
-      badgeText: 'text-white',
-      line: 'bg-[#F5A200]',
-      dot: 'border-[#F5A200]',
-      activeTabBg: 'bg-[#D88D00] text-white',
-    };
-  }
   if (clean.includes('신분당')) {
     return {
       primary: '#D4003B',
@@ -138,6 +141,16 @@ function getSubwayLineTheme(subwayNmOrId: string): SubwayColorTheme {
       line: 'bg-[#D4003B]',
       dot: 'border-[#D4003B]',
       activeTabBg: 'bg-[#D4003B] text-white',
+    };
+  }
+  if (clean.includes('수인분당') || clean.includes('분당선')) {
+    return {
+      primary: '#F5A200',
+      badgeBg: 'bg-[#F5A200]',
+      badgeText: 'text-white',
+      line: 'bg-[#F5A200]',
+      dot: 'border-[#F5A200]',
+      activeTabBg: 'bg-[#D88D00] text-white',
     };
   }
   if (clean.includes('경의중앙')) {
@@ -254,14 +267,22 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   const initialDirection = wayCode === '2' ? '1' : '0';
   const [selectedDirection, setSelectedDirection] = useState<'0' | '1'>(initialDirection);
 
+  const lineTarget = subwayNm || subwayId || '2호선';
+  const isDaejeon = lineTarget.includes('대전') || cleanTargetStation === '대전역' || cleanTargetStation === '대전';
+
+  // 뷰 모드: 'timetable' (시간표 리스트) vs 'map' (노선도)
+  const [viewMode, setViewMode] = useState<'timetable' | 'map'>(isDaejeon ? 'timetable' : 'map');
+
   useEffect(() => {
     if (isOpen) {
       setSelectedDirection(wayCode === '2' ? '1' : '0');
       setUserSelectedTrainNo(null);
+      if (isDaejeon) {
+        setViewMode('timetable');
+      }
     }
-  }, [isOpen, wayCode]);
+  }, [isOpen, wayCode, isDaejeon]);
 
-  const lineTarget = subwayNm || subwayId || '2호선';
   const theme = useMemo(() => getSubwayLineTheme(lineTarget), [lineTarget]);
 
   const { data, isLoading, isFetching, refetch } = useSubwayLinePositions({
@@ -283,10 +304,18 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const targetStationNodeRef = useRef<HTMLDivElement>(null);
 
-  // 방향별 라벨 산출 (2호선은 내선/외선, 기타는 상행/하행)
+  // 방향별 라벨 산출 (2호선은 내선/외선, 대전은 판암/반석, 기타는 상행/하행)
   const isLine2 = lineTarget === '1002' || lineTarget === '2' || lineTarget.includes('2호선');
-  const upLabel = isLine2 ? '내선 순환' : '상행';
-  const downLabel = isLine2 ? '외선 순환' : '하행';
+  const upLabel = isLine2
+    ? '내선 순환'
+    : isDaejeon
+    ? '판암 방면 (상행)'
+    : '상행';
+  const downLabel = isLine2
+    ? '외선 순환'
+    : isDaejeon
+    ? '반석 방면 (하행)'
+    : '하행';
 
   // 정차역 목록 (진행 방향에 맞춰 순서 정렬)
   // - 일반 노선: 기본 DB는 하행(인천/신창 방면) 순서이므로 상행('0')일 때 반전(reverse)
@@ -298,6 +327,15 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     const shouldReverse = isLine2 ? selectedDirection === '1' : selectedDirection === '0';
     return shouldReverse ? stationsCopy.reverse() : stationsCopy;
   }, [data?.stations, selectedDirection, isLine2]);
+
+  // 대전 시간표 필터링 (선택된 방향에 맞는 현재 시각 이후 열차 목록)
+  const filteredTimetable = useMemo(() => {
+    if (!data?.timetable) return [];
+    return data.timetable.filter((t) => t.drctType === selectedDirection);
+  }, [data?.timetable, selectedDirection]);
+
+  // 현재 가장 빠른 다음 열차 (시간표 기준)
+  const upcomingTimetableTrain = filteredTimetable.length > 0 ? filteredTimetable[0] : null;
 
   // 현재 활성화된 운행 계통 데이터
   const activeBranchConfig = useMemo(() => {
@@ -558,24 +596,16 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center">
           <button
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
             title="실시간 위치 새로고침"
-            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors disabled:opacity-50 cursor-pointer"
+            className="p-1 -mr-0.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors disabled:opacity-50 cursor-pointer"
             onPointerDown={(e) => e.stopPropagation()}
           >
-            <RefreshCw className={clsx('w-3.5 h-3.5', isFetching && 'animate-spin')} />
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <X className="w-4 h-4" />
+            <RefreshCw className={clsx('w-4 h-4', isFetching && 'animate-spin')} />
           </button>
         </div>
       </div>
@@ -619,6 +649,38 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         </div>
       )}
 
+      {/* 2.5층: 뷰 모드 토글 (시간표 보기 vs 노선도 보기 - 대전 등 지원) */}
+      {(isDaejeon || (data?.timetable && data.timetable.length > 0)) && (
+        <div className="px-3 pb-2">
+          <div className="flex bg-zinc-100 p-0.5 rounded-xl text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setViewMode('timetable')}
+              className={clsx(
+                'flex-1 py-1 rounded-lg transition-all text-center cursor-pointer',
+                viewMode === 'timetable'
+                  ? 'bg-white text-emerald-700 shadow-2xs font-extrabold'
+                  : 'text-zinc-500 hover:text-zinc-800'
+              )}
+            >
+              시간표 보기 ({filteredTimetable.length}대)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('map')}
+              className={clsx(
+                'flex-1 py-1 rounded-lg transition-all text-center cursor-pointer',
+                viewMode === 'map'
+                  ? 'bg-white text-zinc-900 shadow-2xs font-extrabold'
+                  : 'text-zinc-500 hover:text-zinc-800'
+              )}
+            >
+              노선도 보기
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 3층: 방향 전환 탭 */}
       <div className="flex px-3 pb-2.5 gap-1.5">
         <button
@@ -627,7 +689,9 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
           className={clsx(
             'flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer select-none',
             selectedDirection === '0'
-              ? 'bg-blue-600 text-white shadow-xs'
+              ? isDaejeon
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-blue-600 text-white shadow-xs'
               : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70'
           )}
           onPointerDown={(e) => e.stopPropagation()}
@@ -641,7 +705,9 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
           className={clsx(
             'flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer select-none',
             selectedDirection === '1'
-              ? 'bg-blue-600 text-white shadow-xs'
+              ? isDaejeon
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-blue-600 text-white shadow-xs'
               : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70'
           )}
           onPointerDown={(e) => e.stopPropagation()}
@@ -927,6 +993,127 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     </div>
   );
 
+  // ─── 2. 시간표(Timetable) 리스트 뷰 바디 ───────────────────────────────────
+  const timetableContent = (
+    <div className="flex-1 overflow-y-auto px-3.5 py-3 space-y-3 bg-zinc-50/50 scrollbar-thin select-none">
+      {/* 1. 상단 안내 및 다음 열차 하이라이트 배너 */}
+      <div className="rounded-2xl p-3.5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-sm flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Train className="w-4 h-4 text-emerald-200" />
+            <span className="text-xs font-bold text-emerald-100">다음 출발 열차</span>
+          </div>
+          <span className="text-[10px] font-semibold bg-emerald-800/60 px-2 py-0.5 rounded-full text-emerald-200">
+            대전교통공사 공식 시간표
+          </span>
+        </div>
+
+        {upcomingTimetableTrain ? (
+          <div className="flex items-end justify-between pt-1">
+            <div>
+              <div className="text-2xl font-black tracking-tight flex items-baseline gap-2">
+                <span>{upcomingTimetableTrain.depTime}</span>
+                <span className="text-sm font-bold text-emerald-200">
+                  {upcomingTimetableTrain.destStation}행
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-100/90 font-medium">
+                열차 #{upcomingTimetableTrain.trainNo}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white text-emerald-800 text-xs font-extrabold shadow-sm animate-pulse">
+                {upcomingTimetableTrain.statusText}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="py-2 text-center text-xs text-emerald-100">
+            현재 이후 출발 예정 열차가 없습니다.
+          </div>
+        )}
+      </div>
+
+      {/* 2. 현재 시간 기준 이후 출발 열차 목록 리스트다운 */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-xs font-extrabold text-zinc-700 flex items-center gap-1.5">
+            <span>이후 출발 시간표</span>
+            <span className="text-[10px] font-medium text-zinc-400">
+              (현재 시각 이후 {filteredTimetable.length}대)
+            </span>
+          </h3>
+          <span className="text-[10px] text-zinc-400">출발 시각순</span>
+        </div>
+
+        {filteredTimetable.length === 0 ? (
+          <div className="py-12 text-center text-xs text-zinc-400 bg-white rounded-2xl border border-zinc-100 p-6">
+            운행 예정인 열차가 없습니다.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {filteredTimetable.map((item, idx) => {
+              const isFirst = idx === 0;
+              return (
+                <div
+                  key={`tt_${item.trainNo}_${item.depTime}_${idx}`}
+                  className={clsx(
+                    'flex items-center justify-between p-3 rounded-xl bg-white border transition-all',
+                    isFirst
+                      ? 'border-emerald-300 ring-2 ring-emerald-100 shadow-2xs'
+                      : 'border-zinc-100 hover:border-zinc-200'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-5 text-center text-[11px] font-bold text-zinc-400">
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-extrabold text-zinc-900 font-mono">
+                          {item.depTime}
+                        </span>
+                        <span
+                          className={clsx(
+                            'px-2 py-0.5 rounded-full text-[10px] font-extrabold',
+                            isFirst
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-zinc-100 text-zinc-700'
+                          )}
+                        >
+                          {item.destStation}행
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-medium text-zinc-400">
+                        열차 #{item.trainNo}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex flex-col items-end gap-0.5">
+                    <span
+                      className={clsx(
+                        'text-xs font-black',
+                        isFirst ? 'text-emerald-600' : 'text-zinc-700'
+                      )}
+                    >
+                      {item.statusText}
+                    </span>
+                    {isFirst && (
+                      <span className="text-[9px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded">
+                        다음 열차
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   // ─── 3. 패널 풋터 (행선지 포함 요약 바) ──────────────────────────────────
   const footerContent = (
     <div className="px-3 py-2 border-t border-zinc-100 bg-zinc-50/90 flex items-center justify-between text-[10px] text-zinc-500 shrink-0 select-none">
@@ -941,7 +1128,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
                   [{activeHighlightedTrain.destinationName}]
                 </span>
               )}
-              <strong className="text-blue-700">
+              <strong className={isDaejeon ? 'text-emerald-700' : 'text-blue-700'}>
                 #{activeHighlightedTrain.train.trainNo}
               </strong>
               {activeHighlightedTrain.stationsAway !== undefined && (
@@ -955,14 +1142,25 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
                 </span>
               )}
             </span>
+          ) : upcomingTimetableTrain ? (
+            <span className="font-medium text-zinc-700">
+              다음 열차:{' '}
+              <strong className="text-emerald-700 font-extrabold">
+                {upcomingTimetableTrain.depTime} ({upcomingTimetableTrain.destStation}행)
+              </strong>
+            </span>
           ) : (
-            <span>실시간 운행 (30초 자동 갱신)</span>
+            <span>시간표 운행 안내</span>
           )}
         </span>
       </div>
       {activeHighlightedTrain ? (
-        <span className="font-bold text-blue-600 shrink-0 ml-2">
+        <span className={clsx('font-bold shrink-0 ml-2', isDaejeon ? 'text-emerald-600' : 'text-blue-600')}>
           {activeHighlightedTrain.eta.text}
+        </span>
+      ) : upcomingTimetableTrain ? (
+        <span className="font-bold text-emerald-600 shrink-0 ml-2">
+          {upcomingTimetableTrain.statusText}
         </span>
       ) : targetStatusText ? (
         <span className="font-bold text-blue-600 shrink-0 ml-2">
@@ -971,6 +1169,11 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
       ) : null}
     </div>
   );
+
+  const mainBodyContent =
+    viewMode === 'timetable' && (isDaejeon || (data?.timetable && data.timetable.length > 0))
+      ? timetableContent
+      : listContent;
 
   // 모바일 UI (CustomBottomSheet)
   if (isMobile) {
@@ -983,13 +1186,13 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         minHeight={sheetHeight}
         defaultHeight={sheetHeight}
         maxHeight={windowHeight - 16}
-        zIndex={45}
+        zIndex={120}
         onClose={onClose}
         onExited={onExited}
       >
         <div className="flex flex-col relative w-full h-full min-h-0 bg-white pb-6">
           {headerContent}
-          {listContent}
+          {mainBodyContent}
           {footerContent}
         </div>
       </CustomBottomSheet>
@@ -1005,7 +1208,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         }
       }}
       style={{
-        zIndex: 45,
+        zIndex: 120,
         transition: animate
           ? 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1), opacity 400ms ease-out'
           : 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1), opacity 300ms ease-out',
@@ -1020,7 +1223,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     >
       <div className="flex flex-col h-full bg-white relative">
         {headerContent}
-        {listContent}
+        {mainBodyContent}
         {footerContent}
       </div>
     </div>

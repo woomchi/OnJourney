@@ -41,31 +41,55 @@ export const SUBWAY_LINE_MAP: Record<string, string> = {
 // ─── 2. 위치 API 전용 노선명 해석 ─────────────────────────────────────────
 
 /**
- * subwayId 또는 노선명을 서울시 realtimePosition API가 요구하는 subwayNm으로 표준 변환합니다.
+ * subwayId 또는 노선명을 표준 subwayNm으로 변환합니다.
+ * 지방 노선(대전, 부산, 대구, 광주 등)과 수도권 특수 노선을 일반 호선 번호보다 최우선으로 검사합니다.
  */
 export function resolveSubwayNameForApi(subwayIdOrName: string): string {
   const clean = String(subwayIdOrName || '').trim();
   if (!clean) return '';
 
-  if (clean === '1001' || clean === '1' || clean.includes('1호선')) return '1호선';
-  if (clean === '1002' || clean === '2' || clean.includes('2호선')) return '2호선';
-  if (clean === '1003' || clean === '3' || clean.includes('3호선')) return '3호선';
-  if (clean === '1004' || clean === '4' || clean.includes('4호선')) return '4호선';
-  if (clean === '1005' || clean === '5' || clean.includes('5호선')) return '5호선';
-  if (clean === '1006' || clean === '6' || clean.includes('6호선')) return '6호선';
-  if (clean === '1007' || clean === '7' || clean.includes('7호선')) return '7호선';
-  if (clean === '1008' || clean === '8' || clean.includes('8호선')) return '8호선';
-  if (clean === '1009' || clean === '9' || clean.includes('9호선')) return '9호선';
-  if (clean === '1063' || clean.includes('경의중앙') || clean.includes('경의') || clean.includes('중앙선')) return '경의중앙선';
+  // 1. 지방 도시철도 우선 검사 (수도권 단순 호선과의 혼선 방지)
+  if (clean.includes('대전')) {
+    return '대전1호선';
+  }
+  if (clean.includes('부산')) {
+    const m = clean.match(/\d/);
+    return m ? `부산${m[0]}호선` : '부산1호선';
+  }
+  if (clean.includes('대구')) {
+    const m = clean.match(/\d/);
+    return m ? `대구${m[0]}호선` : '대구1호선';
+  }
+  if (clean.includes('광주')) {
+    return '광주1호선';
+  }
+
+  // 2. 수도권 특수 노선 및 경전철
+  if (clean === '1069' || clean.includes('인천1') || clean.includes('인천 1')) return '인천1호선';
+  if (clean === '1070' || clean.includes('인천2') || clean.includes('인천 2')) return '인천2호선';
+  if (clean === '1063' || clean.includes('경의중앙') || clean.includes('경의선') || clean.includes('중앙선')) return '경의중앙선';
   if (clean === '1065' || clean.includes('공항철도') || clean.includes('공항')) return '공항철도';
   if (clean === '1067' || clean.includes('경춘')) return '경춘선';
-  if (clean === '1075' || clean.includes('수인분당') || clean.includes('분당선') || clean.includes('수인선')) return '수인분당선';
   if (clean === '1077' || clean.includes('신분당')) return '신분당선';
+  if (clean === '1075' || clean.includes('수인분당') || clean.includes('분당선') || clean.includes('수인선')) return '수인분당선';
   if (clean === '1081' || clean.includes('경강')) return '경강선';
   if (clean === '1092' || clean.includes('우이신설') || clean.includes('우이')) return '우이신설선';
   if (clean === '1093' || clean.includes('서해')) return '서해선';
-  if (clean.includes('신림')) return '신림선';
+  if (clean.includes('신림') || clean === '1095') return '신림선';
+  if (clean.includes('에버') || clean.includes('용인')) return '에버라인';
+  if (clean.includes('의정부')) return '의정부경전철';
   if (clean.includes('GTX-A') || clean.includes('gtx-a') || clean === '1094') return 'GTX-A';
+
+  // 3. 수도권 1~9호선 (엄격 매칭)
+  if (clean === '1001' || clean === '1' || clean === '1호선' || clean === '수도권 1호선') return '1호선';
+  if (clean === '1002' || clean === '2' || clean === '2호선' || clean === '수도권 2호선') return '2호선';
+  if (clean === '1003' || clean === '3' || clean === '3호선' || clean === '수도권 3호선') return '3호선';
+  if (clean === '1004' || clean === '4' || clean === '4호선' || clean === '수도권 4호선') return '4호선';
+  if (clean === '1005' || clean === '5' || clean === '5호선' || clean === '수도권 5호선') return '5호선';
+  if (clean === '1006' || clean === '6' || clean === '6호선' || clean === '수도권 6호선') return '6호선';
+  if (clean === '1007' || clean === '7' || clean === '7호선' || clean === '수도권 7호선') return '7호선';
+  if (clean === '1008' || clean === '8' || clean === '8호선' || clean === '수도권 8호선') return '8호선';
+  if (clean === '1009' || clean === '9' || clean === '9호선' || clean === '수도권 9호선') return '9호선';
 
   if (/^\d+호선$/.test(clean)) return clean;
   if (/^\d+$/.test(clean) && parseInt(clean, 10) >= 1 && parseInt(clean, 10) <= 9) {
@@ -83,107 +107,87 @@ export function resolveSubwayNameForApi(subwayIdOrName: string): string {
 export function resolveCandidateLineCodes(subwayId: string): string[] {
   const cleanId = String(subwayId || '').trim();
 
-  // 1호선
-  if (cleanId === '1001' || cleanId === '1' || cleanId.includes('1호선')) {
-    return ['1', '1001', '1001_경부', '1001_경인', '1001_경원', '1001_장항', '1호선_경부선', '1호선_경인선', '1호선_장항선', '1호선_경원선', '경원선'];
-  }
-  // 2호선
-  if (cleanId === '1002' || cleanId === '2' || cleanId.includes('2호선')) {
-    return ['2', '1002'];
-  }
-  // 3호선
-  if (cleanId === '1003' || cleanId === '3' || cleanId.includes('3호선')) {
-    return ['3', '1003', '3호선_일산선', '1003_일산', '일산선'];
-  }
-  // 4호선
-  if (cleanId === '1004' || cleanId === '4' || cleanId.includes('4호선')) {
-    return ['4', '1004', '4호선_과천안산선', '1004_과천안산', '과천선', '안산선'];
-  }
-  // 5호선
-  if (cleanId === '1005' || cleanId === '5' || cleanId.includes('5호선')) {
-    return ['5', '1005'];
-  }
-  // 6호선
-  if (cleanId === '1006' || cleanId === '6' || cleanId.includes('6호선')) {
-    return ['6', '1006'];
-  }
-  // 7호선
-  if (cleanId === '1007' || cleanId === '7' || cleanId.includes('7호선')) {
-    return ['7', '1007'];
-  }
-  // 8호선
-  if (cleanId === '1008' || cleanId === '8' || cleanId.includes('8호선')) {
-    return ['8', '1008'];
-  }
-  // 9호선
-  if (cleanId === '1009' || cleanId === '9' || cleanId.includes('9호선')) {
-    return ['9', '1009'];
-  }
-  // 경의중앙선
-  if (cleanId === '1063' || cleanId.includes('경의중앙') || cleanId.includes('경의선') || cleanId.includes('중앙선')) {
-    return ['1063', '경의중앙선', '경의선', '중앙선'];
-  }
-  // 공항철도
-  if (cleanId === '1065' || cleanId.includes('공항철도') || cleanId.includes('공항')) {
-    return ['1065', '공항철도'];
-  }
-  // 경춘선
-  if (cleanId === '1067' || cleanId.includes('경춘')) {
-    return ['1067', '경춘선'];
-  }
-  // 수인분당선
-  if (cleanId === '1075' || cleanId.includes('수인분당') || cleanId.includes('분당선') || cleanId.includes('수인선')) {
-    return ['1075', '수인분당선', '분당선', '수인선'];
-  }
-  // 신분당선
-  if (cleanId === '1077' || cleanId.includes('신분당')) {
-    return ['1077', '신분당선'];
-  }
-  // 경강선
-  if (cleanId === '1081' || cleanId.includes('경강')) {
-    return ['1081', '경강선'];
-  }
-  // 서해선
-  if (cleanId === '1093' || cleanId.includes('서해')) {
-    return ['1093', '서해선'];
-  }
-  // 우이신설선
-  if (cleanId === '1092' || cleanId.includes('우이')) {
-    return ['1092', '우이신설선'];
-  }
-  // 인천 1호선
-  if (cleanId === '1069' || cleanId.includes('인천1') || cleanId.includes('인천 1')) {
-    return ['1069', '인천1호선', '인천 1호선'];
-  }
-  // 인천 2호선
-  if (cleanId === '1070' || cleanId.includes('인천2') || cleanId.includes('인천 2')) {
-    return ['1070', '인천2호선', '인천 2호선'];
-  }
-  // 에버라인 (용인경전철)
-  if (cleanId.includes('에버') || cleanId.includes('용인')) {
-    return ['에버라인', '용인경전철'];
-  }
-  // 의정부경전철
-  if (cleanId.includes('의정부')) {
-    return ['의정부경전철'];
-  }
-  // 부산 1~4호선
-  if (cleanId.includes('부산')) {
-    const m = cleanId.match(/\d/);
-    if (m) return [`부산${m[0]}호선`];
-  }
-  // 대구 1~3호선
-  if (cleanId.includes('대구')) {
-    const m = cleanId.match(/\d/);
-    if (m) return [`대구${m[0]}호선`];
-  }
-  // 대전 1호선
+  // 1. 지방 도시철도 우선
   if (cleanId.includes('대전')) {
     return ['대전1호선'];
   }
-  // 광주 1호선
+  if (cleanId.includes('부산')) {
+    const m = cleanId.match(/\d/);
+    return m ? [`부산${m[0]}호선`] : ['부산1호선'];
+  }
+  if (cleanId.includes('대구')) {
+    const m = cleanId.match(/\d/);
+    return m ? [`대구${m[0]}호선`] : ['대구1호선'];
+  }
   if (cleanId.includes('광주')) {
     return ['광주1호선'];
+  }
+
+  // 2. 수도권 특수 노선
+  if (cleanId === '1063' || cleanId.includes('경의중앙') || cleanId.includes('경의선') || cleanId.includes('중앙선')) {
+    return ['1063', '경의중앙선', '경의선', '중앙선'];
+  }
+  if (cleanId === '1065' || cleanId.includes('공항철도') || cleanId.includes('공항')) {
+    return ['1065', '공항철도'];
+  }
+  if (cleanId === '1067' || cleanId.includes('경춘')) {
+    return ['1067', '경춘선'];
+  }
+  if (cleanId === '1077' || cleanId.includes('신분당')) {
+    return ['1077', '신분당선'];
+  }
+  if (cleanId === '1075' || cleanId.includes('수인분당') || cleanId.includes('분당선') || cleanId.includes('수인선')) {
+    return ['1075', '수인분당선', '분당선', '수인선'];
+  }
+  if (cleanId === '1081' || cleanId.includes('경강')) {
+    return ['1081', '경강선'];
+  }
+  if (cleanId === '1093' || cleanId.includes('서해')) {
+    return ['1093', '서해선'];
+  }
+  if (cleanId === '1092' || cleanId.includes('우이')) {
+    return ['1092', '우이신설선'];
+  }
+  if (cleanId === '1069' || cleanId.includes('인천1') || cleanId.includes('인천 1')) {
+    return ['1069', '인천1호선', '인천 1호선'];
+  }
+  if (cleanId === '1070' || cleanId.includes('인천2') || cleanId.includes('인천 2')) {
+    return ['1070', '인천2호선', '인천 2호선'];
+  }
+  if (cleanId.includes('에버') || cleanId.includes('용인')) {
+    return ['에버라인', '용인경전철'];
+  }
+  if (cleanId.includes('의정부')) {
+    return ['의정부경전철'];
+  }
+
+  // 3. 수도권 1~9호선
+  if (cleanId === '1001' || cleanId === '1' || cleanId === '1호선' || cleanId === '수도권 1호선') {
+    return ['1', '1001', '1001_경부', '1001_경인', '1001_경원', '1001_장항', '1호선_경부선', '1호선_경인선', '1호선_장항선', '1호선_경원선', '경원선'];
+  }
+  if (cleanId === '1002' || cleanId === '2' || cleanId === '2호선' || cleanId === '수도권 2호선') {
+    return ['2', '1002'];
+  }
+  if (cleanId === '1003' || cleanId === '3' || cleanId === '3호선' || cleanId === '수도권 3호선') {
+    return ['3', '1003', '3호선_일산선', '1003_일산', '일산선'];
+  }
+  if (cleanId === '1004' || cleanId === '4' || cleanId === '4호선' || cleanId === '수도권 4호선') {
+    return ['4', '1004', '4호선_과천안산선', '1004_과천안산', '과천선', '안산선'];
+  }
+  if (cleanId === '1005' || cleanId === '5' || cleanId === '5호선' || cleanId === '수도권 5호선') {
+    return ['5', '1005'];
+  }
+  if (cleanId === '1006' || cleanId === '6' || cleanId === '6호선' || cleanId === '수도권 6호선') {
+    return ['6', '1006'];
+  }
+  if (cleanId === '1007' || cleanId === '7' || cleanId === '7호선' || cleanId === '수도권 7호선') {
+    return ['7', '1007'];
+  }
+  if (cleanId === '1008' || cleanId === '8' || cleanId === '8호선' || cleanId === '수도권 8호선') {
+    return ['8', '1008'];
+  }
+  if (cleanId === '1009' || cleanId === '9' || cleanId === '9호선' || cleanId === '수도권 9호선') {
+    return ['9', '1009'];
   }
 
   // 기본 단일 호선 번호 추출 시도
@@ -197,21 +201,35 @@ export function resolveCandidateLineCodes(subwayId: string): string[] {
 
 /**
  * 실시간 도착 API의 row.subwayId가 요청된 targetSubwayId와 일치하는지 판별합니다.
+ * 지방 노선과 수도권 노선이 오매칭되지 않도록 지역 일치 여부를 상호 검증합니다.
  */
-export function isMatchingSubwayId(rowSubwayId: string | number | undefined, targetSubwayId: string | undefined): boolean {
+export function isMatchingSubwayId(
+  rowSubwayId: string | number | undefined,
+  targetSubwayId: string | undefined
+): boolean {
   if (!targetSubwayId) return true;
   const cleanTarget = String(targetSubwayId).trim();
   const cleanRow = String(rowSubwayId || '').trim();
 
   if (!cleanRow) return true;
   if (cleanRow === cleanTarget) return true;
-  if (parseInt(cleanRow, 10) === parseInt(cleanTarget, 10)) return true;
 
   const targetName = resolveSubwayNameForApi(cleanTarget);
   const rowName = resolveSubwayNameForApi(cleanRow);
 
+  // 한쪽이 대전/부산/대구/광주이고 다른 한쪽이 수도권 1~9호선이면 일치하지 않음
+  const isTargetRegional = /^(대전|부산|대구|광주)/.test(targetName);
+  const isRowRegional = /^(대전|부산|대구|광주)/.test(rowName);
+  if (isTargetRegional !== isRowRegional) {
+    return false;
+  }
+
   if (targetName && rowName && targetName === rowName) {
     return true;
+  }
+
+  if (parseInt(cleanRow, 10) === parseInt(cleanTarget, 10)) {
+    return !isTargetRegional && !isRowRegional;
   }
 
   return false;

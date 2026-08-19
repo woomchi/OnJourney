@@ -6,6 +6,8 @@ export interface UseRealtimeTransitOptions {
   stationId: string;
   stationName?: string;
   cityCode?: string;
+  destination?: string;
+  headsign?: string;
   lat?: number;
   lng?: number;
   enabled?: boolean;
@@ -17,13 +19,15 @@ export function useRealtimeTransit({
   stationId,
   stationName,
   cityCode,
+  destination,
+  headsign,
   lat,
   lng,
   enabled = true,
   refetchInterval = false,
 }: UseRealtimeTransitOptions) {
   const query = useQuery({
-    queryKey: ['realtimeBus', region, stationId, stationName, cityCode, lat, lng],
+    queryKey: ['realtimeBus', region, stationId, stationName, cityCode, destination, headsign, lat, lng],
     queryFn: async (): Promise<NormalizedRealtimeData> => {
       const fallbackData: NormalizedRealtimeData = {
         stationId,
@@ -38,6 +42,8 @@ export function useRealtimeTransit({
         const params = new URLSearchParams();
         if (stationName) params.append('stationName', stationName);
         if (cityCode) params.append('cityCode', cityCode);
+        if (destination) params.append('destination', destination);
+        if (headsign) params.append('headsign', headsign);
         if (lat) params.append('lat', String(lat));
         if (lng) params.append('lng', String(lng));
 
@@ -46,6 +52,7 @@ export function useRealtimeTransit({
         const res = await fetch(url, {
           headers: { Accept: 'application/json' },
           signal: AbortSignal.timeout(6000),
+          cache: 'no-store',
         });
 
         if (!res.ok) {
@@ -66,7 +73,7 @@ export function useRealtimeTransit({
     enabled: Boolean(enabled && stationId),
     refetchInterval,
     refetchIntervalInBackground: false, // 탭 비활성화 시 자동 갱신 일시정지
-    staleTime: 10000, // 10초 이내 중복 호출 방지 및 캐시 활용
+    staleTime: 5000, // 5초 이내 중복 호출 방지 및 신선한 실시간성 유지
     retry: 1, // 1회만 재시도
     retryDelay: 500, // 0.5초 간격
   });

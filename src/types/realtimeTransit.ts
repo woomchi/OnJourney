@@ -2,7 +2,7 @@
  * 실시간 대중교통 정보 정규화 타입 정의
  */
 
-export type DataSourceType = 'tago' | 'gyeonggi' | 'busan' | 'incheon' | 'odsay';
+export type DataSourceType = 'tago' | 'gyeonggi' | 'busan' | 'incheon' | 'daejeon' | 'odsay';
 
 export type BusType = 'normal' | 'express' | 'limited' | 'circulation';
 
@@ -18,6 +18,8 @@ export interface ArrivalBusItem {
   vehicleId?: string;               // 차량 ID
   remainSeats?: number;             // 잔여 좌석 수 (광역/직행좌석버스 특화)
   crowded?: string;                 // 혼잡도 정보
+  isWaiting?: boolean;              // 차고지/기점 출발 대기 여부
+  plannedDepartureTime?: string;    // 출발 예정 시각 (예: "17:10")
 }
 
 export interface NormalizedRealtimeData {

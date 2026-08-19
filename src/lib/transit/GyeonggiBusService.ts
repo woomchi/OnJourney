@@ -225,7 +225,7 @@ export class GyeonggiBusService {
         method: 'GET',
         headers: { Accept: 'application/json, text/xml, */*' },
         signal: AbortSignal.timeout(3000),
-        next: { revalidate: 15 },
+        cache: 'no-store',
       }).catch(() => null);
 
       // 2. v2 응답이 정상이 아니면 v1 엔드포인트로 Fallback
@@ -235,7 +235,7 @@ export class GyeonggiBusService {
           method: 'GET',
           headers: { Accept: 'application/json, text/xml, */*' },
           signal: AbortSignal.timeout(3000),
-          next: { revalidate: 15 },
+          cache: 'no-store',
         }).catch(() => null);
       }
 

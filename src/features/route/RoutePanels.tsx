@@ -272,7 +272,7 @@ export function RoutePanels() {
       {/* 대안 경로 패널 */}
       {(alternativePlaces || cachedAlternative) && (
         <AlternativeRoutePanel
-          isOpen={showAlternative && !isSearchMode && !showSubwayLineMap}
+          isOpen={showAlternative && !isSearchMode && !showSubwayLineMap && !showBusLineMap}
           originPlace={(alternativePlaces || cachedAlternative)!.originPlace}
           destPlace={(alternativePlaces || cachedAlternative)!.destPlace}
           onClose={(isCancel?: boolean) => {

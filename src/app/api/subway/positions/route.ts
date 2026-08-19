@@ -6,6 +6,10 @@ import {
   resolveSubwayNameForPositionApi,
 } from '@/lib/services/subwayPositionService';
 import { getLineStationListWithBranches } from '@/lib/services/subwayService';
+import {
+  fetchDaejeonStationUpcomingTimetable,
+  isDaejeonSubwayStation,
+} from '@/lib/services/daejeonSubwayService';
 import { SubwayLinePositionsData } from '@/types/journey';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +32,21 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     validatedParams.stationName
   );
 
+  // 3. 대전 1호선인 경우 현재 시각 기준 이후 열차 시간표 리스트 조회
+  let timetable = undefined;
+  const isDaejeon =
+    subwayNm.includes('대전') ||
+    (validatedParams.stationName && isDaejeonSubwayStation(validatedParams.stationName));
+
+  if (isDaejeon) {
+    const targetStation = validatedParams.stationName || '대전역';
+    try {
+      timetable = await fetchDaejeonStationUpcomingTimetable(targetStation);
+    } catch (e) {
+      console.warn('[api/subway/positions] 대전 시간표 조회 실패:', e);
+    }
+  }
+
   const responseData: SubwayLinePositionsData = {
     subwayId: validatedParams.subwayId || '',
     subwayNm,
@@ -35,6 +54,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     selectedBranchId,
     stations,
     positions,
+    timetable,
     timestamp: Date.now(),
   };
 

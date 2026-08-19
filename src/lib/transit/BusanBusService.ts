@@ -36,7 +36,7 @@ export class BusanBusService {
       const res = await fetch(requestUrl, {
         method: 'GET',
         signal: AbortSignal.timeout(3000),
-        next: { revalidate: 15 },
+        cache: 'no-store',
       });
 
       if (!res.ok) {

@@ -237,7 +237,16 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     (targetBusStep as any)?.startStationId ||
     (targetBusStep as any)?.nodeId;
   const targetBusStationId = rawStationId ? String(rawStationId) : undefined;
+  const targetBusStationName = targetBusStep?.startName || originPlace?.place_name;
   const targetBusName = targetBusStep?.name || '';
+  const targetOdsayBusId = (targetBusStep as any)?.odsayBusId || (targetBusStep as any)?.busID;
+  const targetTagoRouteId = (targetBusStep as any)?.tagoRouteId || (targetBusStep as any)?.busLocalBlID;
+  const targetBusId = targetOdsayBusId || targetTagoRouteId;
+  const targetBusType = (targetBusStep as any)?.busType;
+  const targetBusDestination = targetBusStep?.endName;
+  const targetBusHeadsign = targetBusStep?.headsign;
+  const targetBusIntervalTime = (targetBusStep as any)?.intervalTime;
+  const targetBusStartDateTime = (targetBusStep as any)?.startDateTime;
   const inferredRegion = (targetBusStep as any)?.startRegion || inferRegionFromPlace(originPlace);
   const targetBusLat = (targetBusStep as any)?.startY || (targetBusStep as any)?.startLat || (originPlace as any)?.y || (originPlace as any)?.lat;
   const targetBusLng = (targetBusStep as any)?.startX || (targetBusStep as any)?.startLng || (originPlace as any)?.x || (originPlace as any)?.lng;
@@ -332,13 +341,25 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
                 {/* 타깃 이동 수단 실시간 수직 독립 레이아웃 */}
                 {targetBusStep && targetBusName ? (
-                  <div className="flex items-center pt-0.5">
+                  <div
+                    className="flex items-center pt-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
                     <SegmentBusRealtimeChip
                       region={inferredRegion}
                       stationId={targetBusStationId}
-                      stationName={originPlace?.place_name}
+                      stationName={targetBusStationName}
                       cityCode={targetCityCode}
                       busNo={targetBusName}
+                      busId={targetBusId}
+                      odsayBusId={targetOdsayBusId}
+                      tagoRouteId={targetTagoRouteId}
+                      destination={targetBusDestination}
+                      headsign={targetBusHeadsign}
+                      intervalTime={targetBusIntervalTime}
+                      startDateTime={targetBusStartDateTime}
+                      busType={targetBusType}
                       busColor={targetBusStep?.color}
                       lat={targetBusLat ? Number(targetBusLat) : undefined}
                       lng={targetBusLng ? Number(targetBusLng) : undefined}
@@ -354,7 +375,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                     <SegmentSubwayRealtimeChip
                       stationName={targetSubwayStationName}
                       wayCode={targetSubwayStep.wayCode !== undefined ? String(targetSubwayStep.wayCode) : undefined}
-                      subwayId={targetSubwayStep.name}
+                      subwayId={targetSubwayStep.rawLineName || targetSubwayStep.name}
                       destination={targetSubwayStep.endName}
                       headsign={targetSubwayStep.headsign}
                       variant="sidebar"
@@ -669,13 +690,25 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
             {/* 타깃 이동 수단 실시간 수직 독립 레이아웃 */}
             {targetBusStep && targetBusName ? (
-              <div className="flex items-center pt-0.5">
+              <div
+                className="flex items-center pt-0.5"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
                 <SegmentBusRealtimeChip
                   region={inferredRegion}
                   stationId={targetBusStationId}
-                  stationName={originPlace?.place_name}
+                  stationName={targetBusStationName}
                   cityCode={targetCityCode}
                   busNo={targetBusName}
+                  busId={targetBusId}
+                  odsayBusId={targetOdsayBusId}
+                  tagoRouteId={targetTagoRouteId}
+                  destination={targetBusDestination}
+                  headsign={targetBusHeadsign}
+                  intervalTime={targetBusIntervalTime}
+                  startDateTime={targetBusStartDateTime}
+                  busType={targetBusType}
                   busColor={targetBusStep?.color}
                   lat={targetBusLat ? Number(targetBusLat) : undefined}
                   lng={targetBusLng ? Number(targetBusLng) : undefined}
@@ -691,7 +724,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 <SegmentSubwayRealtimeChip
                   stationName={targetSubwayStationName}
                   wayCode={targetSubwayStep.wayCode !== undefined ? String(targetSubwayStep.wayCode) : undefined}
-                  subwayId={targetSubwayStep.name}
+                  subwayId={targetSubwayStep.rawLineName || targetSubwayStep.name}
                   destination={targetSubwayStep.endName}
                   headsign={targetSubwayStep.headsign}
                   variant="sidebar"

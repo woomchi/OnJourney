@@ -22,6 +22,8 @@ import { SubwayRealtimeQueryType } from '../validations/subway';
 import type { SubwayArrival, SubwayPosition } from '@/types/journey';
 import { getStationArrivalsFromTotalCache } from './subwayTotalRealtimeService';
 import { fetchSubwayPositionsByLine } from './subwayPositionService';
+import { fetchDaejeonSubwayArrivals } from './daejeonSubwayService';
+import { detectSubwayRegion } from './subwayRegionRouter';
 import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
 import { isMatchingSubwayId, resolveWayCode, resolvePositionDirection } from '@/lib/constants/subwayLineMap';
 
@@ -64,7 +66,7 @@ export interface SubwayRawRow {
 // ─── 내부 헬퍼 ────────────────────────────────────────────────────────────────
 
 /**
- * 2차 Fallback(일괄 API 캐시) ➡️ 3차 Fallback(시간표)을 순차적으로 시도합니다.
+ * 2차 Fallback(일괄 API 캐시) ➡️ 3차 Fallback(ODsay 시간표)을 순차적으로 시도합니다.
  */
 async function fallbackToTotalOrTimetable(
   cleanStation: string,
@@ -179,18 +181,47 @@ function getSubwayApiKey(): string {
 /**
  * 역명으로 지하철 실시간 도착 정보를 조회합니다.
  *
- * 1차: REAL_TIME_SUBWAY_API_KEY (단일 역 실시간 API)
- * 2차: REAL_TIME_SUBWAY_TOTAL_API_KEY (일괄 도착 API 캐시)
- * 3차: ODsay 시간표 기반 정적 Fallback
+ * 지역 라우팅 체계:
+ * - 대전(daejeon): 대전교통공사 열차시각표 서비스(DaejeonSubwayService) ➡️ ODsay Fallback
+ * - 부산/대구/광주: ODsay 시간표 Fallback
+ * - 수도권(seoul): 서울시 실시간 API ➡️ 2차 일괄 캐시 ➡️ ODsay Fallback
  */
 export async function fetchSubwayRealtime(
   params: SubwayRealtimeQueryType
 ): Promise<SubwayArrival[]> {
   const { station, wayCode, subwayId, destination, headsign } = params;
-  const apiKey = getSubwayApiKey();
   const cleanStation = station.replace(/역$/, '').trim();
 
-  // ─ API 키 미설정 → 2차/3차 Fallback ─
+  // ─ 1. 지역 감지 및 라우팅 ─
+  const region = detectSubwayRegion({
+    station: cleanStation,
+    subwayId,
+    destination,
+    headsign,
+  });
+
+  // 1-1. 대전 도시철도 전용 분기
+  if (region === 'daejeon') {
+    try {
+      const daejeonArrivals = await fetchDaejeonSubwayArrivals(cleanStation, wayCode);
+      if (daejeonArrivals && daejeonArrivals.length > 0) {
+        return daejeonArrivals;
+      }
+    } catch (e) {
+      console.warn(`[subwayRealtimeService] 대전 시각표 조회 실패 (${cleanStation}):`, e);
+    }
+    return buildTimetableFallback(cleanStation, wayCode);
+  }
+
+  // 1-2. 부산 / 대구 / 광주 등 기타 지방 도시철도 (ODsay 시간표 Fallback)
+  if (region === 'busan' || region === 'daegu' || region === 'gwangju') {
+    return buildTimetableFallback(cleanStation, wayCode);
+  }
+
+  // ─ 2. 수도권(seoul / unknown) 실시간 API 조회 ─
+  const apiKey = getSubwayApiKey();
+
+  // API 키 미설정 → 2차/3차 Fallback
   if (!apiKey || apiKey === 'PLACEHOLDER' || apiKey.trim() === '') {
     return fallbackToTotalOrTimetable(cleanStation, wayCode);
   }

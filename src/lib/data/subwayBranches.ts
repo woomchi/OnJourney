@@ -304,9 +304,31 @@ const LINE_UI_BRANCHES: BranchStationData[] = [
   },
 ];
 
+// ─── 대전 1호선 운행 계통 ───────────────────────────────────────────────────
+
+const LINE_DAEJEON_1_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'daejeon-1-main',
+      name: '대전 1호선 (판암 - 반석)',
+      startStation: '판암',
+      endStation: '반석',
+      stationCount: 22,
+    },
+    stationNames: [
+      '판암', '신흥', '대동', '대전역', '중앙로', '중구청', '서대전네거리', '오룡', '용문', '탄방',
+      '시청', '정부청사', '갈마', '월평', '갑천', '유성온천', '구암', '현충원', '월드컵경기장', '노은',
+      '지족', '반석'
+    ],
+    downDestinations: ['반석'],
+    upDestinations: ['판암'],
+  },
+];
+
 // ─── 전체 노선별 계통 매핑 ───────────────────────────────────────────────────
 
 export const LINE_BRANCHES_MAP: Record<string, BranchStationData[]> = {
+  '대전1호선': LINE_DAEJEON_1_BRANCHES,
   '1호선': LINE_1_BRANCHES,
   '1001': LINE_1_BRANCHES,
   '1': LINE_1_BRANCHES,
@@ -332,20 +354,38 @@ export const LINE_BRANCHES_MAP: Record<string, BranchStationData[]> = {
  */
 export function normalizeLineKey(subwayIdOrNm: string): string {
   const clean = String(subwayIdOrNm || '').trim();
-  if (clean === '1001' || clean === '1' || clean.includes('1호선')) return '1호선';
-  if (clean === '1002' || clean === '2' || clean.includes('2호선')) return '2호선';
-  if (clean === '1003' || clean === '3' || clean.includes('3호선')) return '3호선';
-  if (clean === '1004' || clean === '4' || clean.includes('4호선')) return '4호선';
-  if (clean === '1005' || clean === '5' || clean.includes('5호선')) return '5호선';
-  if (clean === '1006' || clean === '6' || clean.includes('6호선')) return '6호선';
-  if (clean === '1007' || clean === '7' || clean.includes('7호선')) return '7호선';
-  if (clean === '1008' || clean === '8' || clean.includes('8호선')) return '8호선';
-  if (clean === '1009' || clean === '9' || clean.includes('9호선')) return '9호선';
+
+  // 1. 지방 도시철도 우선
+  if (clean.includes('대전')) return '대전1호선';
+  if (clean.includes('부산')) {
+    const m = clean.match(/\d/);
+    return m ? `부산${m[0]}호선` : '부산1호선';
+  }
+  if (clean.includes('대구')) {
+    const m = clean.match(/\d/);
+    return m ? `대구${m[0]}호선` : '대구1호선';
+  }
+  if (clean.includes('광주')) return '광주1호선';
+
+  // 2. 수도권 특수 노선
   if (clean.includes('신분당') || clean === '1077') return '신분당선';
   if (clean.includes('수인분당') || clean.includes('분당선') || clean.includes('수인선') || clean === '1075') return '수인분당선';
   if (clean.includes('경의중앙') || clean === '1063') return '경의중앙선';
   if (clean.includes('공항철도') || clean === '1065') return '공항철도';
   if (clean.includes('우이신설') || clean === '1092') return '우이신설선';
+
+  // 3. 수도권 1~9호선
+  if (clean === '1001' || clean === '1' || clean === '1호선' || clean === '수도권 1호선') return '1호선';
+  if (clean === '1002' || clean === '2' || clean === '2호선' || clean === '수도권 2호선') return '2호선';
+  if (clean === '1003' || clean === '3' || clean === '3호선' || clean === '수도권 3호선') return '3호선';
+  if (clean === '1004' || clean === '4' || clean === '4호선' || clean === '수도권 4호선') return '4호선';
+  if (clean === '1005' || clean === '5' || clean === '5호선' || clean === '수도권 5호선') return '5호선';
+  if (clean === '1006' || clean === '6' || clean === '6호선' || clean === '수도권 6호선') return '6호선';
+  if (clean === '1007' || clean === '7' || clean === '7호선' || clean === '수도권 7호선') return '7호선';
+  if (clean === '1008' || clean === '8' || clean === '8호선' || clean === '수도권 8호선') return '8호선';
+  if (clean === '1009' || clean === '9' || clean === '9호선' || clean === '수도권 9호선') return '9호선';
+
+  if (/^\d+호선$/.test(clean)) return clean;
   return clean;
 }
 

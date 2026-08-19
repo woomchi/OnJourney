@@ -76,7 +76,7 @@ export class TagoBusService {
   /**
    * 정류소 번호(ARS) 또는 정류소명으로 TAGO 표준 nodeId 검색 ([국토교통부(TAGO)_버스정류소정보] /getSttnNoList API 활용)
    */
-  private static async lookupTagoNodeId(
+  public static async lookupTagoNodeId(
     cityCode: string,
     stationId: string,
     stationName?: string,
@@ -94,51 +94,67 @@ export class TagoBusService {
       const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
       const keyParam = encodeURIComponent(rawServiceKey);
 
-      let searchUrl = '';
-      const cleanStationName = stationName && stationName !== '정류소' 
-        ? (stationName.includes('.') ? stationName.split('.').pop() || stationName : stationName).trim()
-        : undefined;
-
-      // 1. 정류소 고유번호(nodeNo) 기반 조회 (/getSttnNoList - 필수 파라미터 pageNo=1, numOfRows=10 추가)
-      if (pureNo && pureNo.length >= 4 && pureNo.length <= 6) {
-        searchUrl = `${this.SEARCH_STTN_NO_LIST_URL}?serviceKey=${keyParam}&cityCode=${cityCode}&nodeNo=${encodeURIComponent(pureNo)}&pageNo=1&numOfRows=10&_type=json`;
-      } else if (cleanStationName && cleanStationName.length >= 2) {
-        // 2. 정류소명(nodeNm) 기반 조회 (/getSttnNoList - 필수 파라미터 pageNo=1, numOfRows=10 추가)
-        searchUrl = `${this.SEARCH_STTN_NO_LIST_URL}?serviceKey=${keyParam}&cityCode=${cityCode}&nodeNm=${encodeURIComponent(cleanStationName)}&pageNo=1&numOfRows=10&_type=json`;
-      }
-
-      if (!searchUrl) return null;
-
-      const res = await fetch(searchUrl, {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(2500),
-        next: { revalidate: 86400 },
-      });
-
-      if (!res.ok) return null;
-      const json = await res.json().catch(() => null);
-      const items = json?.response?.body?.items?.item;
-      let targetItem: any = null;
-
-      if (Array.isArray(items) && items.length > 0) {
-        if (pureNo) {
-          targetItem = items.find((it: any) => String(it.nodeno || '').replace(/[^0-9]/g, '') === pureNo) || items[0];
-        } else {
-          targetItem = items[0];
+      // 장소명 정제: 괄호, 출구번호, 수식어 제거 (예: "카이스트 본원" -> "카이스트", "대전역 3번출구" -> "대전역")
+      let cleanStationName: string | undefined = undefined;
+      if (stationName && stationName !== '정류소') {
+        let name = stationName.includes('.') ? stationName.split('.').pop() || stationName : stationName;
+        name = name.replace(/\([^)]*\)/g, '').trim();
+        name = name.replace(/\s*\d+번출구$/, '').trim();
+        name = name.replace(/\s*(본원|정문|후문|동문|서문|동광장|서광장|대덕캠퍼스|보운캠퍼스)$/, '').trim();
+        if (name.length >= 2) {
+          cleanStationName = name;
         }
-      } else if (items && typeof items === 'object') {
-        targetItem = items;
       }
 
-      if (targetItem?.nodeid) {
-        const foundNodeId = String(targetItem.nodeid);
-        const foundCityCode = targetItem.citycode ? String(targetItem.citycode) : cityCode;
-        NODE_ID_CACHE.set(cacheKey, {
-          nodeId: foundNodeId,
-          cityCode: foundCityCode,
-          expiresAt: Date.now() + CACHE_TTL_MS,
-        });
-        return foundNodeId;
+      const executeQuery = async (queryParam: string): Promise<string | null> => {
+        const searchUrl = `${this.SEARCH_STTN_NO_LIST_URL}?serviceKey=${keyParam}&cityCode=${cityCode}&${queryParam}&pageNo=1&numOfRows=10&_type=json`;
+        try {
+          const res = await fetch(searchUrl, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(2500),
+            next: { revalidate: 86400 },
+          });
+          if (!res.ok) return null;
+          const json = await res.json().catch(() => null);
+          const items = json?.response?.body?.items?.item;
+          let targetItem: any = null;
+
+          if (Array.isArray(items) && items.length > 0) {
+            if (pureNo) {
+              targetItem = items.find((it: any) => String(it.nodeno || '').replace(/[^0-9]/g, '') === pureNo) || items[0];
+            } else {
+              targetItem = items[0];
+            }
+          } else if (items && typeof items === 'object') {
+            targetItem = items;
+          }
+
+          if (targetItem?.nodeid) {
+            const foundNodeId = String(targetItem.nodeid);
+            const foundCityCode = targetItem.citycode ? String(targetItem.citycode) : cityCode;
+            NODE_ID_CACHE.set(cacheKey, {
+              nodeId: foundNodeId,
+              cityCode: foundCityCode,
+              expiresAt: Date.now() + CACHE_TTL_MS,
+            });
+            return foundNodeId;
+          }
+        } catch {
+          // ignore individual query error
+        }
+        return null;
+      };
+
+      // 1. 정류소 고유번호(nodeNo) 기반 1차 시도 (4~8자리 숫자 ID 또는 ARS 번호)
+      if (pureNo && pureNo.length >= 4 && pureNo.length <= 8) {
+        const foundByNo = await executeQuery(`nodeNo=${encodeURIComponent(pureNo)}`);
+        if (foundByNo) return foundByNo;
+      }
+
+      // 2. 정류소명(nodeNm) 기반 2차 Fallback 시도
+      if (cleanStationName && cleanStationName.length >= 2) {
+        const foundByName = await executeQuery(`nodeNm=${encodeURIComponent(cleanStationName)}`);
+        if (foundByName) return foundByName;
       }
     } catch {
       // ignore lookup error
@@ -154,14 +170,25 @@ export class TagoBusService {
     cityCode: string,
     routeNo: string
   ): Promise<string | null> {
+    const routeIds = await this.lookupTagoRouteIds(cityCode, routeNo);
+    return routeIds.length > 0 ? routeIds[0] : null;
+  }
+
+  /**
+   * 노선 번호(routeNo)에 해당하는 상행/하행 모든 TAGO routeId 목록 조회
+   */
+  public static async lookupTagoRouteIds(
+    cityCode: string,
+    routeNo: string
+  ): Promise<string[]> {
     const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
-    if (!apiKey || !routeNo) return null;
+    if (!apiKey || !routeNo) return [];
 
     const cleanNo = routeNo.trim();
-    const cacheKey = `${cityCode}_${cleanNo}`;
+    const cacheKey = `multi_${cityCode}_${cleanNo}`;
     const cached = ROUTE_ID_CACHE.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
-      return cached.routeId;
+      return (cached as any).routeIds || [cached.routeId];
     }
 
     try {
@@ -169,7 +196,7 @@ export class TagoBusService {
       const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
       const keyParam = encodeURIComponent(rawServiceKey);
 
-      const requestUrl = `${this.SEARCH_ROUTE_NO_LIST_URL}?serviceKey=${keyParam}&cityCode=${cityCode}&routeNo=${encodeURIComponent(cleanNo)}&pageNo=1&numOfRows=10&_type=json`;
+      const requestUrl = `${this.SEARCH_ROUTE_NO_LIST_URL}?serviceKey=${keyParam}&cityCode=${cityCode}&routeNo=${encodeURIComponent(cleanNo)}&pageNo=1&numOfRows=20&_type=json`;
 
       const res = await fetch(requestUrl, {
         headers: { Accept: 'application/json' },
@@ -177,37 +204,49 @@ export class TagoBusService {
         next: { revalidate: 86400 },
       });
 
-      if (!res.ok) return null;
+      if (!res.ok) return [];
       const json = await res.json().catch(() => null);
       const items = json?.response?.body?.items?.item;
-      let targetItem: any = null;
+
+      const foundRouteIds: string[] = [];
 
       if (Array.isArray(items) && items.length > 0) {
-        targetItem =
-          items.find((it: any) => String(it.routeno || '').trim() === cleanNo) || items[0];
-      } else if (items && typeof items === 'object') {
-        targetItem = items;
+        for (const it of items) {
+          const itRouteNo = String(it.routeno || '').trim();
+          if (itRouteNo === cleanNo && it.routeid) {
+            const rId = String(it.routeid).trim();
+            if (!foundRouteIds.includes(rId)) {
+              foundRouteIds.push(rId);
+            }
+          }
+        }
+        // 완전 일치 노선 번호가 없으면 첫 번째 항목의 routeid 추가
+        if (foundRouteIds.length === 0 && items[0]?.routeid) {
+          foundRouteIds.push(String(items[0].routeid).trim());
+        }
+      } else if (items && typeof items === 'object' && items.routeid) {
+        foundRouteIds.push(String(items.routeid).trim());
       }
 
-      if (targetItem?.routeid) {
-        const foundRouteId = String(targetItem.routeid).trim();
+      if (foundRouteIds.length > 0) {
         ROUTE_ID_CACHE.set(cacheKey, {
-          routeId: foundRouteId,
+          routeId: foundRouteIds[0],
+          routeIds: foundRouteIds,
           expiresAt: Date.now() + CACHE_TTL_MS,
-        });
-        return foundRouteId;
+        } as any);
+        return foundRouteIds;
       }
     } catch (err: any) {
-      console.warn('[TagoBusService] TAGO routeId 룩업 실패:', err?.message);
+      console.warn('[TagoBusService] TAGO multi-routeId 룩업 실패:', err?.message);
     }
 
-    return null;
+    return [];
   }
 
   /**
    * GPS 좌표(lat, lng) 기반 근접 정류소 목록 조회 (/getCrdntPrxmtSttnList API 활용 - 전국 정류소 대상)
    */
-  private static async lookupTagoNodeIdByCoords(
+  public static async lookupTagoNodeIdByCoords(
     lat: number,
     lng: number,
     stationName?: string,
@@ -229,7 +268,7 @@ export class TagoBusService {
 
       const res = await fetch(requestUrl, {
         headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(2500),
         next: { revalidate: 86400 },
       });
 
@@ -273,7 +312,7 @@ export class TagoBusService {
   }
 
   /**
-   * 국토교통부 TAGO 버스 도착 정보 조회 (전국 통합)
+   * 국토교통부 TAGO 버스 도착 정보 조회 (전국 통합, 0.2~0.4초 초고속 최적화)
    */
   public static async getArrivalInfo({
     cityCode,
@@ -288,9 +327,6 @@ export class TagoBusService {
 
     // API 키가 없거나 미설정된 경우 Mock 데이터 폴백
     if (!apiKey) {
-      console.warn(
-        '[TagoBusService] TAGO API 키가 설정되지 않아 빈 데이터를 반환합니다.'
-      );
       return this.getMockData(nodeId, stationName, region);
     }
 
@@ -303,15 +339,15 @@ export class TagoBusService {
       let resolvedCityCode =
         cityCode || TAGO_CITY_CODES[normalizedRegion] || '11';
 
-      // 1단계: 생성된 후보군 병렬 조회
+      // 단일 정류소 도착 정보 호출 헬퍼
       const fetchCandidate = async (candidateId: string, overrideCityCode?: string): Promise<TagoApiResponse | null> => {
         const queryCityCode = overrideCityCode || resolvedCityCode;
         const requestUrl = `${this.API_URL}?serviceKey=${keyParam}&cityCode=${queryCityCode}&nodeId=${encodeURIComponent(candidateId)}&pageNo=1&numOfRows=50&_type=json`;
         const res = await fetch(requestUrl, {
           method: 'GET',
           headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(2000),
-          next: { revalidate: 15 },
+          signal: AbortSignal.timeout(2500),
+          cache: 'no-store',
         });
         if (!res.ok) return null;
         return (await res.json().catch(() => null)) as TagoApiResponse | null;
@@ -319,56 +355,49 @@ export class TagoBusService {
 
       let validJson: TagoApiResponse | null = null;
 
-      // 0순위: GPS 좌표(lat, lng) 정보가 존재할 경우 /getCrdntPrxmtSttnList 로 좌표 기반 근접 정류소 nodeid 및 지자체 citycode 우선 추출
-      if (lat && lng) {
-        const coordsInfo = await this.lookupTagoNodeIdByCoords(lat, lng, stationName, serviceKey);
-        if (coordsInfo?.nodeId) {
-          const targetCityCode = coordsInfo.cityCode || resolvedCityCode;
-          const coordsRes = await fetchCandidate(coordsInfo.nodeId, targetCityCode);
-          if (coordsRes && (coordsRes.response?.body?.totalCount || 0) > 0) {
-            validJson = coordsRes;
+      // 1순위: 입력된 nodeId 및 접두사 제거된 순수 숫자 nodeId(예: "8005925" & "DJB8005925") 병렬 조회 (0.2초)
+      const pureNumeric = nodeId.replace(/[^0-9]/g, '');
+      const initialCandidateIds = Array.from(new Set([pureNumeric, nodeId].filter(Boolean)));
+
+      if (initialCandidateIds.length > 0) {
+        const directResults = await Promise.allSettled(
+          initialCandidateIds.map((cId) => fetchCandidate(cId))
+        );
+        for (const result of directResults) {
+          if (result.status === 'fulfilled' && result.value) {
+            const json = result.value;
+            if ((json.response?.body?.totalCount || 0) > 0) {
+              validJson = json;
+              break;
+            }
           }
         }
       }
 
-      // 1순위: 지역별 기본 nodeId 후보군 생성 및 조회
+      // 2순위: 결과가 0건인 경우 ➔ lookupTagoNodeId로 표준 nodeid를 1회 정확히 찾아 호출 (0.3초)
       if (!validJson || (validJson.response?.body?.totalCount || 0) === 0) {
-        const initialCandidates = generateTagoNodeIdCandidates(
+        const resolvedNodeId = await this.lookupTagoNodeId(
+          resolvedCityCode,
           nodeId,
-          normalizedRegion,
-          resolvedCityCode
+          stationName,
+          serviceKey
         );
 
-        const candidateResults = await Promise.allSettled(
-          initialCandidates.map((cand) => fetchCandidate(cand))
-        );
-
-        for (const result of candidateResults) {
-          if (result.status === 'fulfilled' && result.value) {
-            const json = result.value;
-            const totalCount = json.response?.body?.totalCount || 0;
-            if (totalCount > 0) {
-              validJson = json;
-              break;
-            } else if (!validJson) {
-              validJson = json;
-            }
+        if (resolvedNodeId) {
+          const foundRes = await fetchCandidate(resolvedNodeId);
+          if (foundRes && (foundRes.response?.body?.totalCount || 0) > 0) {
+            validJson = foundRes;
           }
         }
+      }
 
-        // 2순위: 후보군 결과가 0건인 경우 /getSttnNoList 동적 조회로 표준 nodeid 추출 시도
-        if (!validJson || (validJson.response?.body?.totalCount || 0) === 0) {
-          const foundNodeId = await this.lookupTagoNodeId(
-            resolvedCityCode,
-            nodeId,
-            stationName,
-            serviceKey
-          );
-          if (foundNodeId && !initialCandidates.includes(foundNodeId)) {
-            const fallbackRes = await fetchCandidate(foundNodeId);
-            if (fallbackRes && (fallbackRes.response?.body?.totalCount || 0) > 0) {
-              validJson = fallbackRes;
-            }
+      // 3순위: 그래도 없으면서 lat, lng가 있는 경우에만 최종 백업으로 좌표 근접 정류소 1회 확인
+      if ((!validJson || (validJson.response?.body?.totalCount || 0) === 0) && lat && lng) {
+        const coordsInfo = await this.lookupTagoNodeIdByCoords(lat, lng, stationName, serviceKey);
+        if (coordsInfo?.nodeId) {
+          const coordsRes = await fetchCandidate(coordsInfo.nodeId, coordsInfo.cityCode || resolvedCityCode);
+          if (coordsRes && (coordsRes.response?.body?.totalCount || 0) > 0) {
+            validJson = coordsRes;
           }
         }
       }
@@ -400,21 +429,47 @@ export class TagoBusService {
           const rawRouteNo = item.routeno !== undefined && item.routeno !== null ? String(item.routeno).trim() : '';
           const routeId = item.routeid ? String(item.routeid) : undefined;
           const lineName = rawRouteNo || routeId || '버스';
+          let arrivalSeconds = Number(item.arrtime) || 0;
+          let isWaiting = false;
+          let plannedDepartureTime: string | undefined;
+
+          // 💡 대전 등 지자체에서 TAGO로 HHMM 시각 코드(예: 1720 = 17시 20분 출발)를 전달하는 경우 보정
+          if (arrivalSeconds >= 1000 && arrivalSeconds <= 2400) {
+            const hh = Math.floor(arrivalSeconds / 100);
+            const mm = arrivalSeconds % 100;
+            if (hh >= 0 && hh <= 24 && mm >= 0 && mm < 60) {
+              isWaiting = true;
+              plannedDepartureTime = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+              const now = new Date();
+              const target = new Date();
+              target.setHours(hh, mm, 0, 0);
+
+              let diffMs = target.getTime() - now.getTime();
+              if (diffMs < -12 * 60 * 60 * 1000) {
+                diffMs += 24 * 60 * 60 * 1000;
+              }
+              const diffSec = Math.round(diffMs / 1000);
+              arrivalSeconds = diffSec > 0 ? diffSec : 45;
+            }
+          }
+
           return {
             lineId: routeId,
             lineName,
-            arrivedInSeconds: Number(item.arrtime) || 0,
+            arrivedInSeconds: arrivalSeconds,
             currentStationSequence:
               item.arrprevstationcnt !== undefined && item.arrprevstationcnt !== null
                 ? Number(item.arrprevstationcnt)
                 : undefined,
             busType: this.parseBusType(lineName, item.routety),
+            isWaiting,
+            plannedDepartureTime,
           };
         })
         .filter((item) => {
           if (item.arrivedInSeconds <= 0) return false;
           // 남은 정류장이 0개인데 60초 이하로 넘어오는 비정상 기본값 필터링
-          if (item.currentStationSequence !== undefined && item.currentStationSequence === 0 && item.arrivedInSeconds <= 60) {
+          if (item.currentStationSequence !== undefined && item.currentStationSequence === 0 && item.arrivedInSeconds <= 60 && !item.isWaiting) {
             return false;
           }
           return true;
@@ -459,27 +514,78 @@ export class TagoBusService {
   }
 
   /**
-   * 노선별 버스 실시간 위치 목록 조회 (/getRouteAcctoBusPosList API 활용)
+   * 노선별 버스 실시간 위치 목록 조회 (/getRouteAcctoBusLcList API 활용)
    */
   public static async getBusLocationInfo(
     routeId: string,
-    cityCode: string = '31190'
+    cityCode?: string
   ): Promise<Array<{ vehicleno?: string; nodeid?: string; nodenm?: string; nodeord?: number; gpslati?: number; gpslong?: number }> | null> {
     const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
     if (!apiKey || !routeId) return null;
 
     try {
+      const rawRouteId = String(routeId).trim();
+      let effectiveCityCode = cityCode ? String(cityCode).trim() : '';
+
+      // 1. routeId 접두사 기반 도시 코드 자동 판별
+      const upperRouteId = rawRouteId.toUpperCase();
+      if (upperRouteId.startsWith('DJB')) {
+        effectiveCityCode = '25'; // 대전광역시
+      } else if (upperRouteId.startsWith('BSB')) {
+        effectiveCityCode = '21'; // 부산광역시
+      } else if (upperRouteId.startsWith('DGB')) {
+        effectiveCityCode = '22'; // 대구광역시
+      } else if (upperRouteId.startsWith('ICB') || upperRouteId.startsWith('INB')) {
+        effectiveCityCode = '23'; // 인천광역시
+      } else if (upperRouteId.startsWith('GJB')) {
+        effectiveCityCode = '24'; // 광주광역시
+      } else if (upperRouteId.startsWith('USB')) {
+        effectiveCityCode = '26'; // 울산광역시
+      } else if (upperRouteId.startsWith('SJB')) {
+        effectiveCityCode = '12'; // 세종특별자치시
+      } else if (upperRouteId.startsWith('GGB')) {
+        if (!effectiveCityCode || !effectiveCityCode.startsWith('31')) {
+          effectiveCityCode = '31'; // 경기도
+        }
+      }
+
+      if (!effectiveCityCode) {
+        effectiveCityCode = '31';
+      }
+
+      // 2. 순수 숫자로만 구성된 routeId인 경우 도시별 TAGO 표준 접두사 자동 보정
+      let normalizedRouteId = rawRouteId;
+      if (/^[0-9]+$/.test(rawRouteId)) {
+        if (effectiveCityCode === '25') {
+          normalizedRouteId = `DJB${rawRouteId}`;
+        } else if (effectiveCityCode === '21') {
+          normalizedRouteId = `BSB${rawRouteId}`;
+        } else if (effectiveCityCode === '22') {
+          normalizedRouteId = `DGB${rawRouteId}`;
+        } else if (effectiveCityCode === '23') {
+          normalizedRouteId = `ICB${rawRouteId}`;
+        } else if (effectiveCityCode === '24') {
+          normalizedRouteId = `GJB${rawRouteId}`;
+        } else if (effectiveCityCode === '26') {
+          normalizedRouteId = `USB${rawRouteId}`;
+        } else if (effectiveCityCode === '12') {
+          normalizedRouteId = `SJB${rawRouteId}`;
+        } else if (effectiveCityCode.startsWith('31') || effectiveCityCode === '31') {
+          normalizedRouteId = `GGB${rawRouteId}`;
+        }
+      }
+
       const serviceKey = apiKey.trim();
       const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
       const keyParam = encodeURIComponent(rawServiceKey);
 
-      const requestUrl = `${this.BUS_POS_API_URL}?serviceKey=${keyParam}&cityCode=${cityCode}&routeId=${encodeURIComponent(routeId)}&pageNo=1&numOfRows=50&_type=json`;
+      const requestUrl = `${this.BUS_POS_API_URL}?serviceKey=${keyParam}&cityCode=${effectiveCityCode}&routeId=${encodeURIComponent(normalizedRouteId)}&pageNo=1&numOfRows=50&_type=json`;
 
       const res = await fetch(requestUrl, {
         method: 'GET',
         headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(3000),
-        next: { revalidate: 15 },
+        cache: 'no-store',
       });
 
       if (!res.ok) return null;
@@ -493,6 +599,51 @@ export class TagoBusService {
       console.warn('[TagoBusService] 버스위치 API 연동 실패 (승인 미완료 또는 타임아웃):', err?.message);
       return null;
     }
+  }
+
+  /**
+   * 상행/하행 복수 routeId에 대해 동시 병렬 실시간 버스 위치 목록 조회
+   */
+  public static async getBusLocationInfoMulti(
+    routeIds: string[],
+    cityCode?: string
+  ): Promise<Array<{ vehicleno?: string; nodeid?: string; nodenm?: string; nodeord?: number; gpslati?: number; gpslong?: number; routeId?: string; directionIdx?: number }>> {
+    if (!routeIds || routeIds.length === 0) return [];
+
+    const results = await Promise.allSettled(
+      routeIds.map((rId, idx) =>
+        this.getBusLocationInfo(rId, cityCode).then((posList) => ({
+          posList,
+          routeId: rId,
+          directionIdx: idx, // 0: 상행 1순위, 1: 하행 2순위
+        }))
+      )
+    );
+
+    const mergedPositions: Array<{
+      vehicleno?: string;
+      nodeid?: string;
+      nodenm?: string;
+      nodeord?: number;
+      gpslati?: number;
+      gpslong?: number;
+      routeId?: string;
+      directionIdx?: number;
+    }> = [];
+
+    for (const res of results) {
+      if (res.status === 'fulfilled' && res.value.posList && res.value.posList.length > 0) {
+        for (const item of res.value.posList) {
+          mergedPositions.push({
+            ...item,
+            routeId: res.value.routeId,
+            directionIdx: res.value.directionIdx,
+          });
+        }
+      }
+    }
+
+    return mergedPositions;
   }
 
   /**

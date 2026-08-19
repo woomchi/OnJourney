@@ -16,7 +16,7 @@ import { usePWA } from '@/components/PWAProvider';
 import RouteSegmentCardStack from '@/components/route/RouteSegmentCardStack';
 import RouteSegmentDetailSheet from '@/components/route/RouteSegmentDetailSheet';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
-import { MapPin, ChevronLeft, Pencil, RefreshCw } from 'lucide-react';
+import { MapPin, ChevronLeft, ArrowLeft, Pencil, RefreshCw } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 import DepartureTimeSelector from '@/components/common/DepartureTimeSelector';
 import FareBreakdownTooltip from '@/components/route/FareBreakdownTooltip';
@@ -552,20 +552,22 @@ export default function RouteGuidePanel({
   const headerContent = (
     <div className="border-b border-zinc-100 flex-shrink-0 bg-white w-full">
       {/* 첫 번째 행: 좌측 뒤로가기 버튼 & 중앙 대안 경로 변경 버튼 & 우측 대중교통/승용차 태그 */}
-      <div className="px-5 pt-3 pb-0.5 flex items-center justify-between relative">
+      <div className="px-3.5 pt-2.5 pb-1 flex items-center justify-between relative">
         <button
+          type="button"
           onClick={onClose}
           onPointerDown={(e) => e.stopPropagation()}
-          className="w-8 h-8 rounded-full bg-white text-zinc-700 hover:text-zinc-950 flex items-center justify-center shadow-xs hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer z-10"
-          aria-label="여정 상세로 돌아가기"
-          title="여정 상세로 돌아가기"
+          className="p-1 -ml-0.5 rounded-lg text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 transition-colors cursor-pointer z-10"
+          aria-label="뒤로가기"
+          title="뒤로가기"
         >
-          <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+          <ArrowLeft className="w-4 h-4" />
         </button>
 
         {/* 중앙 정렬 대안 변경 버튼 (출발지->도착지 UI 바로 위) */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-3 flex items-center z-10">
+        <div className="absolute left-1/2 -translate-x-1/2 top-2.5 flex items-center z-10">
           <button
+            type="button"
             onClick={handleOpenAlternative}
             onPointerDown={(e) => e.stopPropagation()}
             className="px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100/80 border border-blue-200/60 rounded-full flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
@@ -577,7 +579,7 @@ export default function RouteGuidePanel({
           </button>
         </div>
 
-        <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-full flex-shrink-0 z-10">
+        <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full flex-shrink-0 z-10">
           {route.type === 'public' ? '대중교통' : '승용차'}
         </span>
       </div>

@@ -36,7 +36,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   const isFuture = React.useMemo(() => {
     if (storeDepartureTime && typeof storeDepartureTime === 'number') {
       const diffMin = (storeDepartureTime - Date.now()) / (1000 * 60);
-      if (diffMin > 30 || diffMin < -60) return true;
+      // 현재 시점 대비 30분 초과 미래인 경우에만 미래/시간표 모드 (과거 시각은 실시간 모드 유지)
+      if (diffMin > 30) return true;
     }
     return false;
   }, [storeDepartureTime]);

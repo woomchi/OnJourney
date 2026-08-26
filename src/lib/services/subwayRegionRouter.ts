@@ -48,20 +48,7 @@ export function detectSubwayRegion(params: {
     return 'gwangju';
   }
 
-  // 2. 목적지(destination) 또는 방면(headsign)이 대전 1호선 역인 경우 (예: '정부청사', '반석', '판암', '대전역')
-  if (
-    isDaejeonSubwayStation(cleanDest) ||
-    isDaejeonSubwayStation(cleanHeadsign) ||
-    cleanDest.includes('반석') ||
-    cleanDest.includes('판암') ||
-    cleanHeadsign.includes('반석') ||
-    cleanHeadsign.includes('판암')
-  ) {
-    if (isDaejeonSubwayStation(cleanStation)) {
-      return 'daejeon';
-    }
-  }
-
+  // 2. subwayId에 명시적인 수도권 고유 노선명이 포함된 경우
   if (
     cleanSubwayId.includes('수도권') ||
     cleanSubwayId.includes('서울') ||
@@ -78,30 +65,27 @@ export function detectSubwayRegion(params: {
     cleanSubwayId.includes('에버라인') ||
     cleanSubwayId.includes('의정부') ||
     cleanSubwayId.includes('GTX') ||
-    /^10\d\d$/.test(cleanSubwayId) // 1001 ~ 1095 수도권 코드
+    cleanSubwayId.includes('gtx') ||
+    /^10\d\d$/.test(cleanSubwayId) // 1001 ~ 1095 수도권 고유 코드
   ) {
     return 'seoul';
   }
 
-  // 3. 대전 1호선 고유역 (동명역 제외) 판별
-  if (isDaejeonSubwayStation(cleanStation)) {
-    // 동명역이 아닌 대전 고유역(판암, 대전역, 서대전네거리, 유성온천, 반석, 정부청사, 노은 등)
-    if (!AMBIGUOUS_DAEJEON_STATIONS.has(cleanStation)) {
-      return 'daejeon';
-    }
+  // 3. 목적지(destination) 또는 방면(headsign)이 대전 고유역인 경우
+  const isDestUniqueDaejeon =
+    (cleanDest && isDaejeonSubwayStation(cleanDest) && !AMBIGUOUS_DAEJEON_STATIONS.has(cleanDest)) ||
+    (cleanHeadsign && isDaejeonSubwayStation(cleanHeadsign) && !AMBIGUOUS_DAEJEON_STATIONS.has(cleanHeadsign));
 
-    // 동명역('중앙로', '시청', '용문' 등)이라도 목적지가 대전역/반석/판암 등이거나 단독 1호선인 경우
-    if (cleanDest && isDaejeonSubwayStation(cleanDest)) {
-      return 'daejeon';
-    }
-
-    if (cleanSubwayId.includes('1호선') || cleanSubwayId === '1') {
-      // 힌트가 없을 시 대전 고유역과 인접한 경우 daejeon 우선
-      return 'daejeon';
-    }
+  if (isDestUniqueDaejeon && isDaejeonSubwayStation(cleanStation)) {
+    return 'daejeon';
   }
 
-  // 3. 기본값: 수도권 실시간 API 대상
+  // 4. 대전 1호선 고유역 (동명역 제외) 판별 (판암, 대전역, 서대전네거리, 유성온천, 반석, 정부청사, 노은 등)
+  if (isDaejeonSubwayStation(cleanStation) && !AMBIGUOUS_DAEJEON_STATIONS.has(cleanStation)) {
+    return 'daejeon';
+  }
+
+  // 5. 기본값: 수도권 실시간 API 대상 (1~9호선 및 동명역인 시청, 용문, 신흥, 중앙로, 대동 포함)
   if (cleanStation) {
     return 'seoul';
   }

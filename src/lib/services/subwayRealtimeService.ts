@@ -26,6 +26,7 @@ import { fetchDaejeonSubwayArrivals } from './daejeonSubwayService';
 import { detectSubwayRegion } from './subwayRegionRouter';
 import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
 import { isMatchingSubwayId, resolveWayCode, resolvePositionDirection } from '@/lib/constants/subwayLineMap';
+import { resolveSeoulApiStationName } from '@/lib/constants/subwayStationAliases';
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -35,8 +36,8 @@ const REALTIME_REVALIDATE_SECONDS = 5;
 /** '진입/도착' 상태 데이터 수신 후 유효 시간 (밀리초, 180초 = 3분) */
 const STALE_APPROACHING_THRESHOLD_MS = 180_000;
 
-/** 일반 운행 상태 데이터 수신 후 유효 시간 (밀리초, 300초 = 5분) */
-const STALE_RUNNING_THRESHOLD_MS = 300_000;
+/** 일반 운행 상태 데이터 수신 후 유효 시간 (밀리초, 720초 = 12분, 심야 및 코레일/외곽 장거리 배차 구간 고려) */
+const STALE_RUNNING_THRESHOLD_MS = 720_000;
 
 /** arvlCd = '2'는 '출발/운행 종료'를 의미하여 필터링 대상 */
 const ARRIVAL_CODE_ENDED = '2';
@@ -271,9 +272,10 @@ export async function fetchSubwayRealtime(
     return fallbackToTotalOrTimetable(cleanStation, wayCode);
   }
 
+  const apiStationName = resolveSeoulApiStationName(cleanStation, subwayId);
   const url =
     `http://swopenAPI.seoul.go.kr/api/subway/${apiKey}/json/realtimeStationArrival` +
-    `/0/20/${encodeURIComponent(cleanStation)}`;
+    `/0/20/${encodeURIComponent(apiStationName)}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);

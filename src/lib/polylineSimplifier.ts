@@ -48,33 +48,51 @@ function getPerpendicularDistanceSq(p0: Point2D, p1: Point2D, p2: Point2D, cosLa
 }
 
 /**
- * Ramer-Douglas-Peucker 알고리즘 재귀 실행
+ * Ramer-Douglas-Peucker 알고리즘 비재귀(Iterative 스택 기반) 실행
+ * - 재귀 스택 오버플로우 방지 (O(1) 호출 스택)
+ * - 불필요한 배열 복사(slice/concat) 제거
  */
-function simplifyRDP(points: Point2D[], sqTolerance: number, cosLat: number): Point2D[] {
+function getRDPMarkers(points: Point2D[], sqTolerance: number, cosLat: number): Uint8Array {
   const len = points.length;
-  if (len <= 2) return points;
+  const markers = new Uint8Array(len);
+  if (len <= 2) {
+    markers.fill(1);
+    return markers;
+  }
 
-  let maxSqDist = 0;
-  let maxIndex = 0;
+  markers[0] = 1;
+  markers[len - 1] = 1;
 
-  const first = points[0];
-  const last = points[len - 1];
+  // [startIdx, endIdx] 쌍을 저장하는 스택
+  const stack: number[] = [0, len - 1];
 
-  for (let i = 1; i < len - 1; i++) {
-    const sqDist = getPerpendicularDistanceSq(points[i], first, last, cosLat);
-    if (sqDist > maxSqDist) {
-      maxSqDist = sqDist;
-      maxIndex = i;
+  while (stack.length > 0) {
+    const end = stack.pop()!;
+    const start = stack.pop()!;
+
+    let maxSqDist = 0;
+    let maxIndex = 0;
+
+    const pStart = points[start];
+    const pEnd = points[end];
+
+    for (let i = start + 1; i < end; i++) {
+      const sqDist = getPerpendicularDistanceSq(points[i], pStart, pEnd, cosLat);
+      if (sqDist > maxSqDist) {
+        maxSqDist = sqDist;
+        maxIndex = i;
+      }
+    }
+
+    if (maxSqDist > sqTolerance) {
+      markers[maxIndex] = 1;
+      // 좌측 및 우측 구간을 스택에 푸시
+      stack.push(start, maxIndex);
+      stack.push(maxIndex, end);
     }
   }
 
-  if (maxSqDist > sqTolerance) {
-    const left = simplifyRDP(points.slice(0, maxIndex + 1), sqTolerance, cosLat);
-    const right = simplifyRDP(points.slice(maxIndex), sqTolerance, cosLat);
-    return left.slice(0, left.length - 1).concat(right);
-  }
-
-  return [first, last];
+  return markers;
 }
 
 /**
@@ -102,29 +120,16 @@ export function simplifyPath<T extends { lat: number | (() => number); lng: numb
   const midLat = parsedPoints[Math.floor(parsedPoints.length / 2)].lat;
   const cosLat = Math.cos((midLat * Math.PI) / 180);
 
-  const simplified2D = simplifyRDP(parsedPoints, sqTolerance, cosLat);
+  // 스택 기반 비재귀 RDP 실행 (O(1) 호출 스택, 메모리 무복사)
+  const markers = getRDPMarkers(parsedPoints, sqTolerance, cosLat);
 
-  // 만약 단순화 결과 개수가 변화가 거의 없으면 원본 리턴
-  if (simplified2D.length === points.length) return points;
-
-  // 원본 객체가 LatLng 또는 객체인 경우 형태 유지 매핑
-  const pointMap = new Map<string, T>();
-  points.forEach((pt) => {
-    const lat = typeof pt.lat === 'function' ? pt.lat() : pt.lat;
-    const lng = typeof pt.lng === 'function' ? pt.lng() : pt.lng;
-    pointMap.set(`${lat.toFixed(6)},${lng.toFixed(6)}`, pt);
-  });
-
+  // 마킹된 점들을 원본 객체에서 직접 수집 (문자열 Map 변환 비용 제거)
   const result: T[] = [];
-  simplified2D.forEach((p2d) => {
-    const key = `${p2d.lat.toFixed(6)},${p2d.lng.toFixed(6)}`;
-    const original = pointMap.get(key);
-    if (original) {
-      result.push(original);
-    } else {
-      result.push(p2d as unknown as T);
+  for (let i = 0; i < points.length; i++) {
+    if (markers[i] === 1) {
+      result.push(points[i]);
     }
-  });
+  }
 
-  return result;
+  return result.length === points.length ? points : result;
 }

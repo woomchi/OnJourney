@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { motion, useDragControls, useMotionValue, animate, useTransform } from 'framer-motion';
-import { useMapUIStore } from '@/stores/map-store';
 
 const SPRING_SNAP = {
   type: 'spring' as const,
@@ -89,17 +88,6 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   useEffect(() => {
     onExitedRef.current = onExited;
   }, [onExited]);
-
-  const { setBottomSheetY } = useMapUIStore();
-
-  useEffect(() => {
-    if (isOpen) {
-      setBottomSheetY(y);
-      return () => {
-        setBottomSheetY((currentY: any) => currentY === y ? null : currentY);
-      };
-    }
-  }, [isOpen, y, setBottomSheetY]);
 
   // #7. useTransform으로 그림자 강도 동적 변화
   const shadowOpacity = useTransform(y, [-minHeight, -maxHeight], [0.06, 0.20]);

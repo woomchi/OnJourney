@@ -9,6 +9,8 @@ import {
 import { generateTagoNodeIdCandidates } from '@/lib/utils/busRegionUtils';
 import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
 
+import { LruTtlCache } from '@/lib/utils/lruCache';
+
 export interface FetchTagoParams {
   cityCode?: string;
   region?: string;
@@ -18,11 +20,17 @@ export interface FetchTagoParams {
   lng?: number;
 }
 
-// 정류소 검색 캐시 (stationId/nodeno -> TAGO nodeId & cityCode, 24시간 메모리 캐시)
-const NODE_ID_CACHE = new Map<string, { nodeId: string; cityCode?: string; expiresAt: number }>();
-// 노선 검색 캐시 (cityCode_routeNo -> TAGO routeId, 24시간 메모리 캐시)
-const ROUTE_ID_CACHE = new Map<string, { routeId: string; expiresAt: number }>();
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+// 정류소 검색 캐시 (stationId/nodeno -> TAGO nodeId & cityCode, 24시간 LRU 캐시, 최대 500개)
+const NODE_ID_CACHE = new LruTtlCache<string, { nodeId: string; cityCode?: string }>({
+  maxSize: 500,
+  defaultTtlMs: 24 * 60 * 60 * 1000,
+});
+
+// 노선 검색 캐시 (cityCode_routeNo -> TAGO routeId(s), 24시간 LRU 캐시, 최대 500개)
+const ROUTE_ID_CACHE = new LruTtlCache<string, { routeId: string; routeIds?: string[] }>({
+  maxSize: 500,
+  defaultTtlMs: 24 * 60 * 60 * 1000,
+});
 
 export class TagoBusService {
   // 국토교통부 정류소별 도착예정정보 목록조회 서비스 공식 엔드포인트
@@ -43,8 +51,8 @@ export class TagoBusService {
   private static SEARCH_CRDNT_PRXMT_STTN_LIST_URL =
     'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList';
 
-  // 노드 변화 감지 및 GPS 하버사인 정밀 보정 캐시 (stationId -> { nodeord, gps, arrivedData, updatedAt })
-  private static NODE_CHANGE_CACHE = new Map<
+  // 노드 변화 감지 및 GPS 하버사인 정밀 보정 캐시 (stationId -> { nodeord, gps, arrivedData, updatedAt }, 10분 LRU 캐시, 최대 200개)
+  private static NODE_CHANGE_CACHE = new LruTtlCache<
     string,
     {
       lastNodeOrdMap: Record<string, number>;
@@ -52,7 +60,10 @@ export class TagoBusService {
       arrivalData: NormalizedRealtimeData;
       updatedAt: number;
     }
-  >();
+  >({
+    maxSize: 200,
+    defaultTtlMs: 10 * 60 * 1000,
+  });
 
   /**
    * 버스 번호나 노선 유형(routety)을 바탕으로 버스 타입 분류
@@ -85,7 +96,7 @@ export class TagoBusService {
     if (!serviceKey) return null;
     const cacheKey = `${cityCode}_${stationId}_${stationName || ''}`;
     const cached = NODE_ID_CACHE.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
+    if (cached) {
       return cached.nodeId;
     }
 
@@ -117,16 +128,16 @@ export class TagoBusService {
           if (!res.ok) return null;
           const json = await res.json().catch(() => null);
           const items = json?.response?.body?.items?.item;
-          let targetItem: any = null;
+          let targetItem: Record<string, unknown> | null = null;
 
           if (Array.isArray(items) && items.length > 0) {
             if (pureNo) {
-              targetItem = items.find((it: any) => String(it.nodeno || '').replace(/[^0-9]/g, '') === pureNo) || items[0];
+              targetItem = items.find((it: Record<string, unknown>) => String(it.nodeno || '').replace(/[^0-9]/g, '') === pureNo) || items[0];
             } else {
               targetItem = items[0];
             }
           } else if (items && typeof items === 'object') {
-            targetItem = items;
+            targetItem = items as Record<string, unknown>;
           }
 
           if (targetItem?.nodeid) {
@@ -135,7 +146,6 @@ export class TagoBusService {
             NODE_ID_CACHE.set(cacheKey, {
               nodeId: foundNodeId,
               cityCode: foundCityCode,
-              expiresAt: Date.now() + CACHE_TTL_MS,
             });
             return foundNodeId;
           }
@@ -187,8 +197,8 @@ export class TagoBusService {
     const cleanNo = routeNo.trim();
     const cacheKey = `multi_${cityCode}_${cleanNo}`;
     const cached = ROUTE_ID_CACHE.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return (cached as any).routeIds || [cached.routeId];
+    if (cached) {
+      return cached.routeIds || [cached.routeId];
     }
 
     try {
@@ -232,8 +242,7 @@ export class TagoBusService {
         ROUTE_ID_CACHE.set(cacheKey, {
           routeId: foundRouteIds[0],
           routeIds: foundRouteIds,
-          expiresAt: Date.now() + CACHE_TTL_MS,
-        } as any);
+        });
         return foundRouteIds;
       }
     } catch (err: any) {
@@ -255,7 +264,7 @@ export class TagoBusService {
     if (!serviceKey || !lat || !lng) return null;
     const cacheKey = `coords_${lat.toFixed(4)}_${lng.toFixed(4)}_${stationName || ''}`;
     const cached = NODE_ID_CACHE.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
+    if (cached) {
       return { nodeId: cached.nodeId, cityCode: cached.cityCode };
     }
 
@@ -276,14 +285,14 @@ export class TagoBusService {
       const json = await res.json().catch(() => null);
       const items = json?.response?.body?.items?.item;
 
-      let targetItem: any = null;
+      let targetItem: Record<string, unknown> | null = null;
       const cleanStationName = stationName && stationName !== '정류소' 
         ? (stationName.includes('.') ? stationName.split('.').pop() || stationName : stationName).trim()
         : undefined;
 
       if (Array.isArray(items) && items.length > 0) {
         if (cleanStationName) {
-          targetItem = items.find((it: any) => {
+          targetItem = items.find((it: Record<string, unknown>) => {
             const nName = String(it.nodenm || '').trim();
             return nName.includes(cleanStationName) || cleanStationName.includes(nName);
           }) || items[0];
@@ -291,7 +300,7 @@ export class TagoBusService {
           targetItem = items[0];
         }
       } else if (items && typeof items === 'object') {
-        targetItem = items;
+        targetItem = items as Record<string, unknown>;
       }
 
       if (targetItem?.nodeid) {
@@ -300,12 +309,11 @@ export class TagoBusService {
         NODE_ID_CACHE.set(cacheKey, {
           nodeId: foundNodeId,
           cityCode: foundCityCode,
-          expiresAt: Date.now() + CACHE_TTL_MS,
         });
         return { nodeId: foundNodeId, cityCode: foundCityCode };
       }
-    } catch (err) {
-      console.warn('[TagoBusService] 좌표 기반 근접 정류소 조회 실패:', err);
+    } catch (err: unknown) {
+      console.warn('[TagoBusService] nodeId 검색 실패:', err);
     }
 
     return null;
@@ -415,7 +423,7 @@ export class TagoBusService {
       
       let itemsArray: TagoBusItem[] = [];
       if (bodyItems && typeof bodyItems === 'object') {
-        const rawItems = (bodyItems as any).item;
+        const rawItems = (bodyItems as { item?: TagoBusItem | TagoBusItem[] }).item;
 
         if (Array.isArray(rawItems)) {
           itemsArray = rawItems;
@@ -504,10 +512,11 @@ export class TagoBusService {
       });
 
       return result;
-    } catch (error: any) {
-      console.warn('[TagoBusService] API 호출 폴백:', error?.message);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : '알 수 없는 오류';
+      console.error('[TagoBusService] API 호출 실패:', errMsg);
       const mock = this.getMockData(nodeId, stationName, region);
-      mock.errorMessage = `TAGO API 연동 안내: ${error?.message || '실시간 정보를 불러올 수 없습니다.'}`;
+      mock.errorMessage = `TAGO API 연동 에러: ${errMsg}`;
       mock.reliability = 0.5;
       return mock;
     }
@@ -595,8 +604,9 @@ export class TagoBusService {
       if (Array.isArray(items)) return items;
       if (items && typeof items === 'object') return [items];
       return null;
-    } catch (err: any) {
-      console.warn('[TagoBusService] 버스위치 API 연동 실패 (승인 미완료 또는 타임아웃):', err?.message);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.warn('[TagoBusService] 버스위치 API 연동 실패 (승인 미완료 또는 타임아웃):', errMsg);
       return null;
     }
   }

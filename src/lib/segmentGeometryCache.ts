@@ -6,6 +6,13 @@
 import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import { getMercatorY, getInverseMercatorY, getRhumbBearing } from '@/components/map/DirectionalStripes';
 import { getSequenceTheme } from '@/constants/colors';
+import type {
+  Place,
+  BaseRouteData,
+  DirectionStep,
+  FocusedSegment,
+  FocusedStep,
+} from '@/types/journey';
 
 export interface ArrowAnchor {
   key: string;
@@ -21,7 +28,7 @@ export interface TransferPoint {
   originId: string;
   destId: string;
   position: { lat: number; lng: number };
-  busName: string;
+  busName?: string;
   type: string;
   color: string;
   stationName: string;
@@ -43,15 +50,17 @@ export interface SegmentDerivedGeometry {
   transferPoints: TransferPoint[];
 }
 
-// 메모리 전역 지오메트리 캐시 맵
-const geometryCache = new Map<string, SegmentDerivedGeometry>();
+import { LruTtlCache } from '@/lib/utils/lruCache';
+
+// 메모리 전역 지오메트리 캐시 (최대 100개 세그먼트 LRU 캐싱)
+const geometryCache = new LruTtlCache<string, SegmentDerivedGeometry>({ maxSize: 100 });
 
 /**
  * 지점 변경 시 특정 구간 캐시 핀포인트 파괴 함수
  */
 export function evictSegmentGeometry(originId: string, destId: string): void {
   const prefix = `${originId}-${destId}`;
-  for (const key of geometryCache.keys()) {
+  for (const key of Array.from(geometryCache.keys())) {
     if (key.startsWith(prefix)) {
       geometryCache.delete(key);
     }
@@ -59,23 +68,30 @@ export function evictSegmentGeometry(originId: string, destId: string): void {
 }
 
 /**
+ * 여정 전환 또는 초기화 시 전체 세그먼트 지오메트리 캐시 정리
+ */
+export function clearAllSegmentGeometry(): void {
+  geometryCache.clear();
+}
+
+/**
  * 구간(Place A ➔ Place B)에 대한 방위각 앵커 및 환승 마커 통합 지오메트리 1회 계산 및 메모이제이션
  */
 export function getSegmentGeometry(
-  place: any,
-  nextPlace: any,
-  activeRoute: any,
+  place: Place,
+  nextPlace: Place,
+  activeRoute: BaseRouteData,
   transportType: string,
   placeIdx: number,
   totalPlacesCount: number,
-  focusedSegment: any,
-  focusedStep: any
+  focusedSegment?: FocusedSegment | null,
+  focusedStep?: FocusedStep | null
 ): SegmentDerivedGeometry {
   if (!place || !nextPlace || !activeRoute || !activeRoute.steps) {
     return { cacheKey: '', arrowAnchors: [], transferPoints: [] };
   }
 
-  const routeId = activeRoute.id || activeRoute.type || 'default';
+  const routeId = activeRoute.id || 'default';
   const cacheKey = `${place.id}-${nextPlace.id}-${routeId}-${activeRoute.steps.length}`;
 
   if (geometryCache.has(cacheKey)) {
@@ -108,11 +124,11 @@ export function getSegmentGeometry(
     });
   }
 
-  const transitSteps = activeRoute.steps.filter((s: any) =>
+  const transitSteps = activeRoute.steps.filter((s: DirectionStep) =>
     ['bus', 'subway', 'train', 'expressbus'].includes(s.type)
   );
 
-  const getShiftedStepPoint = (step: any, isStart: boolean) => {
+  const getShiftedStepPoint = (step: DirectionStep, isStart: boolean) => {
     if (step.pathPoints && step.pathPoints.length >= 2) {
       const pt = isStart ? step.pathPoints[0] : step.pathPoints[step.pathPoints.length - 1];
       return { lat: pt.lat, lng: pt.lng };
@@ -131,7 +147,7 @@ export function getSegmentGeometry(
   };
 
   // 2. 단일 순회(Single Pass)로 Step별 방위각 화살표 앵커 및 환승 마커 계산
-  activeRoute.steps.forEach((step: any, sIdx: number) => {
+  activeRoute.steps.forEach((step: DirectionStep, sIdx: number) => {
     const stepPath = step.pathPoints || [];
     const stepLen = stepPath.length;
 

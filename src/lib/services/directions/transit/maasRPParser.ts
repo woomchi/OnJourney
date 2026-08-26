@@ -36,7 +36,7 @@ function parseGraphString(graph?: string): { lat: number; lng: number }[] {
 /**
  * 도보 구간(trafficType=3)의 routes[].xyInfos[] 상세 선형 좌표 파싱 유틸
  */
-function parseWalkRoutesPoints(routes?: any[]): { lat: number; lng: number }[] {
+function parseWalkRoutesPoints(routes?: { xyInfos?: { x: string; y: string }[] }[]): { lat: number; lng: number }[] {
   if (!routes || !Array.isArray(routes)) return [];
   const points: { lat: number; lng: number }[] = [];
   for (const route of routes) {
@@ -56,12 +56,12 @@ function parseWalkRoutesPoints(routes?: any[]): { lat: number; lng: number }[] {
 /**
  * sectionInfo[] 데이터를 FareSection[] 배열로 파싱 유틸
  */
-function parseSectionInfo(sectionInfo: any[], rpsList: any[]): import('@/types/journey').FareSection[] {
+function parseSectionInfo(sectionInfo: Record<string, any>[], rpsList: Record<string, any>[]): import('@/types/journey').FareSection[] {
   if (!sectionInfo || !Array.isArray(sectionInfo)) return [];
 
   return sectionInfo
-    .filter((sec: any) => sec && typeof sec.payment === 'number' && sec.payment > 0)
-    .map((sec: any) => {
+    .filter((sec: Record<string, any>) => sec && typeof sec.payment === 'number' && sec.payment > 0)
+    .map((sec: Record<string, any>) => {
       const isIntercity = !sec.cityName;
       const startIdx = Math.max(0, Math.min(sec.startRpsIdx ?? 0, (rpsList?.length || 1) - 1));
       const rp = (rpsList && rpsList[startIdx]) ? rpsList[startIdx] : {};
@@ -91,17 +91,17 @@ function parseSectionInfo(sectionInfo: any[], rpsList: any[]): import('@/types/j
  * ODsay maasRP 단일 path 객체를 DirectionResult로 파싱
  */
 export function parseMaasRPPath(
-  rawPath: any,
+  rawPath: Record<string, any>,
   pathIdx: number,
   sx: number,
   sy: number,
   ex: number,
   ey: number
 ): DirectionResult {
-  const rpsList: any[] = Array.isArray(rawPath?.rps) ? rawPath.rps : [];
+  const rpsList: Record<string, any>[] = Array.isArray(rawPath?.rps) ? rawPath.rps : [];
   let isIntercity = false;
 
-  const steps: DirectionStep[] = rpsList.map((rp: any, idx: number): DirectionStep => {
+  const steps: DirectionStep[] = rpsList.map((rp: Record<string, any>, idx: number): DirectionStep => {
     const trafficType: number = rp.trafficType;
     let type: DirectionStep['type'] = 'walk';
     let name = '도보';

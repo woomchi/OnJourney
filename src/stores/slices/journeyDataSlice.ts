@@ -19,7 +19,7 @@ import type {
 import { insertJourney, updateJourney } from '@/lib/journeys';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import { verifyAndCleanRoutes } from '@/lib/services/directionsService';
-import { evictSegmentGeometry } from '@/lib/segmentGeometryCache';
+import { evictSegmentGeometry, clearAllSegmentGeometry } from '@/lib/segmentGeometryCache';
 import { MAX_JOURNEY_PLACES } from '@/constants/journey';
 import { useMapUIStore } from '../map-store';
 
@@ -30,6 +30,7 @@ export interface JourneyDataSlice {
   activeJourney: Journey | null;
   isLoading: boolean;
   isSyncing: boolean;
+  syncCount: number;
   setJourneys: (journeys: Journey[]) => void;
   createJourney: (input: CreateJourneyInput) => Promise<void>;
   updateJourneyInfo: (title: string, journeyDate: string, transportType: TransportType) => Promise<void>;
@@ -91,11 +92,29 @@ export const createJourneyDataSlice: StateCreator<
   [],
   [],
   JourneyDataSlice
-> = (set, get) => ({
+> = (set, get) => {
+  /** 동시 다발적 DB 동기화 요청 시 isSyncing 경쟁 상태를 방지하는 래퍼 */
+  const runWithSync = async (action: () => Promise<void>) => {
+    set((state) => {
+      const nextCount = (state.syncCount ?? 0) + 1;
+      return { syncCount: nextCount, isSyncing: true };
+    });
+    try {
+      await action();
+    } finally {
+      set((state) => {
+        const nextCount = Math.max(0, (state.syncCount ?? 1) - 1);
+        return { syncCount: nextCount, isSyncing: nextCount > 0 };
+      });
+    }
+  };
+
+  return {
   journeys: [],
   activeJourney: null,
   isLoading: false,
   isSyncing: false,
+  syncCount: 0,
 
   // ─ 여정 목록 갱신 ─
   setJourneys: (journeys) =>
@@ -166,6 +185,7 @@ export const createJourneyDataSlice: StateCreator<
   setActiveJourney: (journey) => {
     useMapUIStore.getState().setGpsMode('none');
     useMapUIStore.getState().setUserLocation(null);
+    clearAllSegmentGeometry();
     // 여정 전환 시 지도·경로 포커스 상태 전체 초기화
     set({
       activeJourney: journey,
@@ -179,6 +199,7 @@ export const createJourneyDataSlice: StateCreator<
   clearJourney: () => {
     useMapUIStore.getState().setGpsMode('none');
     useMapUIStore.getState().setUserLocation(null);
+    clearAllSegmentGeometry();
     set({
       activeJourney: null,
       ...RESET_FOCUS_STATE,
@@ -207,13 +228,10 @@ export const createJourneyDataSlice: StateCreator<
       ...RESET_FOCUS_STATE,
     }));
 
-    // 백그라운드 DB 동기화
-    set({ isSyncing: true });
-    try {
+    // 백그라운드 DB 동기화 (경쟁 상태 방지)
+    await runWithSync(async () => {
       await updateJourneyPlaces(journeyId, places);
-    } finally {
-      set({ isSyncing: false });
-    }
+    });
   },
 
   // ─ 기존 장소 정보 변경 (교체) ─
@@ -242,13 +260,10 @@ export const createJourneyDataSlice: StateCreator<
       targetChangePlaceId: null,
     }));
 
-    // 백그라운드 DB 동기화
-    set({ isSyncing: true });
-    try {
+    // 백그라운드 DB 동기화 (경쟁 상태 방지)
+    await runWithSync(async () => {
       await updateJourneyPlaces(journeyId, places);
-    } finally {
-      set({ isSyncing: false });
-    }
+    });
   },
 
   // ─ 경유지 삭제 ─
@@ -270,13 +285,10 @@ export const createJourneyDataSlice: StateCreator<
       ...RESET_FOCUS_STATE,
     }));
 
-    // 백그라운드 DB 동기화
-    set({ isSyncing: true });
-    try {
+    // 백그라운드 DB 동기화 (경쟁 상태 방지)
+    await runWithSync(async () => {
       await updateJourneyPlaces(journeyId, places);
-    } finally {
-      set({ isSyncing: false });
-    }
+    });
   },
 
   // ─ 경유지 순서 변경 ─
@@ -297,13 +309,10 @@ export const createJourneyDataSlice: StateCreator<
       ...RESET_FOCUS_STATE,
     }));
 
-    // 백그라운드 DB 동기화
-    set({ isSyncing: true });
-    try {
+    // 백그라운드 DB 동기화 (경쟁 상태 방지)
+    await runWithSync(async () => {
       await updateJourneyPlaces(journeyId, places);
-    } finally {
-      set({ isSyncing: false });
-    }
+    });
   },
 
   // ─ 구간 경로 수동 선택 ─
@@ -330,11 +339,9 @@ export const createJourneyDataSlice: StateCreator<
       ),
     }));
 
-    set({ isSyncing: true });
-    try {
+    await runWithSync(async () => {
       await updateJourneyPlaces(activeJourney.id, updatedPlaces);
-    } finally {
-      set({ isSyncing: false });
-    }
+    });
   },
-});
+  };
+};

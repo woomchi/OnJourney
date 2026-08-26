@@ -79,23 +79,30 @@ export function getChevronStrokeWeight(zoom: number): number {
   return 1.5;
 }
 
+import type {
+  Place,
+  Journey,
+  FocusedSegment,
+  FocusedStep,
+  DirectionResult,
+  DirectionsCacheRecord,
+  AlternativeSegment,
+} from '@/types/journey';
+import { useMapUIStore } from '@/stores/map-store';
+import { getSegmentGeometry, ArrowAnchor } from '@/lib/segmentGeometryCache';
+
 interface DirectionalStripesProps {
-  places: any[];
-  directionsCache: any;
-  activeJourney: any;
-  focusedSegment: any;
-  focusedStep: any;
+  places: Place[];
+  directionsCache: DirectionsCacheRecord;
+  activeJourney: Journey | null;
+  focusedSegment: FocusedSegment | null;
+  focusedStep: FocusedStep | null;
   navermaps: any;
   zoomLevel: number;
   mapBounds: naver.maps.LatLngBounds | null;
-  hoveredAlternativeRoute?: any;
-  alternativeSegment?: any;
+  hoveredAlternativeRoute?: DirectionResult | null;
+  alternativeSegment?: AlternativeSegment | null;
 }
-
-import { useMapUIStore } from '@/stores/map-store';
-
-// 폴리라인 내부에 화살표 스트라이프 패턴을 렌더링하는 정적 마커 컴포넌트
-import { getSegmentGeometry, ArrowAnchor } from '@/lib/segmentGeometryCache';
 
 export default function DirectionalStripes({
   places,
@@ -110,6 +117,7 @@ export default function DirectionalStripes({
   alternativeSegment,
 }: DirectionalStripesProps) {
   const isMapDragging = useMapUIStore((state) => state.isMapDragging);
+  const transportType = activeJourney?.transport_type || 'public';
 
   // 1. Fetch cached anchor points using segment geometry cache module (zero math re-calculations)
   const arrowAnchors = useMemo(() => {
@@ -117,10 +125,9 @@ export default function DirectionalStripes({
 
     if (!navermaps || places.length < 2) return points;
 
-    places.forEach((place: any, idx: number) => {
+    places.forEach((place: Place, idx: number) => {
       if (idx === places.length - 1) return;
       const nextPlace = places[idx + 1];
-      const transportType = activeJourney?.transport_type || 'public';
       const cacheKey = `${place.id}-${nextPlace.id}`;
       const segmentData = directionsCache[cacheKey];
 
@@ -150,9 +157,9 @@ export default function DirectionalStripes({
     });
 
     return points;
-  }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps, hoveredAlternativeRoute, alternativeSegment]);
+  }, [places, directionsCache, transportType, focusedSegment, focusedStep, navermaps, hoveredAlternativeRoute, alternativeSegment]);
 
-  const lastVisiblePointsRef = useRef<any[]>([]);
+  const lastVisiblePointsRef = useRef<ArrowAnchor[]>([]);
 
   // 2. Filter points by viewport bounds & apply zoom-based stride sampling
   const visiblePoints = useMemo(() => {
@@ -206,7 +213,7 @@ export default function DirectionalStripes({
   const batchedChevrons = useMemo(() => {
     if (zoomLevel <= 7 || visiblePoints.length === 0) return [];
 
-    const groups: Record<string, { key: string; paths: any[]; transportType: string; zIndex: number }> = {};
+    const groups: Record<string, { key: string; paths: { lat: number; lng: number }[][]; transportType: string; zIndex: number }> = {};
 
     visiblePoints.forEach((pt) => {
       const pathPoints = getChevronPath(pt.position, pt.bearing, zoomLevel);
@@ -231,7 +238,7 @@ export default function DirectionalStripes({
       {batchedChevrons.map((batch) => (
         <Polyline
           key={batch.key}
-          path={batch.paths}
+          path={batch.paths as any}
           strokeColor="#FFFFFF"
           strokeOpacity={batch.transportType === 'public' ? 0.95 : 0.55}
           strokeWeight={getChevronStrokeWeight(zoomLevel)}

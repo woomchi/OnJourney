@@ -31,9 +31,11 @@ export interface FetchBusLinePositionsParams {
   stationName?: string;
 }
 
+import { LruTtlCache } from '@/lib/utils/lruCache';
+
 // ─── 인메모리 캐시 ───────────────────────────────────────────────────────────
 
-/** 정적 노선 정류소 목록 캐시 (TTL: 1시간) */
+/** 정적 노선 정류소 목록 캐시 (TTL: 1시간, 최대 200개) */
 interface CachedBusRoute {
   busNo: string;
   busId: string;
@@ -50,20 +52,22 @@ interface CachedBusRoute {
   upStationIndexMap: Map<string, number>; // 상행(0 ~ turningSeq-1) 인덱스 맵
   downStationIndexMap: Map<string, number>; // 하행(turningSeq-1 ~ end) 인덱스 맵
   stationIndexListMap: Map<string, number[]>; // 중복 정류소명/ID 다중 인덱스 맵
-  expiresAt: number;
 }
 
-const BUS_ROUTE_CACHE = new Map<string, CachedBusRoute>();
-const ROUTE_CACHE_TTL_MS = 60 * 60 * 1000; // 1시간
+const BUS_ROUTE_CACHE = new LruTtlCache<string, CachedBusRoute>({
+  maxSize: 200,
+  defaultTtlMs: 60 * 60 * 1000, // 1시간
+});
 
-/** 실시간 버스 위치 캐시 (TTL: 10초) */
+/** 실시간 버스 위치 캐시 (TTL: 30초, 최대 100개) */
 interface CachedBusPositions {
   positions: BusPosition[];
-  expiresAt: number;
 }
 
-const REALTIME_POS_CACHE = new Map<string, CachedBusPositions>();
-const REALTIME_CACHE_TTL_MS = 30 * 1000; // 30초 (버스 노선뷰 실시간 위치 캐시)
+const REALTIME_POS_CACHE = new LruTtlCache<string, CachedBusPositions>({
+  maxSize: 100,
+  defaultTtlMs: 30 * 1000, // 30초
+});
 
 export class BusPositionService {
   /**
@@ -163,10 +167,9 @@ export class BusPositionService {
     resolvedCityCode: string;
   }): Promise<CachedBusRoute | null> {
     const cacheKey = params.busId ? `id:${params.busId}` : `no:${params.busNo}:${params.cityCode || '11'}`;
-    const now = Date.now();
     const cached = BUS_ROUTE_CACHE.get(cacheKey);
 
-    if (cached && cached.expiresAt > now) {
+    if (cached) {
       return cached;
     }
 
@@ -417,7 +420,6 @@ export class BusPositionService {
         upStationIndexMap,
         downStationIndexMap,
         stationIndexListMap,
-        expiresAt: now + ROUTE_CACHE_TTL_MS,
       };
 
       BUS_ROUTE_CACHE.set(cacheKey, routeData);
@@ -451,10 +453,9 @@ export class BusPositionService {
   }): Promise<BusPosition[]> {
     // 💡 [핵심 개선 2: 캐시 키 일원화] 파라미터 조합 차이로 인한 플리커링/상하행 널뛰기 원천 차단
     const cacheKey = `realtime:${params.busNo}:${params.cityCode || '11'}`;
-    const now = Date.now();
     const cached = REALTIME_POS_CACHE.get(cacheKey);
 
-    if (cached && cached.expiresAt > now) {
+    if (cached) {
       return cached.positions;
     }
 
@@ -652,7 +653,6 @@ export class BusPositionService {
 
         REALTIME_POS_CACHE.set(cacheKey, {
           positions,
-          expiresAt: now + REALTIME_CACHE_TTL_MS,
         });
 
         return positions;

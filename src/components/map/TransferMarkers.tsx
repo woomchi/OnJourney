@@ -6,20 +6,27 @@ import { getDefaultRoute } from '@/lib/routeUtils';
 import { getSequenceTheme } from '@/constants/colors';
 import { calculateHaversineDistance, calculateSegmentBounds } from '@/lib/naverMapRouteService';
 
-interface TransferMarkersProps {
-  places: any[];
-  directionsCache: any;
-  activeJourney: any;
-  focusedSegment: any;
-  navermaps: any;
-  hoveredAlternativeRoute?: any;
-  alternativeSegment?: any;
-}
-
+import type {
+  Place,
+  Journey,
+  FocusedSegment,
+  DirectionResult,
+  DirectionsCacheRecord,
+  AlternativeSegment,
+} from '@/types/journey';
 import { isPositionInBounds } from '@/features/map/MapMarkers';
 import { useMapUIStore } from '@/stores/map-store';
-
 import { getSegmentGeometry, TransferPoint } from '@/lib/segmentGeometryCache';
+
+interface TransferMarkersProps {
+  places: Place[];
+  directionsCache: DirectionsCacheRecord;
+  activeJourney: Journey | null;
+  focusedSegment: FocusedSegment | null;
+  navermaps: any;
+  hoveredAlternativeRoute?: DirectionResult | null;
+  alternativeSegment?: AlternativeSegment | null;
+}
 
 export default function TransferMarkers({
   places,
@@ -33,16 +40,16 @@ export default function TransferMarkers({
   const isMapDragging = useMapUIStore((state) => state.isMapDragging);
   const mapBounds = useMapUIStore((state) => state.mapBounds);
   const { focusedStep, setFocusedStep, setFocusBounds, setFocusedSegment } = useJourneyStore();
+  const transportType = activeJourney?.transport_type || 'public';
 
   const transferPoints = useMemo(() => {
     const points: TransferPoint[] = [];
 
     if (!navermaps || places.length < 2) return points;
 
-    places.forEach((place: any, idx: number) => {
+    places.forEach((place: Place, idx: number) => {
       if (idx === places.length - 1) return;
       const nextPlace = places[idx + 1];
-      const transportType = activeJourney?.transport_type || 'public';
       const cacheKey = `${place.id}-${nextPlace.id}`;
       const segmentData = directionsCache[cacheKey];
 
@@ -81,11 +88,11 @@ export default function TransferMarkers({
     if (!mapBounds) return filteredPoints;
 
     return filteredPoints.filter((pt) => isPositionInBounds(pt.position, mapBounds, 0.15));
-  }, [places, directionsCache, activeJourney, focusedSegment, focusedStep, navermaps, mapBounds, alternativeSegment, hoveredAlternativeRoute]);
+  }, [places, directionsCache, transportType, focusedSegment, focusedStep, navermaps, mapBounds, alternativeSegment, hoveredAlternativeRoute]);
 
-  const handleTransferMarkerClick = (targetPt: any) => {
-    const pt = targetPt.isMergedGroup
-      ? (targetPt.subPoints.find((p: any) => !p.isSegmentStart && !p.isSegmentDest) || targetPt.subPoints[0])
+  const handleTransferMarkerClick = (targetPt: TransferPoint) => {
+    const pt = targetPt.isMergedGroup && targetPt.subPoints
+      ? (targetPt.subPoints.find((p: TransferPoint) => !p.isSegmentStart && !p.isSegmentDest) || targetPt.subPoints[0])
       : targetPt;
     const originPlace = places.find(p => p.id === pt.originId);
     const destPlace = places.find(p => p.id === pt.destId);
@@ -136,12 +143,12 @@ export default function TransferMarkers({
 
   return (
     <>
-      {transferPoints.map((pt: any) => {
+      {transferPoints.map((pt: TransferPoint) => {
         const isMergedGroup = !!pt.isMergedGroup;
-        const subPoints: any[] = isMergedGroup ? pt.subPoints : [pt];
-        const primaryColor = (subPoints.find((p: any) => p.isSegmentStart || p.isSegmentDest) || subPoints[0]).color;
+        const subPoints: TransferPoint[] = isMergedGroup && pt.subPoints ? pt.subPoints : [pt];
+        const primaryColor = (subPoints.find((p: TransferPoint) => p.isSegmentStart || p.isSegmentDest) || subPoints[0]).color;
 
-        const checkIsStepFocused = (point: any) => {
+        const checkIsStepFocused = (point: TransferPoint) => {
           if (!focusedStep) return false;
           if (focusedStep.originId !== point.originId || focusedStep.destId !== point.destId) return false;
 
@@ -161,7 +168,7 @@ export default function TransferMarkers({
         const isThisStepFocused = subPoints.some(checkIsStepFocused);
 
         const zIndex = isMergedGroup
-          ? Math.max(...subPoints.map((p: any) => p.isSegmentStart ? 23000 : ((p.isSegmentDest || p.isAlighting) ? 22000 : (p.type === 'walk' ? 12000 : (p.isFirst ? 14000 : 15000)))))
+          ? Math.max(...subPoints.map((p: TransferPoint) => p.isSegmentStart ? 23000 : ((p.isSegmentDest || p.isAlighting) ? 22000 : (p.type === 'walk' ? 12000 : (p.isFirst ? 14000 : 15000)))))
           : (pt.isSegmentStart ? 23000 : ((pt.isSegmentDest || pt.isAlighting) ? 22000 : (pt.type === 'walk' ? 12000 : (pt.isFirst ? 14000 : 15000))));
 
         return (
@@ -195,7 +202,7 @@ export default function TransferMarkers({
                   : '0 4px 14px rgba(0, 0, 0, 0.16)',
               }}
             >
-              {subPoints.map((subPt: any, idx: number) => {
+              {subPoints.map((subPt: TransferPoint, idx: number) => {
                 const busNameStr = subPt.busName || '';
                 const displayBusName = subPt.isAlighting
                   ? busNameStr

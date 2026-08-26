@@ -27,7 +27,7 @@ export enum CircuitState {
 export interface CircuitBreakerOptions {
   failureThreshold?: number; // 연속 실패 허용 횟수 (기본 3회)
   cooldownMs?: number;       // OPEN 상태 유지 시간 (기본 10초)
-  shouldTrip?: (error: any) => boolean; // 실패 카운트에 반영할 에러 여부 판별 (기본: 모든 에러)
+  shouldTrip?: (error: unknown) => boolean; // 실패 카운트에 반영할 에러 여부 판별 (기본: 모든 에러)
 }
 
 export class CircuitBreaker {
@@ -35,7 +35,7 @@ export class CircuitBreaker {
   private failureCount = 0;
   private failureThreshold: number;
   private cooldownMs: number;
-  private shouldTrip?: (error: any) => boolean;
+  private shouldTrip?: (error: unknown) => boolean;
   private lastStateChange: number = Date.now();
 
   constructor(options?: CircuitBreakerOptions) {
@@ -57,7 +57,7 @@ export class CircuitBreaker {
    */
   public async execute<T>(
     requestFn: () => Promise<T>,
-    fallbackFn: (error?: any) => T | Promise<T>
+    fallbackFn: (error?: unknown) => T | Promise<T>
   ): Promise<T> {
     const currentState = this.getState();
 
@@ -70,7 +70,7 @@ export class CircuitBreaker {
       const result = await requestFn();
       this.onSuccess();
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.onFailure(error);
       return fallbackFn(error);
     }
@@ -85,9 +85,8 @@ export class CircuitBreaker {
     }
   }
 
-  private onFailure(error: any): void {
+  private onFailure(error: unknown): void {
     if (this.shouldTrip && !this.shouldTrip(error)) {
-      // console.warn(`[CircuitBreaker] Exception caught but ignored for breaker trip: ${error?.message || error}`);
       return;
     }
 

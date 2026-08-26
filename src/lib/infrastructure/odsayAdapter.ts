@@ -69,11 +69,11 @@ export class OdsayAdapter {
   /**
    * ODsay GET API 공통 호출 메서드
    */
-  private static async getOdsayData(
+  private static async getOdsayData<T = any>(
     endpoint: string,
     params: Record<string, string | undefined>,
     apiKey?: string
-  ): Promise<any> {
+  ): Promise<T> {
     const key = apiKey || process.env.ODSAY_API_KEY;
     if (!key) {
       throw new TransitAuthError('ODsay API Key가 설정되지 않았습니다.');
@@ -89,10 +89,6 @@ export class OdsayAdapter {
 
     const url = `https://api.odsay.com/v1/api/${endpoint}?${queryParams.toString()}`;
 
-    // ── DEBUG: 실제 요청 URL (API 키 마스킹)
-    // const debugUrl = url.replace(/apiKey=[^&]+/, 'apiKey=***');
-    // console.log(`[OdsayAdapter][DEBUG] ▶ ${endpoint} 요청:`, debugUrl);
-
     let res: Response;
     try {
       res = await odsayRateLimiter.enqueue(() =>
@@ -103,40 +99,19 @@ export class OdsayAdapter {
           },
         })
       );
-    } catch (err: any) {
-      // console.error(`[OdsayAdapter][DEBUG] ✗ ${endpoint} 네트워크 오류:`, err);
+    } catch (err: unknown) {
       throw this.convertNetworkError(err);
     }
 
-    // ── DEBUG: HTTP 응답 상태
-    // console.log(`[OdsayAdapter][DEBUG] ◀ ${endpoint} HTTP 상태: ${res.status} ${res.statusText}`);
-
     const data = await res.json();
-
-    // ── DEBUG: 원시 응답 최상위 구조
-    // console.log(`[OdsayAdapter][DEBUG] ◀ ${endpoint} 응답 최상위 키:`, Object.keys(data || {}));
-    // if (data?.result) {
-    //   const resultKeys = Object.keys(data.result);
-    //   console.log(`[OdsayAdapter][DEBUG]   result 키:`, resultKeys);
-    //   if (data.result.paths) {
-    //     console.log(`[OdsayAdapter][DEBUG]   paths 개수:`, data.result.paths.length);
-    //   }
-    //   if (data.result.publicTransit_pathCnt !== undefined) {
-    //     console.log(`[OdsayAdapter][DEBUG]   publicTransit_pathCnt:`, data.result.publicTransit_pathCnt);
-    //   }
-    // }
-    // if (data?.error) {
-    //   console.error(`[OdsayAdapter][DEBUG]   error 필드:`, JSON.stringify(data.error));
-    // }
-
     this.checkAndThrowBodyError(data);
-    return data;
+    return data as T;
   }
 
   /**
    * ODsay 대중교통 경로 검색 API 어댑터 (#20 searchPubTransPathT)
    */
-  public static async fetchPublicTransit(
+  public static async fetchPublicTransit<T = any>(
     sx: string,
     sy: string,
     ex: string,
@@ -144,8 +119,8 @@ export class OdsayAdapter {
     apiKey?: string,
     searchType?: string,
     opt?: string
-  ): Promise<any> {
-    return this.getOdsayData(
+  ): Promise<T> {
+    return this.getOdsayData<T>(
       'searchPubTransPathT',
       { SX: sx, SY: sy, EX: ex, EY: ey, SearchType: searchType, OPT: opt },
       apiKey
@@ -155,7 +130,7 @@ export class OdsayAdapter {
   /**
    * ODsay 멀티모달 대중교통 길찾기 API 어댑터 (#28 maasRP)
    */
-  public static async fetchMaasRP(
+  public static async fetchMaasRP<T = any>(
     sx: string,
     sy: string,
     ex: string,
@@ -163,9 +138,8 @@ export class OdsayAdapter {
     searchTime: string,
     searchMethod: string = '2',
     apiKey?: string
-  ): Promise<any> {
-    // console.log(`[OdsayAdapter][DEBUG] fetchMaasRP 호출 파라미터:`, { SX: sx, SY: sy, EX: ex, EY: ey, SearchTime: searchTime, SearchMethod: searchMethod });
-    return this.getOdsayData(
+  ): Promise<T> {
+    return this.getOdsayData<T>(
       'maasRP',
       { SX: sx, SY: sy, EX: ex, EY: ey, SearchTime: searchTime, SearchMethod: searchMethod },
       apiKey
@@ -175,7 +149,7 @@ export class OdsayAdapter {
   /**
    * ODsay 도보 길찾기 API 어댑터 (#31 searchWalkPathV2)
    */
-  public static async fetchWalkPathV2(
+  public static async fetchWalkPathV2<T = any>(
     sx: string,
     sy: string,
     ex: string,
@@ -183,181 +157,184 @@ export class OdsayAdapter {
     apiKey?: string,
     startName: string = 'Start',
     endName: string = 'End'
-  ): Promise<any> {
-    return this.getOdsayData('searchWalkPathV2', { SX: sx, SY: sy, EX: ex, EY: ey, startName, endName }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('searchWalkPathV2', { SX: sx, SY: sy, EX: ex, EY: ey, startName, endName }, apiKey);
   }
 
   /**
    * ODsay 위치 기반 반경 정류장 검색 API 어댑터 (#18 pointSearch)
    */
-  public static async fetchPointSearch(
+  public static async fetchPointSearch<T = any>(
     x: string,
     y: string,
     radius: string = '5000',
     stationClass?: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('pointSearch', { x, y, radius, stationClass }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('pointSearch', { x, y, radius, stationClass }, apiKey);
   }
 
   /**
    * ODsay 상세 노선 궤적(loadLane) API 어댑터 (#13 loadLane)
    */
-  public static async fetchLoadLane(mapObjectParam: string, apiKey?: string): Promise<any> {
-    return this.getOdsayData('loadLane', { mapObject: mapObjectParam }, apiKey);
+  public static async fetchLoadLane<T = any>(mapObjectParam: string, apiKey?: string): Promise<T> {
+    return this.getOdsayData<T>('loadLane', { mapObject: mapObjectParam }, apiKey);
   }
 
   /**
    * ODsay (신) 지하철역 전체 시간표 조회 어댑터 (#12 searchSubwaySchedule)
    */
-  public static async fetchSubwaySchedule(
+  public static async fetchSubwaySchedule<T = any>(
     stationID: string,
     wayCode?: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('searchSubwaySchedule', { stationID, wayCode }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('searchSubwaySchedule', { stationID, wayCode }, apiKey);
   }
 
   /**
    * ODsay 지하철역 세부 정보 조회 어댑터 (#10 subwayStationInfo)
    */
-  public static async fetchSubwayStationInfo(
+  public static async fetchSubwayStationInfo<T = any>(
     stationID: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('subwayStationInfo', { stationID }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('subwayStationInfo', { stationID }, apiKey);
   }
 
   /**
    * ODsay 버스노선 조회 어댑터 (#1 searchBusLane)
    */
-  public static async fetchBusLane(
+  public static async fetchBusLane<T = any>(
     busNo: string,
     cid?: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('searchBusLane', { busNo, CID: cid }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('searchBusLane', { busNo, CID: cid }, apiKey);
   }
 
   /**
    * ODsay 버스노선 상세정보 조회 어댑터 (#2 busLaneDetail)
    */
-  public static async fetchBusLaneDetail(
+  public static async fetchBusLaneDetail<T = any>(
     busID: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('busLaneDetail', { busID }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('busLaneDetail', { busID }, apiKey);
   }
 
   /**
    * ODsay 버스정류장 세부 정보 조회 어댑터 (#3 busStationInfo)
    */
-  public static async fetchBusStationInfo(
+  public static async fetchBusStationInfo<T = any>(
     stationID: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('busStationInfo', { stationID }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('busStationInfo', { stationID }, apiKey);
   }
 
   /**
    * ODsay 대중교통 정류장 검색 어댑터 (#14 searchStation)
    */
-  public static async fetchSearchStation(
+  public static async fetchSearchStation<T = any>(
     stationName: string,
     stationClass: string = '1',
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('searchStation', { stationName, stationClass, lang: '0' }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('searchStation', { stationName, stationClass, lang: '0' }, apiKey);
   }
 
   /**
    * ODsay 도시코드 조회 어댑터 (#24 searchCID)
    */
-  public static async fetchSearchCID(
+  public static async fetchSearchCID<T = any>(
     cityName: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('searchCID', { cityName }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('searchCID', { cityName }, apiKey);
   }
 
   /**
    * ODsay 열차/KTX 운행정보 검색 어댑터 (#4 trainServiceTime)
    */
-  public static async fetchTrainServiceTime(
+  public static async fetchTrainServiceTime<T = any>(
     startStationID: string,
     endStationID: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('trainServiceTime', { startStationID, endStationID }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('trainServiceTime', { startStationID, endStationID }, apiKey);
   }
 
   /**
    * ODsay 고속/시외버스 운행정보 검색 어댑터 (#7 searchInterBusSchedule)
    */
-  public static async fetchInterBusSchedule(
+  public static async fetchInterBusSchedule<T = any>(
     startStationID: string,
     endStationID: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('searchInterBusSchedule', { startStationID, endStationID }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('searchInterBusSchedule', { startStationID, endStationID }, apiKey);
   }
 
   /**
    * ODsay 고속버스 터미널 목록 조회 어댑터 (#22 expressBusTerminals)
    */
-  public static async fetchExpressBusTerminals(
+  public static async fetchExpressBusTerminals<T = any>(
     cid?: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('expressBusTerminals', { CID: cid }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('expressBusTerminals', { CID: cid }, apiKey);
   }
 
   /**
    * ODsay 시외버스 터미널 목록 조회 어댑터 (#23 intercityBusTerminals)
    */
-  public static async fetchIntercityBusTerminals(
+  public static async fetchIntercityBusTerminals<T = any>(
     cid?: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('intercityBusTerminals', { CID: cid }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('intercityBusTerminals', { CID: cid }, apiKey);
   }
 
   /**
    * ODsay 기차역 터미널 목록 조회 어댑터 (#25 trainTerminals)
    */
-  public static async fetchTrainTerminals(
+  public static async fetchTrainTerminals<T = any>(
     cid?: string,
     apiKey?: string
-  ): Promise<any> {
-    return this.getOdsayData('trainTerminals', { CID: cid }, apiKey);
+  ): Promise<T> {
+    return this.getOdsayData<T>('trainTerminals', { CID: cid }, apiKey);
   }
 
   /**
    * 외부 네트워크 에러를 도메인 표준 Custom Error로 변환
    */
-  private static convertNetworkError(err: any): Error {
-    if (err.name === 'AbortError' || err.status === 408 || err.code === 'TIMEOUT') {
+  private static convertNetworkError(err: unknown): Error {
+    const errorObj = err as { name?: string; status?: number; code?: string; message?: string } | undefined;
+    if (errorObj?.name === 'AbortError' || errorObj?.status === 408 || errorObj?.code === 'TIMEOUT') {
       return new TransitTimeoutError('ODsay API 호출 시간 초과');
     }
-    if (err.status === 429 || err.message?.includes('Too Many Requests') || err.message?.includes('429')) {
+    if (errorObj?.status === 429 || errorObj?.message?.includes('Too Many Requests') || errorObj?.message?.includes('429')) {
       return new TransitQuotaError('ODsay API 요청 한도 초과');
     }
-    return new TransitApiError(err.message || 'ODsay API 통신 오류', 'TRANSIT_API_NETWORK_ERROR', err.status || 500, true);
+    return new TransitApiError(errorObj?.message || 'ODsay API 통신 오류', 'TRANSIT_API_NETWORK_ERROR', errorObj?.status || 500, true);
   }
 
   /**
    * 200 OK 본문 에러를 파싱하여 도메인 표준 Custom Error로 변환
    */
-  private static checkAndThrowBodyError(data: any): void {
-    if (!data) {
+  private static checkAndThrowBodyError(data: unknown): void {
+    if (!data || typeof data !== 'object') {
       throw new TransitApiError('비어 있는 응답 데이터 수신', 'TRANSIT_EMPTY_RESPONSE');
     }
 
+    const payload = data as { error?: { code?: string; message?: string } | { code?: string; message?: string }[]; result?: unknown };
+
     // ODsay API 특화 에러 판정
-    if (data.error) {
-      const errorDetail = Array.isArray(data.error) ? data.error[0] : data.error;
-      const errorCode = String(errorDetail.code || '');
-      const errorMsg = String(errorDetail.message || '');
+    if (payload.error) {
+      const errorDetail = Array.isArray(payload.error) ? payload.error[0] : payload.error;
+      const errorCode = String(errorDetail?.code || '');
+      const errorMsg = String(errorDetail?.message || '');
 
       if (errorCode === 'ApiKeyAuthFailed' || errorMsg.includes('ApiKeyAuthFailed')) {
         throw new TransitAuthError(`외부 API 인증 오류: ${errorMsg}`);
@@ -373,7 +350,7 @@ export class OdsayAdapter {
     }
 
     // 결과가 비어있는 경우
-    if (!data.result) {
+    if (!payload.result) {
       throw new TransitRouteNotFoundError('결과 데이터(result)가 본문에 존재하지 않습니다.');
     }
   }

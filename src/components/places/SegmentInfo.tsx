@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { DirectionResult } from '@/types/journey';
+import type { DirectionResult, DirectionStep, Place } from '@/types/journey';
 import { calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
 import { SEQUENCE_COLORS } from '@/constants/colors';
 import FittedDuration from './FittedDuration';
@@ -212,13 +212,13 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   let transferLabel = '';
   let stepBadges: string[] = [];
   if (type === 'public' && data.steps) {
-    const transitSteps = data.steps.filter((s: any) => s.type !== 'walk');
+    const transitSteps = data.steps.filter((s: DirectionStep) => s.type !== 'walk');
     const transitStepsCount = transitSteps.length;
     const transferCount = Math.max(0, transitStepsCount - 1);
     transferLabel = `환승 ${transferCount}회`;
     stepBadges = transitSteps
-      .filter((s: any) => s.name)
-      .map((s: any) => s.name.replace(/지하철\s*/, ''));
+      .filter((s: DirectionStep) => s.name)
+      .map((s: DirectionStep) => s.name.replace(/지하철\s*/, ''));
   } else if (type === 'car') {
     transferLabel = '차량';
   } else if (type === 'walk') {
@@ -226,38 +226,38 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   }
 
   // 이동 구간 내 첫 번째 대중교통 정보 추출 (실시간 칩 연결용 - 첫 번째 이동 수단 우선)
-  const firstTransitStep = data.steps?.find((s: any) => s.type !== 'walk') || null;
+  const firstTransitStep = data.steps?.find((s: DirectionStep) => s.type !== 'walk') || null;
   const targetBusStep = firstTransitStep && (firstTransitStep.type === 'bus' || firstTransitStep.type === 'expressbus') ? firstTransitStep : null;
   const targetSubwayStep = firstTransitStep && (firstTransitStep.type === 'subway' || firstTransitStep.type === 'train') ? firstTransitStep : null;
   const targetSubwayStationName = targetSubwayStep?.startName || originPlace?.place_name;
   const rawStationId =
-    (targetBusStep as any)?.realtimeStationId ||
-    (targetBusStep as any)?.startStationID ||
-    (targetBusStep as any)?.startID ||
-    (targetBusStep as any)?.startStationId ||
-    (targetBusStep as any)?.nodeId;
+    targetBusStep?.realtimeStationId ||
+    targetBusStep?.startStationID ||
+    targetBusStep?.startID ||
+    targetBusStep?.startStationId ||
+    targetBusStep?.nodeId;
   const targetBusStationId = rawStationId ? String(rawStationId) : undefined;
   const targetBusStationName = targetBusStep?.startName || originPlace?.place_name;
   const targetBusName = targetBusStep?.name || '';
-  const targetOdsayBusId = (targetBusStep as any)?.odsayBusId || (targetBusStep as any)?.busID;
-  const targetTagoRouteId = (targetBusStep as any)?.tagoRouteId || (targetBusStep as any)?.busLocalBlID;
+  const targetOdsayBusId = targetBusStep?.odsayBusId ? String(targetBusStep.odsayBusId) : (targetBusStep?.busID ? String(targetBusStep.busID) : undefined);
+  const targetTagoRouteId = targetBusStep?.tagoRouteId ? String(targetBusStep.tagoRouteId) : (targetBusStep?.busLocalBlID ? String(targetBusStep.busLocalBlID) : undefined);
   const targetBusId = targetOdsayBusId || targetTagoRouteId;
-  const targetBusType = (targetBusStep as any)?.busType;
-  const targetBusDestination = targetBusStep?.endName;
+  const targetBusType = targetBusStep?.busType;
+  const targetBusDestination = targetBusStep?.endName || targetBusStep?.destination;
   const targetBusHeadsign = targetBusStep?.headsign;
-  const targetBusIntervalTime = (targetBusStep as any)?.intervalTime;
-  const targetBusStartDateTime = (targetBusStep as any)?.startDateTime;
-  const inferredRegion = (targetBusStep as any)?.startRegion || inferRegionFromPlace(originPlace);
-  const targetBusLat = (targetBusStep as any)?.startY || (targetBusStep as any)?.startLat || (originPlace as any)?.y || (originPlace as any)?.lat;
-  const targetBusLng = (targetBusStep as any)?.startX || (targetBusStep as any)?.startLng || (originPlace as any)?.x || (originPlace as any)?.lng;
-  const targetCityCode = (targetBusStep as any)?.startCityCode;
+  const targetBusIntervalTime = targetBusStep?.intervalTime;
+  const targetBusStartDateTime = targetBusStep?.startDateTime;
+  const inferredRegion = targetBusStep?.startRegion || inferRegionFromPlace(originPlace);
+  const targetBusLat = targetBusStep?.startY || targetBusStep?.startLat || originPlace?.lat;
+  const targetBusLng = targetBusStep?.startX || targetBusStep?.startLng || originPlace?.lng;
+  const targetCityCode = targetBusStep?.startCityCode || targetBusStep?.cityCode;
 
-  const getTransportIcon = (tType: string, steps: any[] = []) => {
+  const getTransportIcon = (tType: string, steps: DirectionStep[] = []) => {
     if (tType === 'car' || tType === 'taxi') return <Car className="w-7 h-7" />;
     if (tType === 'walk') return <Footprints className="w-7 h-7" />;
 
-    const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
-    const hasBus = steps.some((s: any) => s.type === 'bus' || s.type === 'expressbus');
+    const hasSubway = steps.some((s: DirectionStep) => s.type === 'subway' || s.type === 'train');
+    const hasBus = steps.some((s: DirectionStep) => s.type === 'bus' || s.type === 'expressbus');
 
     if (hasSubway && hasBus) {
       return (
@@ -627,7 +627,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 }
 
   // Desktop Web UI: Classic always-visible horizontal timeline bar (gauge bar) format
-  const transitSteps = data.steps.filter((s: any) => s.type !== 'walk');
+  const transitSteps = data.steps.filter((s: DirectionStep) => s.type !== 'walk');
   const hasTransit = transitSteps.length > 0;
 
   return (

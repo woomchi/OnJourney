@@ -10,7 +10,7 @@ import { getDefaultRoute } from '@/lib/routeUtils';
 import { formatJourneyDate } from '@/lib/journeyUtils';
 import { MAX_JOURNEY_PLACES } from '@/constants/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
-import type { Journey } from '@/types/journey';
+import type { Journey, Place, DirectionResult, SelectedRoute } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check, Bus, Car, Footprints, Calendar, MapPin } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
 
@@ -89,15 +89,15 @@ export default function JourneyPlayerHeader({
       const dest = places[i + 1];
       if (!origin || !dest) continue;
 
-      let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+      let route: SelectedRoute | DirectionResult | null = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
       if (!route) {
         const cacheKey = `${origin.id}-${dest.id}`;
         const cachedData = directionsCache[cacheKey];
 
         const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
         const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id, departureTime));
-        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
 
         const hasData = (cachedData && (cachedData.public.length > 0 || cachedData.car.length > 0 || cachedData.walk.length > 0)) || !!publicData || !!carData;
 
@@ -117,7 +117,7 @@ export default function JourneyPlayerHeader({
           walk: carData?.walk || []
         };
 
-        route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk');
+        route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk') || null;
       }
 
       if (route) {
@@ -142,7 +142,7 @@ export default function JourneyPlayerHeader({
   if (isMobile) {
     return (
       <HeaderComponent
-        onPointerDown={(e: any) => {
+        onPointerDown={(e: React.PointerEvent) => {
           if (bottomSheet?.dragControls) {
             bottomSheet.dragControls.start(e);
           }
@@ -225,7 +225,7 @@ export default function JourneyPlayerHeader({
 
   return (
     <HeaderComponent
-      onPointerDown={(e: any) => {
+      onPointerDown={(e: React.PointerEvent) => {
         if (isMobile && bottomSheet?.dragControls) {
           bottomSheet.dragControls.start(e);
         }

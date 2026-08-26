@@ -5,21 +5,31 @@ import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import { SEQUENCE_COLORS } from '@/constants/colors';
 import { simplifyPath } from '@/lib/polylineSimplifier';
 import { useMapUIStore } from '@/stores/map-store';
-import type { Place, Journey } from '@/types/journey';
+import type {
+  Place,
+  Journey,
+  DirectionResult,
+  BaseRouteData,
+  DirectionsCacheRecord,
+  AlternativeSegment,
+  FocusedSegment,
+  FocusedStep,
+  LatLngBoundsLiteral,
+} from '@/types/journey';
 
 export interface MapRoutesProps {
   isAllInitialRoutesLoaded: boolean;
   places: Place[];
   activeJourney: Journey | null;
-  directionsCache: any;
-  alternativeSegment: any;
-  hoveredAlternativeRoute: any;
-  focusedSegment: any;
-  setFocusBounds: (bounds: any) => void;
-  setFocusedStep: (step: any) => void;
-  setFocusedSegment: (segment: any) => void;
-  delays: { pathDelays: Record<string, number>, markerDelays: Record<string, number> };
-  focusedStep: any;
+  directionsCache: DirectionsCacheRecord;
+  alternativeSegment: AlternativeSegment | null;
+  hoveredAlternativeRoute: DirectionResult | null;
+  focusedSegment: FocusedSegment | null;
+  setFocusBounds: (bounds: LatLngBoundsLiteral | any) => void;
+  setFocusedStep: (step: FocusedStep | null) => void;
+  setFocusedSegment: (segment: FocusedSegment | null) => void;
+  delays: { pathDelays: Record<string, number>; markerDelays: Record<string, number> };
+  focusedStep: FocusedStep | null;
   isSearchMode: boolean;
   animationVersion: number;
   animatedSegmentsRef: React.MutableRefObject<Set<string>>;
@@ -44,7 +54,7 @@ export const MapRoutes = memo(function MapRoutes({
 }: MapRoutesProps) {
   const zoomLevel = useMapUIStore((state) => state.zoomLevel);
 
-  const handlePolylineClick = useCallback((place: Place, nextPlace: Place, targetRoute: any) => {
+  const handlePolylineClick = useCallback((place: Place, nextPlace: Place, targetRoute: BaseRouteData) => {
     const bounds = calculateSegmentBounds(place, nextPlace, targetRoute);
     if (focusedSegment && focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id) {
       setFocusBounds({ ...bounds });

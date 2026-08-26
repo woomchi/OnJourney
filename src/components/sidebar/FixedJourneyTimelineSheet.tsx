@@ -6,13 +6,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
-import type { Journey, Place } from '@/types/journey';
+import type { Journey, Place, DirectionResult, SelectedRoute, DirectionStep, DirectionsApiResponse, BaseRouteData } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check, Plus, Calendar, MapPin, Bus, Car, Footprints, Train, Clock, Coins, RefreshCw, ArrowRight } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon, AlternativeRouteIcon } from '@/components/ui/icons';
 import { getSequenceTheme, getSegmentTheme } from '@/constants/colors';
 import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 import { useDialog } from '@/providers/DialogProvider';
-import { motion, useDragControls, useMotionValue, animate } from 'framer-motion';
+import { motion, useDragControls, useMotionValue, animate, type PanInfo } from 'framer-motion';
 import { formatKmDistance, formatDurationMinutes } from '@/lib/utils/journeyUtils';
 
 import { usePWA } from '@/components/PWAProvider';
@@ -109,13 +109,13 @@ export default function FixedJourneyTimelineSheet({
     }
   }, [fullHeight, setDrawerSnapPoint]);
 
-  const handleDragEnd = (event: any, info: any) => {
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, _info: PanInfo) => {
     return;
   };
 
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   const scrollToElement = (key: string) => {
     requestAnimationFrame(() => {
@@ -222,7 +222,7 @@ export default function FixedJourneyTimelineSheet({
 
   const activeFocusedRoute = useMemo(() => {
     if (!focusedOrigin || !focusedDest) return null;
-    let r: any = focusedOrigin.selected_route && focusedOrigin.selected_route.destId === focusedDest.id ? focusedOrigin.selected_route : null;
+    let r: SelectedRoute | DirectionResult | null = focusedOrigin.selected_route && focusedOrigin.selected_route.destId === focusedDest.id ? focusedOrigin.selected_route : null;
     if (!r) {
       const cacheKey = `${focusedOrigin.id}-${focusedDest.id}`;
       const segmentData = directionsCache[cacheKey];
@@ -349,15 +349,15 @@ export default function FixedJourneyTimelineSheet({
       const dest = places[i + 1];
       if (!origin || !dest) continue;
 
-      let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+      let route: SelectedRoute | DirectionResult | null = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
       if (!route) {
         const cacheKey = `${origin.id}-${dest.id}`;
         const cachedData = directionsCache[cacheKey];
 
         const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
         const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id, departureTime));
-        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
 
         const hasData = (cachedData && (cachedData.public.length > 0 || cachedData.car.length > 0 || cachedData.walk.length > 0)) || !!publicData || !!carData;
 
@@ -376,7 +376,7 @@ export default function FixedJourneyTimelineSheet({
           car: carData?.car || [],
           walk: carData?.walk || []
         };
-        route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk');
+        route = getDefaultRoute(origin, dest, segmentData, transportType as 'public' | 'car' | 'walk') || null;
       }
 
       if (route) {
@@ -412,8 +412,8 @@ export default function FixedJourneyTimelineSheet({
         const firstPlace = places[0];
         const secondPlace = places[1];
 
-        const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id, departureTime));
-        const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id, departureTime));
+        const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id, departureTime));
+        const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(firstPlace.id, secondPlace.id, departureTime));
         const segmentData = {
           public: publicData?.public || [],
           car: carData?.car || [],
@@ -465,7 +465,7 @@ export default function FixedJourneyTimelineSheet({
     }
   };
 
-  const handleSegmentClick = (origin: Place, dest: Place, route: any) => {
+  const handleSegmentClick = (origin: Place, dest: Place, route: BaseRouteData | null) => {
     setFocusedStep(null);
     setFocusedSegment({ originId: origin.id, destId: dest.id });
     setFocusedPlaceId(null);
@@ -479,10 +479,10 @@ export default function FixedJourneyTimelineSheet({
 
   const getSegmentInfo = (origin?: Place, dest?: Place) => {
     if (!origin || !dest) return { type: transportType, isFocused: false };
-    let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+    let route: SelectedRoute | DirectionResult | null = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
     if (!route) {
-      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+      const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+      const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
       const segmentData = {
         public: publicData?.public || [],
         car: carData?.car || [],
@@ -496,7 +496,7 @@ export default function FixedJourneyTimelineSheet({
   };
 
   const renderSegmentBadge = (origin: Place, dest: Place, sIdx: number) => {
-    let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+    let route: SelectedRoute | DirectionResult | null = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
     let isSegLoading = false;
 
     if (!route) {
@@ -505,8 +505,8 @@ export default function FixedJourneyTimelineSheet({
 
       const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
       const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id, departureTime));
-      const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-      const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+      const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+      const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
 
       const hasData = (cachedData && (cachedData.public.length > 0 || cachedData.car.length > 0 || cachedData.walk.length > 0)) || !!publicData || !!carData;
 
@@ -600,7 +600,7 @@ export default function FixedJourneyTimelineSheet({
             <div
               ref={(el) => {
                 const key = `segment-${origin.id}-${dest.id}`;
-                if (el) cardRefs.current.set(key, el as any);
+                if (el) cardRefs.current.set(key, el);
                 else cardRefs.current.delete(key);
               }}
               onClick={() => handleSegmentClick(origin, dest, route)}
@@ -623,8 +623,8 @@ export default function FixedJourneyTimelineSheet({
                       if (type === 'walk') return <Footprints className="w-3.5 h-3.5" />;
 
                       const steps = route?.steps || [];
-                      const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
-                      const hasBus = steps.some((s: any) => s.type === 'bus' || s.type === 'expressbus');
+                      const hasSubway = steps.some((s: DirectionStep) => s.type === 'subway' || s.type === 'train');
+                      const hasBus = steps.some((s: DirectionStep) => s.type === 'bus' || s.type === 'expressbus');
 
                       if (hasSubway && hasBus) {
                         return (
@@ -650,7 +650,7 @@ export default function FixedJourneyTimelineSheet({
                 {/* 3행: 환승 횟수 */}
                 <span className={`text-[11.5px] font-medium leading-none truncate max-w-full ${isFocused ? 'text-white/65' : 'text-zinc-500'}`}>
                   {type === 'public' ? (
-                    route?.steps ? `환승 ${Math.max(0, route.steps.filter((s: any) => s.type !== 'walk').length - 1)}회` : '대중교통'
+                    route?.steps ? `환승 ${Math.max(0, route.steps.filter((s: DirectionStep) => s.type !== 'walk').length - 1)}회` : '대중교통'
                   ) : type === 'car' ? (
                     '차량'
                   ) : (
@@ -1097,7 +1097,7 @@ export default function FixedJourneyTimelineSheet({
                       onClick={() => handlePlaceClick(place)}
                       ref={(el) => {
                         const key = `place-${place.id}`;
-                        if (el) cardRefs.current.set(key, el as any);
+                        if (el) cardRefs.current.set(key, el);
                         else cardRefs.current.delete(key);
                       }}
                       className={`relative z-10 w-[24px] h-[24px] rounded-full flex items-center justify-center text-white text-[11px] font-black tracking-tighter cursor-pointer transition-all duration-300 shrink-0 ${focusedPlaceId === place.id

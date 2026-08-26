@@ -123,13 +123,20 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
 
       const targetDist = progress * totalDist;
       
+      // O(log n) Binary search for finding segment index
+      let low = 0;
+      let high = distances.length - 2;
       let segIndex = 0;
-      for (let i = 0; i < distances.length - 1; i++) {
-        if (targetDist >= distances[i] && targetDist <= distances[i + 1]) {
-          segIndex = i;
-          break;
+      while (low <= high) {
+        const mid = (low + high) >> 1;
+        if (targetDist >= distances[mid]) {
+          segIndex = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
         }
       }
+      segIndex = Math.min(segIndex, distances.length - 2);
 
       const newPath = fullPath.slice(0, segIndex + 1);
       

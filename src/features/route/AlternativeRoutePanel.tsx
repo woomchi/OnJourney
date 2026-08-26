@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute } from '@/types/journey';
 import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
 import ScrollContainer from 'react-indiana-drag-scroll';
 import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
@@ -22,6 +21,7 @@ import RouteTimelineGaugeBar from '@/components/route/RouteTimelineGaugeBar';
 import { SegmentBusRealtimeChip } from '@/components/transit/SegmentBusRealtimeChip';
 import { SegmentSubwayRealtimeChip } from '@/components/transit/SegmentSubwayRealtimeChip';
 import { RefreshCw } from 'lucide-react';
+import type { Place, DirectionsApiResponse, DirectionResult, SelectedRoute, SnapMeta } from '@/types/journey';
 
 interface AlternativeRoutePanelProps {
   originPlace: Place;
@@ -31,7 +31,8 @@ interface AlternativeRoutePanelProps {
   onExited?: () => void;
 }
 
-const parseSnapVal = (s: any): number => {
+const parseSnapVal = (s: number | string | null | undefined): number => {
+  if (!s) return 0;
   if (s === 1 || s === '1') return 1;
   if (typeof s === 'number') return s;
   if (typeof s === 'string') {
@@ -52,13 +53,13 @@ const FloatingButtonsContainer = ({ altHeight }: { altHeight: number }) => {
   const y = bottomSheet?.y || fallbackY;
   const maxHeight = bottomSheet?.maxHeight ?? 800;
   const opacity = useTransform(y, [-maxHeight + 160, -maxHeight + 40], [1, 0]);
-  const pointerEvents = useTransform(y, (latest: number) => latest < -maxHeight + 60 ? 'none' : 'auto');
+  const pointerEvents = useTransform(y, (latest: number) => (latest < -maxHeight + 60 ? 'none' : 'auto'));
   
   return (
     <motion.div 
       id="mobile-map-buttons-target-route"
       className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] *:pointer-events-auto"
-      style={{ opacity, pointerEvents: pointerEvents as any }}
+      style={{ opacity, pointerEvents: pointerEvents as unknown as React.CSSProperties['pointerEvents'] }}
     />
   );
 };
@@ -129,7 +130,7 @@ export default function AlternativeRoutePanel({
         const detail = await fetchTmapDetailRouteApi(sx, sy, ex, ey);
 
         // Update React Query Cache so it propagates to all components
-        queryClient.setQueryData<{ car: DirectionResult[], walk: DirectionResult[], snapMeta?: any }>(carKey, (oldData) => {
+        queryClient.setQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(carKey, (oldData) => {
           if (!oldData) return oldData;
           const updatedWalk = oldData.walk.map(w => {
             if (w.id === route.id) {
@@ -144,8 +145,6 @@ export default function AlternativeRoutePanel({
                       mergedPath = [...w.pathPoints.slice(0, -1), ...detail.polyline];
                     } else if (w.snappedEnd) {
                       mergedPath = [...detail.polyline, ...w.pathPoints.slice(1)];
-                    } else {
-                      mergedPath = detail.polyline;
                     }
                     return {
                       ...step,
@@ -315,7 +314,7 @@ function isRouteMatch(
   }, [hoveredPreviewRoute, activeRoute, activeTab, activeTabRoutes]);
 
   useEffect(() => {
-    setHoveredAlternativeRoute(previewRoute as any);
+    setHoveredAlternativeRoute(previewRoute);
     return () => setHoveredAlternativeRoute(null);
   }, [previewRoute, setHoveredAlternativeRoute]);
 
@@ -518,23 +517,21 @@ function isRouteMatch(
         firstBusStep.realtimeStationId ||
         firstBusStep.startStationID ||
         firstBusStep.startID ||
-        (originPlace as any)?.stationId ||
-        (originPlace as any)?.arsId ||
-        (originPlace as any)?.nodeId;
-      const busNo = (firstBusStep as any).laneName || (firstBusStep as any).busNo || firstBusStep.name;
+        firstBusStep.nodeId;
+      const busNo = firstBusStep.name;
       const busStationName = firstBusStep.startName || originPlace.place_name;
       const busRegion = firstBusStep.startRegion || inferRegionFromPlace(originPlace);
-      const busLat = (firstBusStep as any).startY || (firstBusStep as any).startLat || (originPlace as any)?.y || (originPlace as any)?.lat;
-      const busLng = (firstBusStep as any).startX || (firstBusStep as any).startLng || (originPlace as any)?.x || (originPlace as any)?.lng;
-      const busCityCode = (firstBusStep as any).startCityCode;
-      const odsayBusId = (firstBusStep as any).odsayBusId || (firstBusStep as any).busID;
-      const tagoRouteId = (firstBusStep as any).tagoRouteId || (firstBusStep as any).busLocalBlID;
+      const busLat = firstBusStep.startY || firstBusStep.startLat || originPlace.lat;
+      const busLng = firstBusStep.startX || firstBusStep.startLng || originPlace.lng;
+      const busCityCode = firstBusStep.startCityCode || firstBusStep.cityCode;
+      const odsayBusId = firstBusStep.odsayBusId || firstBusStep.busID;
+      const tagoRouteId = firstBusStep.tagoRouteId || firstBusStep.busLocalBlID;
       const busId = odsayBusId || tagoRouteId;
-      const busType = (firstBusStep as any).busType;
-      const busDestination = firstBusStep.endName;
+      const busType = firstBusStep.busType;
+      const busDestination = firstBusStep.endName || firstBusStep.destination;
       const busHeadsign = firstBusStep.headsign;
-      const busIntervalTime = (firstBusStep as any).intervalTime;
-      const busStartDateTime = (firstBusStep as any).startDateTime;
+      const busIntervalTime = firstBusStep.intervalTime;
+      const busStartDateTime = firstBusStep.startDateTime;
 
       if (busStationId && busNo) {
         return (
@@ -548,9 +545,9 @@ function isRouteMatch(
               stationId={String(busStationId)}
               stationName={busStationName}
               busNo={busNo}
-              busId={busId}
-              odsayBusId={odsayBusId}
-              tagoRouteId={tagoRouteId}
+              busId={busId !== undefined ? String(busId) : undefined}
+              odsayBusId={odsayBusId !== undefined ? String(odsayBusId) : undefined}
+              tagoRouteId={tagoRouteId !== undefined ? String(tagoRouteId) : undefined}
               destination={busDestination}
               headsign={busHeadsign}
               intervalTime={busIntervalTime}
@@ -622,23 +619,21 @@ function isRouteMatch(
         firstBusStep.realtimeStationId ||
         firstBusStep.startStationID ||
         firstBusStep.startID ||
-        (originPlace as any)?.stationId ||
-        (originPlace as any)?.arsId ||
-        (originPlace as any)?.nodeId;
-      const busNo = (firstBusStep as any).laneName || (firstBusStep as any).busNo || firstBusStep.name;
+        firstBusStep.nodeId;
+      const busNo = firstBusStep.name;
       const busStationName = firstBusStep.startName || originPlace.place_name;
       const busRegion = firstBusStep.startRegion || inferRegionFromPlace(originPlace);
-      const busLat = (firstBusStep as any).startY || (firstBusStep as any).startLat || (originPlace as any)?.y || (originPlace as any)?.lat;
-      const busLng = (firstBusStep as any).startX || (firstBusStep as any).startLng || (originPlace as any)?.x || (originPlace as any)?.lng;
-      const busCityCode = (firstBusStep as any).startCityCode;
-      const odsayBusId = (firstBusStep as any).odsayBusId || (firstBusStep as any).busID;
-      const tagoRouteId = (firstBusStep as any).tagoRouteId || (firstBusStep as any).busLocalBlID;
+      const busLat = firstBusStep.startY || firstBusStep.startLat || originPlace.lat;
+      const busLng = firstBusStep.startX || firstBusStep.startLng || originPlace.lng;
+      const busCityCode = firstBusStep.startCityCode || firstBusStep.cityCode;
+      const odsayBusId = firstBusStep.odsayBusId || firstBusStep.busID;
+      const tagoRouteId = firstBusStep.tagoRouteId || firstBusStep.busLocalBlID;
       const busId = odsayBusId || tagoRouteId;
-      const busType = (firstBusStep as any).busType;
-      const busDestination = firstBusStep.endName;
+      const busType = firstBusStep.busType;
+      const busDestination = firstBusStep.endName || firstBusStep.destination;
       const busHeadsign = firstBusStep.headsign;
-      const busIntervalTime = (firstBusStep as any).intervalTime;
-      const busStartDateTime = (firstBusStep as any).startDateTime;
+      const busIntervalTime = firstBusStep.intervalTime;
+      const busStartDateTime = firstBusStep.startDateTime;
 
       if (busStationId && busNo) {
         return (
@@ -652,9 +647,9 @@ function isRouteMatch(
               stationId={String(busStationId)}
               stationName={busStationName}
               busNo={busNo}
-              busId={busId}
-              odsayBusId={odsayBusId}
-              tagoRouteId={tagoRouteId}
+              busId={busId !== undefined ? String(busId) : undefined}
+              odsayBusId={odsayBusId !== undefined ? String(odsayBusId) : undefined}
+              tagoRouteId={tagoRouteId !== undefined ? String(tagoRouteId) : undefined}
               destination={busDestination}
               headsign={busHeadsign}
               intervalTime={busIntervalTime}

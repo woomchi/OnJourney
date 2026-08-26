@@ -140,8 +140,10 @@ export function useAutoRefresh({
     onRefreshRef.current();
   }, [clearTimer, clearFinishTimer, intervalSeconds]);
 
-  // isFetching 상태 변화 감지 및 최소 로딩 시간(minLoadingDurationMs) 보장
+  // isFetching 상태 변화 감지 및 최소 로딩 시간(minLoadingDurationMs) 보장 (단독 모드 전용)
   useEffect(() => {
+    if (sharedKey) return;
+
     if (isFetching) {
       clearFinishTimer();
       fetchStartTimeRef.current = Date.now();
@@ -166,10 +168,11 @@ export function useAutoRefresh({
     return () => {
       clearFinishTimer();
     };
-  }, [isFetching, minLoadingDurationMs, intervalSeconds, state.status, clearFinishTimer]);
+  }, [sharedKey, isFetching, minLoadingDurationMs, intervalSeconds, state.status, clearFinishTimer]);
 
+  // 로컬 카운트다운 타이머 (단독 모드 전용, sharedKey 없을 때만 구동)
   useEffect(() => {
-    if (state.status !== 'active' || isDisplayLoading) {
+    if (sharedKey || state.status !== 'active' || isDisplayLoading) {
       clearTimer();
       return;
     }
@@ -216,7 +219,7 @@ export function useAutoRefresh({
     return () => {
       clearTimer();
     };
-  }, [state.status, state.sessionId, isDisplayLoading, maxRefreshCount, intervalSeconds, clearTimer]);
+  }, [sharedKey, state.status, state.sessionId, isDisplayLoading, maxRefreshCount, intervalSeconds, clearTimer]);
 
   // 언마운트 시 타이머 정리 보장
   useEffect(() => {

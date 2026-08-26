@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/routeUtils';
 import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
-import type { Journey, Place } from '@/types/journey';
+import type { Journey, Place, DirectionResult, SelectedRoute, DirectionStep, BaseRouteData } from '@/types/journey';
 import { MapPin, ArrowRight, Footprints, Car, Bus, Train } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 
@@ -37,7 +37,7 @@ export default function HorizontalJourneyTimelineBar({
   } = useJourneyStore();
 
   const timelineContainerRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   const scrollToElement = (key: string) => {
     requestAnimationFrame(() => {
@@ -87,7 +87,7 @@ export default function HorizontalJourneyTimelineBar({
     }
   };
 
-  const handleSegmentClick = (origin: Place, dest: Place, route: any) => {
+  const handleSegmentClick = (origin: Place, dest: Place, route: BaseRouteData | null) => {
     setFocusedStep(null);
     setFocusedSegment({ originId: origin.id, destId: dest.id });
     setFocusedPlaceId(null);
@@ -101,10 +101,10 @@ export default function HorizontalJourneyTimelineBar({
 
   const getSegmentInfo = (origin?: Place, dest?: Place) => {
     if (!origin || !dest) return { type: transportType, isFocused: false };
-    let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+    let route: SelectedRoute | DirectionResult | null = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
     if (!route) {
-      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+      const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+      const carData = queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
       const segmentData = {
         public: publicData?.public || [],
         car: carData?.car || [],
@@ -118,7 +118,7 @@ export default function HorizontalJourneyTimelineBar({
   };
 
   const renderSegmentBadge = (origin: Place, dest: Place, sIdx: number) => {
-    let route: any = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
+    let route: SelectedRoute | DirectionResult | null = origin.selected_route && origin.selected_route.destId === dest.id ? origin.selected_route : null;
     let isSegLoading = false;
 
     if (!route) {
@@ -127,8 +127,8 @@ export default function HorizontalJourneyTimelineBar({
 
       const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
       const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id, departureTime));
-      const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<any>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-      const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<any>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+      const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
+      const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
 
       const hasData = (cachedData && (cachedData.public.length > 0 || cachedData.car.length > 0 || cachedData.walk.length > 0)) || !!publicData || !!carData;
 
@@ -218,7 +218,7 @@ export default function HorizontalJourneyTimelineBar({
             <div
               ref={(el) => {
                 const key = `segment-${origin.id}-${dest.id}`;
-                if (el) cardRefs.current.set(key, el as any);
+                if (el) cardRefs.current.set(key, el);
                 else cardRefs.current.delete(key);
               }}
               onClick={() => handleSegmentClick(origin, dest, route)}
@@ -242,8 +242,8 @@ export default function HorizontalJourneyTimelineBar({
                       if (type === 'walk') return <Footprints className="w-3.5 h-3.5" />;
 
                       const steps = route?.steps || [];
-                      const hasSubway = steps.some((s: any) => s.type === 'subway' || s.type === 'train');
-                      const hasBus = steps.some((s: any) => s.type === 'bus' || s.type === 'expressbus');
+                      const hasSubway = steps.some((s: DirectionStep) => s.type === 'subway' || s.type === 'train');
+                      const hasBus = steps.some((s: DirectionStep) => s.type === 'bus' || s.type === 'expressbus');
 
                       if (hasSubway && hasBus) {
                         return (
@@ -269,7 +269,7 @@ export default function HorizontalJourneyTimelineBar({
                 {/* 3행: 환승 횟수 */}
                 <span className={`text-[11.5px] font-medium leading-none truncate max-w-full ${isFocused ? 'text-white/65' : 'text-zinc-500'}`}>
                   {type === 'public' ? (
-                    route?.steps ? `환승 ${Math.max(0, route.steps.filter((s: any) => s.type !== 'walk').length - 1)}회` : '대중교통'
+                    route?.steps ? `환승 ${Math.max(0, route.steps.filter((s: DirectionStep) => s.type !== 'walk').length - 1)}회` : '대중교통'
                   ) : type === 'car' ? (
                     '차량'
                   ) : (

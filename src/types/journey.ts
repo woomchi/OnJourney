@@ -115,16 +115,27 @@ export interface DirectionStep {
   pathPoints?: { lat: number; lng: number }[];
   startName?: string;
   endName?: string;
+  destination?: string;      // 버스/지하철 방면/목적지
   headsign?: string;
   wayCode?: number;
   startLat?: number;
   startLng?: number;
   endLat?: number;
   endLng?: number;
+  startX?: number;           // 경도 (ODsay/카카오 포맷)
+  startY?: number;           // 위도 (ODsay/카카오 포맷)
+  endX?: number;
+  endY?: number;
   startID?: string | number;
   endID?: string | number;
   startStationID?: string | number;
+  startStationId?: string | number;
   endStationID?: string | number;
+  endStationId?: string | number;
+  nodeId?: string | number;  // TAGO 표준 정류소 ID
+  stationCount?: number;     // 경유 정류장 수
+  sectionTime?: number;      // 구간 소요 시간 (분)
+  distance?: number;         // 구간 이동 거리 (m)
   subPathOptions?: SubPathOption[];
   passStopList?: {
     stationList: {
@@ -133,15 +144,18 @@ export interface DirectionStep {
       lng?: number;
     }[];
   };
-  // maasRP 전용 추가 필드
+  // maasRP / 대중교통 전용 추가 필드
   startDateTime?: string;    // "202608101407" (yyyyMMddHHmm)
   endDateTime?: string;      // "202608101435"
   waitingTime?: number;      // 대기 시간 (분)
   trainSubType?: string;     // "SRT", "KTX", "ITX-청춘" 등
   trainSpSeatYn?: 'Y' | 'N'; // 특실 존재 여부
   trainSpSeatFare?: number;  // 특실 요금
+  busType?: string;          // "간선", "지선", "광역", "마을" 등
   busLaneColor?: string;     // 버스 노선 색상
+  busID?: string | number;   // ODsay 버스 ID
   startCityCode?: string;    // 버스 정류소 도시 코드
+  cityCode?: string;
   startRegion?: string;      // 버스 정류소 지역 식별자
   busLocalBlID?: string;     // 지자체 버스 노선 고유 ID (경기도 등)
   odsayBusId?: string;       // ODsay 고유 노선 ID (5자리, fetchBusLaneDetail 전용)
@@ -150,6 +164,7 @@ export interface DirectionStep {
   intervalTime?: number;     // 버스/지하철 배차 간격 (분)
   rawLineName?: string;      // 지하철 원본 노선명 (예: '대전 1호선', '수도권 1호선')
   subwayCode?: number | string; // 지하철 고유 노선 코드 (ODsay: 500 등)
+  subwayId?: string | number;   // 지하철 노선 ID
 }
 
 /** 차량 경로 안내 단일 노드 (거리·시간 포함) */
@@ -177,6 +192,9 @@ export interface DirectionsApiResponse {
   walk: DirectionResult[];
 }
 
+/** 경유지 간 경로 캐시 맵 (키: originId-destId) */
+export type DirectionsCacheRecord = Record<string, DirectionsApiResponse | undefined>;
+
 // ─── 지도 영역 ────────────────────────────────────────────────────────────────
 
 /** 남서(SW)·북동(NE) 꼭짓점으로 정의되는 지도 경계 직사각형 */
@@ -187,6 +205,12 @@ export interface LatLngBoundsLiteral {
 
 /** 지도에서 포커스된 구간 (출발지 → 목적지) */
 export interface FocusedSegment {
+  originId: string;
+  destId: string;
+}
+
+/** 대안 경로가 탐색 중인 구간 */
+export interface AlternativeSegment {
   originId: string;
   destId: string;
 }

@@ -94,14 +94,14 @@ export class GyeonggiBusService {
         throw new Error('경기도 버스 API 유효 응답 없음');
       }
 
-      const json: any = validJson;
+      const json = validJson as Record<string, any>;
       const rawList =
         json.response?.msgBody?.busArrivalList ||
         json.response?.body?.items?.busArrivalItem ||
         json.response?.body?.items ||
         [];
 
-      const itemsArray: any[] = Array.isArray(rawList)
+      const itemsArray: Record<string, any>[] = Array.isArray(rawList)
         ? rawList
         : rawList && typeof rawList === 'object'
         ? [rawList]
@@ -121,13 +121,13 @@ export class GyeonggiBusService {
 
         const isExpress = busType === 'express';
 
-        const parseLocationNo = (val: any): number | undefined => {
+        const parseLocationNo = (val: unknown): number | undefined => {
           if (val === undefined || val === null || val === '') return undefined;
           const num = Number(val);
           return !isNaN(num) ? num : undefined;
         };
 
-        const parseRemainSeats = (val: any): number | undefined => {
+        const parseRemainSeats = (val: unknown): number | undefined => {
           // 일반 시내버스는 좌석 예약제가 아니므로 항상 undefined 반환하여 '만석' 오표시 차단
           if (!isExpress) return undefined;
           if (val === undefined || val === null || val === '') return undefined;
@@ -135,7 +135,7 @@ export class GyeonggiBusService {
           return !isNaN(num) && num >= 0 ? num : undefined;
         };
 
-        const parseCrowdedStatus = (val: any): string | undefined => {
+        const parseCrowdedStatus = (val: unknown): string | undefined => {
           if (val === undefined || val === null || val === '') return undefined;
           const str = String(val).trim();
           if (str === '0') return undefined; // 정보 없음
@@ -190,10 +190,11 @@ export class GyeonggiBusService {
         lastUpdated: Date.now(),
         reliability: RELIABILITY_SCORES.gyeonggi,
       };
-    } catch (error: any) {
-      console.error('[GyeonggiBusService] API 호출 실패:', error?.message);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : '알 수 없는 오류';
+      console.error('[GyeonggiBusService] API 호출 실패:', errMsg);
       const mock = this.getMockData(stationId, stationName);
-      mock.errorMessage = `경기도 API 연동 에러: ${error?.message || '알 수 없는 오류'}`;
+      mock.errorMessage = `경기도 API 연동 에러: ${errMsg}`;
       mock.reliability = 0.5;
       return mock;
     }
@@ -244,11 +245,11 @@ export class GyeonggiBusService {
       }
 
       const text = await response.text();
-      let rawList: any = null;
+      let rawList: unknown = null;
 
       // JSON 파싱 시도
       try {
-        const json = JSON.parse(text);
+        const json = JSON.parse(text) as Record<string, any>;
         rawList =
           json.response?.msgBody?.busLocationList ||
           json.response?.body?.items?.busLocationItem ||
@@ -257,7 +258,7 @@ export class GyeonggiBusService {
       } catch {
         // XML 파싱 Fallback
         const parser = new XMLParser();
-        const xml = parser.parse(text);
+        const xml = parser.parse(text) as Record<string, any>;
         rawList =
           xml.response?.msgBody?.busLocationList ||
           xml.response?.body?.items?.busLocationItem ||
@@ -269,20 +270,20 @@ export class GyeonggiBusService {
         return null;
       }
 
-      const itemsArray: any[] = Array.isArray(rawList)
+      const itemsArray: Record<string, any>[] = Array.isArray(rawList)
         ? rawList
         : rawList && typeof rawList === 'object'
-        ? [rawList]
+        ? [rawList as Record<string, any>]
         : [];
 
       return itemsArray.map((item) => {
-        const parseRemainSeats = (val: any): number | undefined => {
+        const parseRemainSeats = (val: unknown): number | undefined => {
           if (val === undefined || val === null || val === '') return undefined;
           const num = Number(val);
           return !isNaN(num) ? num : undefined;
         };
 
-        const parseSeq = (val: any): number | undefined => {
+        const parseSeq = (val: unknown): number | undefined => {
           if (val === undefined || val === null || val === '') return undefined;
           const num = Number(val);
           return !isNaN(num) ? num : undefined;
@@ -301,8 +302,9 @@ export class GyeonggiBusService {
           vehId: item.vehId ? String(item.vehId) : undefined,
         };
       });
-    } catch (err: any) {
-      console.warn('[GyeonggiBusService] 버스 위치 API 연동 실패:', err?.message);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.warn('[GyeonggiBusService] 버스 위치 API 연동 실패:', errMsg);
       return null;
     }
   }

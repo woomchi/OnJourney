@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { PlaceResult } from '@/types/journey';
-import type { MotionValue } from 'framer-motion';
 
 interface MapCoord {
   lat: number;
@@ -54,10 +53,6 @@ interface MapUIState {
   // Dragging State
   isMapDragging: boolean;
   setIsMapDragging: (isDragging: boolean) => void;
-
-  // Bottom Sheet Motion Value Sharing
-  bottomSheetY: MotionValue<number> | number | null;
-  setBottomSheetY: (y: MotionValue<number> | number | ((prev: MotionValue<number> | number | null) => MotionValue<number> | number | null) | null) => void;
 }
 
 export const useMapUIStore = create<MapUIState>((set) => ({
@@ -99,12 +94,4 @@ export const useMapUIStore = create<MapUIState>((set) => ({
 
   forceLoad: false,
   setForceLoad: (force) => set({ forceLoad: force }),
-
-  bottomSheetY: null,
-  setBottomSheetY: (y) => set((state) => {
-    if (typeof y === 'function') {
-      return { bottomSheetY: y(state.bottomSheetY) };
-    }
-    return { bottomSheetY: y };
-  }),
 }));

@@ -7,6 +7,8 @@ import { X, RefreshCw, Train, ArrowDown, ArrowUp, Navigation } from 'lucide-reac
 import { clsx } from 'clsx';
 import { useSubwayLinePositions } from '@/hooks/useSubwayLinePositions';
 import { SubwayPosition, SubwayLineStation } from '@/types/journey';
+import { getSubwayLineTheme } from '@/lib/constants/subwayThemes';
+import { calculateTrainDeadReckoning } from '@/lib/services/subwayDeadReckoningEngine';
 
 export interface SubwayLineMapSheetProps {
   isOpen: boolean;
@@ -20,176 +22,6 @@ export interface SubwayLineMapSheetProps {
   targetStatusText?: string;
 }
 
-// ─── 호선별 테마 색상 정의 ───────────────────────────────────────────────────
-
-interface SubwayColorTheme {
-  bg: string;
-  text: string;
-  border: string;
-  line: string;
-  badgeBg: string;
-  badgeText: string;
-  lightBg: string;
-}
-
-function getSubwayLineTheme(subwayNmOrId: string): SubwayColorTheme {
-  const clean = String(subwayNmOrId || '').trim();
-
-  if (clean === '1001' || clean === '1' || clean.includes('1호선')) {
-    return {
-      bg: 'bg-[#0052A4]',
-      text: 'text-[#0052A4]',
-      border: 'border-[#0052A4]',
-      line: 'bg-[#0052A4]',
-      badgeBg: 'bg-[#0052A4]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#0052A4]/10',
-    };
-  }
-  if (clean === '1002' || clean === '2' || clean.includes('2호선')) {
-    return {
-      bg: 'bg-[#00A84D]',
-      text: 'text-[#00A84D]',
-      border: 'border-[#00A84D]',
-      line: 'bg-[#00A84D]',
-      badgeBg: 'bg-[#00A84D]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#00A84D]/10',
-    };
-  }
-  if (clean === '1003' || clean === '3' || clean.includes('3호선')) {
-    return {
-      bg: 'bg-[#EF7C1C]',
-      text: 'text-[#EF7C1C]',
-      border: 'border-[#EF7C1C]',
-      line: 'bg-[#EF7C1C]',
-      badgeBg: 'bg-[#EF7C1C]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#EF7C1C]/10',
-    };
-  }
-  if (clean === '1004' || clean === '4' || clean.includes('4호선')) {
-    return {
-      bg: 'bg-[#00A5DE]',
-      text: 'text-[#00A5DE]',
-      border: 'border-[#00A5DE]',
-      line: 'bg-[#00A5DE]',
-      badgeBg: 'bg-[#00A5DE]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#00A5DE]/10',
-    };
-  }
-  if (clean === '1005' || clean === '5' || clean.includes('5호선')) {
-    return {
-      bg: 'bg-[#996CAC]',
-      text: 'text-[#996CAC]',
-      border: 'border-[#996CAC]',
-      line: 'bg-[#996CAC]',
-      badgeBg: 'bg-[#996CAC]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#996CAC]/10',
-    };
-  }
-  if (clean === '1006' || clean === '6' || clean.includes('6호선')) {
-    return {
-      bg: 'bg-[#CD7C2F]',
-      text: 'text-[#CD7C2F]',
-      border: 'border-[#CD7C2F]',
-      line: 'bg-[#CD7C2F]',
-      badgeBg: 'bg-[#CD7C2F]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#CD7C2F]/10',
-    };
-  }
-  if (clean === '1007' || clean === '7' || clean.includes('7호선')) {
-    return {
-      bg: 'bg-[#747F00]',
-      text: 'text-[#747F00]',
-      border: 'border-[#747F00]',
-      line: 'bg-[#747F00]',
-      badgeBg: 'bg-[#747F00]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#747F00]/10',
-    };
-  }
-  if (clean === '1008' || clean === '8' || clean.includes('8호선')) {
-    return {
-      bg: 'bg-[#EA545D]',
-      text: 'text-[#EA545D]',
-      border: 'border-[#EA545D]',
-      line: 'bg-[#EA545D]',
-      badgeBg: 'bg-[#EA545D]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#EA545D]/10',
-    };
-  }
-  if (clean === '1009' || clean === '9' || clean.includes('9호선')) {
-    return {
-      bg: 'bg-[#BDB092]',
-      text: 'text-[#8C7B58]',
-      border: 'border-[#BDB092]',
-      line: 'bg-[#BDB092]',
-      badgeBg: 'bg-[#BDB092]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#BDB092]/15',
-    };
-  }
-  if (clean.includes('수인분당') || clean.includes('분당선')) {
-    return {
-      bg: 'bg-[#F5A200]',
-      text: 'text-[#D88D00]',
-      border: 'border-[#F5A200]',
-      line: 'bg-[#F5A200]',
-      badgeBg: 'bg-[#F5A200]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#F5A200]/15',
-    };
-  }
-  if (clean.includes('신분당')) {
-    return {
-      bg: 'bg-[#D4003B]',
-      text: 'text-[#D4003B]',
-      border: 'border-[#D4003B]',
-      line: 'bg-[#D4003B]',
-      badgeBg: 'bg-[#D4003B]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#D4003B]/10',
-    };
-  }
-  if (clean.includes('경의중앙')) {
-    return {
-      bg: 'bg-[#77C4A3]',
-      text: 'text-[#4EA680]',
-      border: 'border-[#77C4A3]',
-      line: 'bg-[#77C4A3]',
-      badgeBg: 'bg-[#77C4A3]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#77C4A3]/15',
-    };
-  }
-  if (clean.includes('공항철도')) {
-    return {
-      bg: 'bg-[#0090D2]',
-      text: 'text-[#0090D2]',
-      border: 'border-[#0090D2]',
-      line: 'bg-[#0090D2]',
-      badgeBg: 'bg-[#0090D2]',
-      badgeText: 'text-white',
-      lightBg: 'bg-[#0090D2]/10',
-    };
-  }
-
-  return {
-    bg: 'bg-blue-600',
-    text: 'text-blue-600',
-    border: 'border-blue-600',
-    line: 'bg-blue-600',
-    badgeBg: 'bg-blue-600',
-    badgeText: 'text-white',
-    lightBg: 'bg-blue-50',
-  };
-}
-
 /** 열차 운행 상태 뱃지 렌더러 */
 function getTrainStatusBadge(trainSttus: string) {
   switch (trainSttus) {
@@ -201,6 +33,10 @@ function getTrainStatusBadge(trainSttus: string) {
       return { text: '출발', color: 'bg-blue-600 text-white' };
     case '3':
       return { text: '전역출발', color: 'bg-indigo-500 text-white' };
+    case '4':
+      return { text: '전역진입', color: 'bg-amber-600 text-white' };
+    case '5':
+      return { text: '전역도착', color: 'bg-emerald-500 text-white' };
     default:
       return { text: '운행중', color: 'bg-zinc-600 text-white' };
   }
@@ -469,7 +305,7 @@ export const SubwayLineMapSheet: React.FC<SubwayLineMapSheetProps> = ({
                           <div
                             className={clsx(
                               'w-2 h-2 rounded-full',
-                              isTargetStation ? 'bg-blue-600' : theme.bg
+                              isTargetStation ? 'bg-blue-600' : theme.badgeBg
                             )}
                           />
                         </div>

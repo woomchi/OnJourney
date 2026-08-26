@@ -119,6 +119,9 @@ async function buildTimetableFallback(
   return results;
 }
 
+/** '당역 출발' 상태 데이터 수신 후 유효 시간 (밀리초, 30초) */
+const STALE_DEPARTED_THRESHOLD_MS = 30_000;
+
 /**
  * 실시간 API row가 만료된 데이터인지 판별합니다.
  */
@@ -126,24 +129,26 @@ export function isStaleRow(row: SubwayRawRow, currentTimeMs: number): boolean {
   const arvlCd = String(row.arvlCd ?? '');
   const arvlMsg2 = String(row.arvlMsg2 ?? '');
 
-  // 1. 이미 당역 출발 완료된 열차 (arvlCd === '2' 또는 출발 메시지)
-  if (
+  const isDeparted =
     arvlCd === ARRIVAL_CODE_ENDED ||
     arvlMsg2.includes('당역 출발') ||
     arvlMsg2.includes('당역출발') ||
-    arvlMsg2 === '출발'
-  ) {
-    return true;
-  }
+    arvlMsg2 === '출발';
 
-  // 2. recptnDt 수신 시각 기반 유효시간 검증
+  // recptnDt 수신 시각 기반 유효시간 정밀 검증
   const recptnDt = String(row.recptnDt || '');
   if (recptnDt) {
     try {
       const receiptTimeMs = parseSeoulApiDate(recptnDt);
       if (!isNaN(receiptTimeMs)) {
         const elapsedMs = currentTimeMs - receiptTimeMs;
-        // 당역 진입/도착인 경우에만 단기 threshold(180초) 적용, 이전 역 접근/운행 중은 300초(5분) 적용
+
+        // 1. 이미 출발한 열차: 수신 후 30초 초과 시 완전 만료 처리
+        if (isDeparted) {
+          return elapsedMs > STALE_DEPARTED_THRESHOLD_MS;
+        }
+
+        // 2. 당역 진입/도착: 3분(180초) 초과 시 만료 처리
         const isApproachingOrArrived =
           ARRIVAL_CODES_APPROACHING.has(arvlCd) ||
           arvlMsg2.includes('당역 진입') ||
@@ -160,8 +165,11 @@ export function isStaleRow(row: SubwayRawRow, currentTimeMs: number): boolean {
         }
       }
     } catch {
-      // 날짜 파싱 실패 시 만료로 처리하지 않음
+      // 날짜 파싱 실패 시 기본 로직
     }
+  } else if (isDeparted) {
+    // 수신 시각이 없는데 출발 상태인 경우 즉시 만료 처리
+    return true;
   }
 
   return false;
@@ -174,6 +182,43 @@ function getSubwayApiKey(): string {
     env.REAL_TIME_SEOUL_SUBWAY_API_KEY ||
     '';
   return rawKey.trim().replace(/^["']|["']$/g, '');
+}
+
+/**
+ * 열차 번호의 다양한 표기 형태(예: 'K1234', '1234', '001234', '042')를 모두 추출하여 일치 확률을 극대화합니다.
+ */
+export function getTrainNoVariations(rawNo: string | number | undefined): string[] {
+  if (rawNo === undefined || rawNo === null) return [];
+  const clean = String(rawNo).trim();
+  if (!clean) return [];
+
+  const variations = new Set<string>();
+  variations.add(clean);
+
+  // 1. 앞자리 0 제거 (e.g. '001234' -> '1234')
+  const noLeadingZeros = clean.replace(/^0+/, '');
+  if (noLeadingZeros) variations.add(noLeadingZeros);
+
+  // 2. 영문 접두사 제거 (e.g. 'K1234' -> '1234', 'S052' -> '52')
+  const noAlpha = clean.replace(/^[A-Za-z]+/, '');
+  if (noAlpha) {
+    variations.add(noAlpha);
+    const noAlphaNoZero = noAlpha.replace(/^0+/, '');
+    if (noAlphaNoZero) variations.add(noAlphaNoZero);
+  }
+
+  // 3. 숫자 부분만 4자리 패딩 (e.g. '42' -> '0042')
+  const digitsOnly = clean.replace(/\D/g, '');
+  if (digitsOnly) {
+    variations.add(digitsOnly);
+    const digitsNoZero = digitsOnly.replace(/^0+/, '');
+    if (digitsNoZero) variations.add(digitsNoZero);
+    if (digitsOnly.length <= 4) {
+      variations.add(digitsOnly.padStart(4, '0'));
+    }
+  }
+
+  return Array.from(variations);
 }
 
 // ─── 공개 API ─────────────────────────────────────────────────────────────────
@@ -292,7 +337,7 @@ export async function fetchSubwayRealtime(
     }
 
     // ─ 실시간 열차 위치 정보 조회 (해당 노선) 및 방향 복합키 Map 빌드 ─
-    // Key: `${posDirection}_${trainNo}` (예: '0_1234' = 상행 1234호, '1_1234' = 하행 1234호)
+    // Key: `${posDirection}_${trainNo}` 및 열차 번호 단독 키
     let positionMap = new Map<string, SubwayPosition>();
     try {
       const targetSubwayId = subwayId || (rows[0] ? String(rows[0].subwayId || '') : '');
@@ -301,11 +346,15 @@ export async function fetchSubwayRealtime(
         for (const pos of positions) {
           if (pos.trainNo) {
             const dir = String(pos.updnLine ?? '0'); // '0': 상행/내선, '1': 하행/외선
-            const fullNo = pos.trainNo.trim();
-            const trimmedNo = fullNo.replace(/^0+/, '');
+            const variations = getTrainNoVariations(pos.trainNo);
 
-            positionMap.set(`${dir}_${fullNo}`, pos);
-            if (trimmedNo) positionMap.set(`${dir}_${trimmedNo}`, pos);
+            for (const v of variations) {
+              positionMap.set(`${dir}_${v}`, pos);
+              // 방향 무관 Fallback 매핑 (해당 열차 번호가 이미 없을 때만 저장)
+              if (!positionMap.has(v)) {
+                positionMap.set(v, pos);
+              }
+            }
           }
         }
       }
@@ -326,14 +375,23 @@ export async function fetchSubwayRealtime(
       const trainNo = String(row.btrainNo || row.trainNo || '');
       const barvlDt = Number(row.barvlDt || 0);
 
-      // 위치 API 조인 (방향 + trainNo 복합키 기준)
-      const cleanTrainNo = trainNo.trim();
-      const trimmedTrainNo = cleanTrainNo.replace(/^0+/, '');
+      // 위치 API 조인 (방향 + trainNo 복합키 기준 및 다양한 변형 형태 탐색)
       const rowPosDir = resolvePositionDirection(row.updnLine); // '0': 상행/내선, '1': 하행/외선
+      const trainNoVars = getTrainNoVariations(trainNo);
 
-      const matchedPos =
-        positionMap.get(`${rowPosDir}_${cleanTrainNo}`) ||
-        (trimmedTrainNo ? positionMap.get(`${rowPosDir}_${trimmedTrainNo}`) : undefined);
+      let matchedPos: SubwayPosition | undefined = undefined;
+      // 1. 방향 일치 우선 탐색
+      for (const v of trainNoVars) {
+        matchedPos = positionMap.get(`${rowPosDir}_${v}`);
+        if (matchedPos) break;
+      }
+      // 2. 방향 무관 열차번호 단독 탐색
+      if (!matchedPos) {
+        for (const v of trainNoVars) {
+          matchedPos = positionMap.get(v);
+          if (matchedPos) break;
+        }
+      }
 
       const eta = calculateSubwayETADynamic(
         liveMsg,
@@ -354,11 +412,29 @@ export async function fetchSubwayRealtime(
         isMetaExpress ||
         matchedPos?.isExpress ||
         row.btrainSttus === '급행' ||
-        row.btrainSttus === '특급' ||
         String(row.trainLineNm || '').includes('급행') ||
         String(row.trainLineNm || '').includes('(급)');
 
       const canBoard = destination ? (reachableMap.get(row) ?? true) : true;
+
+      // 위치 API가 직접 매칭되지 않아도 도착 정보(arvlCd)를 기반으로 상태를 상호 보완한 position 객체 구성
+      const resolvedPosition: SubwayPosition | undefined =
+        matchedPos ||
+        (row.arvlCd !== undefined && trainNo
+          ? {
+              subwayId: String(row.subwayId || ''),
+              subwayNm: '',
+              statnId: '',
+              statnNm: cleanStation,
+              trainNo,
+              recptnDt: recTime,
+              updnLine: rowPosDir,
+              statnTnm: destName || undefined,
+              trainSttus: String(row.arvlCd ?? '99'),
+              directAt: isExpress ? '1' : '0',
+              isExpress,
+            }
+          : undefined);
 
       return {
         subwayId: String(row.subwayId || ''),
@@ -373,7 +449,7 @@ export async function fetchSubwayRealtime(
         canBoard,
         destinationStationNm: destName || undefined,
         isExpress,
-        currentTrainPosition: matchedPos,
+        currentTrainPosition: resolvedPosition,
       };
     });
 

@@ -75,29 +75,47 @@ function generateSmartSubwayFallbackPositions(
 
   const positions: SubwayPosition[] = [];
   const totalCount = stations.length;
-  const numTrainsPerDirection = Math.max(3, Math.min(6, Math.floor(totalCount / 5)));
-  const step = Math.floor(totalCount / numTrainsPerDirection);
+  const numTrainsPerDirection = Math.max(3, Math.min(8, Math.floor(totalCount / 5)));
+  const step = Math.max(1, Math.floor(totalCount / numTrainsPerDirection));
 
   const now = Date.now();
   const timeCycle = Math.floor((now % (300 * 1000)) / 20000); // 20초 주기 순환
-  const cleanLineNm = subwayNm.replace(/호선$/, '');
-  const baseNo = parseInt(cleanLineNm, 10) || 9;
+
+  let baseNo = 1;
+  let subwayId = '';
+  if (subwayNm.includes('신분당')) { baseNo = 77; subwayId = '1077'; }
+  else if (subwayNm.includes('수인분당')) { baseNo = 75; subwayId = '1075'; }
+  else if (subwayNm.includes('경의중앙')) { baseNo = 63; subwayId = '1063'; }
+  else if (subwayNm.includes('공항')) { baseNo = 65; subwayId = '1065'; }
+  else if (subwayNm.includes('경춘')) { baseNo = 67; subwayId = '1067'; }
+  else if (subwayNm.includes('경강')) { baseNo = 81; subwayId = '1081'; }
+  else if (subwayNm.includes('서해')) { baseNo = 93; subwayId = '1093'; }
+  else if (subwayNm.includes('우이')) { baseNo = 92; subwayId = '1092'; }
+  else if (subwayNm.includes('신림')) { baseNo = 95; subwayId = '1095'; }
+  else if (subwayNm.includes('GTX')) { baseNo = 94; subwayId = '1094'; }
+  else if (subwayNm.includes('인천1')) { baseNo = 69; subwayId = '1069'; }
+  else if (subwayNm.includes('인천2')) { baseNo = 70; subwayId = '1070'; }
+  else {
+    const numMatch = subwayNm.match(/\d+/);
+    baseNo = numMatch ? parseInt(numMatch[0], 10) : 1;
+    subwayId = baseNo >= 1 && baseNo <= 9 ? `100${baseNo}` : '';
+  }
 
   const startStation = stations[0].stationName.replace(/역$/, '');
   const endStation = stations[totalCount - 1].stationName.replace(/역$/, '');
 
-  // 상행 (updnLine: '0')
+  // 상행 (updnLine: '0', 기점/startStation[index 0]을 향해 전진)
   for (let i = 0; i < numTrainsPerDirection; i++) {
-    const rawIdx = (i * step + timeCycle) % totalCount;
+    const rawIdx = (totalCount - 1 - (i * step + timeCycle) % totalCount + totalCount) % totalCount;
     const st = stations[rawIdx];
     if (!st) continue;
 
     const trainSttus = String((rawIdx + timeCycle) % 3); // 0: 진입, 1: 도착, 2: 출발
     const trainNo = `${baseNo}${String(1000 + i * 2 + 1)}`;
-    const isExpress = subwayNm.includes('9') && i % 2 === 0;
+    const isExpress = (subwayNm.includes('9') || subwayNm.includes('수인분당') || subwayNm.includes('경의중앙')) && i % 2 === 0;
 
     positions.push({
-      subwayId: subwayNm.includes('9') ? '1009' : '',
+      subwayId,
       subwayNm,
       statnId: String(st.index + 1),
       statnNm: st.stationName.replace(/역$/, ''),
@@ -111,18 +129,18 @@ function generateSmartSubwayFallbackPositions(
     });
   }
 
-  // 하행 (updnLine: '1')
+  // 하행 (updnLine: '1', 종점/endStation[index N]을 향해 전진)
   for (let i = 0; i < numTrainsPerDirection; i++) {
-    const rawIdx = (totalCount - 1 - (i * step + timeCycle) % totalCount + totalCount) % totalCount;
+    const rawIdx = (i * step + timeCycle) % totalCount;
     const st = stations[rawIdx];
     if (!st) continue;
 
     const trainSttus = String((rawIdx + timeCycle + 1) % 3);
     const trainNo = `${baseNo}${String(1000 + i * 2 + 2)}`;
-    const isExpress = subwayNm.includes('9') && i % 2 === 0;
+    const isExpress = (subwayNm.includes('9') || subwayNm.includes('수인분당') || subwayNm.includes('경의중앙')) && i % 2 === 0;
 
     positions.push({
-      subwayId: subwayNm.includes('9') ? '1009' : '',
+      subwayId,
       subwayNm,
       statnId: String(st.index + 1),
       statnNm: st.stationName.replace(/역$/, ''),

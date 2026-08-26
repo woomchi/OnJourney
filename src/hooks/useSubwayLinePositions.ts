@@ -53,7 +53,7 @@ export function useSubwayLinePositions({
     enabled: Boolean(enabled && target),
     refetchInterval,
     refetchIntervalInBackground: false,
-    staleTime: 30000,
+    staleTime: 10000,
     placeholderData: (previousData) => previousData,
     retry: 2,
     retryDelay: 1000,

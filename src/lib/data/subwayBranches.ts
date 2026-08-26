@@ -325,28 +325,383 @@ const LINE_DAEJEON_1_BRANCHES: BranchStationData[] = [
   },
 ];
 
+// ─── 3호선 운행 계통 ─────────────────────────────────────────────────────────
+
+const LINE_3_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: '3-main',
+      name: '본선 (대화 - 오금)',
+      startStation: '대화',
+      endStation: '오금',
+      stationCount: 44,
+    },
+    stationNames: [
+      '대화', '주엽', '정발산', '마두', '백석', '대곡', '화정', '원당', '원흥', '삼송',
+      '지축', '구파발', '연신내', '불광', '녹번', '홍제', '무악재', '독립문', '경복궁', '안국',
+      '종로3가', '을지로3가', '충무로', '동대입구', '약수', '금호', '옥수', '압구정', '신사', '잠원',
+      '고속터미널', '교대', '남부터미널', '양재', '매봉', '도곡', '대치', '학여울', '대청', '일원',
+      '수서', '가락시장', '경찰병원', '오금'
+    ],
+    downDestinations: ['오금', '수서', '압구정', '도곡'],
+    upDestinations: ['대화', '구파발', '독립문', '삼송'],
+  },
+];
+
+// ─── 4호선 운행 계통 ─────────────────────────────────────────────────────────
+
+const LINE_4_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: '4-main',
+      name: '본선 (진접 - 오이도)',
+      startStation: '진접',
+      endStation: '오이도',
+      stationCount: 51,
+    },
+    stationNames: [
+      '진접', '오남', '별내별가람', '당고개', '상계', '노원', '창동', '쌍문', '수유', '미아',
+      '미아사거리', '길음', '성신여대입구', '한성대입구', '혜화', '동대문', '동대문역사문화공원', '충무로', '명동', '회현',
+      '서울역', '숙대입구', '삼각지', '신용산', '이촌', '동작', '총신대입구', '사당', '남태령', '선바위',
+      '경마공원', '대공원', '과천', '정부과천청사', '인덕원', '평촌', '범계', '금정', '산본', '수리산',
+      '대야미', '반월', '상록수', '한대앞', '중앙', '고잔', '초지', '안산', '신길온천', '정왕',
+      '오이도'
+    ],
+    downDestinations: ['오이도', '안산', '사당', '금정', '남태령'],
+    upDestinations: ['진접', '당고개', '노원', '창동', '한성대입구', '혜화', '서울역'],
+  },
+];
+
+// ─── 6호선 운행 계통 ─────────────────────────────────────────────────────────
+
+const LINE_6_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: '6-main',
+      name: '본선 (응암순환 - 신내)',
+      startStation: '응암',
+      endStation: '신내',
+      stationCount: 39,
+    },
+    stationNames: [
+      '응암', '역촌', '불광', '독바위', '연신내', '구산', '새절', '증산', '디지털미디어시티', '월드컵경기장',
+      '마포구청', '망원', '합정', '상수', '광흥창', '대흥', '공덕', '효창공원앞', '삼각지', '녹사평',
+      '이태원', '한강진', '버티고개', '약수', '청구', '신당', '동묘앞', '창신', '보문', '안암',
+      '고려대', '월곡', '상월곡', '돌곶이', '석계', '태릉입구', '화랑대', '봉화산', '신내'
+    ],
+    downDestinations: ['신내', '봉화산', '안암'],
+    upDestinations: ['응암', '응암순환', '새절', '디지털미디어시티', '공덕'],
+  },
+];
+
+// ─── 7호선 운행 계통 ─────────────────────────────────────────────────────────
+
+const LINE_7_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: '7-main',
+      name: '본선 (장암 - 석남)',
+      startStation: '장암',
+      endStation: '석남',
+      stationCount: 53,
+    },
+    stationNames: [
+      '장암', '도봉산', '수락산', '마들', '노원', '중계', '하계', '공릉', '태릉입구', '먹골',
+      '중화', '상봉', '면목', '사가정', '용마산', '중곡', '군자', '어린이대공원', '건대입구', '뚝섬유원지',
+      '청담', '강남구청', '학동', '논현', '반포', '고속터미널', '내방', '이수', '남성', '숭실대입구',
+      '상도', '장승배기', '신대방삼거리', '보라매', '신풍', '대림', '남구로', '가산디지털단지', '철산', '광명사거리',
+      '천왕', '온수', '까치울', '부천종합운동장', '춘의', '신중동', '부천시청', '상동', '삼산체육관', '굴포천',
+      '부평구청', '산곡', '석남'
+    ],
+    downDestinations: ['석남', '부평구청', '온수', '신풍', '내방'],
+    upDestinations: ['장암', '도봉산', '수락산', '태릉입구', '건대입구', '청담'],
+  },
+];
+
+// ─── 8호선 운행 계통 (별내선 연장구간 포함) ───────────────────────────────────
+
+const LINE_8_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: '8-main',
+      name: '본선 (별내 - 모란)',
+      startStation: '별내',
+      endStation: '모란',
+      stationCount: 24,
+    },
+    stationNames: [
+      '별내', '다산', '동구릉', '구리', '장자호수공원', '암사역사공원', '암사', '천호', '강동구청', '몽촌토성',
+      '잠실', '석촌', '송파', '가락시장', '문정', '장지', '복정', '남위례', '산성', '남한산성입구',
+      '단대오거리', '신흥', '수진', '모란'
+    ],
+    downDestinations: ['모란', '잠실'],
+    upDestinations: ['별내', '암사', '잠실'],
+  },
+];
+
+// ─── 수인분당선 운행 계통 ───────────────────────────────────────────────────
+
+const LINE_SUIN_BUNDANG_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'suin-bundang-main',
+      name: '본선 (청량리 - 인천)',
+      startStation: '청량리',
+      endStation: '인천',
+      stationCount: 63,
+    },
+    stationNames: [
+      '청량리', '왕십리', '서울숲', '압구정로데오', '강남구청', '선정릉', '선릉', '한티', '도곡', '구룡',
+      '개포동', '대모산입구', '수서', '복정', '가천대', '태평', '모란', '야탑', '이매', '서현',
+      '수내', '정자', '미금', '오리', '죽전', '보정', '구성', '신갈', '기흥', '상갈',
+      '청명', '영통', '망포', '매탄권선', '수원시청', '매교', '수원', '고색', '오목천', '어천',
+      '야목', '사리', '한대앞', '중앙', '고잔', '초지', '안산', '신길온천', '정왕', '오이도',
+      '달월', '월곶', '소래포구', '인천논현', '호구포', '남동인더스파크', '원인재', '연수', '송도', '인하대',
+      '숭의', '신포', '인천'
+    ],
+    downDestinations: ['인천', '오이도', '고색', '수원', '죽전'],
+    upDestinations: ['청량리', '왕십리', '수서', '죽전'],
+  },
+];
+
+// ─── 경의중앙선 운행 계통 ───────────────────────────────────────────────────
+
+const LINE_GYEONGUI_JUNGANG_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'gyeongui-jungang-main',
+      name: '본선 (문산 - 지평)',
+      startStation: '문산',
+      endStation: '지평',
+      stationCount: 56,
+    },
+    stationNames: [
+      '문산', '파주', '월롱', '금촌', '금릉', '운정', '야당', '탄현', '일산', '풍산',
+      '백마', '곡산', '대곡', '능곡', '행신', '강매', '화전', '수색', '디지털미디어시티', '가좌',
+      '홍대입구', '서강대', '공덕', '효창공원앞', '용산', '이촌', '서빙고', '한남', '옥수', '응봉',
+      '왕십리', '청량리', '회기', '중랑', '상봉', '망우', '양원', '구리', '도농', '양정',
+      '덕소', '도심', '팔당', '운길산', '양수', '신원', '국수', '아신', '오빈', '양평',
+      '원덕', '용문', '지평'
+    ],
+    downDestinations: ['지평', '용문', '양평', '덕소', '팔당', '청량리', '용산'],
+    upDestinations: ['문산', '일산', '대곡', '디지털미디어시티', '용산'],
+  },
+  {
+    branch: {
+      id: 'gyeongui-jungang-seoul',
+      name: '서울역 지선 (문산 - 서울역)',
+      startStation: '문산',
+      endStation: '서울역',
+      stationCount: 21,
+    },
+    stationNames: [
+      '문산', '파주', '월롱', '금촌', '금릉', '운정', '야당', '탄현', '일산', '풍산',
+      '백마', '곡산', '대곡', '능곡', '행신', '강매', '화전', '수색', '디지털미디어시티', '가좌',
+      '신촌', '서울역'
+    ],
+    downDestinations: ['서울역'],
+    upDestinations: ['문산', '일산', '대곡', '디지털미디어시티'],
+  },
+];
+
+// ─── 경춘선 운행 계통 ───────────────────────────────────────────────────────
+
+const LINE_GYEONGCHUN_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'gyeongchun-main',
+      name: '본선 (청량리 - 춘천)',
+      startStation: '청량리',
+      endStation: '춘천',
+      stationCount: 25,
+    },
+    stationNames: [
+      '청량리', '회기', '중랑', '상봉', '망우', '신내', '갈매', '별내', '퇴계원', '사릉',
+      '금곡', '평내호평', '천마산', '마석', '대성리', '청평', '상천', '가평', '굴봉산', '백양리',
+      '강촌', '김유정', '남춘천', '춘천'
+    ],
+    downDestinations: ['춘천', '남춘천', '마석', '평내호평'],
+    upDestinations: ['청량리', '상봉', '망우'],
+  },
+];
+
+// ─── 서해선 운행 계통 ───────────────────────────────────────────────────────
+
+const LINE_SEOHAE_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'seohae-main',
+      name: '본선 (일산 - 원시)',
+      startStation: '일산',
+      endStation: '원시',
+      stationCount: 20,
+    },
+    stationNames: [
+      '일산', '풍산', '백마', '곡산', '대곡', '능곡', '김포공항', '원종', '부천종합운동장', '소새울',
+      '시흥대야', '신천', '신현', '시흥시청', '시흥능곡', '달미', '선부', '초지', '원곡', '원시'
+    ],
+    downDestinations: ['원시', '시흥시청'],
+    upDestinations: ['일산', '대곡', '김포공항'],
+  },
+];
+
+// ─── 경강선 운행 계통 ───────────────────────────────────────────────────────
+
+const LINE_GYEONGGANG_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'gyeonggang-main',
+      name: '본선 (판교 - 여주)',
+      startStation: '판교',
+      endStation: '여주',
+      stationCount: 11,
+    },
+    stationNames: [
+      '판교', '이매', '삼동', '경기광주', '초월', '곤지암', '신둔도예촌', '이천', '부발', '세종대왕릉', '여주'
+    ],
+    downDestinations: ['여주', '부발'],
+    upDestinations: ['판교'],
+  },
+];
+
+// ─── 신림선 운행 계통 ───────────────────────────────────────────────────────
+
+const LINE_SILLIM_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'sillim-main',
+      name: '본선 (샛강 - 관악산)',
+      startStation: '샛강',
+      endStation: '관악산',
+      stationCount: 11,
+    },
+    stationNames: [
+      '샛강', '대방', '서울지방병무청', '보라매', '보라매공원', '보라매병원', '당곡', '신림', '서원', '서울대벤처타운', '관악산'
+    ],
+    downDestinations: ['관악산'],
+    upDestinations: ['샛강'],
+  },
+];
+
+// ─── 인천 1호선 운행 계통 ───────────────────────────────────────────────────
+
+const LINE_INCHEON_1_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'incheon-1-main',
+      name: '본선 (계양 - 송도달빛축제공원)',
+      startStation: '계양',
+      endStation: '송도달빛축제공원',
+      stationCount: 30,
+    },
+    stationNames: [
+      '계양', '귤현', '박촌', '임학', '계산', '경인교대입구', '작전', '갈산', '부평구청', '부평시장',
+      '부평', '동수', '부평삼거리', '간석오거리', '인천시청', '예술회관', '인천터미널', '문학경기장', '선학', '신연수',
+      '원인재', '동춘', '동막', '캠퍼스타운', '테크노파크', '지식정보단지', '인천대입구', '센트럴파크', '국제업무지구', '송도달빛축제공원'
+    ],
+    downDestinations: ['송도달빛축제공원', '국제업무지구', '동막'],
+    upDestinations: ['계양', '박촌'],
+  },
+];
+
+// ─── 인천 2호선 운행 계통 ───────────────────────────────────────────────────
+
+const LINE_INCHEON_2_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'incheon-2-main',
+      name: '본선 (검단오류 - 운연)',
+      startStation: '검단오류',
+      endStation: '운연',
+      stationCount: 27,
+    },
+    stationNames: [
+      '검단오류', '왕길', '검단사거리', '마전', '완정', '독정', '검암', '검바위', '아시아드주경기장', '서구청',
+      '가정', '가정중앙시장', '석남', '서부여성회관', '인천가좌', '가재울', '주안국가산단', '주안', '시민공원', '석바위시장',
+      '인천시청', '석천사거리', '모래내시장', '만수', '남동구청', '인천대공원', '운연'
+    ],
+    downDestinations: ['운연'],
+    upDestinations: ['검단오류', '검암'],
+  },
+];
+
+// ─── GTX-A 운행 계통 ─────────────────────────────────────────────────────────
+
+const LINE_GTX_A_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'gtx-a-south',
+      name: '남부선 (수서 - 동탄)',
+      startStation: '수서',
+      endStation: '동탄',
+      stationCount: 4,
+    },
+    stationNames: ['수서', '성남', '구성', '동탄'],
+    downDestinations: ['동탄'],
+    upDestinations: ['수서'],
+  },
+];
+
 // ─── 전체 노선별 계통 매핑 ───────────────────────────────────────────────────
 
 export const LINE_BRANCHES_MAP: Record<string, BranchStationData[]> = {
+  // 1. 지방 도시철도
   '대전1호선': LINE_DAEJEON_1_BRANCHES,
+
+  // 2. 수도권 1~9호선
   '1호선': LINE_1_BRANCHES,
   '1001': LINE_1_BRANCHES,
   '1': LINE_1_BRANCHES,
   '2호선': LINE_2_BRANCHES,
   '1002': LINE_2_BRANCHES,
   '2': LINE_2_BRANCHES,
+  '3호선': LINE_3_BRANCHES,
+  '1003': LINE_3_BRANCHES,
+  '3': LINE_3_BRANCHES,
+  '4호선': LINE_4_BRANCHES,
+  '1004': LINE_4_BRANCHES,
+  '4': LINE_4_BRANCHES,
   '5호선': LINE_5_BRANCHES,
   '1005': LINE_5_BRANCHES,
   '5': LINE_5_BRANCHES,
+  '6호선': LINE_6_BRANCHES,
+  '1006': LINE_6_BRANCHES,
+  '6': LINE_6_BRANCHES,
+  '7호선': LINE_7_BRANCHES,
+  '1007': LINE_7_BRANCHES,
+  '7': LINE_7_BRANCHES,
+  '8호선': LINE_8_BRANCHES,
+  '1008': LINE_8_BRANCHES,
+  '8': LINE_8_BRANCHES,
   '9호선': LINE_9_BRANCHES,
   '1009': LINE_9_BRANCHES,
   '9': LINE_9_BRANCHES,
+
+  // 3. 수도권 광역/특수 노선
   '신분당선': LINE_SHINBUNDANG_BRANCHES,
   '1077': LINE_SHINBUNDANG_BRANCHES,
+  '수인분당선': LINE_SUIN_BUNDANG_BRANCHES,
+  '1075': LINE_SUIN_BUNDANG_BRANCHES,
+  '경의중앙선': LINE_GYEONGUI_JUNGANG_BRANCHES,
+  '1063': LINE_GYEONGUI_JUNGANG_BRANCHES,
+  '경춘선': LINE_GYEONGCHUN_BRANCHES,
+  '1067': LINE_GYEONGCHUN_BRANCHES,
+  '서해선': LINE_SEOHAE_BRANCHES,
+  '1093': LINE_SEOHAE_BRANCHES,
+  '경강선': LINE_GYEONGGANG_BRANCHES,
+  '1081': LINE_GYEONGGANG_BRANCHES,
   '공항철도': LINE_AIRPORT_BRANCHES,
   '1065': LINE_AIRPORT_BRANCHES,
   '우이신설선': LINE_UI_BRANCHES,
   '1092': LINE_UI_BRANCHES,
+  '신림선': LINE_SILLIM_BRANCHES,
+  '1095': LINE_SILLIM_BRANCHES,
+  '인천1호선': LINE_INCHEON_1_BRANCHES,
+  '1069': LINE_INCHEON_1_BRANCHES,
+  '인천2호선': LINE_INCHEON_2_BRANCHES,
+  '1070': LINE_INCHEON_2_BRANCHES,
+  'GTX-A': LINE_GTX_A_BRANCHES,
+  '1094': LINE_GTX_A_BRANCHES,
 };
 
 /**
@@ -367,12 +722,19 @@ export function normalizeLineKey(subwayIdOrNm: string): string {
   }
   if (clean.includes('광주')) return '광주1호선';
 
-  // 2. 수도권 특수 노선
+  // 2. 수도권 특수 노선 및 광역/경전철
   if (clean.includes('신분당') || clean === '1077') return '신분당선';
   if (clean.includes('수인분당') || clean.includes('분당선') || clean.includes('수인선') || clean === '1075') return '수인분당선';
-  if (clean.includes('경의중앙') || clean === '1063') return '경의중앙선';
+  if (clean.includes('경의중앙') || clean.includes('경의선') || clean.includes('중앙선') || clean === '1063') return '경의중앙선';
   if (clean.includes('공항철도') || clean === '1065') return '공항철도';
   if (clean.includes('우이신설') || clean === '1092') return '우이신설선';
+  if (clean.includes('경춘') || clean === '1067') return '경춘선';
+  if (clean.includes('서해') || clean === '1093') return '서해선';
+  if (clean.includes('경강') || clean === '1081') return '경강선';
+  if (clean.includes('신림') || clean === '1095') return '신림선';
+  if (clean.includes('인천1') || clean.includes('인천 1') || clean === '1069') return '인천1호선';
+  if (clean.includes('인천2') || clean.includes('인천 2') || clean === '1070') return '인천2호선';
+  if (clean.includes('GTX-A') || clean.includes('gtx-a') || clean === '1094') return 'GTX-A';
 
   // 3. 수도권 1~9호선
   if (clean === '1001' || clean === '1' || clean === '1호선' || clean === '수도권 1호선') return '1호선';
@@ -403,38 +765,35 @@ export function getBranchDataById(
 }
 
 /**
- * 특정 열차가 현재 선택된 운행 계통(Branch)에 부합하는지 판별
+ * 특정 열차가 현재 선택된 운행 계통(Branch)에 부합하는지 판별합니다.
+ * 
+ * 공유 구간(Shared Segment) 지원:
+ * - 열차가 현재 위치한 역이 선택된 운행 계통의 정차역 목록에 속해 있다면,
+ *   종착역(예: 서동탄행, 신창행, 인천행, 마천행 등)이 서로 다른 분기선이라도
+ *   공유 구간을 주행 중인 동안에는 양쪽 계통 탭에 모두 정상 노출됩니다.
+ * - 열차가 분기점을 지나 타 지선 전용 역으로 진입한 경우에만 해당 계통에서 자동으로 제외됩니다.
  */
 export function isTrainMatchingBranch(
   position: SubwayPosition,
   branchData: BranchStationData | undefined,
-  direction: '0' | '1' // 0: 상행, 1: 하행
+  _direction: '0' | '1' // 0: 상행, 1: 하행
 ): boolean {
   if (!branchData) return true; // 다중 계통이 없거나 정의되지 않은 경우 모두 허용
 
-  const cleanDest = (position.statnTnm || '').replace(/역$/, '').trim();
-  const cleanCurrentStatn = (position.statnNm || '').replace(/역$/, '').trim();
+  const rawStatn = (position.statnNm || '').replace(/역$/, '').trim();
+  if (!rawStatn) return true;
+  const cleanStatn = rawStatn.replace(/\(.*?\)/g, '').trim();
 
   // 1. 열차의 현재 위치가 해당 계통의 정차역 목록에 속해 있는지 확인
-  const isCurrentOnBranch = branchData.stationNames.some(
-    (st) => st.replace(/역$/, '').trim() === cleanCurrentStatn
-  );
-  if (!isCurrentOnBranch) {
-    return false;
-  }
+  const isCurrentOnBranch = branchData.stationNames.some((st) => {
+    const rawBranchSt = st.replace(/역$/, '').trim();
+    if (rawBranchSt === rawStatn) return true;
+    const cleanBranchSt = rawBranchSt.replace(/\(.*?\)/g, '').trim();
+    return cleanBranchSt === cleanStatn;
+  });
 
-  // 2. 종착역(statnTnm) 기준 유효성 검사 (정의되어 있는 경우)
-  const validDests = direction === '0' ? branchData.upDestinations : branchData.downDestinations;
-  if (validDests && validDests.length > 0 && cleanDest) {
-    const isDestValid = validDests.some(
-      (valid) => valid.replace(/역$/, '').trim() === cleanDest
-    );
-    if (!isDestValid) {
-      return false;
-    }
-  }
-
-  return true;
+  // 현재 역이 해당 계통의 선로/승강장 위에 위치해 있다면 공유 구간 열차로써 표시 허용
+  return isCurrentOnBranch;
 }
 
 /**

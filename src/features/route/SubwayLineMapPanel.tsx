@@ -8,180 +8,14 @@ import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { SubwayPosition, SubwayLineStation, SubwayLineMapTarget } from '@/types/journey';
 import { getBranchDataById, isTrainMatchingBranch } from '@/lib/data/subwayBranches';
+import { getSubwayLineTheme } from '@/lib/constants/subwayThemes';
+import { calculateTrainDeadReckoning } from '@/lib/services/subwayDeadReckoningEngine';
 
 export interface SubwayLineMapPanelProps {
   isOpen: boolean;
   target: SubwayLineMapTarget;
   onClose: () => void;
   onExited?: () => void;
-}
-
-// ─── 호선별 브랜드 테마 색상 ─────────────────────────────────────────────────
-
-interface SubwayColorTheme {
-  primary: string;
-  badgeBg: string;
-  badgeText: string;
-  line: string;
-  dot: string;
-  activeTabBg: string;
-}
-
-function getSubwayLineTheme(subwayNmOrId: string): SubwayColorTheme {
-  const clean = String(subwayNmOrId || '').trim();
-
-  // 1. 지방 도시철도
-  if (clean.includes('대전')) {
-    return {
-      primary: '#007448',
-      badgeBg: 'bg-[#007448]',
-      badgeText: 'text-white',
-      line: 'bg-[#007448]',
-      dot: 'border-[#007448]',
-      activeTabBg: 'bg-[#007448] text-white',
-    };
-  }
-
-  // 2. 수도권 1~9호선
-  if (clean === '1001' || clean === '1' || clean === '1호선' || clean === '수도권 1호선') {
-    return {
-      primary: '#0052A4',
-      badgeBg: 'bg-[#0052A4]',
-      badgeText: 'text-white',
-      line: 'bg-[#0052A4]',
-      dot: 'border-[#0052A4]',
-      activeTabBg: 'bg-[#0052A4] text-white',
-    };
-  }
-  if (clean === '1002' || clean === '2' || clean.includes('2호선')) {
-    return {
-      primary: '#00A84D',
-      badgeBg: 'bg-[#00A84D]',
-      badgeText: 'text-white',
-      line: 'bg-[#00A84D]',
-      dot: 'border-[#00A84D]',
-      activeTabBg: 'bg-[#00A84D] text-white',
-    };
-  }
-  if (clean === '1003' || clean === '3' || clean.includes('3호선')) {
-    return {
-      primary: '#EF7C1C',
-      badgeBg: 'bg-[#EF7C1C]',
-      badgeText: 'text-white',
-      line: 'bg-[#EF7C1C]',
-      dot: 'border-[#EF7C1C]',
-      activeTabBg: 'bg-[#EF7C1C] text-white',
-    };
-  }
-  if (clean === '1004' || clean === '4' || clean.includes('4호선')) {
-    return {
-      primary: '#00A5DE',
-      badgeBg: 'bg-[#00A5DE]',
-      badgeText: 'text-white',
-      line: 'bg-[#00A5DE]',
-      dot: 'border-[#00A5DE]',
-      activeTabBg: 'bg-[#00A5DE] text-white',
-    };
-  }
-  if (clean === '1005' || clean === '5' || clean.includes('5호선')) {
-    return {
-      primary: '#996CAC',
-      badgeBg: 'bg-[#996CAC]',
-      badgeText: 'text-white',
-      line: 'bg-[#996CAC]',
-      dot: 'border-[#996CAC]',
-      activeTabBg: 'bg-[#996CAC] text-white',
-    };
-  }
-  if (clean === '1006' || clean === '6' || clean.includes('6호선')) {
-    return {
-      primary: '#CD7C2F',
-      badgeBg: 'bg-[#CD7C2F]',
-      badgeText: 'text-white',
-      line: 'bg-[#CD7C2F]',
-      dot: 'border-[#CD7C2F]',
-      activeTabBg: 'bg-[#CD7C2F] text-white',
-    };
-  }
-  if (clean === '1007' || clean === '7' || clean.includes('7호선')) {
-    return {
-      primary: '#747F00',
-      badgeBg: 'bg-[#747F00]',
-      badgeText: 'text-white',
-      line: 'bg-[#747F00]',
-      dot: 'border-[#747F00]',
-      activeTabBg: 'bg-[#747F00] text-white',
-    };
-  }
-  if (clean === '1008' || clean === '8' || clean.includes('8호선')) {
-    return {
-      primary: '#EA545D',
-      badgeBg: 'bg-[#EA545D]',
-      badgeText: 'text-white',
-      line: 'bg-[#EA545D]',
-      dot: 'border-[#EA545D]',
-      activeTabBg: 'bg-[#EA545D] text-white',
-    };
-  }
-  if (clean === '1009' || clean === '9' || clean.includes('9호선')) {
-    return {
-      primary: '#BDB092',
-      badgeBg: 'bg-[#BDB092]',
-      badgeText: 'text-white',
-      line: 'bg-[#BDB092]',
-      dot: 'border-[#BDB092]',
-      activeTabBg: 'bg-[#8C7B58] text-white',
-    };
-  }
-  if (clean.includes('신분당')) {
-    return {
-      primary: '#D4003B',
-      badgeBg: 'bg-[#D4003B]',
-      badgeText: 'text-white',
-      line: 'bg-[#D4003B]',
-      dot: 'border-[#D4003B]',
-      activeTabBg: 'bg-[#D4003B] text-white',
-    };
-  }
-  if (clean.includes('수인분당') || clean.includes('분당선')) {
-    return {
-      primary: '#F5A200',
-      badgeBg: 'bg-[#F5A200]',
-      badgeText: 'text-white',
-      line: 'bg-[#F5A200]',
-      dot: 'border-[#F5A200]',
-      activeTabBg: 'bg-[#D88D00] text-white',
-    };
-  }
-  if (clean.includes('경의중앙')) {
-    return {
-      primary: '#77C4A3',
-      badgeBg: 'bg-[#77C4A3]',
-      badgeText: 'text-white',
-      line: 'bg-[#77C4A3]',
-      dot: 'border-[#77C4A3]',
-      activeTabBg: 'bg-[#4EA680] text-white',
-    };
-  }
-  if (clean.includes('공항철도')) {
-    return {
-      primary: '#0090D2',
-      badgeBg: 'bg-[#0090D2]',
-      badgeText: 'text-white',
-      line: 'bg-[#0090D2]',
-      dot: 'border-[#0090D2]',
-      activeTabBg: 'bg-[#0090D2] text-white',
-    };
-  }
-
-  return {
-    primary: '#2563eb',
-    badgeBg: 'bg-blue-600',
-    badgeText: 'text-white',
-    line: 'bg-blue-600',
-    dot: 'border-blue-600',
-    activeTabBg: 'bg-blue-600 text-white',
-  };
 }
 
 /** 열차 운행 상태 뱃지 렌더러 */
@@ -195,6 +29,10 @@ function getTrainStatusBadge(trainSttus: string) {
       return { text: '출발', color: 'bg-blue-100 text-blue-800 border-blue-200' };
     case '3':
       return { text: '전역출발', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
+    case '4':
+      return { text: '전역진입', color: 'bg-amber-100 text-amber-900 border-amber-300' };
+    case '5':
+      return { text: '전역도착', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
     default:
       return { text: '운행중', color: 'bg-zinc-100 text-zinc-700 border-zinc-200' };
   }
@@ -204,24 +42,29 @@ function getTrainStatusBadge(trainSttus: string) {
 
 function calculateDynamicETA(
   stationsAway: number | undefined,
-  trainStatus: string, // '0': 진입, '1': 도착, '2': 출발, '3': 전역출발
-  originalMinutesLeft?: number
+  trainStatus: string, // '0': 진입, '1': 도착, '2': 출발, '3': 전역출발, '4': 전역진입, '5': 전역도착
+  originalMinutesLeft?: number,
+  isExpress?: boolean
 ): { text: string; minutes: number } {
+  const expressTag = isExpress ? ' (급행)' : '';
+
   if (stationsAway === undefined) {
     return {
-      text: originalMinutesLeft && originalMinutesLeft > 0 ? `${originalMinutesLeft}분 후` : '운행 중',
+      text: originalMinutesLeft && originalMinutesLeft > 0 ? `${originalMinutesLeft}분 후${expressTag}` : '운행 중',
       minutes: originalMinutesLeft || 0,
     };
   }
 
   if (stationsAway === 0) {
-    if (trainStatus === '0') return { text: '진입 중', minutes: 0 };
-    if (trainStatus === '1') return { text: '도착', minutes: 0 };
-    return { text: '곧 도착', minutes: 0 };
+    if (trainStatus === '0' || trainStatus === '4') return { text: `진입 중${expressTag}`, minutes: 0 };
+    if (trainStatus === '1' || trainStatus === '5') return { text: `도착${expressTag}`, minutes: 0 };
+    if (trainStatus === '2') return { text: `출발함${expressTag}`, minutes: 0 };
+    return { text: `곧 도착${expressTag}`, minutes: 0 };
   }
 
-  // 역당 평균 약 2.2분 소요
-  const estimatedMin = Math.max(1, Math.round(stationsAway * 2.2));
+  // 급행 열차(역당 1.25분) vs 완행 열차(역당 2.0분) 차등 산출
+  const minPerStation = isExpress ? 1.25 : 2.0;
+  const estimatedMin = Math.max(1, Math.round(stationsAway * minPerStation));
 
   // 기존 칩 값과의 정합성: 오차가 2분 이내면 원래 칩 시간 존중
   if (
@@ -229,11 +72,11 @@ function calculateDynamicETA(
     originalMinutesLeft > 0 &&
     Math.abs(originalMinutesLeft - estimatedMin) <= 2
   ) {
-    return { text: `${originalMinutesLeft}분 후`, minutes: originalMinutesLeft };
+    return { text: `${originalMinutesLeft}분 후${expressTag}`, minutes: originalMinutesLeft };
   }
 
   return {
-    text: `${estimatedMin}분 후`,
+    text: `${estimatedMin}분 후${expressTag}`,
     minutes: estimatedMin,
   };
 }
@@ -291,7 +134,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     branchId: selectedBranchId,
     stationName: cleanTargetStation,
     enabled: isOpen,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   // 서버에서 기본 추천된 branchId가 오면 동기화 (초기 1회)
@@ -406,10 +249,15 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
 
       for (const t of trains) {
         const cleanNo = t.trainNo.replace(/^0+/, '');
+        const digitsNo = t.trainNo.replace(/\D/g, '').replace(/^0+/, '');
+
         trainAwayMap.set(cleanNo, stationsAway);
         trainAwayMap.set(t.trainNo, stationsAway);
+        if (digitsNo) trainAwayMap.set(digitsNo, stationsAway);
+
         trainObjectMap.set(cleanNo, t);
         trainObjectMap.set(t.trainNo, t);
+        if (digitsNo) trainObjectMap.set(digitsNo, t);
 
         // API statnTnm 기반 탑승역 도달 가능 여부 동적 계산
         const cleanDest = t.statnTnm ? t.statnTnm.replace(/역$/, '').trim() : '';
@@ -444,14 +292,22 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
 
     // 하이라이트할 최우선 열차 번호 결정:
     // 1) 사용자가 수동으로 선택한 열차가 있으면 우선 반영
-    // 2) 칩에서 전달된 targetTrainNo가 접근 목록에 아직 유효하게 남아있으면 유지
+    // 2) 칩에서 전달된 targetTrainNo가 접근 목록에 아직 유효하게 남아있으면 유지 (다양한 표기 비교)
     // 3) 도달 가능한 1순위 다가오는 열차로 자동 승계(Auto Handover)
     let primaryTrainNo = '';
     if (userSelectedTrainNo) {
       primaryTrainNo = userSelectedTrainNo.replace(/^0+/, '');
     } else {
       const matchedTarget = cleanTargetTrainNo
-        ? approachingList.find((item) => item.trainNo === cleanTargetTrainNo)
+        ? approachingList.find((item) => {
+            const itemNo = item.trainNo;
+            const targetNo = cleanTargetTrainNo;
+            if (itemNo === targetNo) return true;
+            const itemDigits = itemNo.replace(/\D/g, '').replace(/^0+/, '');
+            const targetDigits = targetNo.replace(/\D/g, '').replace(/^0+/, '');
+            if (itemDigits && targetDigits && itemDigits === targetDigits) return true;
+            return itemNo.endsWith(targetNo) || targetNo.endsWith(itemNo);
+          })
         : null;
 
       if (matchedTarget) {
@@ -476,11 +332,21 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   const activeHighlightedTrain = useMemo(() => {
     if (!primaryTrainNo) return null;
     const cleanNo = primaryTrainNo.replace(/^0+/, '');
-    const trainObj = trainObjectMap.get(cleanNo);
-    const away = trainAwayMap.get(cleanNo);
+    const digitsNo = primaryTrainNo.replace(/\D/g, '').replace(/^0+/, '');
+
+    const trainObj =
+      trainObjectMap.get(cleanNo) ||
+      (digitsNo ? trainObjectMap.get(digitsNo) : undefined) ||
+      trainObjectMap.get(primaryTrainNo);
+
+    const away =
+      trainAwayMap.get(cleanNo) ??
+      (digitsNo ? trainAwayMap.get(digitsNo) : undefined) ??
+      trainAwayMap.get(primaryTrainNo);
+
     if (!trainObj) return null;
 
-    const eta = calculateDynamicETA(away, trainObj.trainSttus, targetMinutesLeft);
+    const eta = calculateDynamicETA(away, trainObj.trainSttus, targetMinutesLeft, trainObj.isExpress);
     const destName = trainObj.statnTnm ? trainObj.statnTnm.replace(/역$/, '').trim() : '';
 
     return {
@@ -758,23 +624,32 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
             }> = [];
 
             trainsAtStation.forEach((t) => {
+              const dr = calculateTrainDeadReckoning(t, orderedStations);
               let ratio = 0.0;
-              let stageText = 'at_station';
+              let stageText = dr.movementStage;
 
               if (t.trainSttus === '2' && !isLast) {
-                // 출발 (해당 역 출발 33% 구간)
-                ratio = 0.33;
+                // 출발: 현재 역에서 다음 역으로 진행
+                ratio = Math.max(0.2, Math.min(0.85, dr.progressRatio));
                 stageText = 'departed';
               } else if (t.trainSttus === '3') {
-                // 전역출발 (간선 중간 50% 구간)
-                ratio = !isFirst ? -0.5 : 0.0;
+                // 전역출발 (중간 주행)
+                ratio = !isFirst ? -Math.max(0.3, Math.min(0.7, 1.0 - dr.progressRatio)) : 0.0;
                 stageText = 'departed';
+              } else if (t.trainSttus === '4') {
+                // 전역진입
+                ratio = !isFirst ? -Math.max(0.15, Math.min(0.4, 1.0 - dr.progressRatio)) : 0.0;
+                stageText = 'approaching';
+              } else if (t.trainSttus === '5') {
+                // 전역도착
+                ratio = !isFirst ? -0.5 : 0.0;
+                stageText = 'at_station';
               } else if (t.trainSttus === '0') {
-                // 진입 (이전 역에서 66% 구간 = 해당 역 진입 직전)
-                ratio = !isFirst ? -0.34 : 0.0;
+                // 당역 진입
+                ratio = !isFirst ? -0.2 : 0.0;
                 stageText = 'approaching';
               } else {
-                // 도착/정차 (정차역 노드 정중앙 0%)
+                // 당역 도착/정차
                 ratio = 0.0;
                 stageText = 'at_station';
               }

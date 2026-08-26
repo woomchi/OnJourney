@@ -178,7 +178,7 @@ export function extractCurrentStationRobust(
   if (parsed.stationName) {
     return parsed.stationName;
   }
-  return cleanStationName(targetStation);
+  return '';
 }
 
 /**

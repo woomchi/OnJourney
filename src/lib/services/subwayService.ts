@@ -420,6 +420,8 @@ export function calculateTimeBetweenStations(
   const cleanTarget = normalizeStationName(targetStation);
   if (!cleanCurrent || !cleanTarget || cleanCurrent === cleanTarget) return null;
 
+  let fallbackDistanceSeconds: number | null = null;
+
   // 각 후보 노선 그룹별로 O(1) 해시맵 조회 및 누적초 차감 계산
   for (const lineCode of candidateCodes) {
     const lineIndex = indexMap.get(lineCode);
@@ -431,31 +433,58 @@ export function calculateTimeBetweenStations(
     if (curInfo && tgtInfo && curInfo.index !== tgtInfo.index) {
       const currentIdx = curInfo.index;
       const targetIdx = tgtInfo.index;
+      const isLine2 = lineCode === '2' || lineCode === '1002';
 
-      // 방향 검증 (updnLine이 제공된 경우)
-      if (updnLine) {
-        const wayCode = resolveUpDownTypeCode(updnLine);
-        const isLine2 = lineCode === '2' || lineCode === '1002';
+      if (isLine2) {
+        const totalCount = lineIndex.stations.length;
+        const totalSec = lineIndex.totalSeconds;
+        const wayCode = updnLine ? resolveUpDownTypeCode(updnLine) : null;
 
-        if (isLine2) {
-          // 2호선: '1'(내선/상행, 인덱스 증가 방향), '2'(외선/하행, 인덱스 감소 방향)
-          if (wayCode === '1' && currentIdx > targetIdx) continue;
-          if (wayCode === '2' && currentIdx < targetIdx) continue;
+        // 2호선 순환선: '1'(내선/상행, 인덱스 증가 방향), '2'(외선/하행, 인덱스 감소 방향)
+        let forwardSec = 0;
+        if (targetIdx >= currentIdx) {
+          forwardSec = tgtInfo.cumulativeSeconds - curInfo.cumulativeSeconds;
         } else {
-          // 일반 노선 (1~9호선, 국철): Index 0=기점(상행측), Index N=종점(하행측)
-          // '1'(상행): 종점 -> 기점 (currentIdx > targetIdx 이어야 전진)
-          // '2'(하행): 기점 -> 종점 (currentIdx < targetIdx 이어야 전진)
-          if (wayCode === '1' && currentIdx < targetIdx) continue;
-          if (wayCode === '2' && currentIdx > targetIdx) continue;
+          forwardSec = (totalSec - curInfo.cumulativeSeconds) + tgtInfo.cumulativeSeconds;
+        }
+
+        let backwardSec = totalSec - forwardSec;
+
+        if (wayCode === '1') {
+          // 내선(시계방향/인덱스 증가)
+          return Math.max(60, forwardSec);
+        } else if (wayCode === '2') {
+          // 외선(반시계방향/인덱스 감소)
+          return Math.max(60, backwardSec);
+        } else {
+          return Math.max(60, Math.min(forwardSec, backwardSec));
         }
       }
 
-      // O(1) Prefix Sum 차이값 계산
-      return Math.abs(tgtInfo.cumulativeSeconds - curInfo.cumulativeSeconds);
+      // 일반 노선 (1~9호선, 국철 등)
+      const diffSec = Math.abs(tgtInfo.cumulativeSeconds - curInfo.cumulativeSeconds);
+      fallbackDistanceSeconds = diffSec;
+
+      if (updnLine) {
+        const wayCode = resolveUpDownTypeCode(updnLine);
+        // 대부분 노선: Index 0=기점(북쪽/상행종점), Index N=종점(남쪽/하행종점)
+        // '1'(상행): 종점 -> 기점 (currentIdx > targetIdx)
+        // '2'(하행): 기점 -> 종점 (currentIdx < targetIdx)
+        const isForwardForDirection =
+          (wayCode === '1' && currentIdx > targetIdx) ||
+          (wayCode === '2' && currentIdx < targetIdx);
+
+        if (isForwardForDirection) {
+          return diffSec;
+        }
+      } else {
+        return diffSec;
+      }
     }
   }
 
-  return null;
+  // 방향 불일치로 엄격 매칭되지 않았으나 노선 상에 위치할 경우 fallback 거리 반환
+  return fallbackDistanceSeconds;
 }
 
 /** 1호선 메인 축 (신창 ~ 수원 ~ 구로 ~ 서울역 ~ 청량리 ~ 광운대 ~ 소요산) 정렬 역 목록 */
@@ -1264,22 +1293,25 @@ export function calculateSubwayETADynamic(
     };
   }
 
+  const remainingStations = extractRemainingStations(arvlMsg2);
+
   // 2. 당역 도착(승강장 정차) 또는 당역 진입(곧 도착) 판별
+  // 메시지상 2개 역 이상 떨어져 있는 원거리 열차는 코드 오매칭 방지를 위해 제외
+  const isFarAwayMsg = remainingStations !== null && remainingStations >= 2;
   const isDirectlyAtTarget =
-    arvlCdStr === '0' ||
-    arvlCdStr === '1' ||
-    arvlMsg2.includes(`${targetClean} 진입`) ||
-    arvlMsg2.includes(`${targetClean} 도착`) ||
-    arvlMsg2.includes('당역 진입') ||
-    arvlMsg2.includes('당역 도착') ||
-    arvlMsg2 === '진입' ||
-    arvlMsg2 === '도착';
+    !isFarAwayMsg &&
+    (arvlCdStr === '0' ||
+      arvlCdStr === '1' ||
+      arvlMsg2.includes(`${targetClean} 진입`) ||
+      arvlMsg2.includes(`${targetClean} 도착`) ||
+      arvlMsg2.includes('당역 진입') ||
+      arvlMsg2.includes('당역 도착') ||
+      arvlMsg2 === '진입' ||
+      arvlMsg2 === '도착');
 
   if (isDirectlyAtTarget) {
     return buildApproachingResponse(arvlMsg2, targetClean, recptnDt, arvlCd);
   }
-
-  const remainingStations = extractRemainingStations(arvlMsg2);
 
   if (barvlDt && barvlDt > 0) {
     return buildBarvlDtResponse(barvlDt, recptnDt, arvlMsg2, remainingStations, arvlCd, isExpress);

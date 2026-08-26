@@ -14,8 +14,11 @@ import type { RawSubwayArrivalRow } from '../services/subwayTotalRealtimeService
 import type { SubwayPosition } from '@/types/journey';
 
 const TOTAL_ARRIVAL_REVALIDATE = 15; // 초
-const POSITION_REVALIDATE = 30;      // 초 (지하철 노선뷰 30초 주기 동기화)
+const POSITION_REVALIDATE = 15;      // 초 (도착 정보 15초 주기와 동기화)
 const FETCH_TIMEOUT_MS = 6_000;
+
+/** API 실패/타임아웃 대비 노선별 직전 정상 스냅샷 메모리 캐시 */
+const lastKnownPositionsMap = new Map<string, SubwayPosition[]>();
 
 /**
  * 서울시 지하철 일괄 도착 API 호출 (원시 fetch)
@@ -118,7 +121,7 @@ async function fetchPositionsByLineRaw(
 
     const deduplicatedRows = Array.from(latestTrainMap.values());
 
-    return deduplicatedRows.map((row) => {
+    const mappedPositions = deduplicatedRows.map((row) => {
       const isExpress =
         row.directAt === '1' ||
         String(row.trainLineNm || '').includes('급행') ||
@@ -135,19 +138,32 @@ async function fetchPositionsByLineRaw(
         updnLine: String(row.updnLine || '0'),
         statnTid: row.statnTid ? String(row.statnTid) : undefined,
         statnTnm: row.statnTnm ? String(row.statnTnm).replace(/역$/, '').trim() : undefined,
-        trainSttus: String(row.trainSttus ?? '0'),
+        trainSttus: String(row.trainSttus !== undefined && row.trainSttus !== null ? row.trainSttus : '99'),
         directAt: row.directAt ? String(row.directAt) : '0',
         lstcarAt: row.lstcarAt ? String(row.lstcarAt) : '0',
         isExpress,
       };
     });
+
+    if (mappedPositions.length > 0) {
+      lastKnownPositionsMap.set(subwayNm, mappedPositions);
+    }
+
+    return mappedPositions;
   } catch (error) {
     const isTimeout = error instanceof Error && error.name === 'AbortError';
     if (isTimeout) {
-      console.warn(`[subwayCacheService] 타임아웃 (${subwayNm} 위치 조회)`);
+      console.warn(`[subwayCacheService] 타임아웃 (${subwayNm} 위치 조회) - 직전 스냅샷 Fallback 적용`);
     } else {
       console.warn(`[subwayCacheService] 위치 조회 실패 (${subwayNm}):`, error);
     }
+
+    // 장애 시 직전 성공 스냅샷(Last Known Good) 제공
+    const fallbackSnapshot = lastKnownPositionsMap.get(subwayNm);
+    if (fallbackSnapshot && fallbackSnapshot.length > 0) {
+      return fallbackSnapshot;
+    }
+
     return [];
   } finally {
     clearTimeout(timeoutId);
@@ -169,11 +185,16 @@ export const fetchCachedTotalArrivals = unstable_cache(
 
 /**
  * 15초 TTL 캐시가 적용된 노선별 열차 위치 API 조회 함수
+ * 노선명(subwayNm)별로 캐시 키를 완벽히 격리합니다.
  */
-export const fetchCachedPositionsByLine = unstable_cache(
-  async (apiKey: string, subwayNm: string): Promise<SubwayPosition[]> => {
-    return fetchPositionsByLineRaw(apiKey, subwayNm);
-  },
-  ['subway-positions-by-line'],
-  { revalidate: POSITION_REVALIDATE }
-);
+export async function fetchCachedPositionsByLine(
+  apiKey: string,
+  subwayNm: string
+): Promise<SubwayPosition[]> {
+  const cachedFn = unstable_cache(
+    async () => fetchPositionsByLineRaw(apiKey, subwayNm),
+    ['subway-positions-by-line', subwayNm],
+    { revalidate: POSITION_REVALIDATE }
+  );
+  return cachedFn();
+}

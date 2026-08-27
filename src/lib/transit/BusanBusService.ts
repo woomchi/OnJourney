@@ -1,4 +1,4 @@
-import { RELIABILITY_SCORES } from '@/constants/transitConstants';
+import { RELIABILITY_SCORES } from '@/constants/transit';
 import {
   ArrivalBusItem,
   NormalizedRealtimeData,

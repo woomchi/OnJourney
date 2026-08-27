@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { motion, useTransform, useMotionValue } from 'framer-motion';
 import { useDialog } from '@/providers/DialogProvider';
@@ -120,6 +121,7 @@ export default function JourneySidebar() {
     isSyncing,
     setDrawerMaximized,
     setDrawerSnapPoint,
+    drawerSnapPoint,
     focusedSegment,
     alternativeSegment,
     isEditMode,
@@ -134,7 +136,31 @@ export default function JourneySidebar() {
     setFocusedSegment,
     setAlternativeSegment,
     setFocusBounds,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((state) => ({
+      setJourneys: state.setJourneys,
+      activeJourney: state.activeJourney,
+      clearJourney: state.clearJourney,
+      isSyncing: state.isSyncing,
+      setDrawerMaximized: state.setDrawerMaximized,
+      setDrawerSnapPoint: state.setDrawerSnapPoint,
+      drawerSnapPoint: state.drawerSnapPoint,
+      focusedSegment: state.focusedSegment,
+      alternativeSegment: state.alternativeSegment,
+      isEditMode: state.isEditMode,
+      setEditMode: state.setEditMode,
+      reorderPlaces: state.reorderPlaces,
+      openCreateForm: state.openCreateForm,
+      journeys: state.journeys,
+      isSearchMode: state.isSearchMode,
+      openSearchMode: state.openSearchMode,
+      closeSearchMode: state.closeSearchMode,
+      setFocusedStep: state.setFocusedStep,
+      setFocusedSegment: state.setFocusedSegment,
+      setAlternativeSegment: state.setAlternativeSegment,
+      setFocusBounds: state.setFocusBounds,
+    }))
+  );
   const [mounted, setMounted] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const isMobile = useMediaQuery('(max-width: 767px)');
@@ -203,7 +229,6 @@ export default function JourneySidebar() {
   }, [snap, isMobile, setDrawerMaximized, setDrawerSnapPoint]);
 
   // Sync snap with drawerSnapPoint if it changes externally (e.g. via overscroll)
-  const { drawerSnapPoint } = useJourneyStore();
   useEffect(() => {
     if (drawerSnapPoint !== undefined && drawerSnapPoint !== snap && isMobile) {
       // eslint-disable-next-line react-hooks/set-state-in-effect

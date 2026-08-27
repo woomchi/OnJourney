@@ -1,4 +1,4 @@
-import { TAGO_CITY_CODES, RELIABILITY_SCORES } from '@/constants/transitConstants';
+import { TAGO_CITY_CODES, RELIABILITY_SCORES } from '@/constants/transit';
 import {
   ArrivalBusItem,
   BusType,

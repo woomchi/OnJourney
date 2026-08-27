@@ -2,9 +2,9 @@ import React, { useMemo, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { useJourneyStore } from '@/stores/journey-store';
-import { getDefaultRoute } from '@/lib/routeUtils';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { getSequenceTheme } from '@/constants/colors';
-import { calculateHaversineDistance, calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { calculateHaversineDistance, calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 
 import type {
   Place,
@@ -14,7 +14,7 @@ import type {
   DirectionsCacheRecord,
   AlternativeSegment,
 } from '@/types/journey';
-import { isPositionInBounds } from '@/features/map/MapMarkers';
+import { isPositionInBounds } from '@/lib/utils/geoUtils';
 import { useMapUIStore } from '@/stores/map-store';
 import { getSegmentGeometry, TransferPoint } from '@/lib/segmentGeometryCache';
 

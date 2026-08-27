@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useMapUIStore } from '@/stores/map-store';
 import { useJourneyStore } from '@/stores/journey-store';
+import { extractBoundsRect } from '@/lib/utils/geoUtils';
 
 interface UseGeocodeOnIdleProps {
   map: naver.maps.Map | null;
@@ -25,7 +26,8 @@ export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
 
     const idleListener = navermaps.Event.addListener(map, 'idle', () => {
       const newZoom = map.getZoom();
-      const newBounds = map.getBounds() as naver.maps.LatLngBounds;
+      const rawBounds = map.getBounds() as naver.maps.LatLngBounds;
+      const newBoundsRect = extractBoundsRect(rawBounds);
 
       // 단일 setState 호출로 배치 처리하여 연속 리렌더링 차단
       const currentUIState = useMapUIStore.getState();
@@ -36,36 +38,23 @@ export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
       }
 
       const prevBounds = currentUIState.mapBounds;
-      if (!prevBounds || !newBounds) {
-        updates.mapBounds = newBounds;
-      } else if (typeof prevBounds.getSW === 'function' && typeof newBounds.getSW === 'function') {
-        const prevSW = prevBounds.getSW();
-        const prevNE = prevBounds.getNE();
-        const newSW = newBounds.getSW();
-        const newNE = newBounds.getNE();
-        if (
-          prevSW.lat() !== newSW.lat() ||
-          prevSW.lng() !== newSW.lng() ||
-          prevNE.lat() !== newNE.lat() ||
-          prevNE.lng() !== newNE.lng()
-        ) {
-          updates.mapBounds = newBounds;
-        }
+      if (!prevBounds || !newBoundsRect) {
+        updates.mapBounds = newBoundsRect;
+      } else if (
+        prevBounds.minLat !== newBoundsRect.minLat ||
+        prevBounds.minLng !== newBoundsRect.minLng ||
+        prevBounds.maxLat !== newBoundsRect.maxLat ||
+        prevBounds.maxLng !== newBoundsRect.maxLng
+      ) {
+        updates.mapBounds = newBoundsRect;
       }
 
       if (Object.keys(updates).length > 0) {
         useMapUIStore.setState(updates);
       }
 
-      if (newBounds && typeof newBounds.getSW === 'function') {
-        const sw = newBounds.getSW();
-        const ne = newBounds.getNE();
-        setGlobalMapBounds({
-          minLat: sw.lat(),
-          maxLat: ne.lat(),
-          minLng: sw.lng(),
-          maxLng: ne.lng(),
-        });
+      if (newBoundsRect) {
+        setGlobalMapBounds(newBoundsRect);
       }
 
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);

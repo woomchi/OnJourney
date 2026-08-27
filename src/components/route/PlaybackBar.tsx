@@ -2,7 +2,7 @@
 
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import { PlayTriangleIcon, PauseBarsIcon, ArrowRightIcon } from '@/components/ui/icons';
 
 interface PlaybackBarProps {

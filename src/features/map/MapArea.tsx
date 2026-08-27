@@ -15,8 +15,8 @@ import { useMapState } from '@/features/map/useMapState';
 import { useMapUIStore } from '@/stores/map-store';
 import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { useMapCamera } from './useMapCamera';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
-import { getDefaultRoute } from '@/lib/routeUtils';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 import { useGPSTracking } from './hooks/useGPSTracking';

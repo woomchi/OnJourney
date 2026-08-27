@@ -2,7 +2,7 @@
 
 import { useJourneyStore } from '@/stores/journey-store';
 import { getSequenceTheme } from '@/constants/colors';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import type { Place } from '@/types/journey';
 
 interface TimelineNodeProps {

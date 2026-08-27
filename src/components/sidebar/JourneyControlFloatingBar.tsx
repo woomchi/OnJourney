@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys } from '@/hooks/queries/useDirections';
-import { getDefaultRoute } from '@/lib/routeUtils';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 import { useDialog } from '@/providers/DialogProvider';
 import type { Journey } from '@/types/journey';
@@ -41,7 +42,25 @@ export default function JourneyControlFloatingBar({
     setDrawerSnapPoint,
     openSearchMode,
     departureTime,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((state) => ({
+      journeys: state.journeys,
+      clearJourney: state.clearJourney,
+      focusedStep: state.focusedStep,
+      setFocusedStep: state.setFocusedStep,
+      focusedSegment: state.focusedSegment,
+      setFocusedSegment: state.setFocusedSegment,
+      setFocusBounds: state.setFocusBounds,
+      isSyncing: state.isSyncing,
+      setAlternativeSegment: state.setAlternativeSegment,
+      setActiveJourney: state.setActiveJourney,
+      isEditMode: state.isEditMode,
+      setEditMode: state.setEditMode,
+      setDrawerSnapPoint: state.setDrawerSnapPoint,
+      openSearchMode: state.openSearchMode,
+      departureTime: state.departureTime,
+    }))
+  );
 
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(false);
 

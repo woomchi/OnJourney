@@ -2,16 +2,18 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { useShallow } from 'zustand/react/shallow';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import ScrollContainer from 'react-indiana-drag-scroll';
 import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { BOTTOM_SHEET_SNAP } from '@/constants/layout';
 import { motion, AnimatePresence, useTransform, useMotionValue } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
 import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi, fetchTmapDetailRouteApi } from '@/lib/services/directionsService';
-import { getDefaultRoute } from '@/lib/routeUtils';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import FittedDuration from '@/components/places/FittedDuration';
 import { usePWA } from '@/components/PWAProvider';
 import DepartureTimeSelector from '@/components/common/DepartureTimeSelector';
@@ -107,13 +109,23 @@ export default function AlternativeRoutePanel({
     setFocusedSegment,
     setFocusedStep,
     setHoveredAlternativeRoute,
-    departureTime
-  } = useJourneyStore();
+    departureTime,
+    setGuidePanelState,
+  } = useJourneyStore(
+    useShallow((state) => ({
+      activeJourney: state.activeJourney,
+      selectSegmentRoute: state.selectSegmentRoute,
+      setFocusBounds: state.setFocusBounds,
+      setFocusedSegment: state.setFocusedSegment,
+      setFocusedStep: state.setFocusedStep,
+      setHoveredAlternativeRoute: state.setHoveredAlternativeRoute,
+      departureTime: state.departureTime,
+      setGuidePanelState: state.setGuidePanelState,
+    }))
+  );
 
-  const [snap, setSnap] = useState<number | string | null>('46vh');
+  const [snap, setSnap] = useState<number | string | null>(BOTTOM_SHEET_SNAP.ALTERNATIVE_DEFAULT);
   const Scroller = 'div';
-
-  const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
   const [isDetailLoading, setIsDetailLoading] = useState<Record<string, boolean>>({});
 
   const handleWalkRouteClick = async (route: DirectionResult) => {

@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDialog } from '@/providers/DialogProvider';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapUIStore } from '@/stores/map-store';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
-import { deleteJourneys } from '@/lib/journeys';
-import { formatJourneyDate, removeJourneysFromStoredOrder } from '@/lib/journeyUtils';
+import { deleteJourneys } from '@/lib/journeys/index';
+import { formatJourneyDate, removeJourneysFromStoredOrder } from '@/lib/utils/journeyUtils';
 import type { Journey } from '@/types/journey';
 import React from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -152,7 +153,21 @@ export default function JourneyListSidebar({ isLoading }: { isLoading: boolean }
     activeJourney,
     isEditMode,
     setEditMode,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((state) => ({
+      journeys: state.journeys,
+      setJourneys: state.setJourneys,
+      openCreateForm: state.openCreateForm,
+      setActiveJourney: state.setActiveJourney,
+      clearJourney: state.clearJourney,
+      isDrawerMaximized: state.isDrawerMaximized,
+      setDrawerSnapPoint: state.setDrawerSnapPoint,
+      drawerSnapPoint: state.drawerSnapPoint,
+      activeJourney: state.activeJourney,
+      isEditMode: state.isEditMode,
+      setEditMode: state.setEditMode,
+    }))
+  );
 
   const bottomSheet = useOptionalBottomSheet();
 

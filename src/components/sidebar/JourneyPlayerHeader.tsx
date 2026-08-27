@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
-import { getDefaultRoute } from '@/lib/routeUtils';
-import { formatJourneyDate } from '@/lib/journeyUtils';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
+import { formatShortDate } from '@/lib/utils/journeyUtils';
 import { MAX_JOURNEY_PLACES } from '@/constants/journey';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import type { Journey, Place, DirectionResult, SelectedRoute } from '@/types/journey';
 import { Loader2, ChevronLeft, Pencil, Check, Bus, Car, Footprints, Calendar, MapPin } from 'lucide-react';
 import { SkipBackIcon, SkipForwardIcon, PlayTriangleIcon, PauseBarsIcon } from '@/components/ui/icons';
@@ -45,7 +46,26 @@ export default function JourneyPlayerHeader({
     setDrawerSnapPoint,
     isCacheRestored,
     departureTime,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((state) => ({
+      journeys: state.journeys,
+      clearJourney: state.clearJourney,
+      focusedStep: state.focusedStep,
+      setFocusedStep: state.setFocusedStep,
+      focusedSegment: state.focusedSegment,
+      setFocusedSegment: state.setFocusedSegment,
+      setFocusBounds: state.setFocusBounds,
+      isSyncing: state.isSyncing,
+      alternativeSegment: state.alternativeSegment,
+      setAlternativeSegment: state.setAlternativeSegment,
+      setActiveJourney: state.setActiveJourney,
+      isEditMode: state.isEditMode,
+      setEditMode: state.setEditMode,
+      setDrawerSnapPoint: state.setDrawerSnapPoint,
+      isCacheRestored: state.isCacheRestored,
+      departureTime: state.departureTime,
+    }))
+  );
 
   const bottomSheet = useOptionalBottomSheet();
 
@@ -69,9 +89,7 @@ export default function JourneyPlayerHeader({
   const directionsCache = useJourneyDirectionsCache(places);
   const transportType = activeJourney?.transport_type || 'public';
 
-  const formattedDate = activeJourney?.journey_date
-    ? activeJourney.journey_date.replace(/-/g, '.').slice(2)
-    : '미지정';
+  const formattedDate = formatShortDate(activeJourney?.journey_date);
 
   const transportTypeLabel =
     activeJourney?.transport_type === 'car' ? '차량' :

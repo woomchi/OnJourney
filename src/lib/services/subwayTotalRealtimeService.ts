@@ -5,7 +5,7 @@
  * 서울 지하철 전체 역의 실시간 도착 정보를 일괄 조회하고 인메모리에 캐싱합니다.
  */
 
-import { calculateSubwayETADynamic, extractTrainMetadata } from '@/lib/subwayService';
+import { calculateSubwayETADynamic, extractTrainMetadata } from '@/lib/services/subwayService';
 import { SubwayTotalQueryType } from '../validations/subway';
 import type { SubwayArrival } from '@/types/journey';
 import { isStaleRow } from './subwayRealtimeService';

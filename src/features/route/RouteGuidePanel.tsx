@@ -3,9 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import type { Place, SelectedRoute, DirectionResult, DirectionStep } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
-import { calculateSegmentBounds, calculateStepBounds } from '@/lib/naverMapRouteService';
+import { useShallow } from 'zustand/react/shallow';
+import { calculateSegmentBounds, calculateStepBounds } from '@/lib/services/naverMapRouteService';
 
 import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { BOTTOM_SHEET_SNAP } from '@/constants/layout';
 import { motion, useTransform, AnimatePresence, useMotionValue } from 'framer-motion';
 import PlaybackBar from '@/components/route/PlaybackBar';
 import TransitGuideList from '@/components/route/TransitGuideList';
@@ -108,7 +110,19 @@ export default function RouteGuidePanel({
     setIsAlternativeFromFocus,
     setTargetChangePlaceId,
     openSearchMode,
-  } = useJourneyStore();
+    setGuidePanelState,
+  } = useJourneyStore(
+    useShallow((state) => ({
+      focusedStep: state.focusedStep,
+      setFocusedStep: state.setFocusedStep,
+      setFocusBounds: state.setFocusBounds,
+      setAlternativeSegment: state.setAlternativeSegment,
+      setIsAlternativeFromFocus: state.setIsAlternativeFromFocus,
+      setTargetChangePlaceId: state.setTargetChangePlaceId,
+      openSearchMode: state.openSearchMode,
+      setGuidePanelState: state.setGuidePanelState,
+    }))
+  );
   const [unfocusedCardIndex, setUnfocusedCardIndex] = useState(0);
 
   const handleChangePlace = (placeId: string, e: React.SyntheticEvent) => {
@@ -141,7 +155,7 @@ export default function RouteGuidePanel({
 
   const activeCardIndex = isPanelFocused ? focusedStep.stepIndex : unfocusedCardIndex;
 
-  const [snap, setSnap] = useState<number | string | null>(370);
+  const [snap, setSnap] = useState<number | string | null>(BOTTOM_SHEET_SNAP.GUIDE_DEFAULT);
 
   const parsedSnapForLog = parseSnapVal(snap);
   let currentSnapTypeForLog: 'min' | 'default' | 'max' = 'default';
@@ -151,19 +165,16 @@ export default function RouteGuidePanel({
 
   const collapse = () => {
     const parsedSnap = parseSnapVal(snap);
-    if (parsedSnap !== 370) {
-      setSnap(370);
+    if (parsedSnap !== BOTTOM_SHEET_SNAP.GUIDE_DEFAULT) {
+      setSnap(BOTTOM_SHEET_SNAP.GUIDE_DEFAULT);
     }
   };
 
-  const { setGuidePanelState } = useJourneyStore();
-
-
   useEffect(() => {
     if (isOpen) {
-      if (snap === 1 || snap === '1') {
+      if (snap === BOTTOM_SHEET_SNAP.FULL_EXPANDED || snap === '1') {
         setGuidePanelState('expanded');
-      } else if (snap === 190 || snap === '190px') {
+      } else if (snap === BOTTOM_SHEET_SNAP.GUIDE_MINIMIZED || snap === `${BOTTOM_SHEET_SNAP.GUIDE_MINIMIZED}px`) {
         setGuidePanelState('minimized');
       } else {
         setGuidePanelState('default');

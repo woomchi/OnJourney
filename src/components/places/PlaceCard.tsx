@@ -7,11 +7,11 @@ import { useJourneyDirectionsCache, directionKeys } from '@/hooks/queries/useDir
 import { useQueryClient } from '@tanstack/react-query';
 import type { Place } from '@/types/journey';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
-import { getDefaultRoute } from '@/lib/routeUtils';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import SegmentInfo from './SegmentInfo';
 import TimelineNode from './TimelineNode';
-import { getCategoryTheme } from '@/lib/categoryUtils';
+import { getCategoryTheme } from '@/lib/utils/categoryUtils';
 import { getSequenceTheme } from '@/constants/colors';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';

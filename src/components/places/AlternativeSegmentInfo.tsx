@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, DirectionsApiResponse, DirectionResult } from '@/types/journey';
-import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 import { formatKmDistance, formatDurationMinutes } from '@/lib/utils/journeyUtils';
 
 interface AlternativeSegmentInfoProps {

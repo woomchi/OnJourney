@@ -3,8 +3,8 @@
 import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { useMapState } from './useMapState';
 import { useMapUIStore } from '@/stores/map-store';
-import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/naverMapRouteService';
-import { getDefaultRoute } from '@/lib/routeUtils';
+import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/services/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { areBoundsEqual } from '@/stores/slices/mapSlice';
 import type { Place, LatLngBoundsLiteral, DirectionsApiResponse } from '@/types/journey';
 
@@ -46,7 +46,13 @@ export function useMapCamera({
     drawerSnapPoint,
   } = useMapState();
 
-  const { setMapCenter } = useMapUIStore();
+  const { setMapCenter, setGpsMode, setUserLocation } = useMapUIStore();
+
+  // 여정 전환/해제 시 GPS 모드 및 위치 리셋 (Side effect 분리)
+  useEffect(() => {
+    setGpsMode('none');
+    setUserLocation(null);
+  }, [activeJourney?.id, setGpsMode, setUserLocation]);
 
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
 

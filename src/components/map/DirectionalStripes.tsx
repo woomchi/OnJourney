@@ -2,8 +2,8 @@
 
 import { useMemo, useRef } from 'react';
 import { Polyline } from 'react-naver-maps';
-import { getDefaultRoute } from '@/lib/routeUtils';
-import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
+import { calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 
 // 두 위경도 좌표 간 방위각(Bearing)을 0~360도 각도로 구하는 함수 (Great Circle)
 export function getBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -87,9 +87,11 @@ import type {
   DirectionResult,
   DirectionsCacheRecord,
   AlternativeSegment,
+  MapBoundsRect,
 } from '@/types/journey';
 import { useMapUIStore } from '@/stores/map-store';
 import { getSegmentGeometry, ArrowAnchor } from '@/lib/segmentGeometryCache';
+import { isPositionInBounds } from '@/lib/utils/geoUtils';
 
 interface DirectionalStripesProps {
   places: Place[];
@@ -99,7 +101,7 @@ interface DirectionalStripesProps {
   focusedStep: FocusedStep | null;
   navermaps: any;
   zoomLevel: number;
-  mapBounds: naver.maps.LatLngBounds | null;
+  mapBounds: MapBoundsRect | naver.maps.LatLngBounds | null;
   hoveredAlternativeRoute?: DirectionResult | null;
   alternativeSegment?: AlternativeSegment | null;
 }
@@ -135,12 +137,7 @@ export default function DirectionalStripes({
       const isAlternativeSegment = alternativeSegment && alternativeSegment.originId === place.id && alternativeSegment.destId === nextPlace.id;
       const activeRoute = (isAlternativeSegment && hoveredAlternativeRoute) ? hoveredAlternativeRoute : defaultRoute;
 
-      if (!activeRoute || !activeRoute.steps) return;
-
-      if (focusedSegment && !focusedStep) {
-        const isCurrentSegment = focusedSegment.originId === place.id && focusedSegment.destId === nextPlace.id;
-        if (!isCurrentSegment) return;
-      }
+      if (!activeRoute) return;
 
       const geometry = getSegmentGeometry(
         place,
@@ -153,27 +150,28 @@ export default function DirectionalStripes({
         focusedStep
       );
 
-      points.push(...geometry.arrowAnchors);
+      if (geometry && geometry.arrowAnchors && geometry.arrowAnchors.length > 0) {
+        points.push(...geometry.arrowAnchors);
+      }
     });
 
     return points;
-  }, [places, directionsCache, transportType, focusedSegment, focusedStep, navermaps, hoveredAlternativeRoute, alternativeSegment]);
+  }, [places, directionsCache, transportType, focusedSegment, focusedStep, navermaps, alternativeSegment, hoveredAlternativeRoute]);
 
   const lastVisiblePointsRef = useRef<ArrowAnchor[]>([]);
 
-  // 2. Filter points by viewport bounds & apply zoom-based stride sampling
+  // 2. Viewport-based culling with LOD stride
   const visiblePoints = useMemo(() => {
+    if (arrowAnchors.length === 0) return [];
     if (isMapDragging && lastVisiblePointsRef.current.length > 0) {
       return lastVisiblePointsRef.current;
     }
-    if (zoomLevel <= 7) return [];
 
     let stride = 1;
-    if (zoomLevel >= 16) stride = 1;
-    else if (zoomLevel === 15) stride = 2;
-    else if (zoomLevel === 14) stride = 3;
-    else if (zoomLevel === 13) stride = 5;
-    else if (zoomLevel === 12) stride = 8;
+    if (zoomLevel >= 15) stride = 2;
+    else if (zoomLevel >= 14) stride = 3;
+    else if (zoomLevel >= 13) stride = 5;
+    else if (zoomLevel >= 12) stride = 8;
     else stride = 12;
 
     const sampledAnchors = arrowAnchors.filter((_, idx) => idx % stride === 0);
@@ -184,19 +182,9 @@ export default function DirectionalStripes({
       return res;
     }
     try {
-      const filtered = sampledAnchors.filter(pt => {
-        const targetCoord = new navermaps.LatLng(pt.position.lat, pt.position.lng);
-        if (typeof (mapBounds as any).hasLatLng === 'function') {
-          return (mapBounds as any).hasLatLng(targetCoord);
-        }
-        if (typeof (mapBounds as any).contains === 'function') {
-          return (mapBounds as any).contains(targetCoord);
-        }
-        const sw = mapBounds.getSW();
-        const ne = mapBounds.getNE();
-        return pt.position.lat >= sw.lat() && pt.position.lat <= ne.lat() &&
-               pt.position.lng >= sw.lng() && pt.position.lng <= ne.lng();
-      });
+      const filtered = sampledAnchors.filter(pt =>
+        isPositionInBounds(pt.position, mapBounds, 0.05)
+      );
 
       const res = filtered.slice(0, 50);
       lastVisiblePointsRef.current = res;

@@ -7,9 +7,9 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useDialog } from '@/providers/DialogProvider';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import type { Journey, Place, ServiceCategoryTag } from '@/types/journey';
-import { getCategoryTheme } from '@/lib/categoryUtils';
+import { getCategoryTheme } from '@/lib/utils/categoryUtils';
 import { usePlaceSearch, CategoryFilterType } from '@/features/places/usePlaceSearch';
-import { formatJourneyDate } from '@/lib/journeyUtils';
+import { formatJourneyDate } from '@/lib/utils/journeyUtils';
 import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 import { Search, Loader2, Plus, MapPin, X } from 'lucide-react';
 

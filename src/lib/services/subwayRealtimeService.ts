@@ -17,7 +17,7 @@ import {
   parseSeoulApiDate,
   isStationReachableOnLine,
   extractTrainMetadata,
-} from '@/lib/subwayService';
+} from '@/lib/services/subwayService';
 import { SubwayRealtimeQueryType } from '../validations/subway';
 import type { SubwayArrival, SubwayPosition } from '@/types/journey';
 import { getStationArrivalsFromTotalCache } from './subwayTotalRealtimeService';

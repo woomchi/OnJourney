@@ -9,7 +9,7 @@
  */
 
 // ─── 외부 의존성 ────────────────────────────────────────────────────────────
-import { getDefaultRoute } from '@/lib/routeUtils';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { Place, DirectionResult, SelectedRoute } from '@/types/journey';
 import { TAXI_BASE_FARE, TAXI_DISTANCE_RATE, TAXI_SURCHARGE_FACTOR } from '@/constants/fare';
 

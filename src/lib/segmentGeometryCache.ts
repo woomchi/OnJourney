@@ -3,7 +3,7 @@
  * - 1회의 통합 순회(Single Pass)로 RDP 경로선, 방위각 화살표 앵커, 환승 마커 겹침 데이터를 통합 가공 및 캐싱
  */
 
-import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 import { getMercatorY, getInverseMercatorY, getRhumbBearing } from '@/components/map/DirectionalStripes';
 import { getSequenceTheme } from '@/constants/colors';
 import type {

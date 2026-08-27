@@ -8,8 +8,8 @@ import { BusLineMapPanel } from '@/features/route/BusLineMapPanel';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMapState } from '@/features/map/useMapState';
 import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
-import { getDefaultRoute } from '@/lib/routeUtils';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 

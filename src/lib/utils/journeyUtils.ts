@@ -69,6 +69,19 @@ export function formatJourneyDate(dateStr: string): string {
 }
 
 /**
+ * ISO 날짜 문자열을 모바일/헤더용 짧은 형식('YY.MM.DD' 또는 '미지정')으로 포맷합니다.
+ *
+ * @param dateStr ISO 8601 날짜 문자열 (예: '2026-08-27')
+ * @returns 포맷된 짧은 날짜 문자열 (예: '26.08.27'), 없을 경우 '미지정'
+ */
+export function formatShortDate(dateStr?: string | null): string {
+  if (!dateStr) return '미지정';
+  const cleaned = dateStr.trim();
+  if (!cleaned) return '미지정';
+  return cleaned.replace(/-/g, '.').slice(2);
+}
+
+/**
  * localStorage에 저장된 순서를 기준으로 여정 배열을 정렬합니다.
  *
  * - 저장된 순서에 없는 새 여정은 목록 맨 앞으로 배치합니다.

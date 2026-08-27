@@ -1,20 +1,12 @@
 import { create } from 'zustand';
-import type { PlaceResult } from '@/types/journey';
-
-interface MapCoord {
-  lat: number;
-  lng: number;
-}
+import type { PlaceResult, MapBoundsRect, MapCoord } from '@/types/journey';
 
 interface MapClickedPlace extends MapCoord {
   address: string;
   place_name: string;
 }
 
-export interface MapBoundsRect {
-  sw: MapCoord;
-  ne: MapCoord;
-}
+export type { MapBoundsRect, MapCoord };
 
 interface MapUIState {
   // Center & Zoom
@@ -22,8 +14,8 @@ interface MapUIState {
   setMapCenter: (center: MapCoord) => void;
   zoomLevel: number;
   setZoomLevel: (zoom: number) => void;
-  mapBounds: MapBoundsRect | any | null;
-  setMapBounds: (bounds: MapBoundsRect | any | null) => void;
+  mapBounds: MapBoundsRect | null;
+  setMapBounds: (bounds: MapBoundsRect | null) => void;
 
   // Selected Places on Map
   activeRecommendedPlace: PlaceResult | null;

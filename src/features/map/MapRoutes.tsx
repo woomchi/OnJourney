@@ -1,7 +1,7 @@
 import React, { Fragment, memo, useCallback } from 'react';
-import AnimatedPolyline from '@/components/AnimatedPolyline';
-import { getDefaultRoute } from '@/lib/routeUtils';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
+import AnimatedPolyline from '@/components/map/AnimatedPolyline';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import { SEQUENCE_COLORS } from '@/constants/colors';
 import { simplifyPath } from '@/lib/polylineSimplifier';
 import { useMapUIStore } from '@/stores/map-store';
@@ -25,7 +25,7 @@ export interface MapRoutesProps {
   alternativeSegment: AlternativeSegment | null;
   hoveredAlternativeRoute: DirectionResult | null;
   focusedSegment: FocusedSegment | null;
-  setFocusBounds: (bounds: LatLngBoundsLiteral | any) => void;
+  setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
   setFocusedStep: (step: FocusedStep | null) => void;
   setFocusedSegment: (segment: FocusedSegment | null) => void;
   delays: { pathDelays: Record<string, number>; markerDelays: Record<string, number> };

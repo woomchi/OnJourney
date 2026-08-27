@@ -5,8 +5,8 @@ import { createPortal } from 'react-dom';
 import { useMapUIStore } from '@/stores/map-store';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { calculateSegmentBounds } from '@/lib/naverMapRouteService';
-import { getDefaultRoute } from '@/lib/routeUtils';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { Locate, LocateFixed, Compass, Loader2, Route } from 'lucide-react';
 

@@ -126,12 +126,12 @@ export interface DirectionStep {
   startY?: number;           // 위도 (ODsay/카카오 포맷)
   endX?: number;
   endY?: number;
-  startID?: string | number;
-  endID?: string | number;
-  startStationID?: string | number;
-  startStationId?: string | number;
-  endStationID?: string | number;
-  endStationId?: string | number;
+  startID?: string | number; // ODsay 표준 출발 정류소 ID
+  endID?: string | number;   // ODsay 표준 도착 정류소 ID
+  startStationID?: string | number; // 대중교통 출발역/정류소 ID (시간표/실시간 조회 공통)
+  startStationId?: string | number; // startStationID의 Alias (하위 호환)
+  endStationID?: string | number;   // 대중교통 도착역/정류소 ID (시간표/실시간 조회 공통)
+  endStationId?: string | number;   // endStationID의 Alias (하위 호환)
   nodeId?: string | number;  // TAGO 표준 정류소 ID
   stationCount?: number;     // 경유 정류장 수
   sectionTime?: number;      // 구간 소요 시간 (분)
@@ -201,6 +201,22 @@ export type DirectionsCacheRecord = Record<string, DirectionsApiResponse | undef
 export interface LatLngBoundsLiteral {
   sw: { lat: number; lng: number };
   ne: { lat: number; lng: number };
+}
+
+/** 지도 위경도 좌표 단일 점 */
+export interface MapCoord {
+  lat: number;
+  lng: number;
+}
+
+/** 지도 뷰포트 경계 직사각형 표준 인터페이스 */
+export interface MapBoundsRect {
+  sw: MapCoord;
+  ne: MapCoord;
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
 }
 
 /** 지도에서 포커스된 구간 (출발지 → 목적지) */

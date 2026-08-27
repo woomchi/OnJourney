@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import { RELIABILITY_SCORES } from '@/constants/transitConstants';
+import { RELIABILITY_SCORES } from '@/constants/transit';
 import {
   ArrivalBusItem,
   BusType,

@@ -4,7 +4,7 @@ import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { getSequenceTheme } from '@/constants/colors';
-import { getCategoryTheme } from '@/lib/categoryUtils';
+import { getCategoryTheme } from '@/lib/utils/categoryUtils';
 import { useMapUIStore } from '@/stores/map-store';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, PlaceResult } from '@/types/journey';
@@ -33,50 +33,8 @@ const categoryEmojis: Record<string, string> = {
   etc: '📍',
 };
 
-export function isPositionInBounds(
-  pos: { lat: number; lng: number },
-  mapBounds: any,
-  bufferRatio = 0.1
-): boolean {
-  if (!mapBounds || !pos) return true;
-
-  try {
-    let swLat: number, swLng: number, neLat: number, neLng: number;
-
-    if (typeof mapBounds.getSW === 'function' && typeof mapBounds.getNE === 'function') {
-      const sw = mapBounds.getSW();
-      const ne = mapBounds.getNE();
-      swLat = typeof sw.lat === 'function' ? sw.lat() : sw.lat;
-      swLng = typeof sw.lng === 'function' ? sw.lng() : sw.lng;
-      neLat = typeof ne.lat === 'function' ? ne.lat() : ne.lat;
-      neLng = typeof ne.lng === 'function' ? ne.lng() : ne.lng;
-    } else if (mapBounds.sw && mapBounds.ne) {
-      swLat = mapBounds.sw.lat;
-      swLng = mapBounds.sw.lng;
-      neLat = mapBounds.ne.lat;
-      neLng = mapBounds.ne.lng;
-    } else if (mapBounds.minLat !== undefined) {
-      swLat = mapBounds.minLat;
-      neLat = mapBounds.maxLat;
-      swLng = mapBounds.minLng;
-      neLng = mapBounds.maxLng;
-    } else {
-      return true;
-    }
-
-    const dLat = Math.abs(neLat - swLat) * bufferRatio;
-    const dLng = Math.abs(neLng - swLng) * bufferRatio;
-
-    const minLat = Math.min(swLat, neLat) - dLat;
-    const maxLat = Math.max(swLat, neLat) + dLat;
-    const minLng = Math.min(swLng, neLng) - dLng;
-    const maxLng = Math.max(swLng, neLng) + dLng;
-
-    return pos.lat >= minLat && pos.lat <= maxLat && pos.lng >= minLng && pos.lng <= maxLng;
-  } catch (e) {
-    return true;
-  }
-}
+import { isPositionInBounds } from '@/lib/utils/geoUtils';
+export { isPositionInBounds };
 
 export const MapMarkers = memo(function MapMarkers({
   places,

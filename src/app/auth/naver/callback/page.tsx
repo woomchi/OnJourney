@@ -5,8 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
-import JourneySidebar from '@/components/JourneySidebar';
-import MapHeaderOverlay from '@/components/MapHeaderOverlay';
+import JourneySidebar from '@/components/sidebar/JourneySidebar';
+import MapHeaderOverlay from '@/components/map/MapHeaderOverlay';
 
 const MapArea = dynamic(() => import('@/features/map/MapArea'), {
   ssr: false,

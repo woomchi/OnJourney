@@ -16,12 +16,11 @@ import type {
   SelectedRoute,
   TransportType,
 } from '@/types/journey';
-import { insertJourney, updateJourney } from '@/lib/journeys';
+import { insertJourney, updateJourney } from '@/lib/journeys/index';
 import { updateJourneyPlaces } from '@/lib/journeys/updatePlaces';
 import { verifyAndCleanRoutes } from '@/lib/services/directionsService';
 import { evictSegmentGeometry, clearAllSegmentGeometry } from '@/lib/segmentGeometryCache';
 import { MAX_JOURNEY_PLACES } from '@/constants/journey';
-import { useMapUIStore } from '../map-store';
 
 // ─── 인터페이스 ───────────────────────────────────────────────────────────────
 
@@ -183,8 +182,6 @@ export const createJourneyDataSlice: StateCreator<
 
   // ─ 활성 여정 전환 ─
   setActiveJourney: (journey) => {
-    useMapUIStore.getState().setGpsMode('none');
-    useMapUIStore.getState().setUserLocation(null);
     clearAllSegmentGeometry();
     // 여정 전환 시 지도·경로 포커스 상태 전체 초기화
     set({
@@ -197,8 +194,6 @@ export const createJourneyDataSlice: StateCreator<
 
   // ─ 활성 여정 해제 ─
   clearJourney: () => {
-    useMapUIStore.getState().setGpsMode('none');
-    useMapUIStore.getState().setUserLocation(null);
     clearAllSegmentGeometry();
     set({
       activeJourney: null,

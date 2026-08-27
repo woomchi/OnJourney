@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useDialog } from '@/providers/DialogProvider';
-import PlaceList from '@/components/PlaceList';
-import EditJourneyModal from '@/components/EditJourneyModal';
+import PlaceList from '@/components/places/PlaceList';
+import EditJourneyModal from '@/components/modals/EditJourneyModal';
 import type { Journey, Place } from '@/types/journey';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { motion, useTransform, useMotionValue } from 'framer-motion';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { HEADER_HEIGHT } from '@/constants/layout';
 
 import JourneyPlayerHeader from './JourneyPlayerHeader';
 import SearchOverlay from './SearchOverlay';
@@ -26,7 +28,15 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
     setEditMode,
     isSearchMode,
     drawerSnapPoint,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((state) => ({
+      reorderPlaces: state.reorderPlaces,
+      isEditMode: state.isEditMode,
+      setEditMode: state.setEditMode,
+      isSearchMode: state.isSearchMode,
+      drawerSnapPoint: state.drawerSnapPoint,
+    }))
+  );
 
   const isMobile = useMediaQuery('(max-width: 767px)');
   
@@ -41,8 +51,10 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // On Mobile, header is a 32px button bar inside bottom sheet ([< 목록] & [편집])
-  const headerHeight = isMobile ? (isSearchMode ? 0 : 32) : (isEditMode ? 48 : 72);
+  // On Mobile, header is a button bar inside bottom sheet ([< 목록] & [편집])
+  const headerHeight = isMobile
+    ? (isSearchMode ? 0 : HEADER_HEIGHT.MOBILE_BUTTON_BAR)
+    : (isEditMode ? HEADER_HEIGHT.DESKTOP_EDIT : HEADER_HEIGHT.DESKTOP_NORMAL);
 
   const bottomSheet = useOptionalBottomSheet();
   const fallbackY = useMotionValue(0);

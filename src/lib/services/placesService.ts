@@ -7,7 +7,7 @@ import {
   hasExplicitRegionKeyword,
   getPatternGroupCodes,
 } from './searchPatternService';
-import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 import type { PlaceResult, ServiceCategoryTag } from '@/types/journey';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────

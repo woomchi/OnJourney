@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import type { DirectionResult, DirectionStep, Place } from '@/types/journey';
-import { calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 import { SEQUENCE_COLORS } from '@/constants/colors';
 import FittedDuration from './FittedDuration';
 import { Car, Footprints, Bus, Train, RotateCw } from 'lucide-react';

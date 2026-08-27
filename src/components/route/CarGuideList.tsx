@@ -1,7 +1,7 @@
 "use client";
 
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
-import { formatDistance, formatDuration } from '@/lib/journeyUtils';
+import { formatDistance, formatDuration } from '@/lib/utils/journeyUtils';
 import { useJourneyStore } from '@/stores/journey-store';
 
 interface CarGuideListProps {

@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
-import { getDefaultRoute } from '@/lib/routeUtils';
-import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { getDefaultRoute } from '@/lib/utils/routeUtils';
+import { calculateSegmentBounds, calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 import type { Journey, Place, DirectionResult, SelectedRoute, DirectionStep, BaseRouteData } from '@/types/journey';
 import { MapPin, ArrowRight, Footprints, Car, Bus, Train } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
@@ -34,7 +35,22 @@ export default function HorizontalJourneyTimelineBar({
     setIsAlternativeFromFocus,
     isCacheRestored,
     departureTime,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((state) => ({
+      focusedSegment: state.focusedSegment,
+      setFocusedSegment: state.setFocusedSegment,
+      setFocusedStep: state.setFocusedStep,
+      setFocusBounds: state.setFocusBounds,
+      focusedPlaceId: state.focusedPlaceId,
+      setFocusedPlaceId: state.setFocusedPlaceId,
+      alternativeSegment: state.alternativeSegment,
+      setAlternativeSegment: state.setAlternativeSegment,
+      isAlternativeFromFocus: state.isAlternativeFromFocus,
+      setIsAlternativeFromFocus: state.setIsAlternativeFromFocus,
+      isCacheRestored: state.isCacheRestored,
+      departureTime: state.departureTime,
+    }))
+  );
 
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());

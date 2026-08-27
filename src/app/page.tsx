@@ -3,10 +3,10 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import JourneySidebar from '@/components/JourneySidebar';
+import JourneySidebar from '@/components/sidebar/JourneySidebar';
 import { useAuth } from '@/providers/AuthProvider';
 import LandingPage from '@/components/LandingPage';
-import MapHeaderOverlay from '@/components/MapHeaderOverlay';
+import MapHeaderOverlay from '@/components/map/MapHeaderOverlay';
 import { RoutePanels } from '@/features/route/RoutePanels';
 
 const MapArea = dynamic(() => import('@/features/map/MapArea'), {

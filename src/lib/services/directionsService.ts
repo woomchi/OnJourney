@@ -14,7 +14,7 @@ import type {
   SnapMeta,
   RouteGuideNode,
 } from '@/types/journey';
-import { calculateHaversineDistance } from '@/lib/naverMapRouteService';
+import { calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 import { TRANSIT_SPEEDS } from '@/constants/transit';
 import { TAXI_BASE_FARE, TAXI_DISTANCE_RATE, TAXI_SURCHARGE_FACTOR } from '@/constants/fare';
 

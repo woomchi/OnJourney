@@ -32,7 +32,7 @@ export interface JourneyDataSlice {
   syncCount: number;
   setJourneys: (journeys: Journey[]) => void;
   createJourney: (input: CreateJourneyInput) => Promise<void>;
-  updateJourneyInfo: (title: string, journeyDate: string, transportType: TransportType) => Promise<void>;
+  updateJourneyInfo: (title: string, journeyDate: string, transportType: TransportType, isPublic?: boolean) => Promise<void>;
   setActiveJourney: (journey: Journey | null) => void;
   clearJourney: () => void;
   addPlace: (place: Place) => Promise<void>;
@@ -146,8 +146,8 @@ export const createJourneyDataSlice: StateCreator<
     }
   },
 
-  // ─ 여정 정보 수정 (제목, 날짜, 이동수단) ─
-  updateJourneyInfo: async (title, journeyDate, transportType) => {
+  // ─ 여정 정보 수정 (제목, 날짜, 이동수단, 공개 여부) ─
+  updateJourneyInfo: async (title, journeyDate, transportType, isPublic) => {
     const { activeJourney } = get();
     if (!activeJourney) return;
 
@@ -157,6 +157,7 @@ export const createJourneyDataSlice: StateCreator<
         title: title.trim(),
         journey_date: journeyDate,
         transport_type: transportType,
+        ...(isPublic !== undefined ? { is_public: isPublic } : {}),
       });
 
       // 서버 응답의 메타 정보 + 기존 경유지를 합쳐 activeJourney 갱신

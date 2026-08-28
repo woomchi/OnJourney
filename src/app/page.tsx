@@ -1,13 +1,19 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import JourneySidebar from '@/components/sidebar/JourneySidebar';
 import { useAuth } from '@/providers/AuthProvider';
 import LandingPage from '@/components/LandingPage';
 import MapHeaderOverlay from '@/components/map/MapHeaderOverlay';
 import { RoutePanels } from '@/features/route/RoutePanels';
+import { useUrlState } from '@/hooks/useUrlState';
+
+function UrlStateSync() {
+  useUrlState();
+  return null;
+}
 
 const MapArea = dynamic(() => import('@/features/map/MapArea'), {
   ssr: false,
@@ -48,11 +54,19 @@ export default function Home() {
   }
 
   if (!user && isMobile) {
-    return <LandingPage />;
+    return (
+      <Suspense fallback={null}>
+        <UrlStateSync />
+        <LandingPage />
+      </Suspense>
+    );
   }
 
   return (
     <div className="flex h-[100dvh] w-full bg-white text-zinc-900 overflow-hidden font-sans relative">
+      <Suspense fallback={null}>
+        <UrlStateSync />
+      </Suspense>
       <JourneySidebar />
 
       <main className="absolute inset-0 md:relative md:flex-1 md:h-full bg-zinc-50 flex items-center justify-center z-10 overflow-hidden">

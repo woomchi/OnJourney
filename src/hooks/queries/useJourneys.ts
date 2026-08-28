@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchJourneys, insertJourney, updateJourney, deleteJourneys } from '@/lib/journeys/index';
-import type { CreateJourneyInput, TransportType } from '@/types/journey';
+import {
+  fetchJourneys,
+  fetchJourneyById,
+  fetchPublicJourneyById,
+  insertJourney,
+  updateJourney,
+  toggleJourneyPublic,
+  deleteJourneys,
+} from '@/lib/journeys/index';
+import type { CreateJourneyInput, TransportType, Journey } from '@/types/journey';
 
 export const journeyKeys = {
   all: ['journeys'] as const,
@@ -13,6 +21,22 @@ export function useJourneys(userId: string | undefined) {
     queryKey: [...journeyKeys.lists(), userId ?? ''],
     queryFn: fetchJourneys,
     enabled: !!userId,
+  });
+}
+
+export function useJourney(id: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: journeyKeys.detail(id ?? ''),
+    queryFn: () => (id ? fetchJourneyById(id) : null),
+    enabled: !!id && enabled,
+  });
+}
+
+export function usePublicJourney(id: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...journeyKeys.detail(id ?? ''), 'public'],
+    queryFn: () => (id ? fetchPublicJourneyById(id) : null),
+    enabled: !!id && enabled,
   });
 }
 
@@ -34,12 +58,31 @@ export function useUpdateJourneyInfo() {
       title,
       journeyDate,
       transportType,
+      isPublic,
     }: {
       id: string;
-      title: string;
-      journeyDate: string;
-      transportType: TransportType;
-    }) => updateJourney(id, { title, journey_date: journeyDate, transport_type: transportType }),
+      title?: string;
+      journeyDate?: string;
+      transportType?: TransportType;
+      isPublic?: boolean;
+    }) => updateJourney(id, {
+      ...(title !== undefined ? { title } : {}),
+      ...(journeyDate !== undefined ? { journey_date: journeyDate } : {}),
+      ...(transportType !== undefined ? { transport_type: transportType } : {}),
+      ...(isPublic !== undefined ? { is_public: isPublic } : {}),
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: journeyKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: journeyKeys.detail(data.id) });
+    },
+  });
+}
+
+export function useToggleJourneyPublic() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isPublic }: { id: string; isPublic: boolean }) =>
+      toggleJourneyPublic(id, isPublic),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: journeyKeys.lists() });
       queryClient.invalidateQueries({ queryKey: journeyKeys.detail(data.id) });

@@ -83,6 +83,7 @@ export interface Journey {
   journey_date: string;
   places: Place[];
   current_step: number;
+  is_public?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -91,6 +92,14 @@ export interface CreateJourneyInput {
   title: string;
   transport_type: TransportType;
   journey_date: string;
+  is_public?: boolean;
+}
+
+export interface UpdateJourneyInput {
+  title?: string;
+  journey_date?: string;
+  transport_type?: TransportType;
+  is_public?: boolean;
 }
 
 // ─── 경로 단계 ────────────────────────────────────────────────────────────────

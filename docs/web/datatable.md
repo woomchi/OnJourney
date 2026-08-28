@@ -33,6 +33,9 @@ CREATE TABLE journeys (
     -- 실행(Execution) 모드를 위한 현재 이동 구간 인덱스 (0부터 시작)
     current_step INTEGER NOT NULL DEFAULT 0,
     
+    -- 여정 공개/공유 여부 (기본값 false, true일 경우 타인도 읽기 전용으로 열람 가능)
+    is_public BOOLEAN NOT NULL DEFAULT false,
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
@@ -54,8 +57,8 @@ CREATE TRIGGER update_journeys_modtime
 -- 3. RLS (Row Level Security) 보안 설정
 ALTER TABLE journeys ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "사용자는 자신의 여정만 조회할 수 있습니다." 
-    ON journeys FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "여정 SELECT 정책" 
+    ON journeys FOR SELECT USING (auth.uid() = user_id OR is_public = true);
 
 CREATE POLICY "사용자는 자신의 여정을 생성할 수 있습니다." 
     ON journeys FOR INSERT WITH CHECK (auth.uid() = user_id);

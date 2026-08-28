@@ -13,6 +13,7 @@ interface JourneyRow {
   journey_date: string;
   places: Place[];
   current_step: number;
+  is_public?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +27,7 @@ function mapRowToJourney(row: JourneyRow): Journey {
     journey_date: row.journey_date,
     places: row.places ?? [],
     current_step: row.current_step,
+    is_public: row.is_public ?? false,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -52,6 +54,7 @@ export async function insertJourney(input: CreateJourneyInput): Promise<Journey>
       journey_date: input.journey_date,
       places: [],
       current_step: 0,
+      is_public: input.is_public ?? false,
     })
     .select()
     .single();
@@ -87,6 +90,58 @@ export async function fetchLatestJourney(): Promise<Journey | null> {
     if (error.code === 'PGRST205' || error.message.includes('schema cache')) {
       console.warn('[journeys] 테이블 미설정:', error.message);
     }
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapRowToJourney(data as JourneyRow);
+}
+
+export async function fetchJourneyById(id: string): Promise<Journey | null> {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('journeys')
+    .select()
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[journeys] 단일 조회 실패:', error.message);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapRowToJourney(data as JourneyRow);
+}
+
+export async function fetchPublicJourneyById(id: string): Promise<Journey | null> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('journeys')
+    .select()
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[journeys] 공개 여정 조회 실패:', error.message);
     return null;
   }
 
@@ -152,6 +207,7 @@ export async function updateJourney(
     title?: string;
     journey_date?: string;
     transport_type?: TransportType;
+    is_public?: boolean;
   }
 ): Promise<Journey> {
   const supabase = createClient();
@@ -181,4 +237,11 @@ export async function updateJourney(
   }
 
   return mapRowToJourney(data as JourneyRow);
+}
+
+export async function toggleJourneyPublic(
+  journeyId: string,
+  isPublic: boolean
+): Promise<Journey> {
+  return updateJourney(journeyId, { is_public: isPublic });
 }

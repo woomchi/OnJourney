@@ -2,7 +2,7 @@
 
 본 문서는 실행(Execution) 중심의 다중 경유지 경로 최적화 서비스 '온저니(On-Journey)'의 Supabase 데이터베이스 스키마 및 프론트엔드 데이터 구조 정의서입니다. AI 바이브 코딩 시 데이터 흐름의 기준점(Ground Truth)으로 사용합니다.
 
-> 마지막 업데이트: 2026-06-21
+> 마지막 업데이트: 2026-08-28
 
 ---
 
@@ -65,6 +65,31 @@ CREATE POLICY "사용자는 자신의 여정을 수정할 수 있습니다."
 
 CREATE POLICY "사용자는 자신의 여정을 삭제할 수 있습니다." 
     ON journeys FOR DELETE USING (auth.uid() = user_id);
+
+-- 4. 경로 캐시 테이블 생성 (API 쿼터 절약 및 빠른 응답 캐싱)
+CREATE TABLE IF NOT EXISTS route_cache (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    origin_lat NUMERIC NOT NULL,
+    origin_lng NUMERIC NOT NULL,
+    dest_lat NUMERIC NOT NULL,
+    dest_lng NUMERIC NOT NULL,
+    route_data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT route_cache_coords_unique UNIQUE (origin_lat, origin_lng, dest_lat, dest_lng)
+);
+
+CREATE INDEX IF NOT EXISTS route_cache_created_at_idx ON route_cache(created_at);
+
+ALTER TABLE route_cache ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can select from route_cache" 
+    ON route_cache FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert into route_cache" 
+    ON route_cache FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Anyone can update route_cache" 
+    ON route_cache FOR UPDATE USING (true) WITH CHECK (true);
 ```
 
 ---

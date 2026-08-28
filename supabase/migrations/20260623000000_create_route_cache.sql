@@ -5,14 +5,12 @@ CREATE TABLE IF NOT EXISTS route_cache (
   dest_lat NUMERIC NOT NULL,
   dest_lng NUMERIC NOT NULL,
   route_data JSONB NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT route_cache_coords_unique UNIQUE (origin_lat, origin_lng, dest_lat, dest_lng)
 );
 
--- 인덱스 생성
-CREATE INDEX IF NOT EXISTS route_cache_coords_idx ON route_cache(origin_lat, origin_lng, dest_lat, dest_lng);
-
--- TTL 적용을 위한 주기적인 정리 작업은 애플리케이션 레벨(조회 시 7일 경과 데이터 무시 및 덮어쓰기)에서 처리하거나 
--- pg_cron이 지원되는 환경에서 cron job으로 설정 가능합니다. 여기서는 애플리케이션 단에서 7일 지난 데이터를 갱신하도록 구성합니다.
+-- 인덱스 생성 (UNIQUE 제약조건으로 자동 생성되지만 기존 인덱스 명시 및 역호환 보장)
+CREATE INDEX IF NOT EXISTS route_cache_created_at_idx ON route_cache(created_at);
 
 -- RLS 설정 및 정책 추가
 ALTER TABLE route_cache ENABLE ROW LEVEL SECURITY;
@@ -22,4 +20,10 @@ CREATE POLICY "Anyone can select from route_cache" ON route_cache FOR SELECT USI
 
 DROP POLICY IF EXISTS "Anyone can insert into route_cache" ON route_cache;
 CREATE POLICY "Anyone can insert into route_cache" ON route_cache FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Anyone can update route_cache" ON route_cache;
+CREATE POLICY "Anyone can update route_cache" ON route_cache FOR UPDATE USING (true) WITH CHECK (true);
+
+-- PostgREST schema cache 갱신
+NOTIFY pgrst, 'reload schema';
 

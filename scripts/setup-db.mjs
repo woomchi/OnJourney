@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
@@ -28,7 +28,7 @@ if (existsSync(envPath)) {
   }
 }
 
-const sqlPath = join(rootDir, 'supabase', 'migrations', '20240614000000_create_journeys.sql');
+const migrationsDir = join(rootDir, 'supabase', 'migrations');
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
@@ -43,13 +43,34 @@ if (!databaseUrl) {
 
 4. 다시 실행: npm run db:setup
 
-── 또는 Supabase SQL Editor에서 직접 실행 ──
-파일: supabase/migrations/20240614000000_create_journeys.sql
+── 또는 Supabase SQL Editor에서 아래 마이그레이션 파일들을 순서대로 직접 실행 ──
+${
+  existsSync(migrationsDir)
+    ? readdirSync(migrationsDir)
+        .filter((f) => f.endsWith('.sql'))
+        .sort()
+        .map((f) => `  - supabase/migrations/${f}`)
+        .join('\n')
+    : '  - supabase/migrations/*.sql'
+}
 `);
   process.exit(1);
 }
 
-const sql = readFileSync(sqlPath, 'utf8');
+if (!existsSync(migrationsDir)) {
+  console.error('[오류] migrations 디렉토리를 찾을 수 없습니다:', migrationsDir);
+  process.exit(1);
+}
+
+const migrationFiles = readdirSync(migrationsDir)
+  .filter((f) => f.endsWith('.sql'))
+  .sort();
+
+if (migrationFiles.length === 0) {
+  console.log('[알림] 실행할 마이그레이션 파일이 없습니다.');
+  process.exit(0);
+}
+
 const client = new pg.Client({
   connectionString: databaseUrl,
   ssl: { rejectUnauthorized: false },
@@ -57,12 +78,23 @@ const client = new pg.Client({
 
 try {
   await client.connect();
-  await client.query(sql);
-  console.log('✓ journeys 테이블 및 RLS 정책이 설정되었습니다.');
-  console.log('  브라우저를 새로고침한 뒤 여정 생성을 다시 시도해주세요.');
+  console.log('🔗 데이터베이스에 연결되었습니다.');
+  console.log(`🚀 총 ${migrationFiles.length}개의 마이그레이션을 순차 적용합니다...\n`);
+
+  for (const file of migrationFiles) {
+    const filePath = join(migrationsDir, file);
+    const sql = readFileSync(filePath, 'utf8');
+    
+    console.log(`⏳ 실행 중: ${file}`);
+    await client.query(sql);
+    console.log(`✓ 완료: ${file}`);
+  }
+
+  console.log('\n✨ 모든 DB 마이그레이션 및 RLS 정책이 성공적으로 동기화되었습니다.');
 } catch (error) {
-  console.error('[오류] DB 설정 실패:', error instanceof Error ? error.message : error);
+  console.error('\n[오류] DB 마이그레이션 적용 실패:', error instanceof Error ? error.message : error);
   process.exit(1);
 } finally {
   await client.end();
 }
+

@@ -75,16 +75,12 @@ export function parseSubwayArrivalMessage(
   // 1. 목적지 역 직전/직후 상태 체크
   if (cleanTarget) {
     const compactNorm = normalized.replace(/\s+/g, '');
-    if (
-      compactNorm.includes(`${cleanTarget}진입`) ||
-      compactNorm.includes(`${cleanTarget}도착`) ||
-      compactNorm.includes(`${cleanTarget}출발`)
-    ) {
-      const isEntering = compactNorm.includes('진입');
-      const isArrived = compactNorm.includes('도착');
-      const isDeparted = compactNorm.includes('출발');
+    const isTargetEntering = compactNorm.includes(`${cleanTarget}진입`) || compactNorm.includes(`${cleanTarget}역진입`);
+    const isTargetArrived = compactNorm.includes(`${cleanTarget}도착`) || compactNorm.includes(`${cleanTarget}역도착`);
+    const isTargetDeparted = compactNorm.includes(`${cleanTarget}출발`) || compactNorm.includes(`${cleanTarget}역출발`);
 
-      status = isEntering ? 'entering' : isArrived ? 'arrived' : 'departed';
+    if (isTargetEntering || isTargetArrived || isTargetDeparted) {
+      status = isTargetEntering ? 'entering' : isTargetArrived ? 'arrived' : 'departed';
       return {
         rawMessage: rawMsg,
         normalizedMessage: normalized,
@@ -96,15 +92,15 @@ export function parseSubwayArrivalMessage(
     }
   }
 
-  // 2. 괄호 안 역명 우선 추출 (예: "[4]번째 전역 (진위)", "[11]번째 전역 (두정)")
-  const parenMatch = rawMsg.match(/\(([^)]+)\)/);
+  // 2. 괄호 안 역명 우선 추출 (예: "[4]번째 전역 (진위)", "[11]번째 전역 (두정)", "[5]전역 (동인천(급))")
+  const parenMatch = rawMsg.match(/\((.+)\)/);
   if (parenMatch) {
-    let candidate = cleanStationName(parenMatch[1]);
+    let candidate = parenMatch[1];
     // 괄호 안에 "천안급행", "동인천(급)" 등 급행/특급 태그가 포함된 경우 제거
     candidate = candidate
       .replace(/\[?급행\]?|\(급행\)|\(급\)|\(특급\)|급행|특급|일반/g, '')
-      .replace(/역$/, '')
-      .trim();
+      .replace(/[()]/g, '');
+    candidate = cleanStationName(candidate);
     if (candidate && candidate.length >= 2 && !['전역', '당역', '번째'].includes(candidate)) {
       stationName = candidate;
     }

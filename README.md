@@ -1,45 +1,134 @@
 # OnJourney 🗺️
 
-> **온저니(On-Journey)** — 다중 경유지 경로 최적화 서비스  
+> **온저니(On-Journey)** — 다중 경유지 경로 최적화 웹앱  
 > *"당신의 모든 이동이 온전히, 여정이 되도록."*
 
-n개의 경유지를 추가하고 드래그 앤 드롭으로 순서를 조정하면, 구간별 최적 경로와 이동수단(대중교통 / 차량 / 도보)을 자동 생성해주는 지도 기반 웹앱입니다.
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?logo=supabase)
+![Zustand](https://img.shields.io/badge/Zustand-v5-f97316)
+![React Query](https://img.shields.io/badge/TanStack_Query-v5-ff4154?logo=reactquery)
+![Status](https://img.shields.io/badge/status-Archived-lightgrey)
+
+> **⚠️ 이 프로젝트는 2026년 8월 개발이 종료된 아카이브 프로젝트입니다.**  
+> 개발 과정과 기술적 의사결정, 마무리 회고는 [`docs/history/retrospective.md`](./docs/history/retrospective.md)에 기록되어 있습니다.
 
 ---
 
-## 주요 기능
+## 프로젝트 소개
+
+n개의 경유지를 추가하고 드래그 앤 드롭으로 순서를 조정하면, **구간별 최적 경로와 이동수단(대중교통 / 차량 / 도보)을 자동으로 생성**해주는 지도 기반 웹앱입니다.
+
+지도 앱을 켜고 경유지마다 경로를 따로 검색하는 번거로움을 없애고, 여정 전체를 한눈에 보며 실시간으로 관리할 수 있는 서비스를 목표로 했습니다.
+
+**브랜드 철학** — 한국어 *'온전히'* 와 영어 *'On-Journey'* 의 언어유희. 문 밖을 나서는 순간부터 목적지에 닿기까지의 모든 이동을 하나의 소중한 여정으로 대한다는 가치를 담았습니다.
+
+---
+
+## 로고 디자인
+
+<img src="./public/service_logo2.png" width="120" align="right" alt="OnJourney 로고"/>
+
+로고는 **커다란 삼각형(재생 버튼 ▶)에서 작은 삼각형 조각 하나가 떼어진** 형태입니다.
+
+결여된 조각이 있는 불완전한 삼각형 — 이 상태가 여정을 **계획하고 준비하는 단계**를 상징합니다. 장소를 추가하고, 순서를 조정하고, 경로를 탐색하는 모든 과정이 이 준비 상태입니다.
+
+그리고 떼어진 작은 삼각형 조각을 제자리에 맞춰 넣으면 — **하나의 완전한 ▶** 가 완성됩니다. 재생 버튼이 비로소 완성되고, 여정이 시작됩니다.
+
+*계획이 완성되어야 실행이 가능하다* 는 이 서비스의 핵심 흐름을, 로고 하나의 형태로 담았습니다.
+
+---
+
+## 핵심 기능
 
 | 기능 | 설명 |
 |------|------|
 | 🗺️ **지도 기반 경유지 관리** | 장소 검색 → 추가 → 드래그 앤 드롭 순서 조정 |
-| 🚌 **구간별 실시간 이동 정보** | 대중교통(ODsay) + 차량(Naver) + 도보(TMAP) 통합 |
-| 📡 **실시간 도착 정보** | 지하철(서울) · 버스(전국/경기/부산) 실시간 연동 |
-| 🔀 **이동 대안 선택** | 구간별 교통수단 비교 및 전환 (DB 동기화) |
-| 🚄 **장거리 노선 안내** | KTX/SRT/시외버스 스케줄 + 예매 링크 자동 생성 |
-| 📱 **모바일 PWA** | 바텀 시트 UX, GPS 트래킹, 오프라인 캐시 |
-| ⏱️ **출발 시간 기반 탐색** | 시간 지정 경로 탐색 + 시간대별 캐시 최적화 |
+| 🚌 **구간별 이동 정보** | ODsay 멀티모달(대중교통) + Naver Directions 5(차량) + TMAP(도보) 통합 |
+| 📡 **실시간 도착 정보** | 지하철(서울) · 버스(전국/경기/인천/부산/대전) 실시간 연동 |
+| 🔀 **이동 대안 선택** | 구간별 교통수단 비교·전환, Supabase DB 동기화 |
+| 🚄 **장거리 노선 안내** | KTX / SRT / 시외버스 스케줄 + 예매 링크 자동 생성 |
+| 📱 **모바일 PWA** | framer-motion 바텀 시트 UX, GPS 트래킹, 오프라인 캐시 |
+| 🔗 **여정 공유** | 공개 URL(`/share/[id]`) SSR 뷰어 + 공유 토글 모달 |
+| 🌐 **URL 상태 관리** | `useUrlState` — 딥링크 + 브라우저 뒤로가기/앞으로가기 연동 |
 
 ---
 
 ## 기술 스택
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss)
-![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?logo=supabase)
-![Zustand](https://img.shields.io/badge/Zustand-v5-orange)
-![React Query](https://img.shields.io/badge/TanStack_Query-v5-ff4154?logo=reactquery)
-
 | 분류 | 기술 |
 |------|------|
 | Framework | Next.js 16 (App Router) + TypeScript 5 |
+| 스타일링 | Tailwind CSS v4 + `shadcn/ui` |
 | 지도 | `react-naver-maps` |
-| 클라이언트 상태 | Zustand v5 슬라이스 패턴 |
-| 서버 상태 | TanStack React Query v5 + IndexedDB 영속화 |
-| 백엔드/DB | Supabase (PostgreSQL + Auth + RLS) |
-| DnD | `@dnd-kit` |
+| 클라이언트 상태 | Zustand v5 슬라이스 패턴 (`journeyDataSlice` / `mapSlice` / `uiSlice`) |
+| 서버 상태 | TanStack React Query v5 + IndexedDB 영속화 (`idb-keyval`) |
+| 백엔드 / DB | Supabase (PostgreSQL + Auth + RLS) |
+| 드래그 앤 드롭 | `@dnd-kit` |
 | 애니메이션 | `framer-motion` v12 |
-| GeoSpatial | `@turf/*` |
+| GeoSpatial | `@turf/*` (bearing, distance, PIP, line-slice) |
+| 입력 검증 | `zod` |
+
+---
+
+## 아키텍처 하이라이트
+
+이 프로젝트에서 단순 기능 구현 외에 특히 공을 들인 기술적 의사결정들입니다.
+
+### ODsay 멀티모달 API 통합
+
+초기에는 이동 수단(버스, 지하철, 기차, 도보)마다 별도 API를 연쇄 호출하는 방식이었습니다. 특히 기차/시외버스는 터미널↔터미널 구간 정보만 제공되어, 하나의 여정 구간에 대해 ① 터미널까지의 이동 ② 장거리 구간 ③ 도착지까지의 이동, 총 3회 호출이 필요했고 이는 ODsay 무료 플랜(1,000회/일) 한도 내에서 심각한 병목을 일으켰습니다. ODsay API 명세를 꼼꼼히 재검토한 끝에 `maasRP` 멀티모달 경로탐색 API로 모든 수단을 단일 요청으로 통합해 이 문제를 해결했습니다.
+
+### 외부 API 보호 인프라
+
+```
+요청 → RateLimiter (1,000회/일 쿼터) → CircuitBreaker (연속 실패 3회 시 OPEN) → OdsayAdapter → Fallback
+```
+
+`CLOSED → OPEN → HALF_OPEN` 3상태의 Circuit Breaker와 Rate Limiter를 도입하여 ODsay API 장애 시 즉시 Fallback으로 전환합니다. 모든 외부 API는 `lib/services/` 서비스 레이어를 통해서만 접근하는 아키텍처를 강제했습니다.
+
+### 지하철 ETA 정밀화
+
+서울시 실시간 지하철 API의 `arvlMsg2` 필드에는 이중 공백, 자모 분리(`ㅡ`, `ㅠ`), 중간 공백 등 실제 운영 데이터의 파싱 오류가 빈번합니다. 전용 `SubwayMessageParser` 클래스를 구현해 NFD→NFC 유니코드 정규화 + Fuzzy Match로 역명 추출 정확도를 높였으며, 클라이언트-서버 시각 불일치(최대 ±5초)로 인한 ETA 오차를 `TimeOffsetManager`의 RTT 보정으로 해결했습니다.
+
+### 시간대별 캐시 전략
+
+ODsay 무료 플랜 한도 내에서 데이터 신선도를 유지하기 위해 **평일/주말 × 낮(4h TTL) / 밤(30m TTL)** 4구간 캐시 키를 설계했습니다. 3시간 단위 `departureTime` 그룹화로 캐시 파편화를 최소화했습니다.
+
+### 장소 검색 엔진 v3 (Gaussian Decay 랭킹)
+
+카카오 로컬 API 기반으로 검색어 패턴 분석(`searchPatternService`), 도보/도심/외곽 scale별 **Gaussian Decay 거리 점수**, `ServiceCategoryTag` 태깅 방식의 멀티 파이프라인 병합 구조를 구현했습니다. 서버 재호출 없이 클라이언트 메모리에서 카테고리 필터링하는 `MapCategoryChips`로 검색 UX를 개선했습니다.
+
+### GeoJSON 기반 지형 분류
+
+도보 경로의 지형 특성을 판단하기 위해 GeoJSON 데이터 + Turf.js **BBox 선검사 → PIP 정밀 검증** 2단계 구조로 지형을 `normal / mountain / beach`로 분류합니다. O(1) BBox 선검사로 대부분의 판별을 조기에 완료해 성능을 유지합니다.
+
+---
+
+## 개발 타임라인
+
+| Phase | 기간 | 주요 내용 |
+|-------|------|-----------|
+| 1–2 | 06-14 ~ 06-18 | 장소 추가, ODsay 대중교통 + Naver 차량 경로, Polyline 렌더링 |
+| 3 | 06-19 ~ 06-21 | 상세 경로 안내 패널, 여정 편집, 실시간 정보 1차 시도 |
+| 4 | 06-23 ~ 06-24 | shadcn/ui 도입, React Query 도입, 대규모 리팩토링 |
+| 5 | 06-25 ~ 07-05 | 사이드바 고도화, 카카오 장소 검색, Zustand v5 슬라이스 패턴 |
+| 6 | 07-06 ~ 07-20 | 모바일 PWA, framer-motion 바텀 시트, GPS 트래킹 |
+| 7 | 07-28 | 시간대별 캐시 전략, departureTime 파라미터 |
+| 8 | 07-29 ~ 08-12 | ODsay 멀티모달 통합, Circuit Breaker, TMAP 도보, @dnd-kit 전환, 지형 분류 |
+| 9 | 08-13 ~ 08-19 | SubwayMessageParser, TimeOffsetManager, 검색 엔진 v3, 부산/인천/대전 버스 |
+| 10 | 08-26 ~ 08-28 | 대규모 리팩토링, URL 상태 관리, 여정 공유, **개발 종료** |
+
+---
+
+## 개발을 마무리한 이유
+
+경로 탐색에 사용한 ODsay API는 **미리 계산된 고정 데이터베이스**를 반환하는 구조입니다. 출발 시간 파라미터를 전달해도 실제 운행 시간표를 실시간으로 계산하는 것이 아니라, 사전 정형화된 경로 패턴 중 하나를 반환합니다. 심야에 운행하지 않는 노선이 포함된 경로가 제안되는 등, "지금 출발하면 어떤 버스/지하철을 타야 하는가"라는 질문에 정확히 답하지 못했습니다.
+
+실시간 ETA 파싱을 아무리 정밀하게 만들어도 경로 자체의 출발 시간 반영 정확도가 낮으면 서비스 본질이 흔들린다는 판단 아래, 더 이상의 고도화가 표면적 개선에 그칠 것으로 보아 개발을 종료했습니다.
+
+자세한 내용은 [회고록](./docs/history/retrospective.md)을 참고해 주세요.
 
 ---
 
@@ -47,13 +136,11 @@ n개의 경유지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 
 ### 1. 환경 변수 설정
 
-`.env.example`을 복사해 `.env.local`을 생성하고 API 키를 입력합니다.
-
 ```bash
 cp .env.example .env.local
 ```
 
-필요한 외부 API 키:
+`.env.local`에 아래 API 키를 입력합니다:
 
 | 변수명 | 발급처 |
 |--------|--------|
@@ -73,9 +160,8 @@ cp .env.example .env.local
 ```bash
 npm install
 npm run dev
+# http://localhost:3000
 ```
-
-`http://localhost:3000`에서 확인합니다.
 
 ### 3. DB 마이그레이션 (최초 1회)
 
@@ -95,13 +181,16 @@ npm run test:coverage  # 커버리지 리포트
 
 ---
 
-## 프로젝트 문서
+## 문서
 
 | 문서 | 설명 |
 |------|------|
-| [`docs/web/project_overview.md`](./docs/web/project_overview.md) ⭐ | 전체 현황, 구현 기능, 아키텍처 파일 목록 |
+| [`docs/history/retrospective.md`](./docs/history/retrospective.md) ⭐ | 프로젝트 회고록 (기술 결정 흐름, 종료 이유, 배운 것) |
+| [`docs/web/project_overview.md`](./docs/web/project_overview.md) | 전체 현황, 구현 기능, 아키텍처 파일 목록 |
+| [`docs/history/development_log.md`](./docs/history/development_log.md) | Phase 1~10 개발 흐름 로그 |
 | [`docs/architecture/`](./docs/architecture/) | API/캐시 아키텍처, 네이버 지도 가이드 |
 | [`docs/algorithm/`](./docs/algorithm/) | 장소 검색 엔진 v3, Gaussian Decay 설계 |
-| [`docs/history/development_log.md`](./docs/history/development_log.md) | Phase 1~9 개발 흐름 로그 |
-| [`docs/issues/issues.md`](./docs/issues/issues.md) | 미해결 이슈 및 백로그 |
-| [`docs/README.md`](./docs/README.md) | 문서 전체 인덱스 |
+
+---
+
+*2026-06-14 ~ 2026-08-28 · 개인 프로젝트 · 개발 기간 약 2개월 반*

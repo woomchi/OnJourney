@@ -3,13 +3,7 @@ import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import type { Journey } from '@/types/journey';
 import { animate } from 'framer-motion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-
-const parseSnapVal = (s: any): number => {
-  if (s === 1 || s === '1') return 1;
-  if (typeof s === 'number') return s;
-  if (typeof s === 'string') return parseInt(s, 10) || 0;
-  return 0;
-};
+import { parseSnapVal } from '@/lib/utils/snapUtils';
 
 export interface UseSnapScrollBridgeOptions {
   scrollRef: React.RefObject<HTMLElement | null>;

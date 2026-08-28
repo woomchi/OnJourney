@@ -1,46 +1,20 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import type { Place, SelectedRoute, DirectionResult, DirectionStep } from '@/types/journey';
+import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
-import { useShallow } from 'zustand/react/shallow';
-import { calculateSegmentBounds, calculateStepBounds } from '@/lib/services/naverMapRouteService';
-
-import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { BOTTOM_SHEET_SNAP } from '@/constants/layout';
-import { motion, useTransform, AnimatePresence, useMotionValue } from 'framer-motion';
 import PlaybackBar from '@/components/route/PlaybackBar';
 import TransitGuideList from '@/components/route/TransitGuideList';
 import CarGuideList from '@/components/route/CarGuideList';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
-import { usePWA } from '@/components/PWAProvider';
 import RouteSegmentCardStack from '@/components/route/RouteSegmentCardStack';
-import RouteSegmentDetailSheet from '@/components/route/RouteSegmentDetailSheet';
-import { CustomOverlayView } from '@/components/map/CustomOverlayView';
-import { MapPin, ChevronLeft, ArrowLeft, Pencil, RefreshCw } from 'lucide-react';
-import { AlternativeRouteIcon } from '@/components/ui/icons';
-import DepartureTimeSelector from '@/components/common/DepartureTimeSelector';
-import FareBreakdownTooltip from '@/components/route/FareBreakdownTooltip';
+import { calculateStepBounds } from '@/lib/services/naverMapRouteService';
+import { parseSnapVal } from '@/lib/utils/snapUtils';
 
-
-
-const FloatingButtonsContainer = () => {
-  const bottomSheet = useOptionalBottomSheet();
-  const fallbackY = useMotionValue(0);
-  const y = bottomSheet?.y || fallbackY;
-  const maxHeight = bottomSheet?.maxHeight ?? 800;
-  const opacity = useTransform(y, [-maxHeight + 160, -maxHeight + 40], [1, 0]);
-  const pointerEvents = useTransform(y, (latest: number) => latest < -maxHeight + 60 ? 'none' : 'auto');
-
-  return (
-    <motion.div
-      id="mobile-map-buttons-target-route"
-      className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] *:pointer-events-auto"
-      style={{ opacity, pointerEvents: pointerEvents as any }}
-    />
-  );
-};
+import { useRouteGuideNavigation } from './guide/hooks/useRouteGuideNavigation';
+import { RouteGuideHeader } from './guide/RouteGuideHeader';
+import { MobileSegmentHeader } from './guide/MobileSegmentHeader';
 
 interface RouteGuidePanelProps {
   route: SelectedRoute | DirectionResult;
@@ -54,13 +28,6 @@ interface RouteGuidePanelProps {
   onExited?: () => void;
 }
 
-const parseSnapVal = (s: any): number => {
-  if (s === 1 || s === '1') return 1;
-  if (typeof s === 'number') return s;
-  if (typeof s === 'string') return parseInt(s, 10) || 0;
-  return 0;
-};
-
 export default function RouteGuidePanel({
   route,
   originPlace,
@@ -68,100 +35,17 @@ export default function RouteGuidePanel({
   onClose,
   onNextSegment,
   onPrevSegment,
-  nextDestPlace,
   isOpen = false,
   onExited,
 }: RouteGuidePanelProps) {
-  const { isInstalled } = usePWA();
   const [animate, setAnimate] = useState(false);
-  const [windowHeight, setWindowHeight] = useState(
-    () => typeof window !== 'undefined' ? window.innerHeight : 812
-  );
-  const [activeTooltip, setActiveTooltip] = useState<'origin' | 'dest' | 'changeMenu' | null>(null);
-  const [selectedDetailStep, setSelectedDetailStep] = useState<DirectionStep | null>(null);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setWindowHeight(window.innerHeight);
-    const handleResize = () => setWindowHeight(window.innerHeight);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    if (!activeTooltip) return;
-    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.tooltip-trigger') && !target.closest('.tooltip-content')) {
-        setActiveTooltip(null);
-      }
-    };
-    document.addEventListener('pointerdown', handleOutsideClick);
-    return () => document.removeEventListener('pointerdown', handleOutsideClick);
-  }, [activeTooltip]);
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomSpacerRef = useRef<HTMLDivElement>(null);
-  const {
-    focusedStep,
-    setFocusedStep,
-    setFocusBounds,
-    setAlternativeSegment,
-    setIsAlternativeFromFocus,
-    setTargetChangePlaceId,
-    openSearchMode,
-    setGuidePanelState,
-  } = useJourneyStore(
-    useShallow((state) => ({
-      focusedStep: state.focusedStep,
-      setFocusedStep: state.setFocusedStep,
-      setFocusBounds: state.setFocusBounds,
-      setAlternativeSegment: state.setAlternativeSegment,
-      setIsAlternativeFromFocus: state.setIsAlternativeFromFocus,
-      setTargetChangePlaceId: state.setTargetChangePlaceId,
-      openSearchMode: state.openSearchMode,
-      setGuidePanelState: state.setGuidePanelState,
-    }))
-  );
-  const [unfocusedCardIndex, setUnfocusedCardIndex] = useState(0);
-
-  const handleChangePlace = (placeId: string, e: React.SyntheticEvent) => {
-    e.stopPropagation();
-    setActiveTooltip(null);
-    setTargetChangePlaceId(placeId);
-    openSearchMode();
-  };
-
-  const handleOpenAlternative = () => {
-    setIsAlternativeFromFocus(true);
-    setAlternativeSegment({
-      originId: originPlace.id,
-      destId: destPlace.id,
-    });
-  };
-
-  const isPanelFocused = !!(
-    focusedStep &&
-    focusedStep.originId === originPlace.id &&
-    focusedStep.destId === destPlace.id
-  );
-
-  const totalStepsCount = route.steps?.length || 0;
-  const isOriginHighlighted = isPanelFocused && (focusedStep.stepIndex === 0 || focusedStep.subType === 'start');
-  const isDestHighlighted = isPanelFocused && (
-    focusedStep.stepIndex === Math.max(0, totalStepsCount - 1) &&
-    (focusedStep.subType === 'dest' || focusedStep.subType === 'end')
-  );
-
-  const activeCardIndex = isPanelFocused ? focusedStep.stepIndex : unfocusedCardIndex;
+  const setGuidePanelState = useJourneyStore((state) => state.setGuidePanelState);
+  const setFocusBounds = useJourneyStore((state) => state.setFocusBounds);
 
   const [snap, setSnap] = useState<number | string | null>(BOTTOM_SHEET_SNAP.GUIDE_DEFAULT);
-
-  const parsedSnapForLog = parseSnapVal(snap);
-  let currentSnapTypeForLog: 'min' | 'default' | 'max' = 'default';
-  if (parsedSnapForLog === 200) currentSnapTypeForLog = 'min';
-  else if (parsedSnapForLog === 1) currentSnapTypeForLog = 'max';
-  //console.log('RouteGuidePanel render:', { snap, currentSnapType: currentSnapTypeForLog });
 
   const collapse = () => {
     const parsedSnap = parseSnapVal(snap);
@@ -169,6 +53,31 @@ export default function RouteGuidePanel({
       setSnap(BOTTOM_SHEET_SNAP.GUIDE_DEFAULT);
     }
   };
+
+  const {
+    focusedStep,
+    isPanelFocused,
+    activeCardIndex,
+    steps,
+    hasGuide,
+    getPages,
+    handleStepClick,
+    handlePrevStep,
+    handleNextStep,
+    handleZoomToPoint,
+    handleIndexChange,
+    handleChangePlace,
+    handleOpenAlternative,
+  } = useRouteGuideNavigation({
+    route,
+    originPlace,
+    destPlace,
+    onNextSegment,
+    onPrevSegment,
+    scrollContainerRef,
+    bottomSpacerRef,
+    collapse,
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -185,341 +94,12 @@ export default function RouteGuidePanel({
   }, [isOpen, snap, setGuidePanelState]);
 
   useEffect(() => {
-    setUnfocusedCardIndex(0);
-    if (focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id) {
-      setFocusedStep({
-        originId: originPlace.id,
-        destId: destPlace.id,
-        stepIndex: 0,
-        subType: 'start',
-      });
-      if (route?.steps && route.steps[0] && route.steps[0].pathPoints) {
-        const bounds = calculateStepBounds(route.steps[0].pathPoints);
-        if (bounds) setFocusBounds(bounds);
-      }
-    }
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0;
-    }
-  }, [route?.id, route, originPlace.id, destPlace.id, setFocusedStep, setFocusBounds]);
-
-  useEffect(() => {
     if (isOpen) {
       setAnimate(true);
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnimate(false);
     }
   }, [isOpen]);
-
-  const isAutoScrolling = useRef(false);
-  const autoScrollTimeout = useRef<NodeJS.Timeout | null>(null);
-  const skipNextScrollIntoView = useRef(false);
-
-  // 모바일 터치 제스처 핸들러: 리스트 스크롤과 바텀시트 드래그 제스처 분리
-  const { handlePointerDown, handleTouchStart, handleTouchMove, handleTouchEnd, handleWheel } = useScrollDragBridge({
-    scrollRef: scrollContainerRef,
-    snap,
-    setSnap,
-    minSnap: 190,
-    defaultSnap: 370,
-    maxSnap: 1
-  });
-
-  // 여정 재생 시 특정 세부 이동 정보가 자동으로 스크롤 중앙에 오도록 조절하는 기능 활성화
-  useEffect(() => {
-    if (!focusedStep || focusedStep.originId !== originPlace.id || focusedStep.destId !== destPlace.id) {
-      if (bottomSpacerRef.current) {
-        bottomSpacerRef.current.style.height = '112px'; // 기본값 (h-28 = 112px)
-      }
-      return;
-    }
-
-    const elementId = `step-${originPlace.id}-${destPlace.id}-${focusedStep.stepIndex}`;
-
-    const timer = setTimeout(() => {
-      const element = document.getElementById(elementId);
-      const container = scrollContainerRef.current;
-      if (element && container) {
-        const containerRect = container.getBoundingClientRect();
-        const elementRect = element.getBoundingClientRect();
-
-        // 동적 하단 여백 계산: (컨테이너 내부 실질적 높이) - 5px - (선택된 카드의 높이)
-        const containerHeight = container.clientHeight;
-        const cardHeight = element.clientHeight;
-        const paddingNeeded = Math.max(112, containerHeight - 5 - cardHeight);
-
-        if (bottomSpacerRef.current) {
-          bottomSpacerRef.current.style.height = `${paddingNeeded}px`;
-        }
-
-        // 상단 스냅을 정렬하기 위해 offsetTop을 계산해 직접 scrollTo 처리합니다.
-        // elementRect.top - containerRect.top은 컨테이너 내부 뷰포트 기준 상대 y좌표입니다.
-        // 최상단 여백 5px을 만들기 위해 -5px 보정합니다.
-        const targetScrollTop = container.scrollTop + (elementRect.top - containerRect.top) - 5;
-
-        container.scrollTo({
-          top: Math.max(0, targetScrollTop),
-          behavior: 'smooth'
-        });
-      }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [focusedStep, originPlace.id, destPlace.id]);
-
-  const steps = route.steps || [];
-  const hasGuide = (route.guide || []).length > 0;
-
-  const getPages = () => {
-    const rawPages: { idx: number, step: any, subType?: 'start' | 'end' | 'dest' }[] = [];
-
-    steps.forEach((step, idx) => {
-      const isLastStep = idx === steps.length - 1;
-      const isTransitOrVehicle =
-        step.type === 'car' ||
-        step.type === 'taxi' ||
-        step.type === 'subway' ||
-        step.type === 'bus' ||
-        step.type === 'train' ||
-        step.type === 'expressbus' ||
-        (step.startName && step.endName);
-
-      if (isTransitOrVehicle) {
-        if (step.type === 'car' || step.type === 'taxi') {
-          rawPages.push({ idx, step, subType: 'start' });
-          rawPages.push({ idx, step, subType: 'dest' });
-        } else {
-          if (step.startName || step.startLat) rawPages.push({ idx, step, subType: 'start' });
-          if (step.endName || step.endLat) rawPages.push({ idx, step, subType: 'end' });
-        }
-      } else {
-        rawPages.push({ idx, step, subType: 'start' });
-        if (isLastStep) {
-          rawPages.push({ idx, step, subType: 'end' });
-        }
-      }
-    });
-
-    const getPagePoint = (p: { idx: number, step: any, subType?: 'start' | 'end' | 'dest' }) => {
-      let lat: number | undefined;
-      let lng: number | undefined;
-      if (p.subType === 'dest') {
-        lat = destPlace.lat;
-        lng = destPlace.lng;
-      } else if (p.subType === 'start') {
-        lat = p.idx === 0 ? originPlace.lat : p.step.startLat;
-        lng = p.idx === 0 ? originPlace.lng : p.step.startLng;
-      } else if (p.subType === 'end') {
-        lat = p.idx === steps.length - 1 ? destPlace.lat : p.step.endLat;
-        lng = p.idx === steps.length - 1 ? destPlace.lng : p.step.endLng;
-      }
-
-      if (lat === undefined || lng === undefined) {
-        if (p.step && p.step.pathPoints && p.step.pathPoints.length > 0) {
-          if (p.subType === 'end' || p.subType === 'dest') {
-            lat = p.step.pathPoints[p.step.pathPoints.length - 1].lat;
-            lng = p.step.pathPoints[p.step.pathPoints.length - 1].lng;
-          } else {
-            lat = p.step.pathPoints[0].lat;
-            lng = p.step.pathPoints[0].lng;
-          }
-        }
-      }
-      return { lat, lng };
-    };
-
-    const getDistanceMeters = (lat1?: number, lng1?: number, lat2?: number, lng2?: number) => {
-      if (lat1 === undefined || lng1 === undefined || lat2 === undefined || lng2 === undefined) return Infinity;
-      const R = 6371000;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
-
-    const filteredPages: typeof rawPages = [];
-    rawPages.forEach((page) => {
-      if (filteredPages.length === 0) {
-        filteredPages.push(page);
-        return;
-      }
-
-      const lastPage = filteredPages[filteredPages.length - 1];
-      const p1 = getPagePoint(lastPage);
-      const p2 = getPagePoint(page);
-      const dist = getDistanceMeters(p1.lat, p1.lng, p2.lat, p2.lng);
-
-      if (dist < 20) {
-        if ((lastPage.subType === 'end' || lastPage.subType === 'dest') && page.subType === 'start') {
-          return;
-        }
-        if (lastPage.subType === 'start' && page.subType === 'start') {
-          filteredPages[filteredPages.length - 1] = page;
-          return;
-        }
-      }
-
-      filteredPages.push(page);
-    });
-
-    return filteredPages;
-  };
-
-
-  // 스크롤 시 화면 중앙의 세부 이동 정보를 자동으로 감지해서 focusedStep을 변경하는 기능 비활성화
-
-  function handleStepClick(idx: number, step: any, subType?: 'start' | 'end' | 'dest') {
-    collapse();
-    const isThisStepFocused = !!(
-      focusedStep &&
-      focusedStep.originId === originPlace.id &&
-      focusedStep.destId === destPlace.id &&
-      focusedStep.stepIndex === idx &&
-      focusedStep.subType === subType
-    );
-
-    if (!isThisStepFocused) {
-      let lat: number | undefined;
-      let lng: number | undefined;
-
-      if (subType === 'dest') {
-        lat = destPlace.lat;
-        lng = destPlace.lng;
-      } else if (subType === 'start') {
-        lat = idx === 0 ? originPlace.lat : step.startLat;
-        lng = idx === 0 ? originPlace.lng : step.startLng;
-      } else if (subType === 'end') {
-        lat = idx === steps.length - 1 ? destPlace.lat : step.endLat;
-        lng = idx === steps.length - 1 ? destPlace.lng : step.endLng;
-      } else {
-        lat = step.startLat;
-        lng = step.startLng;
-      }
-
-      if (lat === undefined || lng === undefined) {
-        if (step && step.pathPoints && step.pathPoints.length > 0) {
-          if (subType === 'end') {
-            lat = step.pathPoints[step.pathPoints.length - 1].lat;
-            lng = step.pathPoints[step.pathPoints.length - 1].lng;
-          } else {
-            lat = step.pathPoints[0].lat;
-            lng = step.pathPoints[0].lng;
-          }
-        }
-      }
-
-      if (lat !== undefined && lng !== undefined) {
-        setFocusBounds({
-          sw: { lat, lng },
-          ne: { lat, lng }
-        });
-      } else if (step && !step.isDestinationPage) {
-        const bounds = calculateStepBounds(step);
-        if (bounds) {
-          setFocusBounds(bounds);
-        }
-      }
-
-      setFocusedStep({
-        originId: originPlace.id,
-        destId: destPlace.id,
-        stepIndex: idx,
-        subType
-      });
-    }
-  }
-
-  const handlePrevStep = () => {
-    collapse();
-    const pages = getPages();
-    const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
-
-    if (!isPanelFocused) {
-      if (onPrevSegment) {
-        onPrevSegment(true);
-      }
-      return;
-    }
-
-    let currentIndex = pages.findIndex(p => p.idx === focusedStep.stepIndex && p.subType === focusedStep.subType);
-    if (currentIndex === -1) {
-      currentIndex = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-    }
-
-    if (currentIndex > 0) {
-      const prevPage = pages[currentIndex - 1];
-      handleStepClick(prevPage.idx, prevPage.step, prevPage.subType);
-    } else if (currentIndex === 0) {
-      setFocusedStep(null);
-      const bounds = calculateSegmentBounds(originPlace, destPlace, route);
-      setFocusBounds(bounds);
-    }
-  };
-
-  const handleNextStep = () => {
-    collapse();
-    const pages = getPages();
-    if (!focusedStep || focusedStep.originId !== originPlace.id || focusedStep.destId !== destPlace.id) {
-      const firstPage = pages[0];
-      if (firstPage) handleStepClick(firstPage.idx, firstPage.step, firstPage.subType);
-      return;
-    }
-
-    let currentIndex = pages.findIndex(p => p.idx === focusedStep.stepIndex && p.subType === focusedStep.subType);
-    if (currentIndex === -1) {
-      currentIndex = pages.findIndex(p => p.idx === focusedStep.stepIndex);
-    }
-
-    if (currentIndex >= 0 && currentIndex < pages.length - 1) {
-      const nextPage = pages[currentIndex + 1];
-      handleStepClick(nextPage.idx, nextPage.step, nextPage.subType);
-    } else if (currentIndex === pages.length - 1 && onNextSegment) {
-      onNextSegment();
-    }
-  };
-
-  const handleZoomToPoint = (idx: number, step: any, type: 'start' | 'end' | 'dest', e: React.MouseEvent) => {
-    e.stopPropagation();
-    collapse();
-
-    setFocusedStep({
-      originId: originPlace.id,
-      destId: destPlace.id,
-      stepIndex: idx,
-      subType: type
-    });
-
-    let lat: number | undefined;
-    let lng: number | undefined;
-
-    if (type === 'dest') {
-      lat = destPlace.lat;
-      lng = destPlace.lng;
-    } else {
-      lat = type === 'start' ? (idx === 0 ? originPlace.lat : step.startLat) : (idx === steps.length - 1 ? destPlace.lat : step.endLat);
-      lng = type === 'start' ? (idx === 0 ? originPlace.lng : step.startLng) : (idx === steps.length - 1 ? destPlace.lng : step.endLng);
-
-      if (lat === undefined || lng === undefined) {
-        if (step.pathPoints && step.pathPoints.length > 0) {
-          const pt = type === 'start' ? step.pathPoints[0] : step.pathPoints[step.pathPoints.length - 1];
-          lat = pt.lat;
-          lng = pt.lng;
-        }
-      }
-    }
-
-    if (lat !== undefined && lng !== undefined) {
-      setFocusBounds({
-        sw: { lat, lng },
-        ne: { lat, lng }
-      });
-    }
-  };
 
   const listContent = hasGuide ? (
     <CarGuideList
@@ -542,184 +122,6 @@ export default function RouteGuidePanel({
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
       </svg>
       <p className="text-xs font-medium">세부 경로 안내 정보가 없습니다.</p>
-    </div>
-  );
-
-  const handleSelectOriginPoint = () => {
-    if (steps.length > 0) {
-      handleStepClick(0, steps[0], 'start');
-    }
-  };
-
-  const handleSelectDestPoint = () => {
-    if (steps.length > 0) {
-      const lastIdx = steps.length - 1;
-      const lastStep = steps[lastIdx];
-      const subType = (lastStep.type === 'car' || lastStep.type === 'taxi') ? 'dest' : 'end';
-      handleStepClick(lastIdx, lastStep, subType);
-    }
-  };
-
-  const headerContent = (
-    <div className="border-b border-zinc-100 flex-shrink-0 bg-white w-full">
-      {/* 첫 번째 행: 좌측 뒤로가기 버튼 & 중앙 대안 경로 변경 버튼 & 우측 대중교통/승용차 태그 */}
-      <div className="px-3.5 pt-2.5 pb-1 flex items-center justify-between relative">
-        <button
-          type="button"
-          onClick={onClose}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="p-1 -ml-0.5 rounded-lg text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 transition-colors cursor-pointer z-10"
-          aria-label="뒤로가기"
-          title="뒤로가기"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-
-        {/* 중앙 정렬 대안 변경 버튼 (출발지->도착지 UI 바로 위) */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-2.5 flex items-center z-10">
-          <button
-            type="button"
-            onClick={handleOpenAlternative}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100/80 border border-blue-200/60 rounded-full flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
-            title="대안 경로 변경"
-            aria-label="대안 경로 변경"
-          >
-            <AlternativeRouteIcon className="w-3.5 h-3.5" />
-            <span>대안 변경</span>
-          </button>
-        </div>
-
-        <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full flex-shrink-0 z-10">
-          {route.type === 'public' ? '대중교통' : '승용차'}
-        </span>
-      </div>
-
-      {/* 두 번째 행: 출발지 → 도착지 (클릭 시 상세 정보 말풍선 툴팁 표시) */}
-      <div className="px-5 pb-3.5 pt-0.5">
-        <div className="flex items-center w-full min-w-0 gap-2">
-          {/* 출발지 */}
-          <div className="flex-1 min-w-0 text-center relative tooltip-trigger">
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveTooltip(activeTooltip === 'origin' ? null : 'origin');
-              }}
-              className={`block px-3 py-1.5 rounded-xl text-[14px] truncate cursor-pointer transition-all duration-200 select-none ${activeTooltip === 'origin'
-                  ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
-                  : 'bg-zinc-100/90 text-zinc-800 font-bold hover:bg-blue-50/60 hover:border-blue-200 hover:text-blue-600 border border-zinc-200/60'
-                }`}
-              title={originPlace.place_name}
-            >
-              {originPlace.place_name}
-            </span>
-            <AnimatePresence>
-              {activeTooltip === 'origin' && (
-                <>
-                  {/* Tooltip Body: 서비스 시그니처 그라데이션 테마 적용 */}
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                    transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute z-[1000] left-0 top-full mt-2.5 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15"
-                  >
-                    <p className="font-bold text-[13px] mb-1">{originPlace.place_name}</p>
-                    {originPlace.address && (
-                      <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{originPlace.address}</p>
-                    )}
-                  </motion.div>
-                  {/* Tooltip Arrow: 그라데이션 중앙 색상인 indigo-500 적용 */}
-                  <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute z-[1001] left-1/2 -translate-x-1/2 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-blue-500 pointer-events-none"
-                  />
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* 화살표 */}
-          <div className="flex-shrink-0 px-1 flex justify-center items-center">
-            <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </div>
-
-          {/* 도착지 */}
-          <div className="flex-1 min-w-0 text-center relative tooltip-trigger">
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveTooltip(activeTooltip === 'dest' ? null : 'dest');
-              }}
-              className={`block px-3 py-1.5 rounded-xl text-[14px] truncate cursor-pointer transition-all duration-200 select-none ${activeTooltip === 'dest'
-                  ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
-                  : 'bg-zinc-100/90 text-zinc-800 font-bold hover:bg-blue-50/60 hover:border-blue-200 hover:text-blue-600 border border-zinc-200/60'
-                }`}
-              title={destPlace.place_name}
-            >
-              {destPlace.place_name}
-            </span>
-            <AnimatePresence>
-              {activeTooltip === 'dest' && (
-                <>
-                  {/* Tooltip Body: 서비스 시그니처 그라데이션 테마 적용 */}
-                  <motion.div
-                     initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                     exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                     className="absolute z-[1000] right-0 top-full mt-2.5 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15"
-                  >
-                    <p className="font-bold text-[13px] mb-1">{destPlace.place_name}</p>
-                    {destPlace.address && (
-                      <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{destPlace.address}</p>
-                    )}
-                  </motion.div>
-                  {/* Tooltip Arrow: 그라데이션 중앙 색상인 indigo-500 적용 */}
-                  <motion.div
-                     initial={{ opacity: 0, y: -6 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     exit={{ opacity: 0, y: -6 }}
-                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                     className="absolute z-[1001] left-1/2 -translate-x-1/2 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-violet-500 pointer-events-none"
-                  />
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-      </div>
-
-      {/* 세 번째 행: 출발 시각 선택기 */}
-      <div className="px-5 pb-2.5 flex items-center justify-between border-t border-zinc-100/50 pt-2.5 bg-zinc-50/50">
-        <span className="text-[11px] font-bold text-zinc-500">길찾기 출발 시각</span>
-        <DepartureTimeSelector />
-      </div>
-
-      {/* 네 번째 행: 예상 요금 정보 */}
-      {route.type === 'public' && (route.fare ?? 0) > 0 && (
-        <div className="px-5 pb-2.5 flex items-center justify-between bg-zinc-50/50">
-          <span className="text-[11px] font-bold text-zinc-500">예상 요금</span>
-          <span className="flex items-center gap-1 text-[12px] font-bold text-zinc-800">
-            <span>{route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}</span>
-            <FareBreakdownTooltip fareBreakdown={route.fareBreakdown} />
-          </span>
-        </div>
-      )}
-
-      {route.isEstimated && (
-        <div className="mx-5 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800 text-xs font-semibold">
-          <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <span>네트워크 지연으로 인한 예상 경로입니다.</span>
-        </div>
-      )}
     </div>
   );
 
@@ -757,54 +159,11 @@ export default function RouteGuidePanel({
   );
 
   if (isMobile) {
-    const parsedSnap = parseSnapVal(snap);
-    let currentSnapType: 'min' | 'default' | 'max' = 'default';
-    if (parsedSnap === 190) currentSnapType = 'min';
-    else if (parsedSnap === 1) currentSnapType = 'max';
-
-    const snapPx = parsedSnap === 1
-      ? windowHeight - 16
-      : parsedSnap;
-
-    const contentMaxHeight = snapPx > 0
-      ? `${snapPx - 110}px`
-      : '100%';
-
     if (!isOpen) return null;
-
-    const handleIndexChange = (newIndex: number) => {
-      if (!route.steps || !route.steps[newIndex]) return;
-      setUnfocusedCardIndex(newIndex);
-      if (isPanelFocused) {
-        const step = route.steps[newIndex];
-        setFocusedStep({
-          originId: originPlace.id,
-          destId: destPlace.id,
-          stepIndex: newIndex,
-          subType: 'start',
-        });
-        if (step.pathPoints && step.pathPoints.length > 0) {
-          const bounds = calculateStepBounds(step.pathPoints);
-          setFocusBounds(bounds);
-        }
-      }
-    };
-
-    const handleSelectStation = (station: { stationName: string; lat?: number; lng?: number }) => {
-      if (station.lat && station.lng) {
-        const bounds = calculateStepBounds([
-          { lat: station.lat - 0.002, lng: station.lng - 0.002 },
-          { lat: station.lat + 0.002, lng: station.lng + 0.002 },
-        ]);
-        if (bounds) setFocusBounds(bounds);
-      }
-    };
-
-
 
     return (
       <>
-        {/* Mobile Map Floating Buttons Target (Positioned cleanly above Header UI boundary line) */}
+        {/* Mobile Map Floating Buttons Target */}
         <div
           id="mobile-map-buttons-target-route"
           className="fixed bottom-[328px] right-4 flex flex-col gap-2.5 z-[2000] pointer-events-auto"
@@ -813,195 +172,13 @@ export default function RouteGuidePanel({
         {/* All-in-One Mobile Segment Card Stack Container */}
         <div className="fixed bottom-[97px] left-0 right-0 z-[100] pointer-events-none px-0">
           <div className="relative w-full max-w-[480px] mx-auto pointer-events-auto">
-            {/* Header Top Centered Alternative Change Button & Center Summary Pill with Back Button (#FFFFFF Pure White Background) */}
-            <div className="relative flex flex-col items-center justify-center px-4 pb-0 mb-2">
-              {/* Top Centered Alternative Change Button */}
-              <div className="w-full flex items-center justify-center min-h-[28px] mb-1.5">
-                <button
-                  onClick={handleOpenAlternative}
-                  className="px-2.5 py-1 text-[11px] font-bold text-blue-600 bg-[#FFFFFF] hover:text-blue-700 flex items-center gap-1 shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 rounded-full cursor-pointer z-10 whitespace-nowrap shrink-0"
-                  aria-label="대안 경로 변경"
-                  title="대안 경로 변경"
-                >
-                  <AlternativeRouteIcon className="w-3.5 h-3.5 shrink-0" />
-                  <span className="whitespace-nowrap">대안 변경</span>
-                </button>
-              </div>
-
-              {/* Back Button (Left) & Center Origin -> Destination Pill UI & Right Place Change Button */}
-              <div className="relative w-full flex items-center justify-center">
-                {/* Back Button on Left (Original Position) */}
-                <button
-                  onClick={onClose}
-                  className="absolute left-0 w-8 h-8 rounded-full bg-[#FFFFFF] text-zinc-700 hover:text-zinc-950 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer z-10"
-                  aria-label="여정 상세로 돌아가기"
-                  title="여정 상세로 돌아가기"
-                >
-                  <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
-                </button>
-
-                {/* Center Origin -> Destination Pill UI with Tooltip Popups */}
-                <div className="w-full max-w-[calc(100%-88px)] bg-[#FFFFFF] text-zinc-900 p-1 rounded-2xl shadow-md text-xs font-extrabold flex items-center justify-between gap-1.5 border border-zinc-200/80 min-w-0">
-                  {/* 출발 지점 칩 */}
-                  <div className="relative tooltip-trigger min-w-0 flex-1">
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveTooltip(activeTooltip === 'origin' ? null : 'origin');
-                      }}
-                      className={`px-2.5 py-1 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-1 min-w-0 flex-1 cursor-pointer select-none ${activeTooltip === 'origin'
-                          ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
-                          : 'bg-zinc-100/90 text-zinc-800 font-bold border border-zinc-200/50 hover:bg-blue-50/60 hover:border-blue-200'
-                        }`}
-                    >
-                      <span className="truncate min-w-0" title={originPlace.place_name}>{originPlace.place_name}</span>
-                    </div>
-
-                    <AnimatePresence>
-                      {activeTooltip === 'origin' && (
-                        <>
-                          <motion.div
-                            initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                            transition={{ duration: 0.15, ease: 'easeOut' }}
-                            className="absolute z-[1000] left-0 top-full mt-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto flex flex-col gap-2"
-                          >
-                            <div>
-                              <p className="font-bold text-[13px] mb-0.5">{originPlace.place_name}</p>
-                              {originPlace.address && (
-                                <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{originPlace.address}</p>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => handleChangePlace(originPlace.id, e)}
-                              className="w-full py-1.5 px-3 rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/30"
-                            >
-                              <RefreshCw className="w-3 h-3" strokeWidth={2.2} />
-                              <span>출발지 변경</span>
-                            </button>
-                          </motion.div>
-                          <motion.div
-                            initial={{ opacity: 0, y: -6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            transition={{ duration: 0.15, ease: 'easeOut' }}
-                            className="absolute z-[1001] left-1/3 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-blue-500 pointer-events-none"
-                          />
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  <svg className="w-4 h-4 text-blue-600 shrink-0 px-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                  </svg>
-
-                  {/* 도착 지점 칩 */}
-                  <div className="relative tooltip-trigger min-w-0 flex-1">
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveTooltip(activeTooltip === 'dest' ? null : 'dest');
-                      }}
-                      className={`px-2.5 py-1 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-1 min-w-0 flex-1 cursor-pointer select-none ${activeTooltip === 'dest'
-                          ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-xs font-extrabold ring-2 ring-blue-500/20'
-                          : 'bg-zinc-100/90 text-zinc-800 font-bold border border-zinc-200/50 hover:bg-blue-50/60 hover:border-blue-200'
-                        }`}
-                    >
-                      <span className="truncate min-w-0" title={destPlace.place_name}>{destPlace.place_name}</span>
-                    </div>
-
-                    <AnimatePresence>
-                      {activeTooltip === 'dest' && (
-                        <>
-                          <motion.div
-                            initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 0, scale: 1 }}
-                            transition={{ duration: 0.15, ease: 'easeOut' }}
-                            className="absolute z-[1000] right-0 top-full mt-2.5 w-56 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto flex flex-col gap-2"
-                          >
-                            <div>
-                              <p className="font-bold text-[13px] mb-0.5">{destPlace.place_name}</p>
-                              {destPlace.address && (
-                                <p className="text-blue-50 font-normal text-[11px] leading-relaxed">{destPlace.address}</p>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => handleChangePlace(destPlace.id, e)}
-                              className="w-full py-1.5 px-3 rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/30"
-                            >
-                              <RefreshCw className="w-3 h-3" strokeWidth={2.2} />
-                              <span>도착지 변경</span>
-                            </button>
-                          </motion.div>
-                          <motion.div
-                            initial={{ opacity: 0, y: -6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            transition={{ duration: 0.15, ease: 'easeOut' }}
-                            className="absolute z-[1001] right-1/3 top-full mt-[2px] w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-violet-500 pointer-events-none"
-                          />
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-
-                {/* Right Place Change Button & Popover Selection Menu */}
-                <div className="absolute right-0 z-10 tooltip-trigger">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveTooltip(activeTooltip === 'changeMenu' ? null : 'changeMenu');
-                    }}
-                    className="w-8 h-8 rounded-full bg-[#FFFFFF] text-zinc-700 hover:text-blue-600 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all border border-zinc-200/80 cursor-pointer"
-                    aria-label="장소 변경"
-                    title="장소 변경"
-                  >
-                    <RefreshCw className="w-4 h-4 stroke-[2]" />
-                  </button>
-
-                  <AnimatePresence>
-                    {activeTooltip === 'changeMenu' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                        transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="absolute z-[1000] right-0 top-full mt-2 w-36 p-1.5 bg-white text-zinc-900 text-xs font-bold rounded-xl shadow-xl border border-zinc-200/80 flex flex-col gap-1 tooltip-content pointer-events-auto"
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            setActiveTooltip(null);
-                            handleChangePlace(originPlace.id, e);
-                          }}
-                          className="w-full py-1.5 px-2.5 rounded-lg hover:bg-blue-50 text-zinc-700 hover:text-blue-600 flex items-center gap-2 transition-colors cursor-pointer text-left"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                          <span>출발지 변경</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            setActiveTooltip(null);
-                            handleChangePlace(destPlace.id, e);
-                          }}
-                          className="w-full py-1.5 px-2.5 rounded-lg hover:bg-blue-50 text-zinc-700 hover:text-blue-600 flex items-center gap-2 transition-colors cursor-pointer text-left border-t border-zinc-100 pt-1.5"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                          <span>도착지 변경</span>
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
+            <MobileSegmentHeader
+              originPlace={originPlace}
+              destPlace={destPlace}
+              onClose={onClose}
+              onOpenAlternative={handleOpenAlternative}
+              onChangePlace={handleChangePlace}
+            />
 
             {/* All-in-One Integrated Card Stack */}
             <RouteSegmentCardStack
@@ -1027,13 +204,11 @@ export default function RouteGuidePanel({
           </div>
         </div>
 
-        {/* 재생 플로팅바 복구 (최하단 고정) */}
+        {/* 하단 재생 플로팅바 */}
         {playbackBar}
       </>
     );
   }
-
-
 
   return (
     <>
@@ -1060,7 +235,13 @@ export default function RouteGuidePanel({
         `}
       >
         <div className="flex flex-col h-full bg-white relative">
-          {headerContent}
+          <RouteGuideHeader
+            route={route}
+            originPlace={originPlace}
+            destPlace={destPlace}
+            onClose={onClose}
+            onOpenAlternative={handleOpenAlternative}
+          />
           <div
             ref={scrollContainerRef}
             className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-sidebar px-5 pt-[9px] relative bg-white snap-y snap-mandatory scroll-pt-[5px] scroll-pb-4"
@@ -1074,4 +255,3 @@ export default function RouteGuidePanel({
     </>
   );
 }
-

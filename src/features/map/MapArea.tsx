@@ -26,6 +26,7 @@ import { MapOverlays } from './MapOverlays';
 import { MapFloatingControls } from './MapFloatingControls';
 import { useDialog } from '@/providers/DialogProvider';
 import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
+import { INITIAL_MAP_CENTER, DEFAULT_ZOOM_LEVEL } from '@/constants/map';
 
 import type { Place, PlaceResult } from '@/types/journey';
 
@@ -33,8 +34,6 @@ interface SelectedPlace {
   lat: number;
   lng: number;
 }
-
-const INITIAL_CENTER = { lat: 37.5665, lng: 126.9780 };
 
 export default function MapArea() {
   const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
@@ -259,7 +258,7 @@ export default function MapArea() {
     return count;
   }, [places, directionsCache]);
 
-  const handleMapClick = useCallback((e: any) => {
+  const handleMapClick = useCallback((e: naver.maps.PointerEvent) => {
     setFocusedPlaceId(null);
     if (!isSearchMode) return;
     const lat = e.coord.y;
@@ -469,6 +468,19 @@ export default function MapArea() {
     }
   }, [setMapClickedPlace, focusedPlaceId, setFocusedPlaceId, map, setMapCenter, panToWithOffset, places, directionsCache, activeJourney?.transport_type, focusedSegment, setFocusBounds, setFocusedStep, setFocusedSegment]);
 
+  const { isCacheRestored } = useJourneyStore();
+  const placesKey = places?.map((p) => `${p.id}_${p.lat}_${p.lng}`).join('|') || '';
+
+  useEffect(() => {
+    if (isCacheRestored && places && places.length > 1) {
+      fetchSequentialDirections(places);
+    }
+  }, [placesKey, fetchSequentialDirections, isCacheRestored]);
+
+  const animatedSegmentsRef = useRef<Set<string>>(new Set());
+  const navermaps = typeof window !== 'undefined' ? window.naver?.maps : null;
+  const activeSegment = focusedSegment || alternativeSegment;
+
   if (!clientId) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-50 text-zinc-400">
@@ -488,25 +500,12 @@ export default function MapArea() {
     );
   }
 
-  const { isCacheRestored } = useJourneyStore();
-
-  const placesKey = places?.map((p) => `${p.id}_${p.lat}_${p.lng}`).join('|') || '';
-  useEffect(() => {
-    if (isCacheRestored && places && places.length > 1) {
-      fetchSequentialDirections(places);
-    }
-  }, [placesKey, fetchSequentialDirections, isCacheRestored]);
-
-  const animatedSegmentsRef = useRef<Set<string>>(new Set());
-  const navermaps = typeof window !== 'undefined' && window.naver?.maps;
-  const activeSegment = focusedSegment || alternativeSegment;
-
   return (
     <div className="relative w-full h-full overflow-hidden">
       <MapDiv style={{ width: '100%', height: '100%' }}>
         <NaverMap
-          defaultCenter={INITIAL_CENTER}
-          defaultZoom={15}
+          defaultCenter={INITIAL_MAP_CENTER}
+          defaultZoom={DEFAULT_ZOOM_LEVEL}
           ref={handleMapRef}
           onClick={handleMapClick}
           logoControlOptions={logoControlOptions}

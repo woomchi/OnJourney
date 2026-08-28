@@ -100,13 +100,7 @@ const CloseSearchFloatingButton = ({ onClick }: { onClick: () => void }) => (
 );
 
 import { usePWA } from '@/components/PWAProvider';
-
-const parseSnapVal = (s: any): number => {
-  if (s === 1 || s === '1') return 1;
-  if (typeof s === 'number') return s;
-  if (typeof s === 'string') return parseInt(s, 10) || 0;
-  return 0;
-};
+import { parseSnapVal } from '@/lib/utils/snapUtils';
 
 export default function JourneySidebar() {
   const { isInstalled } = usePWA();

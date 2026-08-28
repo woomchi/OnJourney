@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { parseSnapVal } from '@/lib/utils/snapUtils';
 
 export interface PanelScrollBridgeOptions {
   scrollRef: React.RefObject<HTMLElement | null>;
@@ -30,21 +31,6 @@ export function useScrollDragBridge({
     startedAtTop: false,
     startedAtBottom: false
   });
-
-  const parseSnapVal = (s: any): number => {
-    if (s === 1 || s === '1') return 1;
-    if (typeof s === 'number') return s;
-    if (typeof s === 'string') {
-      if (s.endsWith('vh')) {
-        if (typeof window !== 'undefined') {
-          const vh = parseFloat(s) || 0;
-          return window.innerHeight * (vh / 100);
-        }
-      }
-      return parseInt(s, 10) || 0;
-    }
-    return 0;
-  };
 
   const getCurrentSnapType = (): 'min' | 'default' | 'max' => {
     const parsed = parseSnapVal(snap);

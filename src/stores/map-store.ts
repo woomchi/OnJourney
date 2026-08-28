@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import type { PlaceResult, MapBoundsRect, MapCoord } from '@/types/journey';
+import { INITIAL_MAP_CENTER, DEFAULT_ZOOM_LEVEL } from '@/constants/map';
 
-interface MapClickedPlace extends MapCoord {
+export interface MapClickedPlace extends MapCoord {
   address: string;
   place_name: string;
 }
@@ -48,10 +49,10 @@ interface MapUIState {
 }
 
 export const useMapUIStore = create<MapUIState>((set) => ({
-  mapCenter: { lat: 37.5665, lng: 126.9780 },
+  mapCenter: INITIAL_MAP_CENTER,
   setMapCenter: (center) => set({ mapCenter: center }),
   
-  zoomLevel: 15,
+  zoomLevel: DEFAULT_ZOOM_LEVEL,
   setZoomLevel: (zoom) => set({ zoomLevel: zoom }),
 
   mapBounds: null,

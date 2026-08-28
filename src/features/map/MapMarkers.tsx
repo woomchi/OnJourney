@@ -5,19 +5,19 @@ import { motion } from 'framer-motion';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { getSequenceTheme } from '@/constants/colors';
 import { getCategoryTheme } from '@/lib/utils/categoryUtils';
-import { useMapUIStore } from '@/stores/map-store';
+import { useMapUIStore, type MapClickedPlace } from '@/stores/map-store';
 import { useJourneyStore } from '@/stores/journey-store';
-import type { Place, PlaceResult } from '@/types/journey';
+import type { Place, PlaceResult, FocusedSegment } from '@/types/journey';
 
 export interface MapMarkersProps {
   places: Place[];
   recommendedPlaces: PlaceResult[] | null;
   activeSearchPlace: PlaceResult | null;
-  mapClickedPlace: any;
+  mapClickedPlace: MapClickedPlace | null;
   userLocation: { lat: number; lng: number } | null;
   gpsMode: 'none' | 'location' | 'compass';
   isSearchMode: boolean;
-  activeSegment: any;
+  activeSegment: FocusedSegment | null | undefined;
   delays: { pathDelays: Record<string, number>; markerDelays: Record<string, number> };
   navermaps: any;
   handleMarkerClick: (place: Place, idx: number) => void;

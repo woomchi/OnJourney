@@ -76,18 +76,18 @@ export async function GET(req: Request) {
 ## 외부 API 환경 변수 (`.env.local` 필수)
 | 변수명 | 용도 |
 |--------|------|
-| `NEXT_PUBLIC_NCP_CLIENT_ID` | 네이버 지도 |
+| `NEXT_PUBLIC_NAVER_CLIENT_ID` | 네이버 지도 (MapArea, QueryProvider) |
 | `ODSAY_API_KEY` | 대중교통 경로 |
 | `KAKAO_REST_API_KEY` | 장소 검색 |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 클라이언트 |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase 서버 |
-| `SEOUL_SUBWAY_API_KEY` | 지하철 실시간 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 클라이언트 (`sb_publishable_` 포맷) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase 서버 (`sb_secret_` 포맷) |
+| `REAL_TIME_SUBWAY_API_KEY` | 지하철 실시간 |
 | `REAL_TIME_SUBWAY_LOCATION_API_KEY` | 열차 위치 |
 | `TMAP_APP_KEY` | 도보 경로 |
-| `TAGO_API_KEY` | 전국 버스 |
-| `GYEONGGI_BUS_API_KEY` | 경기도 버스 |
-| `BUSAN_BUS_API_KEY` | 부산 버스 |
+| `REAL_TIME_BUS_TAGO_API_KEY` | 전국 버스 |
+| `REAL_TIME_BUS_GYEONGGI_API_KEY` | 경기도 버스 |
+| `REAL_TIME_BUS_BUSAN_API_KEY` | 부산 버스 |
 
 ---
 

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import { toJourneyErrorMessage } from './errors';
+import { toJourneyErrorMessage, isSchemaNotReadyError } from './errors';
 import type { CreateJourneyInput, Journey, Place, TransportType } from '@/types/journey';
 
 export * from './errors';
@@ -45,19 +45,37 @@ export async function insertJourney(input: CreateJourneyInput): Promise<Journey>
     throw new Error('로그인이 필요합니다.');
   }
 
+  const basePayload = {
+    user_id: user.id,
+    title: input.title.trim(),
+    transport_type: input.transport_type,
+    journey_date: input.journey_date,
+    places: [],
+    current_step: 0,
+  };
+
+  // 1차 시도: is_public 컬럼 포함
   const { data, error } = await supabase
     .from('journeys')
-    .insert({
-      user_id: user.id,
-      title: input.title.trim(),
-      transport_type: input.transport_type,
-      journey_date: input.journey_date,
-      places: [],
-      current_step: 0,
-      is_public: input.is_public ?? false,
-    })
+    .insert({ ...basePayload, is_public: input.is_public ?? false })
     .select()
     .single();
+
+  // is_public 컬럼이 없는 구버전 DB인 경우 (PGRST204) → 컬럼 없이 재시도
+  if (error?.code === 'PGRST204' && error.message.includes('is_public')) {
+    console.warn('[journeys] is_public 컬럼 미존재 — 마이그레이션 필요 (supabase/migrations/20260828000000_add_journey_sharing.sql)');
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('journeys')
+      .insert(basePayload)
+      .select()
+      .single();
+
+    if (fallbackError) {
+      throw new Error(toJourneyErrorMessage(fallbackError));
+    }
+
+    return mapRowToJourney(fallbackData as JourneyRow);
+  }
 
   if (error) {
     throw new Error(toJourneyErrorMessage(error));
@@ -87,7 +105,7 @@ export async function fetchLatestJourney(): Promise<Journey | null> {
     .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST205' || error.message.includes('schema cache')) {
+    if (isSchemaNotReadyError(error.message)) {
       console.warn('[journeys] 테이블 미설정:', error.message);
     }
     return null;

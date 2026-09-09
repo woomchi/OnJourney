@@ -27,7 +27,7 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   if (isWalkExceedLimit) {
     walkResults = [];
   } else {
-    walkResults = await fetchOdsayWalkingRoute(sx, sy, ex, ey);
+    walkResults = await fetchOdsayWalkingRoute(sx, sy, ex, ey, params.departureTime);
   }
 
   const snapMeta: SnapMeta = {

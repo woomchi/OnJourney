@@ -147,6 +147,20 @@ export class OdsayAdapter {
   }
 
   /**
+   * ODsay 멀티모달 도보 길찾기 API 어댑터 (#28 maasRP - SearchMethod: '1' 도보 전용)
+   */
+  public static async fetchMaasRPWalk<T = any>(
+    sx: string,
+    sy: string,
+    ex: string,
+    ey: string,
+    searchTime: string,
+    apiKey?: string
+  ): Promise<T> {
+    return this.fetchMaasRP<T>(sx, sy, ex, ey, searchTime, '1', apiKey);
+  }
+
+  /**
    * ODsay 도보 길찾기 API 어댑터 (#31 searchWalkPathV2)
    */
   public static async fetchWalkPathV2<T = any>(

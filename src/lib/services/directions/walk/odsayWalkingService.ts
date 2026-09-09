@@ -1,10 +1,10 @@
 import type { DirectionResult, RouteGuideNode } from '@/types/journey';
 import { unstable_cache } from 'next/cache';
 import { OdsayAdapter } from '@/lib/infrastructure/odsayAdapter';
+import { odsayCircuitBreaker } from '@/lib/infrastructure/circuitBreaker';
 import { haversineDistance, roundCoord } from '../common/distanceUtils';
+import { toKstSearchTime } from '../common/timeUtils';
 import { buildWalkFallbackResults } from './walkFallbackService';
-
-
 
 /**
  * ODsay maasRP graph 파라미터 ("x y|x y|...") 파싱 유틸
@@ -27,40 +27,86 @@ function parseGraphString(graph?: string): { lat: number; lng: number }[] {
 }
 
 /**
- * ODsay 도보 경로(searchWalkPathV2) 캐싱 함수
+ * maasRP 도보 구간의 routes[].(crossXYInfos + xyInfos) 상세 선형 좌표 파싱 유틸
+ */
+function parseWalkRoutesPoints(routes?: any[]): { lat: number; lng: number }[] {
+  if (!routes || !Array.isArray(routes)) return [];
+  const points: { lat: number; lng: number }[] = [];
+  for (const route of routes) {
+    if (route.crossXYInfos && Array.isArray(route.crossXYInfos)) {
+      for (const pt of route.crossXYInfos) {
+        const lng = typeof pt.x === 'string' ? parseFloat(pt.x) : pt.x;
+        const lat = typeof pt.y === 'string' ? parseFloat(pt.y) : pt.y;
+        if (!isNaN(lat) && !isNaN(lng)) {
+          points.push({ lat, lng });
+        }
+      }
+    }
+    if (route.xyInfos && Array.isArray(route.xyInfos)) {
+      for (const pt of route.xyInfos) {
+        const lng = typeof pt.x === 'string' ? parseFloat(pt.x) : pt.x;
+        const lat = typeof pt.y === 'string' ? parseFloat(pt.y) : pt.y;
+        if (!isNaN(lat) && !isNaN(lng)) {
+          points.push({ lat, lng });
+        }
+      }
+    }
+  }
+  return points;
+}
+
+/**
+ * ODsay 멀티모달 도보 경로(maasRP - SearchMethod: '1') 캐싱 함수
  */
 export async function getCachedOdsayWalk(
   sx: number,
   sy: number,
   ex: number,
   ey: number,
-  apiKey: string
+  apiKey: string,
+  departureTime?: number
 ) {
   const wsx = roundCoord(sx, 4).toFixed(4);
   const wsy = roundCoord(sy, 4).toFixed(4);
   const wex = roundCoord(ex, 4).toFixed(4);
   const wey = roundCoord(ey, 4).toFixed(4);
+  const searchTime = toKstSearchTime(departureTime);
 
   return unstable_cache(
     async () => {
       try {
-        const data = await OdsayAdapter.fetchWalkPathV2(wsx, wsy, wex, wey, apiKey, 'Start', 'End');
-        if (data && (data.result || data.paths || data.path)) {
-          return data;
+        const result = await odsayCircuitBreaker.execute<any>(
+          async () => {
+            const data = await OdsayAdapter.fetchMaasRPWalk(wsx, wsy, wex, wey, searchTime, apiKey);
+            return data;
+          },
+          (err: unknown) => {
+            const errorObj = err as { isRetryable?: boolean; message?: string; code?: string };
+            const isRetryable = errorObj?.isRetryable === true || errorObj?.message?.includes('Circuit breaker is OPEN');
+            if (!isRetryable) {
+              console.warn('[odsayWalkingService] maasRP 도보 호출 영구 에러:', errorObj?.message || err);
+              return null;
+            }
+            throw err;
+          }
+        );
+
+        if (result && (result.result || result.paths || result.path)) {
+          return result;
         }
-        console.warn(`[odsayWalkingService] searchWalkPathV2 데이터 미존재, Fallback 적용`);
+        console.warn(`[odsayWalkingService] maasRP 도보 데이터 미존재, Fallback 적용`);
         return null;
       } catch (err: any) {
         const isQuotaError = err?.status === 429 || err?.code === 'TRANSIT_QUOTA_EXCEEDED' || err?.message?.includes('한도 초과');
         if (isQuotaError) {
           console.warn(`[odsayWalkingService] ODsay API 쿼터 한도 초과(429). Fallback 도보 경로로 즉시 전환합니다.`);
         } else {
-          console.warn(`[odsayWalkingService] searchWalkPathV2 호출 예외 발생, Fallback 적용:`, err?.message || err);
+          console.warn(`[odsayWalkingService] maasRP 도보 호출 예외 발생, Fallback 적용:`, err?.message || err);
         }
         return null;
       }
     },
-    ['odsay-walking-v2-cache', wsx, wsy, wex, wey],
+    ['odsay-walking-maasrp-cache', wsx, wsy, wex, wey, searchTime.slice(0, 10)], // 1시간 단위 캐싱 분기
     { revalidate: 3600 }
   )();
 }
@@ -69,7 +115,7 @@ export async function getCachedOdsayWalk(
 export const getCachedOdsayMaasRPWalk = getCachedOdsayWalk;
 
 /**
- * ODsay API 응답 데이터를 DirectionResult[] (도보/자전거/킥보드) 뷰 모델로 파싱
+ * ODsay maasRP API 응답 데이터를 DirectionResult[] (도보/자전거/킥보드) 뷰 모델로 파싱
  */
 export function parseOdsayWalkingResponse(
   data: any,
@@ -84,44 +130,74 @@ export function parseOdsayWalkingResponse(
 
   const resultObj = data.result || data;
   const paths: any[] = resultObj.paths || resultObj.path || [];
-  
-  let pathPoints: { lat: number; lng: number }[] = [];
-  let totalDistanceMeters = 0;
-  let totalTimeMinutes = 0;
+
+  if (paths.length === 0) {
+    return buildWalkFallbackResults(sx, sy, ex, ey);
+  }
+
+  // 1. 도보 전용 경로 우선 선택 (pathType === 1), 없을 경우 첫 번째 경로
+  const selectedPath = paths.find((p: any) => p.pathType === 1) || paths[0];
+
+  const totalDistanceMeters =
+    selectedPath.totalDistance ||
+    selectedPath.info?.totalDistance ||
+    selectedPath.info?.distance ||
+    selectedPath.distance ||
+    0;
+
+  const totalTimeMinutes =
+    selectedPath.totalTime ||
+    selectedPath.info?.totalTime ||
+    selectedPath.info?.time ||
+    selectedPath.time ||
+    0;
+
+  const pathPoints: { lat: number; lng: number }[] = [];
   const guideNodes: RouteGuideNode[] = [];
 
-  if (paths.length > 0) {
-    // 1. 최단 도보 경로 추출
-    let selectedPath = paths[0];
-
-    totalDistanceMeters = selectedPath.info?.totalDistance || selectedPath.totalDistance || selectedPath.info?.distance || selectedPath.distance || 0;
-    totalTimeMinutes = selectedPath.info?.totalTime || selectedPath.totalTime || selectedPath.info?.time || selectedPath.time || 0;
-
-    const rpsList: any[] = selectedPath.rps || selectedPath.subPath || [];
-    for (const rp of rpsList) {
-      // graph 선형 파싱
-      const pts = parseGraphString(rp.graph);
-      if (pts.length > 0) {
-        pathPoints.push(...pts);
-      } else if (rp.startX && rp.startY && rp.endX && rp.endY) {
-        const startLat = parseFloat(rp.startY);
-        const startLng = parseFloat(rp.startX);
-        const endLat = parseFloat(rp.endY);
-        const endLng = parseFloat(rp.endX);
-        if (!isNaN(startLat) && !isNaN(startLng)) pathPoints.push({ lat: startLat, lng: startLng });
-        if (!isNaN(endLat) && !isNaN(endLng)) pathPoints.push({ lat: endLat, lng: endLng });
+  const rpsList: any[] = selectedPath.rps || selectedPath.subPath || [];
+  for (const rp of rpsList) {
+    // 1) graph 선형 파싱
+    const graphPts = parseGraphString(rp.graph);
+    if (graphPts.length > 0) {
+      pathPoints.push(...graphPts);
+    } else if (rp.routes && Array.isArray(rp.routes)) {
+      // 2) maasRP routes 상세 선형 파싱 (crossXYInfos + xyInfos)
+      const routePts = parseWalkRoutesPoints(rp.routes);
+      if (routePts.length > 0) {
+        pathPoints.push(...routePts);
       }
+    } else if (rp.startX && rp.startY && rp.endX && rp.endY) {
+      const startLat = parseFloat(rp.startY);
+      const startLng = parseFloat(rp.startX);
+      const endLat = parseFloat(rp.endY);
+      const endLng = parseFloat(rp.endX);
+      if (!isNaN(startLat) && !isNaN(startLng)) pathPoints.push({ lat: startLat, lng: startLng });
+      if (!isNaN(endLat) && !isNaN(endLng)) pathPoints.push({ lat: endLat, lng: endLng });
+    }
 
-      // 가이드 노드 수집
-      if (rp.trafficType === 3 || rp.sectionTime || rp.distance) {
-        const stepDist = rp.distance || 0;
-        const stepTimeMin = rp.sectionTime || rp.duration || 0;
+    // 3) 가이드 노드 수집 (턴바이턴 상세 안내)
+    if (rp.guides && Array.isArray(rp.guides)) {
+      for (const g of rp.guides) {
+        const guidance = g.GUIDANCE || (g.ROAD_NAME ? `${g.ROAD_NAME} 이동` : '도보 이동');
+        const dist = typeof g.LENGTH === 'number' ? g.LENGTH : 0;
+        const dur = typeof g.DURATION === 'number'
+          ? g.DURATION * 1000
+          : Math.round((dist / (4.5 * 1000 / 3600)) * 1000);
         guideNodes.push({
-          instructions: rp.startName ? `${rp.startName}에서 이동` : '도보 이동',
-          distance: stepDist,
-          duration: stepTimeMin * 60 * 1000,
+          instructions: guidance,
+          distance: dist,
+          duration: dur,
         });
       }
+    } else if (rp.trafficType === 3 || rp.sectionTime || rp.distance) {
+      const stepDist = rp.distance || 0;
+      const stepTimeMin = rp.sectionTime || rp.duration || 0;
+      guideNodes.push({
+        instructions: rp.startName ? `${rp.startName}에서 이동` : '도보 이동',
+        distance: stepDist,
+        duration: stepTimeMin * 60 * 1000,
+      });
     }
   }
 
@@ -132,7 +208,7 @@ export function parseOdsayWalkingResponse(
       cleanPathPoints.push(pt);
     } else {
       const last = cleanPathPoints[cleanPathPoints.length - 1];
-      if (last.lat !== pt.lat || last.lng !== pt.lng) {
+      if (Math.abs(last.lat - pt.lat) > 1e-6 || Math.abs(last.lng - pt.lng) > 1e-6) {
         cleanPathPoints.push(pt);
       }
     }
@@ -143,10 +219,13 @@ export function parseOdsayWalkingResponse(
   }
 
   // 출발지/목적지 지점 연결
-  if (cleanPathPoints[0].lat !== sy || cleanPathPoints[0].lng !== sx) {
+  if (Math.abs(cleanPathPoints[0].lat - sy) > 1e-6 || Math.abs(cleanPathPoints[0].lng - sx) > 1e-6) {
     cleanPathPoints.unshift({ lat: sy, lng: sx });
   }
-  if (cleanPathPoints[cleanPathPoints.length - 1].lat !== ey || cleanPathPoints[cleanPathPoints.length - 1].lng !== ex) {
+  if (
+    Math.abs(cleanPathPoints[cleanPathPoints.length - 1].lat - ey) > 1e-6 ||
+    Math.abs(cleanPathPoints[cleanPathPoints.length - 1].lng - ex) > 1e-6
+  ) {
     cleanPathPoints.push({ lat: ey, lng: ex });
   }
 
@@ -252,7 +331,7 @@ export async function fetchOdsayWalkingRoute(
   }
 
   try {
-    const data = await getCachedOdsayWalk(sx, sy, ex, ey, apiKey);
+    const data = await getCachedOdsayWalk(sx, sy, ex, ey, apiKey, departureTime);
     if (!data) {
       return buildWalkFallbackResults(sx, sy, ex, ey);
     }
@@ -270,9 +349,10 @@ export async function fetchOdsayDetailRoute(
   sx: number,
   sy: number,
   ex: number,
-  ey: number
+  ey: number,
+  departureTime?: number
 ): Promise<{ polyline: { lat: number; lng: number }[]; guide: RouteGuideNode[] }> {
-  const walkResults = await fetchOdsayWalkingRoute(sx, sy, ex, ey);
+  const walkResults = await fetchOdsayWalkingRoute(sx, sy, ex, ey, departureTime);
   const walkResult = walkResults.find((r) => r.id === 'walk');
 
   if (!walkResult) {

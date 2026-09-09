@@ -32,9 +32,9 @@ export type RouteContext = {
 
 // Global API Wrapper for Route Handlers
 export function withErrorHandler<T = unknown>(
-  handler: (request: NextRequest, context: RouteContext) => Promise<NextResponse<ApiResponse<T>> | NextResponse | void>
+  handler: (request: NextRequest, context?: RouteContext) => Promise<NextResponse<ApiResponse<T>> | NextResponse | void>
 ) {
-  return async (request: NextRequest, context: RouteContext): Promise<NextResponse> => {
+  return async (request: NextRequest, context: RouteContext = {}): Promise<NextResponse> => {
     try {
       const response = await handler(request, context);
       if (response) {

@@ -3,7 +3,7 @@ import { DirectionsWaypointsQueryType } from '../validations/directions';
 export async function fetchDirectionsWaypoints(params: DirectionsWaypointsQueryType) {
   const { start, goal, waypoints, option } = params;
 
-  const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
+  const clientId = process.env.NAVER_CLIENT_ID || process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {

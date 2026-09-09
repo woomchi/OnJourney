@@ -92,7 +92,6 @@ function loadGeoJsonData() {
 
     walkableFeatures = tempFeatures;
     isLoaded = true;
-    console.log(`[walkabilityCheck] Loaded ${walkableFeatures.length} non-walkable features.`);
   } catch (error) {
     console.error('[walkabilityCheck] Failed to load GeoJSON data:', error);
   }

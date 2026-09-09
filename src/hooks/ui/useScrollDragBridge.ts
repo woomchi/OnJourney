@@ -85,10 +85,6 @@ export function useScrollDragBridge({
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
-    console.log('useScrollDragBridge: handleTouchEnd', {
-      disabled,
-      touchStart: touchStartRef.current
-    });
     if (disabled) {
       touchStartRef.current = null;
       return;
@@ -115,14 +111,6 @@ export function useScrollDragBridge({
       return;
     }
 
-    console.log('useScrollDragBridge: touchEnd values', {
-      deltaY,
-      startScrollTop,
-      currentScrollTop,
-      scrollHeight: target.scrollHeight,
-      clientHeight: target.clientHeight
-    });
-
     const isAtTopAtEnd = currentScrollTop <= 5;
     const threshold = bottomThreshold ?? 20;
     const isAtBottomAtEnd = maxScroll - currentScrollTop < threshold;
@@ -133,15 +121,6 @@ export function useScrollDragBridge({
     // 최상단/최하단 경계 오버스크롤 판단
     const isOverscrollingTop = isAtTopAtEnd && deltaY > 20;
     const isOverscrollingBottom = isAtBottomAtEnd && deltaY < -20;
-
-    console.log('useScrollDragBridge: touchEnd evaluation', {
-      isAtTopAtEnd,
-      isAtBottomAtEnd,
-      isOverscrollingTop,
-      isOverscrollingBottom,
-      didNotScroll,
-      currentSnap: getCurrentSnapType()
-    });
 
     if (didNotScroll || isOverscrollingTop || isOverscrollingBottom) {
       const currentSnap = getCurrentSnapType();

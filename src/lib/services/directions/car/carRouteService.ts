@@ -14,7 +14,7 @@ export async function fetchCarRoute(
   departureTime?: number,
   origCoords?: { sx: number; sy: number; ex: number; ey: number }
 ): Promise<DirectionResult[]> {
-  const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
+  const clientId = process.env.NAVER_CLIENT_ID || process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {

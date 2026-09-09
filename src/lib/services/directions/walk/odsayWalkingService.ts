@@ -43,7 +43,6 @@ export async function getCachedOdsayWalk(
 
   return unstable_cache(
     async () => {
-      console.log(`[odsayWalkingService] ODsay searchWalkPathV2 도보 경로 API 호출 (sx=${wsx}, sy=${wsy}, ex=${wex}, ey=${wey})`);
       try {
         const data = await OdsayAdapter.fetchWalkPathV2(wsx, wsy, wex, wey, apiKey, 'Start', 'End');
         if (data && (data.result || data.paths || data.path)) {

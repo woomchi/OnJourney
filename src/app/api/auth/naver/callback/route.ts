@@ -65,57 +65,43 @@ export async function GET(request: Request) {
     const nickname = naverUser.nickname || naverUser.name || '네이버 여행자';
     const profileImage = naverUser.profile_image || '';
 
-    // 3. Supabase Admin 클라이언트를 사용하여 계정 처리
+    // 3. Supabase Admin 클라이언트를 사용하여 계정 처리 (O(1) 플로우)
     const adminSupabase = createAdminClient();
 
-    // 이메일로 기존 유저 확인
-    const { data: { users }, error: listError } = await adminSupabase.auth.admin.listUsers();
-    if (listError) {
-      console.error('Error listing Supabase users:', listError);
-      return createErrorResponse('supabase_user_check_failed', '사용자 정보 조회 중 오류가 발생했습니다.');
-    }
+    // 3-1. 신규 사용자 생성 시도
+    const { data: newUser, error: createError } = await adminSupabase.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: {
+        nickname,
+        avatar_url: profileImage,
+        provider: 'naver',
+        naver_id: naverId,
+      },
+    });
 
-    let user = users.find((u) => u.email === email);
-
-    if (!user) {
-      // 새 유저 생성
-      const { data: newUser, error: createError } = await adminSupabase.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: {
-          nickname,
-          avatar_url: profileImage,
-          provider: 'naver',
-          naver_id: naverId,
-        },
-      });
-
-      if (createError || !newUser.user) {
-        console.error('Failed to create Supabase user for Naver OAuth:', createError);
-        return createErrorResponse('user_creation_failed', 'Supabase 계정 생성에 실패했습니다.');
-      }
-      user = newUser.user;
-    } else {
-      // 기존 유저 메타데이터 갱신
-      await adminSupabase.auth.admin.updateUserById(user.id, {
-        user_metadata: {
-          ...user.user_metadata,
-          nickname: user.user_metadata?.nickname || nickname,
-          avatar_url: user.user_metadata?.avatar_url || profileImage,
-          provider: 'naver',
-        },
-      });
-    }
-
-    // 4. Supabase 세션 수립 (Magic Link 토큰 발행 후 서버 클라이언트로 verifyOtp)
+    // 3-2. 세션 수립을 위한 Magic Link 토큰 및 유저 정보 발급
     const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({
       type: 'magiclink',
       email,
     });
 
-    if (linkError || !linkData.properties?.hashed_token) {
-      console.error('Failed to generate session link for Naver user:', linkError);
+    if (linkError || !linkData?.properties?.hashed_token || !linkData.user) {
+      console.error('Failed to generate session link for Naver user:', linkError || createError);
       return createErrorResponse('session_link_failed', '로그인 세션 생성 링크를 만들지 못했습니다.');
+    }
+
+    // 3-3. 기존 사용자였던 경우(newUser 미생성 시) 최신 프로필 메타데이터 갱신
+    if (!newUser?.user) {
+      const existingUser = linkData.user;
+      await adminSupabase.auth.admin.updateUserById(existingUser.id, {
+        user_metadata: {
+          ...existingUser.user_metadata,
+          nickname: existingUser.user_metadata?.nickname || nickname,
+          avatar_url: existingUser.user_metadata?.avatar_url || profileImage,
+          provider: 'naver',
+        },
+      });
     }
 
     const serverSupabase = await createClient();

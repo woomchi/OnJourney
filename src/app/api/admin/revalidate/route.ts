@@ -1,5 +1,10 @@
 import { revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+
+const revalidateSchema = z.object({
+  tag: z.string().trim().min(1, '태그 이름은 비어있을 수 없습니다.').optional(),
+});
 
 /**
  * 온디맨드 캐시 파기 관리자 API
@@ -9,16 +14,36 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function POST(req: NextRequest) {
   const secretKey = process.env.ADMIN_SECRET_KEY;
-  if (secretKey) {
-    const authHeader = req.headers.get('x-admin-secret') || req.headers.get('authorization');
-    if (!authHeader || !authHeader.includes(secretKey)) {
-      return NextResponse.json({ success: false, error: '인증 권한이 없습니다.' }, { status: 401 });
-    }
+  if (!secretKey) {
+    return NextResponse.json(
+      { success: false, error: '서버 관리자 키(ADMIN_SECRET_KEY)가 구성되지 않아 엔드포인트가 비활성화되었습니다.' },
+      { status: 503 }
+    );
+  }
+
+  const rawAuth = req.headers.get('x-admin-secret') || req.headers.get('authorization');
+  const token = rawAuth?.startsWith('Bearer ') ? rawAuth.slice(7).trim() : rawAuth?.trim();
+
+  if (!token || token !== secretKey) {
+    return NextResponse.json({ success: false, error: '인증 권한이 없습니다.' }, { status: 401 });
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const targetTag = body.tag;
+    const rawBody = await req.json().catch(() => ({}));
+    const parseResult = revalidateSchema.safeParse(rawBody);
+
+    if (!parseResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: '잘못된 요청 파라미터입니다.',
+          details: parseResult.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+
+    const targetTag = parseResult.data.tag;
 
     if (targetTag) {
       revalidateTag(targetTag, 'default');
@@ -39,9 +64,10 @@ export async function POST(req: NextRequest) {
       message: '대중교통 관련 서버 캐시(Polyline, 정류장, 길찾기)가 일괄 초기화되었습니다.',
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : '캐시 초기화 중 오류가 발생했습니다.';
     return NextResponse.json(
-      { success: false, error: error.message || '캐시 초기화 중 오류가 발생했습니다.' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

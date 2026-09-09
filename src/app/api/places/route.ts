@@ -4,7 +4,6 @@ import { placesQuerySchema } from '@/lib/validations/places';
 import { fetchPlaces } from '@/lib/services/placesService';
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
-  console.log('[DEBUG] GET /api/places handler reached! Query:', request.url);
   const { searchParams } = new URL(request.url);
   const rawParams = Object.fromEntries(searchParams.entries());
 

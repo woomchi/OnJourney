@@ -238,7 +238,10 @@ const fetchPopularityCountsMap = unstable_cache(
         throw new Error('NEXT_PUBLIC_SUPABASE_URL 또는 NEXT_PUBLIC_SUPABASE_ANON_KEY 환경변수가 설정되지 않았습니다.');
       }
       const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
-      const { data: journeys, error } = await supabase.from('journeys').select('places');
+      const { data: journeys, error } = await supabase
+        .from('journeys')
+        .select('places')
+        .eq('is_public', true);
 
       if (error || !journeys) {
         console.error('[placesService] 인기도 점수 DB 조회 실패:', error);

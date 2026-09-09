@@ -229,8 +229,21 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     localStorage.removeItem('onjourney_recent_queries');
   };
 
+  const activeSearchId = useRef(0);
+  const activeSuggestionId = useRef(0);
+  const suggestionAbortControllerRef = useRef<AbortController | null>(null);
+
+  // 언마운트 시 비동기 추천 요청 취소
+  useEffect(() => {
+    return () => {
+      suggestionAbortControllerRef.current?.abort();
+    };
+  }, []);
+
   // 검색 모드 진입/복귀 시 상태 초기화
   useEffect(() => {
+    suggestionAbortControllerRef.current?.abort();
+    activeSuggestionId.current++;
     if (isSearchMode) {
       setSearchQuery('');
       setSearchResults([]);
@@ -255,9 +268,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setAddedIds(new Set((activeJourney?.places || []).map(p => p.id)));
   }, [activeJourney?.places]);
 
-  const activeSearchId = useRef(0);
-  const activeSuggestionId = useRef(0);
-
   // 1. 입력 중 추천 검색어(자동완성) 드롭다운용 API 조회
   const fetchSuggestions = useCallback(async (q: string) => {
     const currentSuggestionId = ++activeSuggestionId.current;
@@ -266,6 +276,12 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       setIsDropdownOpen(false);
       return;
     }
+
+    // 이전 진행 중인 추천 요청 취소 및 새 AbortController 생성
+    suggestionAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    suggestionAbortControllerRef.current = controller;
+
     setIsSuggestionsLoading(true);
     try {
       const currentBounds = useJourneyStore.getState().mapBounds;
@@ -277,13 +293,17 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         ? `&transport_type=${activeJourney.transport_type}`
         : '';
 
-      let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`);
+      let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`, {
+        signal: controller.signal,
+      });
       if (currentSuggestionId !== activeSuggestionId.current) return;
       let payload = await res.json();
       let items: PlaceResult[] = payload.data?.items || [];
 
       if (items.length < 3) {
-        const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}${transportParam}`);
+        const fallbackRes = await fetch(`/api/places?query=${encodeURIComponent(q)}${coordParam}${transportParam}`, {
+          signal: controller.signal,
+        });
         if (currentSuggestionId !== activeSuggestionId.current) return;
         const fallbackPayload = await fallbackRes.json();
         if (fallbackRes.ok && fallbackPayload.success && fallbackPayload.data?.items) {
@@ -295,7 +315,8 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       items.sort((a, b) => (b.score || 0) - (a.score || 0));
       setSuggestions(items);
       setIsDropdownOpen(items.length > 0);
-    } catch {
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
       if (currentSuggestionId !== activeSuggestionId.current) return;
       setSuggestions([]);
     } finally {
@@ -312,6 +333,16 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   // 2. 검색 확정 실행 (Enter, 검색 버튼, 드롭다운 클릭, 최근검색어 태그 클릭)
   const runSearch = useCallback(async (q: string, triggerMapHighlight: boolean = true) => {
     const currentSearchId = ++activeSearchId.current;
+
+    // 추천 검색어 요청 즉시 취소 및 ID 무효화
+    suggestionAbortControllerRef.current?.abort();
+    activeSuggestionId.current++;
+    debouncedFetchSuggestions.cancel();
+
+    setIsDropdownOpen(false);
+    setSuggestions([]);
+    setIsSuggestionsLoading(false);
+
     if (q.trim().length < 1) {
       setSearchResults([]);
       clearRecommendedPlaces();
@@ -321,8 +352,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       return;
     }
 
-    setIsDropdownOpen(false);
-    debouncedFetchSuggestions.cancel();
     setIsSearchLoading(true);
     setSearchError(null);
     setHasSearched(true);
@@ -447,8 +476,12 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const handleTagClick = useCallback((q: string) => {
     if (hasDragged) return;
     dismissKeyboard();
-    setSearchQuery(q);
+    suggestionAbortControllerRef.current?.abort();
+    activeSuggestionId.current++;
     debouncedFetchSuggestions.cancel();
+    setSuggestions([]);
+    setIsDropdownOpen(false);
+    setSearchQuery(q);
     runSearch(q, true);
     saveRecentQuery(q);
     if (typeof window !== 'undefined') {
@@ -458,9 +491,12 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
   const handleSelectSuggestion = (item: PlaceResult) => {
     dismissKeyboard();
-    setSearchQuery(item.place_name);
-    setIsDropdownOpen(false);
+    suggestionAbortControllerRef.current?.abort();
+    activeSuggestionId.current++;
     debouncedFetchSuggestions.cancel();
+    setSuggestions([]);
+    setIsDropdownOpen(false);
+    setSearchQuery(item.place_name);
     saveRecentQuery(item.place_name);
 
     // 추천 항목을 선택했을 때 해당 항목을 바로 마커/줌 하이라이트 및 카드 생성
@@ -470,8 +506,14 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     dismissKeyboard();
+    suggestionAbortControllerRef.current?.abort();
+    activeSuggestionId.current++;
+    debouncedFetchSuggestions.cancel();
+    setIsDropdownOpen(false);
+    setSuggestions([]);
+    setIsSuggestionsLoading(false);
+
     if (searchQuery.trim().length > 0) {
-      debouncedFetchSuggestions.cancel();
       saveRecentQuery(searchQuery);
       runSearch(searchQuery, true);
       if (typeof window !== 'undefined') {
@@ -482,14 +524,23 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleSearchSubmit(e);
+      // 한글 IME 조합 상태에서 중복 실행 방지
+      if (e.nativeEvent.isComposing) return;
+      e.preventDefault();
+      handleSearchSubmit();
     } else if (e.key === 'Escape') {
+      suggestionAbortControllerRef.current?.abort();
+      activeSuggestionId.current++;
+      debouncedFetchSuggestions.cancel();
       setIsDropdownOpen(false);
+      setSuggestions([]);
       dismissKeyboard();
     }
   };
 
   const handleClearInput = () => {
+    suggestionAbortControllerRef.current?.abort();
+    activeSuggestionId.current++;
     setSearchQuery('');
     debouncedFetchSuggestions.cancel();
     setSuggestions([]);
@@ -597,7 +648,9 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
               onChange={handleSearchInputChange}
               onKeyDown={handleKeyDown}
               onFocus={() => {
-                if (suggestions.length > 0) setIsDropdownOpen(true);
+                if (suggestions.length > 0 && !hasSearched) {
+                  setIsDropdownOpen(true);
+                }
                 if (typeof window !== 'undefined') {
                   window.scrollTo(0, 0);
                   setTimeout(() => window.scrollTo(0, 0), 50);

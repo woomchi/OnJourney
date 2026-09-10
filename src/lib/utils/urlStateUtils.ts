@@ -63,15 +63,32 @@ export function parseUrlState(searchParamsOrQuery: URLSearchParams | string): Ur
 
 /**
  * 현재 앱 상태를 URLSearchParams로 직렬화합니다.
+ * 기존 파라미터(예: pwa=true 등)가 주어지면 라우팅 예약 키를 제외하고 보존합니다.
  */
-export function serializeUrlState(state: {
-  journeyId?: string | null;
-  focusedSegment?: FocusedSegment | null;
-  focusedStep?: FocusedStep | null;
-  alternativeSegment?: FocusedSegment | null;
-  isSearchMode?: boolean;
-}): URLSearchParams {
+export function serializeUrlState(
+  state: {
+    journeyId?: string | null;
+    focusedSegment?: FocusedSegment | null;
+    focusedStep?: FocusedStep | null;
+    alternativeSegment?: FocusedSegment | null;
+    isSearchMode?: boolean;
+  },
+  currentParams?: URLSearchParams | string
+): URLSearchParams {
   const params = new URLSearchParams();
+
+  if (currentParams) {
+    const existing =
+      typeof currentParams === 'string'
+        ? new URLSearchParams(currentParams.startsWith('?') ? currentParams.slice(1) : currentParams)
+        : currentParams;
+    const reservedKeys = new Set(['j', 's', 'st', 'alt', 'search']);
+    existing.forEach((val, key) => {
+      if (!reservedKeys.has(key)) {
+        params.set(key, val);
+      }
+    });
+  }
 
   if (state.journeyId) {
     params.set('j', state.journeyId);
@@ -95,3 +112,4 @@ export function serializeUrlState(state: {
 
   return params;
 }
+

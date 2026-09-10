@@ -90,5 +90,16 @@ describe('urlStateUtils', () => {
       const params = serializeUrlState({ isSearchMode: true });
       expect(params.get('search')).toBe('1');
     });
+
+    it('기존 파라미터(예: pwa=true)가 주어지면 보존하면서 직렬화한다', () => {
+      const params = serializeUrlState(
+        { journeyId: 'j1', focusedSegment: { originId: 'a', destId: 'b' } },
+        'pwa=true&custom=123'
+      );
+      expect(params.get('pwa')).toBe('true');
+      expect(params.get('custom')).toBe('123');
+      expect(params.get('j')).toBe('j1');
+      expect(params.get('s')).toBe('a:b');
+    });
   });
 });

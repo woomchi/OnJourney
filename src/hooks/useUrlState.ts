@@ -44,8 +44,9 @@ export function useUrlState() {
   const openSearchMode = useJourneyStore((state) => state.openSearchMode);
   const closeSearchMode = useJourneyStore((state) => state.closeSearchMode);
 
-  // 동기화 플래그 및 이전 상태 추적 (무한 루프 방지)
+  // 동기화 플래그 및 이전 상태 추적 (무한 루프 및 Race Condition 방지)
   const isApplyingUrlToStateRef = useRef(false);
+  const isUpdatingUrlFromStateRef = useRef(false);
   const prevUrlSearchStringRef = useRef<string>('');
   const prevJourneyIdRef = useRef<string | null>(activeJourney?.id ?? null);
   const isInitialLoadRef = useRef(true);
@@ -55,6 +56,12 @@ export function useUrlState() {
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (authLoading) return;
+
+    // 만약 앱 내부에서 State -> URL 동기화로 인해 발생한 searchParams 변경이라면 스킵
+    if (isUpdatingUrlFromStateRef.current) {
+      isUpdatingUrlFromStateRef.current = false;
+      return;
+    }
 
     const currentSearchString = searchParams.toString();
     if (currentSearchString === prevUrlSearchStringRef.current && !isInitialLoadRef.current) {
@@ -68,11 +75,19 @@ export function useUrlState() {
       isApplyingUrlToStateRef.current = true;
 
       try {
+        const state = useJourneyStore.getState();
+        const currentActive = state.activeJourney;
+        const currentJourneys = state.journeys;
+        const currentFocusedSegment = state.focusedSegment;
+        const currentFocusedStep = state.focusedStep;
+        const currentAltSegment = state.alternativeSegment;
+        const currentSearchMode = state.isSearchMode;
+
         // [A] 여정 동기화
         if (parsed.journeyId) {
-          if (!activeJourney || activeJourney.id !== parsed.journeyId) {
+          if (!currentActive || currentActive.id !== parsed.journeyId) {
             // 1) 메모리 상의 journeys 목록에서 검색
-            const existingJourney = journeys.find((j) => j.id === parsed.journeyId);
+            const existingJourney = currentJourneys.find((j) => j.id === parsed.journeyId);
             if (existingJourney) {
               setActiveJourney(existingJourney);
             } else if (user) {
@@ -96,55 +111,55 @@ export function useUrlState() {
               openAuthModal();
             }
           }
-        } else if (activeJourney) {
-          // URL에 j가 없는데 활성 여정이 세팅되어 있는 경우 (예: 뒤로가기로 목록 복귀)
+        } else if (currentActive) {
+          // URL에 j가 없는데 활성 여정이 세팅되어 있는 경우 (예: 브라우저 뒤로가기로 목록 복귀)
           clearJourney();
         }
 
         // [B] 구간 포커스 동기화
         if (parsed.focusedSegment) {
           if (
-            !focusedSegment ||
-            focusedSegment.originId !== parsed.focusedSegment.originId ||
-            focusedSegment.destId !== parsed.focusedSegment.destId
+            !currentFocusedSegment ||
+            currentFocusedSegment.originId !== parsed.focusedSegment.originId ||
+            currentFocusedSegment.destId !== parsed.focusedSegment.destId
           ) {
             setFocusedSegment(parsed.focusedSegment);
           }
-        } else if (focusedSegment) {
+        } else if (currentFocusedSegment) {
           setFocusedSegment(null);
         }
 
         // [C] 세부 스텝 동기화
         if (parsed.focusedStep) {
           if (
-            !focusedStep ||
-            focusedStep.originId !== parsed.focusedStep.originId ||
-            focusedStep.destId !== parsed.focusedStep.destId ||
-            focusedStep.stepIndex !== parsed.focusedStep.stepIndex
+            !currentFocusedStep ||
+            currentFocusedStep.originId !== parsed.focusedStep.originId ||
+            currentFocusedStep.destId !== parsed.focusedStep.destId ||
+            currentFocusedStep.stepIndex !== parsed.focusedStep.stepIndex
           ) {
             setFocusedStep(parsed.focusedStep);
           }
-        } else if (focusedStep) {
+        } else if (currentFocusedStep) {
           setFocusedStep(null);
         }
 
         // [D] 대안 경로 구간 동기화
         if (parsed.alternativeSegment) {
           if (
-            !alternativeSegment ||
-            alternativeSegment.originId !== parsed.alternativeSegment.originId ||
-            alternativeSegment.destId !== parsed.alternativeSegment.destId
+            !currentAltSegment ||
+            currentAltSegment.originId !== parsed.alternativeSegment.originId ||
+            currentAltSegment.destId !== parsed.alternativeSegment.destId
           ) {
             setAlternativeSegment(parsed.alternativeSegment);
           }
-        } else if (alternativeSegment) {
+        } else if (currentAltSegment) {
           setAlternativeSegment(null);
         }
 
         // [E] 검색 모드 동기화
-        if (parsed.isSearchMode && !isSearchMode) {
+        if (parsed.isSearchMode && !currentSearchMode) {
           openSearchMode();
-        } else if (!parsed.isSearchMode && isSearchMode) {
+        } else if (!parsed.isSearchMode && currentSearchMode) {
           closeSearchMode();
         }
       } finally {
@@ -161,12 +176,6 @@ export function useUrlState() {
     searchParams,
     authLoading,
     user,
-    journeys,
-    activeJourney,
-    focusedSegment,
-    focusedStep,
-    alternativeSegment,
-    isSearchMode,
     pathname,
     router,
     alert,
@@ -192,13 +201,16 @@ export function useUrlState() {
     const isJourneyChanged = currentJourneyId !== prevJourneyIdRef.current;
     prevJourneyIdRef.current = currentJourneyId;
 
-    const params = serializeUrlState({
-      journeyId: activeJourney?.id,
-      focusedSegment,
-      focusedStep,
-      alternativeSegment,
-      isSearchMode,
-    });
+    const params = serializeUrlState(
+      {
+        journeyId: activeJourney?.id,
+        focusedSegment,
+        focusedStep,
+        alternativeSegment,
+        isSearchMode,
+      },
+      searchParams
+    );
 
     const newQueryString = params.toString();
     const currentQueryString = searchParams.toString();
@@ -209,6 +221,7 @@ export function useUrlState() {
 
     const newUrl = newQueryString ? `${pathname}?${newQueryString}` : (pathname || '/');
     prevUrlSearchStringRef.current = newQueryString;
+    isUpdatingUrlFromStateRef.current = true;
 
     // 여정 전환 시에는 push (뒤로가기로 이전 여정/목록 복귀 지원)
     // 세부 패널/검색/스텝 조작 시에는 replace (히스토리 과다 누적 방지)
@@ -232,3 +245,4 @@ export function useUrlState() {
     updateUrlFromState();
   }, [updateUrlFromState]);
 }
+

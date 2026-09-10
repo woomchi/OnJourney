@@ -178,10 +178,10 @@ export function RoutePanels() {
         />
       )}
 
-      {/* 길안내 패널 (데스크톱 웹 환경 전용) */}
+      {/* 길안내 패널 (반응형: 데스크톱 사이드 패널 / 모바일 3분할 카드 스택 & 재생바) */}
       {cachedRouteGuide && (
         <RouteGuidePanel
-          isOpen={!isMobile && showRouteGuide && !isSearchMode && !isDrawerMaximized && !showSubwayLineMap && !showBusLineMap}
+          isOpen={showRouteGuide && !isSearchMode && !isDrawerMaximized && !showSubwayLineMap && !showBusLineMap}
           originPlace={cachedRouteGuide.originPlace}
           destPlace={cachedRouteGuide.destPlace}
           route={cachedRouteGuide.route}

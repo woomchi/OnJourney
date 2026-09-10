@@ -7,8 +7,6 @@ import { useShallow } from 'zustand/react/shallow';
 import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { motion, useTransform, useMotionValue } from 'framer-motion';
 import { useDialog } from '@/providers/DialogProvider';
-import HorizontalJourneyTimelineBar from '@/components/sidebar/HorizontalJourneyTimelineBar';
-import JourneyControlFloatingBar from '@/components/sidebar/JourneyControlFloatingBar';
 import FixedJourneyTimelineSheet from '@/components/sidebar/FixedJourneyTimelineSheet';
 import EditJourneyModal from '@/components/modals/EditJourneyModal';
 import CreateJourneyModal from '@/components/modals/CreateJourneyModal';
@@ -99,11 +97,9 @@ const CloseSearchFloatingButton = ({ onClick }: { onClick: () => void }) => (
   </div>
 );
 
-import { usePWA } from '@/components/PWAProvider';
 import { parseSnapVal } from '@/lib/utils/snapUtils';
 
 export default function JourneySidebar() {
-  const { isInstalled } = usePWA();
   const { user, loading: authLoading, openAuthModal } = useAuth();
   const y = useMotionValue(0);
   const scrollProgress = useMotionValue(1); // 1: 최하단, 0: 최하단 아님 (React 리렌더링 병목 제거용 MotionValue)

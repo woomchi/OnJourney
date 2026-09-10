@@ -14,6 +14,8 @@ interface FocusedStepControlBarProps {
   hasNextSegment: boolean;
   showStepPlayIcon: boolean;
   stepProgressPercent: number;
+  stageTitle?: string;
+  stageSubtitle?: string;
   onPrevStep: () => void;
   onNextStep: () => void;
   onPlayStepToggle: () => void;
@@ -28,6 +30,8 @@ export function FocusedStepControlBar({
   hasNextSegment,
   showStepPlayIcon,
   stepProgressPercent,
+  stageTitle,
+  stageSubtitle,
   onPrevStep,
   onNextStep,
   onPlayStepToggle,
@@ -39,7 +43,7 @@ export function FocusedStepControlBar({
         <button
           type="button"
           onClick={onPrevStep}
-          disabled={currentStepIdx <= 0 && !hasPrevSegment}
+          disabled={currentStepIdx < 0 && !hasPrevSegment}
           className="w-8 h-8 flex items-center justify-center text-zinc-600 hover:text-zinc-950 disabled:opacity-20 disabled:pointer-events-none active:scale-90 transition-all rounded-lg hover:bg-zinc-200/50 cursor-pointer"
           aria-label="이전 단계"
           title="이전 단계"
@@ -84,18 +88,32 @@ export function FocusedStepControlBar({
         onClick={onPlayStepToggle}
       >
         <div className="text-xs font-extrabold text-zinc-800 flex items-center justify-end gap-1.5 truncate w-full">
-          <span className="truncate max-w-[100px]" title={focusedOrigin?.place_name}>
-            {focusedOrigin?.place_name}
-          </span>
-          <ArrowRight className="w-3 h-3 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
-          <span className="truncate max-w-[100px]" title={focusedDest?.place_name}>
-            {focusedDest?.place_name}
-          </span>
+          {currentStepIdx >= 0 && stageTitle ? (
+            <span className="truncate max-w-[180px] text-blue-600 font-black">
+              {stageTitle}
+            </span>
+          ) : (
+            <>
+              <span className="truncate max-w-[100px]" title={focusedOrigin?.place_name}>
+                {focusedOrigin?.place_name}
+              </span>
+              <ArrowRight className="w-3 h-3 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
+              <span className="truncate max-w-[100px]" title={focusedDest?.place_name}>
+                {focusedDest?.place_name}
+              </span>
+            </>
+          )}
         </div>
         <div className="text-[11px] font-bold text-zinc-500 flex items-center justify-end gap-1.5 mt-0.5 w-full">
-          <span>
-            {currentStepIdx >= 0 ? `${currentStepIdx + 1} / ${totalStepsCount} 단계` : `총 ${totalStepsCount}단계`}
-          </span>
+          {currentStepIdx >= 0 ? (
+            <span>
+              {`${currentStepIdx + 1} / ${totalStepsCount} 단계`}{stageSubtitle ? ` · ${stageSubtitle}` : ''}
+            </span>
+          ) : (
+            <span className="text-zinc-400">
+              전체 경로 · 총 {totalStepsCount}단계
+            </span>
+          )}
         </div>
       </div>
 

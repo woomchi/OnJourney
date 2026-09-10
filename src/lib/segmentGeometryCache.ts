@@ -107,20 +107,72 @@ export function getSegmentGeometry(
 
   const startColor = getSequenceTheme(placeIdx, totalPlacesCount).color;
 
-  // 1. 출발지 마커 추가
+  // 1. 출발지 마커 추가 및 첫 번째 이동수단 마커 항상 결합 생성
   if (place.lat !== undefined && place.lng !== undefined && !isNaN(place.lat) && !isNaN(place.lng)) {
+    const originPos = { lat: Number(place.lat), lng: Number(place.lng) };
+
     rawTransferPoints.push({
       key: `start-${place.id}-${nextPlace.id}`,
       originId: place.id,
       destId: nextPlace.id,
-      position: { lat: Number(place.lat), lng: Number(place.lng) },
+      position: originPos,
       busName: place.place_name,
       type: 'start',
       color: startColor,
       stationName: '출발지',
       isStart: true,
       isSegmentStart: true,
-      stepIndex: -1,
+      stepIndex: 0,
+    });
+
+    // 모든 경로에 대해 첫 번째 이동수단 마커를 동일 좌표로 함께 생성하여 그룹 결합 보장
+    const firstStep = activeRoute.steps[0];
+    let initialType = 'walk';
+    let initialName = '도보';
+    let initialColor = '#71717A';
+
+    if (firstStep) {
+      initialType = firstStep.type;
+      if (firstStep.type === 'walk') {
+        initialName = '도보';
+        initialColor = '#71717A';
+      } else if (firstStep.type === 'car' || firstStep.type === 'taxi') {
+        initialName = firstStep.type === 'taxi' ? '택시' : '차량';
+        initialColor = '#4F46E5';
+      } else if (firstStep.type === 'bus' || firstStep.type === 'expressbus') {
+        initialName = firstStep.name || '버스';
+        initialColor = firstStep.color || '#3B82F6';
+      } else if (firstStep.type === 'subway' || firstStep.type === 'train') {
+        initialName = firstStep.name || '지하철';
+        initialColor = firstStep.color || '#10B981';
+      }
+    } else {
+      if (activeRoute.type === 'car' || activeRoute.type === 'taxi') {
+        initialType = 'car';
+        initialName = activeRoute.type === 'taxi' ? '택시' : '차량';
+        initialColor = '#4F46E5';
+      } else if (activeRoute.type === 'walk') {
+        initialType = 'walk';
+        initialName = '도보';
+        initialColor = '#71717A';
+      } else {
+        initialType = 'bus';
+        initialName = '대중교통';
+        initialColor = '#3B82F6';
+      }
+    }
+
+    rawTransferPoints.push({
+      key: `initial-movement-${place.id}-${nextPlace.id}`,
+      originId: place.id,
+      destId: nextPlace.id,
+      position: originPos,
+      busName: initialName,
+      type: initialType,
+      color: initialColor,
+      stationName: `${initialName} 출발`,
+      isFirst: true,
+      stepIndex: 0,
     });
   }
 
@@ -153,6 +205,9 @@ export function getSegmentGeometry(
 
     // ── A. 도보 출발 마커 수집 ──
     if (step.type === 'walk') {
+      // sIdx === 0인 첫 도보는 위에서 initial-movement로 이미 출발지와 완벽 결합되었으므로 중복 생성 생략
+      if (sIdx === 0) return;
+
       const { lat: firstLat, lng: firstLng } = getShiftedStepPoint(step, true);
       if (firstLat !== undefined && firstLng !== undefined) {
         rawTransferPoints.push({
@@ -164,7 +219,7 @@ export function getSegmentGeometry(
           type: 'walk',
           color: '#71717A',
           stationName: '도보 출발지',
-          isFirst: true,
+          isFirst: false,
           stepIndex: sIdx,
         });
       }

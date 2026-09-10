@@ -271,12 +271,16 @@ export const RouteSegmentCard: React.FC<RouteSegmentCardProps> = ({
 
       {/* Bottom Footer / Action Helper */}
       <div className="flex items-center justify-between text-xs text-zinc-500 pt-0.5">
-        <div className="flex items-center gap-1">
-          <Navigation className="w-3.5 h-3.5 text-blue-600" />
-          <span className="font-bold text-[11px] text-zinc-600">
-            {step.type === 'walk' ? '경로 따라 걷기' : '하차 알림 제공 중'}
-          </span>
-        </div>
+        {step.type === 'walk' ? (
+          <div className="flex items-center gap-1">
+            <Navigation className="w-3.5 h-3.5 text-blue-600" />
+            <span className="font-bold text-[11px] text-zinc-600">
+              경로 따라 걷기
+            </span>
+          </div>
+        ) : (
+          <div />
+        )}
         <div
           onClick={handleDetailClick}
           className="flex items-center gap-0.5 text-blue-600 font-extrabold text-[11px] hover:text-blue-700 cursor-pointer p-1 rounded-lg hover:bg-blue-50 transition-colors"

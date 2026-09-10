@@ -156,7 +156,7 @@ export default function TransferMarkers({
             return !!(point.isSegmentDest || point.stepIndex === focusedStep.stepIndex - 1);
           }
           if (focusedStep.subType === 'start') {
-            return point.stepIndex === focusedStep.stepIndex && !point.isAlighting && !point.isSegmentDest;
+            return !!(point.isSegmentStart || (point.stepIndex === 0 && !point.isAlighting && !point.isSegmentDest));
           }
           if (focusedStep.subType === 'end') {
             return point.stepIndex === focusedStep.stepIndex && !!point.isAlighting;
@@ -204,14 +204,25 @@ export default function TransferMarkers({
             >
               {subPoints.map((subPt: TransferPoint, idx: number) => {
                 const busNameStr = subPt.busName || '';
+                const isCarType = subPt.type === 'car' || subPt.type === 'taxi';
                 const displayBusName = subPt.isAlighting
                   ? busNameStr
-                  : ((subPt.isSegmentDest || subPt.isSegmentStart) ? busNameStr : (subPt.type === 'walk' ? '도보 이동' : (busNameStr ? busNameStr.replace(' 버스', '') : '대중교통')));
+                  : ((subPt.isSegmentDest || subPt.isSegmentStart)
+                      ? busNameStr
+                      : (subPt.type === 'walk'
+                          ? '도보 이동'
+                          : (isCarType
+                              ? (subPt.type === 'taxi' ? '택시 이동' : '차량 이동')
+                              : (busNameStr ? busNameStr.replace(' 버스', '') : '대중교통'))));
                 const labelText = subPt.isSegmentStart 
                   ? '출발' 
                   : (subPt.isSegmentDest 
                       ? '도착' 
-                      : (subPt.isAlighting ? '하차' : (subPt.type === 'walk' ? '도보' : (subPt.isFirst ? '탑승' : '환승'))));
+                      : (subPt.isAlighting
+                          ? '하차'
+                          : (subPt.type === 'walk'
+                              ? '도보'
+                              : (isCarType ? '탑승' : (subPt.isFirst ? '탑승' : '환승')))));
 
                 return (
                   <Fragment key={subPt.key || idx}>
@@ -244,6 +255,8 @@ export default function TransferMarkers({
                           '🚇'
                         ) : subPt.type === 'train' ? (
                           '🚄'
+                        ) : isCarType ? (
+                          '🚗'
                         ) : (
                           '🚌'
                         )}

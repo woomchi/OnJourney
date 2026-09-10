@@ -6,6 +6,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import type { Place, SelectedRoute, DirectionResult, DirectionStep } from '@/types/journey';
 import { formatDurationMinutes } from '@/lib/utils/journeyUtils';
 import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
+import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 
 interface HorizontalTransitRouteStepLineProps {
   route: SelectedRoute | DirectionResult | null;
@@ -25,6 +26,64 @@ export default function HorizontalTransitRouteStepLine({
 
   const steps = route?.steps || [];
 
+  const isOriginStageActive = (
+    focusedStep?.originId === originPlace.id &&
+    focusedStep?.destId === destPlace.id &&
+    (focusedStep?.subType === 'start' || (focusedStep?.stepIndex === 0 && !focusedStep?.subType))
+  );
+
+  const isOriginFocused = isOriginStageActive;
+
+  const isDestFocused = (
+    focusedStep?.originId === originPlace.id &&
+    focusedStep?.destId === destPlace.id &&
+    focusedStep?.subType === 'dest'
+  );
+
+  // 출발지 노드 클릭 핸들러
+  const handleOriginClick = () => {
+    if (isOriginFocused) {
+      setFocusedStep(null);
+      if (route) {
+        const bounds = calculateSegmentBounds(originPlace, destPlace, route);
+        setFocusBounds(bounds);
+      }
+    } else {
+      setFocusedStep({
+        originId: originPlace.id,
+        destId: destPlace.id,
+        stepIndex: 0,
+        subType: 'start',
+      });
+      setFocusBounds({
+        sw: { lat: originPlace.lat - 0.0025, lng: originPlace.lng - 0.0025 },
+        ne: { lat: originPlace.lat + 0.0025, lng: originPlace.lng + 0.0025 },
+      });
+    }
+  };
+
+  // 도착지 노드 클릭 핸들러
+  const handleDestClick = () => {
+    if (isDestFocused) {
+      setFocusedStep(null);
+      if (route) {
+        const bounds = calculateSegmentBounds(originPlace, destPlace, route);
+        setFocusBounds(bounds);
+      }
+    } else {
+      setFocusedStep({
+        originId: originPlace.id,
+        destId: destPlace.id,
+        stepIndex: steps.length,
+        subType: 'dest',
+      });
+      setFocusBounds({
+        sw: { lat: destPlace.lat - 0.0025, lng: destPlace.lng - 0.0025 },
+        ne: { lat: destPlace.lat + 0.0025, lng: destPlace.lng + 0.0025 },
+      });
+    }
+  };
+
   // 특정 스텝 클릭 핸들러
   const handleStepClick = (idx: number, step: DirectionStep, subType?: 'start' | 'end' | 'dest') => {
     const isAlreadyFocused = (
@@ -36,6 +95,10 @@ export default function HorizontalTransitRouteStepLine({
 
     if (isAlreadyFocused) {
       setFocusedStep(null);
+      if (route) {
+        const bounds = calculateSegmentBounds(originPlace, destPlace, route);
+        setFocusBounds(bounds);
+      }
       return;
     }
 
@@ -56,6 +119,26 @@ export default function HorizontalTransitRouteStepLine({
         sw: { lat: step.endLat - 0.002, lng: step.endLng - 0.002 },
         ne: { lat: step.endLat + 0.002, lng: step.endLng + 0.002 },
       });
+    } else if (step.pathPoints && step.pathPoints.length > 0) {
+      let minLat = step.pathPoints[0].lat;
+      let maxLat = step.pathPoints[0].lat;
+      let minLng = step.pathPoints[0].lng;
+      let maxLng = step.pathPoints[0].lng;
+      step.pathPoints.forEach(p => {
+        minLat = Math.min(minLat, p.lat);
+        maxLat = Math.max(maxLat, p.lat);
+        minLng = Math.min(minLng, p.lng);
+        maxLng = Math.max(maxLng, p.lng);
+      });
+      setFocusBounds({
+        sw: { lat: minLat - 0.0015, lng: minLng - 0.0015 },
+        ne: { lat: maxLat + 0.0015, lng: maxLng + 0.0015 },
+      });
+    } else if (step.startLat && step.startLng) {
+      setFocusBounds({
+        sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
+        ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
+      });
     }
   };
 
@@ -67,14 +150,34 @@ export default function HorizontalTransitRouteStepLine({
     >
       <div className="flex items-center shrink-0 gap-1.5 h-full">
         {/* 1. 출발지 노드 */}
-        <div className="flex flex-col items-center justify-between w-[78px] shrink-0 h-full py-1">
-          <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 border border-blue-200/80 px-1.5 py-0.5 rounded-full">
+        <div
+          onClick={handleOriginClick}
+          className={`flex flex-col items-center justify-between w-[78px] shrink-0 h-full py-1 cursor-pointer transition-all ${
+            isOriginFocused ? 'scale-110' : 'hover:opacity-90'
+          }`}
+        >
+          <span
+            className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full transition-all ${
+              isOriginFocused
+                ? 'text-white bg-blue-600 shadow-xs'
+                : 'text-blue-600 bg-blue-50 border border-blue-200/80'
+            }`}
+          >
             출발
           </span>
-          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+          <div
+            className={`w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center transition-all ${
+              isOriginFocused ? 'ring-4 ring-blue-400/40 shadow-md' : 'shadow-xs'
+            }`}
+          >
             <MapPin className="w-3.5 h-3.5" />
           </div>
-          <span className="text-[11px] font-bold text-zinc-900 truncate max-w-full text-center" title={originPlace.place_name}>
+          <span
+            className={`text-[11px] truncate max-w-full text-center transition-all ${
+              isOriginFocused ? 'font-black text-blue-700' : 'font-bold text-zinc-900'
+            }`}
+            title={originPlace.place_name}
+          >
             {originPlace.place_name}
           </span>
         </div>
@@ -89,14 +192,15 @@ export default function HorizontalTransitRouteStepLine({
 
             const stepColor = step.color || (isSubway ? '#10B981' : isBus ? '#3B82F6' : isCar ? '#4F46E5' : '#94A3B8');
             const isStepFocused = focusedStep?.originId === originPlace.id && focusedStep?.destId === destPlace.id && focusedStep?.stepIndex === idx;
+            const isThisStepActive = idx === 0 ? isOriginStageActive : isStepFocused;
 
             if (isWalk) {
               return (
                 <div
                   key={`step-walk-${idx}`}
-                  onClick={() => handleStepClick(idx, step)}
+                  onClick={() => (idx === 0 ? handleOriginClick() : handleStepClick(idx, step))}
                   className={`flex flex-col items-center justify-between min-w-[56px] px-1 shrink-0 h-full py-1 cursor-pointer transition-all ${
-                    isStepFocused ? 'opacity-100 scale-105' : 'opacity-85 hover:opacity-100'
+                    isThisStepActive ? 'opacity-100 scale-105 ring-2 ring-blue-300/60 rounded-xl bg-blue-50/40' : 'opacity-85 hover:opacity-100'
                   }`}
                 >
                   <span className="text-[10px] font-bold text-zinc-500">
@@ -120,9 +224,11 @@ export default function HorizontalTransitRouteStepLine({
               <div key={`step-transit-${idx}`} className="flex items-center shrink-0">
                 {/* 탑승역 노드 */}
                 <div
-                  onClick={() => handleStepClick(idx, step, 'start')}
+                  onClick={() => (idx === 0 ? handleOriginClick() : handleStepClick(idx, step, 'start'))}
                   className={`flex flex-col items-center justify-between w-[84px] shrink-0 h-full py-1 cursor-pointer transition-all ${
-                    isStepFocused && focusedStep?.subType === 'start' ? 'scale-105' : 'hover:opacity-90'
+                    (idx === 0 && isOriginStageActive) || (isStepFocused && focusedStep?.subType === 'start')
+                      ? 'scale-105 ring-2 ring-blue-300/60 rounded-xl bg-blue-50/40'
+                      : 'hover:opacity-90'
                   }`}
                 >
                   <span
@@ -209,14 +315,34 @@ export default function HorizontalTransitRouteStepLine({
         )}
 
         {/* 3. 도착지 노드 */}
-        <div className="flex flex-col items-center justify-between w-[78px] shrink-0 h-full py-1">
-          <span className="text-[10px] font-extrabold text-red-600 bg-red-50 border border-red-200/80 px-1.5 py-0.5 rounded-full">
+        <div
+          onClick={handleDestClick}
+          className={`flex flex-col items-center justify-between w-[78px] shrink-0 h-full py-1 cursor-pointer transition-all ${
+            isDestFocused ? 'scale-110' : 'hover:opacity-90'
+          }`}
+        >
+          <span
+            className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full transition-all ${
+              isDestFocused
+                ? 'text-white bg-red-600 shadow-xs'
+                : 'text-red-600 bg-red-50 border border-red-200/80'
+            }`}
+          >
             도착
           </span>
-          <div className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-xs">
+          <div
+            className={`w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center transition-all ${
+              isDestFocused ? 'ring-4 ring-red-400/40 shadow-md' : 'shadow-xs'
+            }`}
+          >
             <MapPin className="w-3.5 h-3.5" />
           </div>
-          <span className="text-[11px] font-bold text-zinc-900 truncate max-w-full text-center" title={destPlace.place_name}>
+          <span
+            className={`text-[11px] truncate max-w-full text-center transition-all ${
+              isDestFocused ? 'font-black text-red-700' : 'font-bold text-zinc-900'
+            }`}
+            title={destPlace.place_name}
+          >
             {destPlace.place_name}
           </span>
         </div>

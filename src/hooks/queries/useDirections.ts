@@ -1,7 +1,7 @@
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import type { Place, DirectionsApiResponse, DirectionResult, SnapMeta } from '@/types/journey';
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 
 /**
@@ -58,12 +58,18 @@ export function useSegmentDirection(origin: Place | null, dest: Place | null) {
 export function useJourneyDirections() {
   const queryClient = useQueryClient();
   const { departureTime } = useJourneyStore();
+  // departureTime을 ref로 유지하여 useCallback deps를 최소화
+  const departureTimeRef = useRef(departureTime);
+  useEffect(() => {
+    departureTimeRef.current = departureTime;
+  }, [departureTime]);
 
-  const fetchSequentialDirections = async (places: Place[]) => {
+  // useCallback으로 함수 참조를 안정화 — 렌더마다 새 참조가 생성되지 않음
+  const fetchSequentialDirections = useCallback(async (places: Place[]) => {
     if (!places || places.length < 2) return;
 
-    const normalizedTime = normalizeDepartureTime(departureTime);
-    const allPromises: Promise<any>[] = [];
+    const normalizedTime = normalizeDepartureTime(departureTimeRef.current);
+    const allPromises: Promise<unknown>[] = [];
 
     for (let i = 0; i < places.length - 1; i++) {
       const currentPlace = places[i];
@@ -102,7 +108,9 @@ export function useJourneyDirections() {
         console.error('[useJourneyDirections] Error fetching segment:', error);
       }
     }
-  };
+  // queryClient는 안정적인 참조이므로 deps에서 제외해도 안전
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient]);
 
   return { fetchSequentialDirections };
 }

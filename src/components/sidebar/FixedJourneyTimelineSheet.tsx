@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
-import type { Journey, Place, DirectionResult, SelectedRoute, BaseRouteData } from '@/types/journey';
+import type { Journey, Place, DirectionResult, SelectedRoute, BaseRouteData, DirectionStep } from '@/types/journey';
 import { Plus } from 'lucide-react';
 import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
 import { useDialog } from '@/providers/DialogProvider';
@@ -116,7 +116,7 @@ export default function FixedJourneyTimelineSheet({
   }, []);
 
   useEffect(() => {
-    const isHidden = !!focusedSegment || !!alternativeSegment || isLineMapOpen;
+    const isHidden = !!alternativeSegment || isLineMapOpen;
     const targetY = isHidden
       ? (fullHeight > 0 ? fullHeight + 50 : 500)
       : 0;
@@ -127,7 +127,7 @@ export default function FixedJourneyTimelineSheet({
       damping: 30,
     });
     return () => controls.stop();
-  }, [addButtonHeight, y, focusedSegment, alternativeSegment, isLineMapOpen, fullHeight]);
+  }, [addButtonHeight, y, alternativeSegment, isLineMapOpen, fullHeight]);
 
   useEffect(() => {
     if (fullHeight > 0) {
@@ -263,95 +263,217 @@ export default function FixedJourneyTimelineSheet({
     return activeFocusedRoute?.steps || [];
   }, [activeFocusedRoute]);
 
-  const currentStepIdx = useMemo(() => {
+  // 세그먼트 내 전체 네비게이션 스테이지 목록 (출발+첫이동수단 ➔ 환승/이동 스텝들 ➔ 도착지)
+  const stages = useMemo(() => {
+    if (!focusedOrigin || !focusedDest) return [];
+    const list: Array<{
+      type: 'origin' | 'step' | 'dest';
+      stepIndex: number;
+      subType?: 'start' | 'end' | 'dest';
+      title: string;
+      subTitle: string;
+      lat: number;
+      lng: number;
+      step?: DirectionStep;
+    }> = [];
+
+    const firstStep = segmentSteps[0];
+    const isFirstBus = firstStep && (firstStep.type === 'bus' || firstStep.type === 'expressbus');
+    const isFirstSub = firstStep && (firstStep.type === 'subway' || firstStep.type === 'train');
+    const isFirstWalk = firstStep && firstStep.type === 'walk';
+
+    const firstMovementName = firstStep
+      ? (isFirstBus ? (firstStep.name || '버스') : isFirstSub ? (firstStep.startName || firstStep.name || '지하철') : isFirstWalk ? '도보' : '차량')
+      : (activeFocusedRoute?.type === 'car' ? '차량' : activeFocusedRoute?.type === 'walk' ? '도보' : '이동');
+
+    const firstDurationText = firstStep?.duration ? `${firstStep.duration}분` : (activeFocusedRoute?.duration ? `${activeFocusedRoute.duration}분` : '');
+
+    // 1. 출발 단계: 출발 위치와 출발 이동수단을 분리하지 않고 하나로 통합
+    list.push({
+      type: 'origin',
+      stepIndex: 0,
+      subType: 'start',
+      title: focusedOrigin.place_name,
+      subTitle: firstDurationText ? `출발 · ${firstMovementName} (${firstDurationText})` : `출발 · ${firstMovementName}`,
+      lat: focusedOrigin.lat,
+      lng: focusedOrigin.lng,
+      step: firstStep,
+    });
+
+    // 2. 2번째 이동 스텝부터 순차적으로 추가 (출발 이동수단 이후의 환승/이동 단계들)
+    segmentSteps.slice(1).forEach((s, relativeIdx) => {
+      const idx = relativeIdx + 1;
+      const isBus = s.type === 'bus' || s.type === 'expressbus';
+      const isSub = s.type === 'subway' || s.type === 'train';
+      const isWalk = s.type === 'walk';
+      const title = isBus
+        ? (s.name || '버스')
+        : isSub
+          ? (s.startName || s.name || '지하철')
+          : isWalk
+            ? '도보 이동'
+            : '차량 이동';
+      const subTitle = s.duration ? `${s.duration}분` : '';
+      const lat = s.startLat || focusedOrigin.lat;
+      const lng = s.startLng || focusedOrigin.lng;
+
+      list.push({
+        type: 'step',
+        stepIndex: idx,
+        subType: undefined,
+        title,
+        subTitle,
+        lat,
+        lng,
+        step: s,
+      });
+    });
+
+    // 3. 도착지 스테이지 (도착 위치 하이라이트)
+    list.push({
+      type: 'dest',
+      stepIndex: segmentSteps.length,
+      subType: 'dest',
+      title: focusedDest.place_name,
+      subTitle: '도착 위치',
+      lat: focusedDest.lat,
+      lng: focusedDest.lng,
+    });
+
+    return list;
+  }, [focusedOrigin, focusedDest, segmentSteps, activeFocusedRoute]);
+
+  // 현재 활성화된 스테이지 인덱스 (-1: 재생 전 전체 경로 조망 상태)
+  const currentStageIdx = useMemo(() => {
     if (!focusedStep || !focusedOrigin || !focusedDest) return -1;
     if (focusedStep.originId !== focusedOrigin.id || focusedStep.destId !== focusedDest.id) return -1;
-    return typeof focusedStep.stepIndex === 'number' ? focusedStep.stepIndex : -1;
-  }, [focusedStep, focusedOrigin, focusedDest]);
 
-  const totalStepsCount = segmentSteps.length;
-  const isStepPlaying = currentStepIdx >= 0;
-  const isAtStepEnd = currentStepIdx >= totalStepsCount - 1;
-  const showStepPlayIcon = !isStepPlaying || isAtStepEnd;
-  const stepProgressPercent = totalStepsCount > 0 && currentStepIdx >= 0 ? ((currentStepIdx + 1) / totalStepsCount) * 100 : 0;
+    // 출발 위치이거나 첫 번째 이동수단(stepIndex === 0)인 경우 1단계(index: 0)로 통합 인지
+    if (focusedStep.subType === 'start' || (focusedStep.stepIndex === 0 && !focusedStep.subType)) return 0;
+    if (focusedStep.subType === 'dest') return stages.length - 1;
 
-  const handlePrevStep = () => {
-    if (segmentSteps.length === 0 || !focusedOrigin || !focusedDest) return;
-    if (currentStepIdx > 0) {
-      const prevIdx = currentStepIdx - 1;
-      const step = segmentSteps[prevIdx];
-      setFocusedStep({
-        originId: focusedOrigin.id,
-        destId: focusedDest.id,
-        stepIndex: prevIdx,
-      });
-      if (step?.startLat && step?.startLng) {
+    if (typeof focusedStep.stepIndex === 'number') {
+      const foundIdx = stages.findIndex(
+        (st) => st.type === 'step' && st.stepIndex === focusedStep.stepIndex
+      );
+      return foundIdx >= 0 ? foundIdx : -1;
+    }
+    return -1;
+  }, [focusedStep, focusedOrigin, focusedDest, stages]);
+
+  const totalStagesCount = stages.length;
+  const isStagePlaying = currentStageIdx >= 0;
+  const isAtStageEnd = currentStageIdx === totalStagesCount - 1;
+  const showStepPlayIcon = !isStagePlaying || isAtStageEnd;
+  const stepProgressPercent =
+    totalStagesCount > 0 && currentStageIdx >= 0
+      ? ((currentStageIdx + 1) / totalStagesCount) * 100
+      : 0;
+
+  const currentStage =
+    currentStageIdx >= 0 && currentStageIdx < stages.length
+      ? stages[currentStageIdx]
+      : null;
+
+  const applyStage = (stageIdx: number) => {
+    if (stageIdx < 0 || stageIdx >= stages.length || !focusedOrigin || !focusedDest) {
+      setFocusedStep(null);
+      if (activeFocusedRoute && focusedOrigin && focusedDest) {
+        const bounds = calculateSegmentBounds(focusedOrigin, focusedDest, activeFocusedRoute);
+        setFocusBounds(bounds);
+      }
+      return;
+    }
+
+    const st = stages[stageIdx];
+    setFocusedStep({
+      originId: focusedOrigin.id,
+      destId: focusedDest.id,
+      stepIndex: st.stepIndex,
+      subType: st.subType,
+    });
+
+    if (st.type === 'origin') {
+      // 출발 단계: 출발 위치와 첫 번째 이동수단 경로를 함께 조망
+      if (st.step?.pathPoints && st.step.pathPoints.length > 0) {
+        const allLats = [st.lat, ...st.step.pathPoints.map((p: { lat: number }) => p.lat)];
+        const allLngs = [st.lng, ...st.step.pathPoints.map((p: { lng: number }) => p.lng)];
+        const minLat = Math.min(...allLats);
+        const maxLat = Math.max(...allLats);
+        const minLng = Math.min(...allLngs);
+        const maxLng = Math.max(...allLngs);
         setFocusBounds({
-          sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
-          ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
+          sw: { lat: minLat - 0.0015, lng: minLng - 0.0015 },
+          ne: { lat: maxLat + 0.0015, lng: maxLng + 0.0015 },
+        });
+      } else {
+        setFocusBounds({
+          sw: { lat: st.lat - 0.0025, lng: st.lng - 0.0025 },
+          ne: { lat: st.lat + 0.0025, lng: st.lng + 0.0025 },
         });
       }
-    } else if (currentStepIdx === 0 && hasPrevSegment) {
+    } else if (st.type === 'dest') {
+      setFocusBounds({
+        sw: { lat: st.lat - 0.0025, lng: st.lng - 0.0025 },
+        ne: { lat: st.lat + 0.0025, lng: st.lng + 0.0025 },
+      });
+    } else if (st.step) {
+      if (st.step.pathPoints && st.step.pathPoints.length > 0) {
+        let minLat = st.step.pathPoints[0].lat;
+        let maxLat = st.step.pathPoints[0].lat;
+        let minLng = st.step.pathPoints[0].lng;
+        let maxLng = st.step.pathPoints[0].lng;
+        st.step.pathPoints.forEach((p: { lat: number; lng: number }) => {
+          minLat = Math.min(minLat, p.lat);
+          maxLat = Math.max(maxLat, p.lat);
+          minLng = Math.min(minLng, p.lng);
+          maxLng = Math.max(maxLng, p.lng);
+        });
+        setFocusBounds({
+          sw: { lat: minLat - 0.0015, lng: minLng - 0.0015 },
+          ne: { lat: maxLat + 0.0015, lng: maxLng + 0.0015 },
+        });
+      } else if (st.step.startLat && st.step.startLng) {
+        setFocusBounds({
+          sw: { lat: st.step.startLat - 0.002, lng: st.step.startLng - 0.002 },
+          ne: { lat: st.step.startLat + 0.002, lng: st.step.startLng + 0.002 },
+        });
+      }
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (stages.length === 0 || !focusedOrigin || !focusedDest) return;
+    if (currentStageIdx > 0) {
+      applyStage(currentStageIdx - 1);
+    } else if (currentStageIdx === 0) {
+      // 0(출발 위치)에서 뒤로 가면 전체 경로 조망 상태(-1)로 복귀
+      applyStage(-1);
+    } else if (currentStageIdx === -1 && hasPrevSegment) {
       handlePrevSegment();
     }
   };
 
   const handleNextStep = () => {
-    if (segmentSteps.length === 0 || !focusedOrigin || !focusedDest) return;
-    if (currentStepIdx === -1) {
-      const step = segmentSteps[0];
-      setFocusedStep({
-        originId: focusedOrigin.id,
-        destId: focusedDest.id,
-        stepIndex: 0,
-      });
-      if (step?.startLat && step?.startLng) {
-        setFocusBounds({
-          sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
-          ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
-        });
-      }
-    } else if (currentStepIdx < totalStepsCount - 1) {
-      const nextIdx = currentStepIdx + 1;
-      const step = segmentSteps[nextIdx];
-      setFocusedStep({
-        originId: focusedOrigin.id,
-        destId: focusedDest.id,
-        stepIndex: nextIdx,
-      });
-      if (step?.startLat && step?.startLng) {
-        setFocusBounds({
-          sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
-          ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
-        });
-      }
-    } else if (currentStepIdx === totalStepsCount - 1 && hasNextSegment) {
+    if (stages.length === 0 || !focusedOrigin || !focusedDest) return;
+    if (currentStageIdx === -1) {
+      // 재생 전 상태에서 다음 누르면 0(출발 위치)로 이동
+      applyStage(0);
+    } else if (currentStageIdx < totalStagesCount - 1) {
+      applyStage(currentStageIdx + 1);
+    } else if (currentStageIdx === totalStagesCount - 1 && hasNextSegment) {
       handleNextSegment();
     }
   };
 
   const handlePlayStepToggle = () => {
-    if (segmentSteps.length === 0 || !focusedOrigin || !focusedDest) return;
-    if (isStepPlaying && !isAtStepEnd) {
-      setFocusedStep(null);
-      if (activeFocusedRoute) {
-        const bounds = calculateSegmentBounds(focusedOrigin, focusedDest, activeFocusedRoute);
-        setFocusBounds(bounds);
-      }
+    if (stages.length === 0 || !focusedOrigin || !focusedDest) return;
+    if (isStagePlaying && !isAtStageEnd) {
+      // 재생 중 토글 시 일시정지 (전체 경로 조망 상태로 복귀)
+      applyStage(-1);
     } else {
-      const targetIdx = currentStepIdx >= 0 && !isAtStepEnd ? currentStepIdx : 0;
-      const step = segmentSteps[targetIdx];
-      setFocusedStep({
-        originId: focusedOrigin.id,
-        destId: focusedDest.id,
-        stepIndex: targetIdx,
-      });
-      if (step?.startLat && step?.startLng) {
-        setFocusBounds({
-          sw: { lat: step.startLat - 0.002, lng: step.startLng - 0.002 },
-          ne: { lat: step.startLat + 0.002, lng: step.startLng + 0.002 },
-        });
-      }
+      // 정지 상태이거나 끝에 도달했을 때: 0(출발 위치)부터 재생 시작
+      applyStage(0);
     }
   };
 
@@ -584,7 +706,7 @@ export default function FixedJourneyTimelineSheet({
         zIndex: 100,
         borderTopLeftRadius: '24px',
         borderTopRightRadius: '24px',
-        pointerEvents: (focusedSegment || alternativeSegment || isLineMapOpen) ? 'none' : 'auto',
+        pointerEvents: (alternativeSegment || isLineMapOpen) ? 'none' : 'auto',
       }}
       className="md:hidden pointer-events-auto bg-white/95 text-zinc-900 backdrop-blur-xl border-t border-zinc-200/90 shadow-[0_-4px_24px_rgba(0,0,0,0.12)] flex flex-col"
     >
@@ -733,12 +855,14 @@ export default function FixedJourneyTimelineSheet({
           <FocusedStepControlBar
             focusedOrigin={focusedOrigin}
             focusedDest={focusedDest}
-            currentStepIdx={currentStepIdx}
-            totalStepsCount={totalStepsCount}
+            currentStepIdx={currentStageIdx}
+            totalStepsCount={totalStagesCount}
             hasPrevSegment={hasPrevSegment}
             hasNextSegment={hasNextSegment}
             showStepPlayIcon={showStepPlayIcon}
             stepProgressPercent={stepProgressPercent}
+            stageTitle={currentStage?.title}
+            stageSubtitle={currentStage?.subTitle}
             onPrevStep={handlePrevStep}
             onNextStep={handleNextStep}
             onPlayStepToggle={handlePlayStepToggle}

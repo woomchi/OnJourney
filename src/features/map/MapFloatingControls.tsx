@@ -4,10 +4,8 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useMapUIStore } from '@/stores/map-store';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
-import { getDefaultRoute } from '@/lib/utils/routeUtils';
-import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { Locate, LocateFixed, Compass, Loader2, Route } from 'lucide-react';
 
 interface MapFloatingControlsProps {
@@ -24,7 +22,9 @@ export function MapFloatingControls({
   
   const isMobile = useMediaQuery('(max-width: 767px)');
   
-  const { gpsMode, isLocating } = useMapUIStore();
+  const { gpsMode, isLocating } = useMapUIStore(
+    useShallow((s) => ({ gpsMode: s.gpsMode, isLocating: s.isLocating }))
+  );
   const {
     activeJourney,
     focusedSegment,
@@ -34,11 +34,21 @@ export function MapFloatingControls({
     setAlternativeSegment,
     setFocusBounds,
     isDrawerMaximized,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((s) => ({
+      activeJourney: s.activeJourney,
+      focusedSegment: s.focusedSegment,
+      alternativeSegment: s.alternativeSegment,
+      setFocusedSegment: s.setFocusedSegment,
+      setFocusedStep: s.setFocusedStep,
+      setAlternativeSegment: s.setAlternativeSegment,
+      setFocusBounds: s.setFocusBounds,
+      isDrawerMaximized: s.isDrawerMaximized,
+    }))
+  );
 
   const places = activeJourney?.places ?? [];
   const hasPlaces = places.length > 0;
-  const directionsCache = useJourneyDirectionsCache(places);
 
   // Set mounted status on client-side
   useEffect(() => {

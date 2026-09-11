@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import type { DirectionResult, DirectionStep, Place } from '@/types/journey';
 import { calculateSegmentBounds, calculateStepBounds, calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 import { SEQUENCE_COLORS } from '@/constants/colors';
@@ -67,8 +68,22 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     isAlternativeFromFocus,
     setIsAlternativeFromFocus,
     activeJourney,
-    departureTime
-  } = useJourneyStore();
+    departureTime,
+  } = useJourneyStore(
+    useShallow((state) => ({
+      focusedStep: state.focusedStep,
+      setFocusedStep: state.setFocusedStep,
+      focusedSegment: state.focusedSegment,
+      setFocusedSegment: state.setFocusedSegment,
+      setFocusBounds: state.setFocusBounds,
+      alternativeSegment: state.alternativeSegment,
+      setAlternativeSegment: state.setAlternativeSegment,
+      isAlternativeFromFocus: state.isAlternativeFromFocus,
+      setIsAlternativeFromFocus: state.setIsAlternativeFromFocus,
+      activeJourney: state.activeJourney,
+      departureTime: state.departureTime,
+    }))
+  );
 
   useEffect(() => {
     if (!loading) {
@@ -83,27 +98,15 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     return () => clearTimeout(timer);
   }, [loading]);
 
-  const handleRefresh = (e: React.MouseEvent) => {
+  const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsTimedOut(false);
 
     if (placeId && destId) {
-      queryClient.invalidateQueries({ queryKey: directionKeys.segment(placeId, destId) });
-      const places = activeJourney?.places || [];
-      const originPlace = places.find(p => p.id === placeId);
-      const destPlace = places.find(p => p.id === destId);
-      if (originPlace && destPlace) {
-        Promise.allSettled([
-          queryClient.fetchQuery({
-            queryKey: directionKeys.segmentPublic(placeId, destId, departureTime),
-            queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace, departureTime || undefined)
-          }),
-          queryClient.fetchQuery({
-            queryKey: directionKeys.segmentCar(placeId, destId, departureTime),
-            queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined)
-          })
-        ]).catch(console.error);
-      }
+      await queryClient.refetchQueries({
+        queryKey: directionKeys.segment(placeId, destId),
+        exact: false,
+      });
     }
 
     if (onRetry) {

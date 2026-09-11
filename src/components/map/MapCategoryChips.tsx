@@ -1,6 +1,7 @@
 "use client";
 
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { Coffee, Utensils, Hotel, Compass, Store, Bus } from 'lucide-react';
 
 interface CategoryItem {
@@ -70,7 +71,15 @@ export default function MapCategoryChips() {
     searchQuery,
     setSearchQuery,
     triggerSearch,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((s) => ({
+      isSearchMode: s.isSearchMode,
+      openSearchMode: s.openSearchMode,
+      searchQuery: s.searchQuery,
+      setSearchQuery: s.setSearchQuery,
+      triggerSearch: s.triggerSearch,
+    }))
+  );
 
   const handleCategoryClick = (query: string) => {
     if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {

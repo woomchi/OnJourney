@@ -146,6 +146,8 @@ export function useAlternativeRoutes({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (!publicData && !publicLoading) {
       queryClient.fetchQuery({
         queryKey: publicKey,
@@ -158,7 +160,7 @@ export function useAlternativeRoutes({
         queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined),
       }).catch(console.error);
     }
-  }, [publicData, publicLoading, carData, carLoading, publicKey, carKey, queryClient, originPlace, destPlace, departureTime]);
+  }, [isOpen, publicData, publicLoading, carData, carLoading, publicKey, carKey, queryClient, originPlace, destPlace, departureTime]);
 
   const publicRouteGroups = useMemo(() => {
     if (activeTab !== 'public' || !routes) return {};

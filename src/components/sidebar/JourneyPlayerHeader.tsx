@@ -6,8 +6,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
 import { useQueryClient } from '@tanstack/react-query';
-import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
+import { directionKeys } from '@/hooks/queries/useDirections';
 import { formatShortDate } from '@/lib/utils/journeyUtils';
 import { MAX_JOURNEY_PLACES } from '@/constants/journey';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
@@ -46,6 +46,7 @@ export default function JourneyPlayerHeader({
     setDrawerSnapPoint,
     isCacheRestored,
     departureTime,
+    directionsCache,
   } = useJourneyStore(
     useShallow((state) => ({
       journeys: state.journeys,
@@ -64,6 +65,7 @@ export default function JourneyPlayerHeader({
       setDrawerSnapPoint: state.setDrawerSnapPoint,
       isCacheRestored: state.isCacheRestored,
       departureTime: state.departureTime,
+      directionsCache: state.directionsCache,
     }))
   );
 
@@ -86,7 +88,6 @@ export default function JourneyPlayerHeader({
   const HeaderComponent = 'header';
 
   const places = activeJourney?.places || [];
-  const directionsCache = useJourneyDirectionsCache(places);
   const transportType = activeJourney?.transport_type || 'public';
 
   const formattedDate = formatShortDate(activeJourney?.journey_date);

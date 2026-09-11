@@ -3,6 +3,7 @@
 import React, { useRef } from 'react';
 import { MapPin, Footprints, Bus, Train, Car, Navigation, ArrowRight } from 'lucide-react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import type { Place, SelectedRoute, DirectionResult, DirectionStep } from '@/types/journey';
 import { formatDurationMinutes } from '@/lib/utils/journeyUtils';
 import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
@@ -21,7 +22,13 @@ export default function HorizontalTransitRouteStepLine({
   destPlace,
   className = '',
 }: HorizontalTransitRouteStepLineProps) {
-  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
+  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore(
+    useShallow((s) => ({
+      focusedStep: s.focusedStep,
+      setFocusedStep: s.setFocusedStep,
+      setFocusBounds: s.setFocusBounds,
+    }))
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   const steps = route?.steps || [];

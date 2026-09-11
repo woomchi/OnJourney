@@ -9,6 +9,7 @@ import LandingPage from '@/components/LandingPage';
 import MapHeaderOverlay from '@/components/map/MapHeaderOverlay';
 import { RoutePanels } from '@/features/route/RoutePanels';
 import { useUrlState } from '@/hooks/useUrlState';
+import { DirectionsCacheSync } from '@/components/route/DirectionsCacheSync';
 
 function UrlStateSync() {
   useUrlState();
@@ -66,6 +67,7 @@ export default function Home() {
     <div className="flex h-[100dvh] w-full bg-white text-zinc-900 overflow-hidden font-sans relative">
       <Suspense fallback={null}>
         <UrlStateSync />
+        <DirectionsCacheSync />
       </Suspense>
       <JourneySidebar />
 

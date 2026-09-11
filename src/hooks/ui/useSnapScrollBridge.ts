@@ -7,28 +7,40 @@ import { parseSnapVal } from '@/lib/utils/snapUtils';
 
 export interface UseSnapScrollBridgeOptions {
   scrollRef: React.RefObject<HTMLElement | null>;
-  drawerSnapPoint: string | number | null;
-  isDrawerMaximized: boolean;
-  setDrawerSnapPoint: (snap: string | number) => void;
-  activeJourney: Journey | null;
+  drawerSnapPoint?: string | number | null;
+  snap?: string | number | null;
+  isDrawerMaximized?: boolean;
+  setDrawerSnapPoint?: (snap: string | number) => void;
+  setSnap?: (snap: string | number) => void;
+  activeJourney?: Journey | null;
   disabled?: boolean;
   minSnap?: number;
   defaultSnap?: number;
+  maxSnap?: number;
 }
 
 export function useSnapScrollBridge({
   scrollRef,
   drawerSnapPoint,
+  snap,
   isDrawerMaximized,
   setDrawerSnapPoint,
-  activeJourney,
+  setSnap,
+  activeJourney = null,
   disabled = false,
   minSnap: minSnapOpt,
-  defaultSnap: defaultSnapOpt
+  defaultSnap: defaultSnapOpt,
+  maxSnap: maxSnapOpt = 1,
 }: UseSnapScrollBridgeOptions) {
   const bottomSheet = useOptionalBottomSheet();
   const isMobile = useMediaQuery('(max-width: 767px)');
   const isBridgeDisabled = disabled || !isMobile;
+
+  const currentSnapPoint = snap !== undefined ? snap : drawerSnapPoint;
+  const handleSetSnap = setSnap || setDrawerSnapPoint || (() => {});
+  const isMaximized = isDrawerMaximized !== undefined
+    ? isDrawerMaximized
+    : (currentSnapPoint === 1 || currentSnapPoint === '1');
 
   const touchStartRef = useRef<{
     y: number;
@@ -62,49 +74,49 @@ export function useSnapScrollBridge({
   const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
     if (isBridgeDisabled) return;
     const target = scrollRef.current || e.currentTarget;
-    const startSnapY = bottomSheet ? bottomSheet.y.get() : 0;
+    const touch = e.touches[0];
+    const currentY = bottomSheet?.y?.get() ?? 0;
+
     touchStartRef.current = {
-      y: e.touches[0].clientY,
+      y: touch.clientY,
       scrollTop: target.scrollTop,
-      startSnapY,
-      isOverscrolling: false
+      startSnapY: currentY,
+      isOverscrolling: false,
     };
-    // 터치 이벤트가 바텀 시트로 넘어가서 의도치 않은 드래그가 시작되는 것을 방지하기 위해 상위 전파 항상 차단
-    e.stopPropagation();
   };
 
+  // 모바일 네이티브 스크롤과 바텀시트 드래그 제스처 바인딩
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || isBridgeDisabled) return;
+    if (!el || isBridgeDisabled || !bottomSheet) return;
 
     const handleNativeTouchMove = (e: TouchEvent) => {
-      if (!touchStartRef.current) return;
+      const state = touchStartRef.current;
+      if (!state) return;
+
+      const touch = e.touches[0];
+      const deltaY = touch.clientY - state.y;
       const currentScrollTop = el.scrollTop;
       const maxScroll = el.scrollHeight - el.clientHeight;
-      const deltaY = e.touches[0].clientY - touchStartRef.current.y;
 
-      const isAtTop = currentScrollTop <= 2;
-      const isAtBottom = maxScroll - currentScrollTop <= 3;
+      const isAtTop = currentScrollTop <= 0;
+      const isAtBottom = currentScrollTop >= maxScroll - 1;
 
-      const isOverscrollingTop = isAtTop && deltaY > 0;
-      const isOverscrollingBottom = isAtBottom && deltaY < 0;
+      // 1. 오버스크롤 상태 진입 감지: 최상단에서 아래로 당기거나 최하단에서 위로 당길 때
+      if (!state.isOverscrolling) {
+        if ((isAtTop && deltaY > 5) || (isAtBottom && deltaY < -5)) {
+          state.isOverscrolling = true;
+        }
+      }
 
-      if (isOverscrollingTop || isOverscrollingBottom) {
+      // 2. 오버스크롤 중일 때는 브라우저 기본 바운스 스크롤을 막고 바텀시트 직접 이동
+      if (state.isOverscrolling) {
         if (e.cancelable) {
           e.preventDefault();
         }
-        if (bottomSheet) {
-          touchStartRef.current.isOverscrolling = true;
-          const { startSnapY } = touchStartRef.current;
-          const newY = startSnapY + deltaY * 0.45;
-          bottomSheet.y.set(newY);
-        }
-      } else {
-        if (touchStartRef.current.isOverscrolling && bottomSheet) {
-          bottomSheet.y.set(touchStartRef.current.startSnapY);
-          touchStartRef.current.isOverscrolling = false;
-        }
-        e.stopPropagation();
+        // 물리적 손가락 이동에 저항감(0.5x 댐핑)을 부여하여 자연스러운 제스처 구현
+        const newY = state.startSnapY + deltaY * 0.5;
+        bottomSheet.y.set(newY);
       }
     };
 
@@ -112,31 +124,27 @@ export function useSnapScrollBridge({
     return () => {
       el.removeEventListener('touchmove', handleNativeTouchMove);
     };
-  }, [scrollRef, disabled, bottomSheet]);
+  }, [scrollRef, isBridgeDisabled, bottomSheet]);
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
-    // Native event listener handles propagation and preventDefault.
+  const handleTouchMove = (_e: React.TouchEvent<HTMLElement>) => {
+    // 네이티브 이벤트 리스너(passive: false)에서 바텀시트 y 이동을 처리하므로 별도 동작 없음
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
-    if (isBridgeDisabled) {
-      touchStartRef.current = null;
-      return;
-    }
-    if (!touchStartRef.current) return;
+    if (isBridgeDisabled) return;
+    const state = touchStartRef.current;
+    if (!state) return;
 
     const target = scrollRef.current || e.currentTarget;
-    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
-    const { scrollTop: startScrollTop, startSnapY, isOverscrolling } = touchStartRef.current;
     const currentScrollTop = target.scrollTop;
+    const startScrollTop = state.scrollTop;
+    const touch = e.changedTouches[0];
+    const deltaY = touch.clientY - state.y;
+    const { startSnapY, isOverscrolling } = state;
 
     const maxScroll = target.scrollHeight - target.clientHeight;
-    const isScrollable = maxScroll > 5;
-
     const isAtTopAtStart = startScrollTop <= 2;
-    const isAtBottomAtStart = isScrollable
-      ? (startScrollTop > 2 && maxScroll - startScrollTop < 3)
-      : true;
+    const isAtBottomAtStart = startScrollTop >= maxScroll - 2;
 
     const didNotScroll = Math.abs(currentScrollTop - startScrollTop) <= 2;
 
@@ -144,13 +152,13 @@ export function useSnapScrollBridge({
       const minSnap = minSnapOpt ?? (activeJourney ? 133 : 62);
       const defaultSnap = defaultSnapOpt ?? (activeJourney ? 370 : 360);
 
-      const parsedSnap = parseSnapVal(drawerSnapPoint);
+      const parsedSnap = parseSnapVal(currentSnapPoint);
       let currentSnap: 'min' | 'default' | 'max' = 'default';
       if (Math.abs(parsedSnap - minSnap) <= 10) {
         currentSnap = 'min';
       } else if (Math.abs(parsedSnap - defaultSnap) <= 10) {
         currentSnap = 'default';
-      } else if (parsedSnap === 1 || isDrawerMaximized) {
+      } else if (parsedSnap === 1 || isMaximized) {
         currentSnap = 'max';
       }
 
@@ -159,18 +167,18 @@ export function useSnapScrollBridge({
 
       if (isAtTopAtStart && deltaY > THRESHOLD) {
         if (currentSnap === 'max') {
-          setDrawerSnapPoint(defaultSnap);
+          handleSetSnap(defaultSnap);
           snapChanged = true;
         } else if (currentSnap === 'default') {
-          setDrawerSnapPoint(minSnap);
+          handleSetSnap(minSnap);
           snapChanged = true;
         }
       } else if (isAtBottomAtStart && deltaY < -THRESHOLD) {
         if (currentSnap === 'min') {
-          setDrawerSnapPoint(defaultSnap);
+          handleSetSnap(defaultSnap);
           snapChanged = true;
         } else if (currentSnap === 'default') {
-          setDrawerSnapPoint(1);
+          handleSetSnap(maxSnapOpt);
           snapChanged = true;
         }
       }
@@ -191,20 +199,20 @@ export function useSnapScrollBridge({
       const minSnap = minSnapOpt ?? (activeJourney ? 133 : 62);
       const defaultSnap = defaultSnapOpt ?? (activeJourney ? 370 : 360);
 
-      const parsedSnap = parseSnapVal(drawerSnapPoint);
+      const parsedSnap = parseSnapVal(currentSnapPoint);
       let currentSnap: 'min' | 'default' | 'max' = 'default';
       if (Math.abs(parsedSnap - minSnap) <= 10) {
         currentSnap = 'min';
       } else if (Math.abs(parsedSnap - defaultSnap) <= 10) {
         currentSnap = 'default';
-      } else if (parsedSnap === 1 || isDrawerMaximized) {
+      } else if (parsedSnap === 1 || isMaximized) {
         currentSnap = 'max';
       }
 
       if (currentSnap === 'max') {
         if (isAtTopAtStart && deltaY > 20) {
           // 최대 높이 상태에서 리스트 최상단일 때 아래로 스와이프하면 기본 높이로 축소
-          setDrawerSnapPoint(defaultSnap);
+          handleSetSnap(defaultSnap);
         }
         touchStartRef.current = null;
         return;
@@ -213,7 +221,7 @@ export function useSnapScrollBridge({
       if (currentSnap === 'min') {
         if (deltaY < -20) {
           // 최소 높이 상태에서 위로 스와이프하면 기본 높이로 확장
-          setDrawerSnapPoint(defaultSnap);
+          handleSetSnap(defaultSnap);
         }
         touchStartRef.current = null;
         return;
@@ -222,11 +230,11 @@ export function useSnapScrollBridge({
       // 민감도를 다른 영역과 통일하기 위해 임계값을 20px로 변경
       if (isAtTopAtStart && deltaY > 20) {
         // 아래로 스와이프 (축소 방향)
-        setDrawerSnapPoint(minSnap);
+        handleSetSnap(minSnap);
       }
       else if (isAtBottomAtStart && deltaY < -20) {
         // 위로 스와이프 (확대 방향)
-        setDrawerSnapPoint(1);
+        handleSetSnap(maxSnapOpt);
       }
     }
 
@@ -249,13 +257,13 @@ export function useSnapScrollBridge({
     const minSnap = minSnapOpt ?? (activeJourney ? 133 : 62);
     const defaultSnap = defaultSnapOpt ?? (activeJourney ? 370 : 360);
 
-    const parsedSnap = parseSnapVal(drawerSnapPoint);
+    const parsedSnap = parseSnapVal(currentSnapPoint);
     let currentSnap: 'min' | 'default' | 'max' = 'default';
     if (Math.abs(parsedSnap - minSnap) <= 10) {
       currentSnap = 'min';
     } else if (Math.abs(parsedSnap - defaultSnap) <= 10) {
       currentSnap = 'default';
-    } else if (parsedSnap === 1 || isDrawerMaximized) {
+    } else if (parsedSnap === 1 || isMaximized) {
       currentSnap = 'max';
     }
 
@@ -271,7 +279,7 @@ export function useSnapScrollBridge({
       if (e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
         wheelAccumulator.current.delta += e.deltaY;
         if (wheelAccumulator.current.delta < -70) {
-          setDrawerSnapPoint(defaultSnap);
+          handleSetSnap(defaultSnap);
           wheelAccumulator.current.delta = 0;
         }
       } else {
@@ -284,7 +292,7 @@ export function useSnapScrollBridge({
       if (e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
         wheelAccumulator.current.delta += e.deltaY;
         if (wheelAccumulator.current.delta > 70) {
-          setDrawerSnapPoint(defaultSnap);
+          handleSetSnap(defaultSnap);
           wheelAccumulator.current.delta = 0;
         }
       } else {
@@ -298,14 +306,14 @@ export function useSnapScrollBridge({
     if (isAtTop && e.deltaY < 0 && wheelAccumulator.current.startedAtTop) {
       wheelAccumulator.current.delta += e.deltaY;
       if (wheelAccumulator.current.delta < -70) {
-        setDrawerSnapPoint(minSnap);
+        handleSetSnap(minSnap);
         wheelAccumulator.current.delta = 0;
       }
     }
     else if (isAtBottom && e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
       wheelAccumulator.current.delta += e.deltaY;
       if (wheelAccumulator.current.delta > 70) {
-        setDrawerSnapPoint(1);
+        handleSetSnap(maxSnapOpt);
         wheelAccumulator.current.delta = 0;
       }
     } else {

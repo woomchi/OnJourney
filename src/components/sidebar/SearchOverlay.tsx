@@ -233,6 +233,17 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const activeSuggestionId = useRef(0);
   const suggestionAbortControllerRef = useRef<AbortController | null>(null);
 
+  // 최근 검색어/추천 결과 인메모리 캐시 (최대 50건 LRU)
+  const searchCacheRef = useRef<Map<string, PlaceResult[]>>(new Map());
+  const setCacheItem = useCallback((key: string, data: PlaceResult[]) => {
+    const cache = searchCacheRef.current;
+    if (cache.size >= 50) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey) cache.delete(oldestKey);
+    }
+    cache.set(key, data);
+  }, []);
+
   // 언마운트 시 비동기 추천 요청 취소
   useEffect(() => {
     return () => {
@@ -284,7 +295,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
     setIsSuggestionsLoading(true);
     try {
-      const currentBounds = useJourneyStore.getState().mapBounds;
+      const currentBounds = useMapUIStore.getState().mapBounds;
       const boundsParam = currentBounds
         ? `&minLat=${currentBounds.minLat}&maxLat=${currentBounds.maxLat}&minLng=${currentBounds.minLng}&maxLng=${currentBounds.maxLng}`
         : '';
@@ -292,6 +303,15 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       const transportParam = activeJourney?.transport_type
         ? `&transport_type=${activeJourney.transport_type}`
         : '';
+
+      const cacheKey = `sugg:${q.trim().toLowerCase()}:${boundsParam}:${coordParam}:${transportParam}`;
+      if (searchCacheRef.current.has(cacheKey)) {
+        const cached = searchCacheRef.current.get(cacheKey)!;
+        setSuggestions(cached);
+        setIsDropdownOpen(cached.length > 0);
+        setIsSuggestionsLoading(false);
+        return;
+      }
 
       let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`, {
         signal: controller.signal,
@@ -313,6 +333,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       }
 
       items.sort((a, b) => (b.score || 0) - (a.score || 0));
+      setCacheItem(cacheKey, items);
       setSuggestions(items);
       setIsDropdownOpen(items.length > 0);
     } catch (err: any) {
@@ -324,7 +345,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSuggestionsLoading(false);
       }
     }
-  }, [mapCenterCoord, activeJourney?.transport_type]);
+  }, [mapCenterCoord, activeJourney?.transport_type, setCacheItem]);
 
   const debouncedFetchSuggestions = useDebouncedCallback((val: string) => {
     fetchSuggestions(val);
@@ -357,7 +378,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     setHasSearched(true);
 
     try {
-      const currentBounds = useJourneyStore.getState().mapBounds;
+      const currentBounds = useMapUIStore.getState().mapBounds;
       const boundsParam = currentBounds
         ? `&minLat=${currentBounds.minLat}&maxLat=${currentBounds.maxLat}&minLng=${currentBounds.minLng}&maxLng=${currentBounds.maxLng}`
         : '';
@@ -365,6 +386,34 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
       const transportParam = activeJourney?.transport_type
         ? `&transport_type=${activeJourney.transport_type}`
         : '';
+
+      const cacheKey = `search:${q.trim().toLowerCase()}:${boundsParam}:${coordParam}:${transportParam}`;
+      if (searchCacheRef.current.has(cacheKey)) {
+        const cached = searchCacheRef.current.get(cacheKey)!;
+        setSearchResults(cached);
+        setSearchError(null);
+        setIsSearchLoading(false);
+        if (typeof window !== 'undefined') {
+          setDrawerSnapPoint(Math.round(window.innerHeight * 0.62));
+        }
+        if (triggerMapHighlight) {
+          setRecommendedPlaces(cached);
+          if (cached.length > 0) {
+            const bestItem = cached[0];
+            setFocusBounds({
+              sw: { lat: bestItem.lat - 0.005, lng: bestItem.lng - 0.005 },
+              ne: { lat: bestItem.lat + 0.005, lng: bestItem.lng + 0.005 }
+            });
+            setActiveSearchPlace(bestItem);
+          } else {
+            setActiveSearchPlace(null);
+          }
+        } else {
+          clearRecommendedPlaces();
+          setActiveSearchPlace(null);
+        }
+        return;
+      }
 
       let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`);
       if (currentSearchId !== activeSearchId.current) return;
@@ -414,6 +463,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
       items.sort((a, b) => (b.score || 0) - (a.score || 0));
 
+      setCacheItem(cacheKey, items);
       setSearchResults(items);
       setSearchError(null);
 
@@ -449,7 +499,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, activeJourney?.transport_type, setDrawerSnapPoint, debouncedFetchSuggestions]);
+  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, activeJourney?.transport_type, setDrawerSnapPoint, debouncedFetchSuggestions, setCacheItem]);
 
   const dismissKeyboard = useCallback(() => {
     if (searchInputRef.current) {

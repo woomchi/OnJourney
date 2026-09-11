@@ -4,8 +4,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useShallow } from 'zustand/react/shallow';
 import { useQueryClient } from '@tanstack/react-query';
-import { directionKeys, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
+import { directionKeys } from '@/hooks/queries/useDirections';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import type { Journey, Place, DirectionResult, SelectedRoute, BaseRouteData, DirectionStep } from '@/types/journey';
 import { Plus } from 'lucide-react';
@@ -60,6 +60,7 @@ export default function FixedJourneyTimelineSheet({
     departureTime,
     subwayLineMapTarget,
     busLineMapTarget,
+    directionsCache,
   } = useJourneyStore(
     useShallow((state) => ({
       journeys: state.journeys,
@@ -86,6 +87,7 @@ export default function FixedJourneyTimelineSheet({
       departureTime: state.departureTime,
       subwayLineMapTarget: state.subwayLineMapTarget,
       busLineMapTarget: state.busLineMapTarget,
+      directionsCache: state.directionsCache,
     }))
   );
 
@@ -176,7 +178,6 @@ export default function FixedJourneyTimelineSheet({
   }, [focusedSegment]);
 
   const places = activeJourney?.places || [];
-  const directionsCache = useJourneyDirectionsCache(places);
   const transportType = activeJourney.transport_type || 'public';
 
   const isPlaying = isGlobalPlaying && (!!focusedSegment || !!focusedStep);

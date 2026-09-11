@@ -13,6 +13,7 @@ import type {
   Journey,
   Place,
   DirectionsApiResponse,
+  DirectionsCacheRecord,
   SelectedRoute,
   TransportType,
 } from '@/types/journey';
@@ -40,6 +41,8 @@ export interface JourneyDataSlice {
   removePlace: (placeId: string) => Promise<void>;
   reorderPlaces: (places: Place[]) => Promise<void>;
   selectSegmentRoute: (placeId: string, route: SelectedRoute | null) => Promise<void>;
+  directionsCache: DirectionsCacheRecord;
+  setDirectionsCache: (cache: DirectionsCacheRecord) => void;
 }
 
 // ─── 리셋 상태 조각 ──────────────────────────────────────────────────────────
@@ -111,9 +114,12 @@ export const createJourneyDataSlice: StateCreator<
   return {
   journeys: [],
   activeJourney: null,
+  directionsCache: {},
   isLoading: false,
   isSyncing: false,
   syncCount: 0,
+
+  setDirectionsCache: (directionsCache) => set({ directionsCache }),
 
   // ─ 여정 목록 갱신 ─
   setJourneys: (journeys) =>
@@ -198,6 +204,7 @@ export const createJourneyDataSlice: StateCreator<
     clearAllSegmentGeometry();
     set({
       activeJourney: null,
+      directionsCache: {},
       ...RESET_FOCUS_STATE,
       isSearchMode: false,
       recommendedPlaces: [],

@@ -7,7 +7,7 @@ import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/C
 import { BOTTOM_SHEET_SNAP } from '@/constants/layout';
 import { motion, useTransform, useMotionValue } from 'framer-motion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useScrollDragBridge } from '@/hooks/ui/useScrollDragBridge';
+import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
 import { parseSnapVal } from '@/lib/utils/snapUtils';
 
 import { useAlternativeRoutes, isRouteMatch } from './alternative/hooks/useAlternativeRoutes';
@@ -96,7 +96,7 @@ export default function AlternativeRoutePanel({
   const isDraggedRef = useRef(false);
 
   // 모바일 터치 제스처 핸들러: 리스트 스크롤과 바텀시트 드래그 제스처 분리
-  const { handlePointerDown, handleTouchStart, handleTouchMove, handleTouchEnd, handleWheel } = useScrollDragBridge({
+  const { handlePointerDown, handleTouchStart, handleTouchMove, handleTouchEnd, handleWheel } = useSnapScrollBridge({
     scrollRef: scrollContainerRef,
     snap,
     setSnap,

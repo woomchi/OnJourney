@@ -19,9 +19,6 @@ interface MapUIState {
   setMapBounds: (bounds: MapBoundsRect | null) => void;
 
   // Selected Places on Map
-  activeRecommendedPlace: PlaceResult | null;
-  setActiveRecommendedPlace: (place: PlaceResult | null) => void;
-  
   mapClickedPlace: MapClickedPlace | null;
   setMapClickedPlace: (place: MapClickedPlace | null) => void;
 
@@ -30,18 +27,10 @@ interface MapUIState {
   setIsLocating: (isLocating: boolean) => void;
   userLocation: MapCoord | null;
   setUserLocation: (location: MapCoord | null) => void;
-  currentAddress: string;
-  setCurrentAddress: (address: string) => void;
-  showLocationCard: boolean;
-  setShowLocationCard: (show: boolean) => void;
   gpsMode: 'none' | 'location' | 'compass';
   setGpsMode: (mode: 'none' | 'location' | 'compass') => void;
   deviceHeading: number | null;
   setDeviceHeading: (heading: number | null) => void;
-
-  // Loading
-  forceLoad: boolean;
-  setForceLoad: (force: boolean) => void;
 
   // Dragging State
   isMapDragging: boolean;
@@ -61,9 +50,6 @@ export const useMapUIStore = create<MapUIState>((set) => ({
   isMapDragging: false,
   setIsMapDragging: (isDragging) => set({ isMapDragging: isDragging }),
 
-  activeRecommendedPlace: null,
-  setActiveRecommendedPlace: (place) => set({ activeRecommendedPlace: place }),
-
   mapClickedPlace: null,
   setMapClickedPlace: (place) => set({ mapClickedPlace: place }),
 
@@ -73,18 +59,9 @@ export const useMapUIStore = create<MapUIState>((set) => ({
   userLocation: null,
   setUserLocation: (location) => set({ userLocation: location }),
 
-  currentAddress: '',
-  setCurrentAddress: (address) => set({ currentAddress: address }),
-
-  showLocationCard: false,
-  setShowLocationCard: (show) => set({ showLocationCard: show }),
-
   gpsMode: 'none',
   setGpsMode: (mode) => set({ gpsMode: mode }),
 
   deviceHeading: null,
   setDeviceHeading: (heading) => set({ deviceHeading: heading }),
-
-  forceLoad: false,
-  setForceLoad: (force) => set({ forceLoad: force }),
 }));

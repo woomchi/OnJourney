@@ -1,6 +1,7 @@
 "use client";
 
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import type { Place } from '@/types/journey';
 import PlaceCard from './PlaceCard';
 import { MapPin, Plus } from 'lucide-react';
@@ -58,7 +59,20 @@ export default function PlaceList({
     setAlternativeSegment,
     setFocusBounds,
     setDrawerSnapPoint,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((s) => ({
+      activeJourney: s.activeJourney,
+      drawerSnapPoint: s.drawerSnapPoint,
+      isDrawerMaximized: s.isDrawerMaximized,
+      isSearchMode: s.isSearchMode,
+      openSearchMode: s.openSearchMode,
+      setFocusedStep: s.setFocusedStep,
+      setFocusedSegment: s.setFocusedSegment,
+      setAlternativeSegment: s.setAlternativeSegment,
+      setFocusBounds: s.setFocusBounds,
+      setDrawerSnapPoint: s.setDrawerSnapPoint,
+    }))
+  );
   const { alert } = useDialog();
   const isMobile = useMediaQuery('(max-width: 767px)');
   const scrollRef = React.useRef<HTMLDivElement>(null);

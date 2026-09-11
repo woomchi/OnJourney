@@ -13,7 +13,7 @@ import TransferMarkers from '@/components/map/TransferMarkers';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMapState } from '@/features/map/useMapState';
 import { useMapUIStore } from '@/stores/map-store';
-import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapCamera } from './useMapCamera';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
@@ -50,6 +50,7 @@ export default function MapArea() {
     hoveredAlternativeRoute,
     recommendedPlaces,
     activeSearchPlace,
+    setActiveSearchPlace,
     setMapCenterCoord,
     addPlace,
     removePlace,
@@ -127,17 +128,24 @@ export default function MapArea() {
   }, [places, initialPlaceIds]);
 
   const {
-    setActiveRecommendedPlace,
     setMapClickedPlace,
     userLocation,
     gpsMode,
     mapClickedPlace,
-    forceLoad,
-    setForceLoad,
     setMapCenter,
     zoomLevel,
     mapBounds,
-  } = useMapUIStore();
+  } = useMapUIStore(
+    useShallow((s) => ({
+      setMapClickedPlace: s.setMapClickedPlace,
+      userLocation: s.userLocation,
+      gpsMode: s.gpsMode,
+      mapClickedPlace: s.mapClickedPlace,
+      setMapCenter: s.setMapCenter,
+      zoomLevel: s.zoomLevel,
+      mapBounds: s.mapBounds,
+    }))
+  );
 
   const panTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const stateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -159,9 +167,9 @@ export default function MapArea() {
 
   useEffect(() => {
     if (!recommendedPlaces || recommendedPlaces.length === 0) {
-      setActiveRecommendedPlace(null);
+      setActiveSearchPlace(null);
     }
-  }, [recommendedPlaces, setActiveRecommendedPlace]);
+  }, [recommendedPlaces, setActiveSearchPlace]);
 
   const { alert } = useDialog();
 
@@ -181,7 +189,7 @@ export default function MapArea() {
     };
     try {
       await addPlace(place);
-      setActiveRecommendedPlace(null);
+      setActiveSearchPlace(null);
     } catch (err) {
       console.error('추천 장소 추가 실패:', err);
     }
@@ -190,7 +198,7 @@ export default function MapArea() {
   const handleRemoveRecommendedPlace = async (placeId: string) => {
     try {
       await removePlace(placeId);
-      setActiveRecommendedPlace(null);
+      setActiveSearchPlace(null);
     } catch (err) {
       console.error('추천 장소 제거 실패:', err);
     }
@@ -211,11 +219,8 @@ export default function MapArea() {
   useGeocodeOnIdle({ map });
   const { currentMapPadding, windowWidth, windowHeight } = useMapPadding(isMobile);
 
-  const directionsCache = useJourneyDirectionsCache(places);
+  const directionsCache = useJourneyStore((state) => state.directionsCache);
 
-  useEffect(() => {
-    setForceLoad(false);
-  }, [places, setForceLoad]);
 
   const isAllInitialRoutesLoaded = useMemo(() => {
     if (places.length < 2) return true;
@@ -397,7 +402,12 @@ export default function MapArea() {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
-    setActiveRecommendedPlace(recPlace);
+    const currentActive = useJourneyStore.getState().activeSearchPlace;
+    if (currentActive?.id === recPlace.id) {
+      setActiveSearchPlace(null);
+    } else {
+      setActiveSearchPlace(recPlace);
+    }
     setMapClickedPlace(null);
 
     if (map) {
@@ -408,7 +418,7 @@ export default function MapArea() {
         panToWithOffset(map, { lat: recPlace.lat, lng: recPlace.lng });
       });
     }
-  }, [setActiveRecommendedPlace, setMapClickedPlace, map, panToWithOffset]);
+  }, [setActiveSearchPlace, setMapClickedPlace, map, panToWithOffset]);
 
   const handleMarkerClick = useCallback((place: SelectedPlace & { id: string }, idx: number) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {

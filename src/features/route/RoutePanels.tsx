@@ -7,7 +7,6 @@ import { SubwayLineMapPanel } from '@/features/route/SubwayLineMapPanel';
 import { BusLineMapPanel } from '@/features/route/BusLineMapPanel';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMapState } from '@/features/map/useMapState';
-import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -35,7 +34,7 @@ export function RoutePanels() {
   const isMobile = useMediaQuery('(max-width: 767px)');
   const activeJourney = useJourneyStore((state) => state.activeJourney);
   const places = useMemo(() => activeJourney?.places ?? [], [activeJourney]);
-  const directionsCache = useJourneyDirectionsCache(places);
+  const directionsCache = useJourneyStore((state) => state.directionsCache);
 
   const activeRouteOfFocusedSegment = useMemo(() => {
     if (!focusedSegment) return null;

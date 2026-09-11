@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useReducer } from 'react';
-import { useMapState } from '../useMapState';
+import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 
 export function useMapPadding(isMobile: boolean) {
   const {
@@ -12,7 +13,17 @@ export function useMapPadding(isMobile: boolean) {
     drawerSnapPoint,
     guidePanelState,
     isSearchMode,
-  } = useMapState();
+  } = useJourneyStore(
+    useShallow((state) => ({
+      activeJourney: state.activeJourney,
+      focusedSegment: state.focusedSegment,
+      alternativeSegment: state.alternativeSegment,
+      isDrawerMaximized: state.isDrawerMaximized,
+      drawerSnapPoint: state.drawerSnapPoint,
+      guidePanelState: state.guidePanelState,
+      isSearchMode: state.isSearchMode,
+    }))
+  );
 
   const windowWidthRef = useRef<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
   const windowHeightRef = useRef<number>(typeof window !== 'undefined' ? window.innerHeight : 800);

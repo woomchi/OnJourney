@@ -1,6 +1,5 @@
 "use client";
 
-import { useJourneyStore } from '@/stores/journey-store';
 import { Trash2, Plus } from 'lucide-react';
 
 interface SidebarBottomActionsProps {
@@ -14,13 +13,6 @@ export default function SidebarBottomActions({
   selectedPlaceIds,
   handleDeleteSelectedPlaces,
 }: SidebarBottomActionsProps) {
-  const {
-    setFocusedStep,
-    setFocusedSegment,
-    setAlternativeSegment,
-    setFocusBounds,
-    openSearchMode,
-  } = useJourneyStore();
 
   if (!isEditMode) return null;
 

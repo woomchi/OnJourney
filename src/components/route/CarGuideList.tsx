@@ -13,7 +13,7 @@ interface CarGuideListProps {
 
 export default function CarGuideList({ route, originPlace, destPlace, handleStepClick }: CarGuideListProps) {
   const guide = route.guide || [];
-  const { focusedStep } = useJourneyStore();
+  const focusedStep = useJourneyStore((s) => s.focusedStep);
 
   return (
     <div className="relative pl-1 flex flex-col gap-5">

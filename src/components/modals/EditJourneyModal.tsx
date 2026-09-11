@@ -28,7 +28,8 @@ interface EditJourneyModalProps {
 
 export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourneyModalProps) {
   const queryClient = useQueryClient();
-  const { updateJourneyInfo, isLoading } = useJourneyStore();
+  const updateJourneyInfo = useJourneyStore((s) => s.updateJourneyInfo);
+  const isLoading = useJourneyStore((s) => s.isLoading);
 
   const [title, setTitle] = useState('');
   const [transportType, setTransportType] = useState<TransportType>('public');

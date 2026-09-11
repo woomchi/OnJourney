@@ -2,6 +2,7 @@
 
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import { PlayTriangleIcon, PauseBarsIcon, ArrowRightIcon } from '@/components/ui/icons';
 
@@ -30,7 +31,13 @@ export default function PlaybackBar({
   onNextSegment,
   currentCardIndex = 0,
 }: PlaybackBarProps) {
-  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore();
+  const { focusedStep, setFocusedStep, setFocusBounds } = useJourneyStore(
+    useShallow((s) => ({
+      focusedStep: s.focusedStep,
+      setFocusedStep: s.setFocusedStep,
+      setFocusBounds: s.setFocusBounds,
+    }))
+  );
 
   const isPanelFocused = !!(focusedStep && focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id);
   let currentIdx = pages.findIndex(p => p.idx === focusedStep?.stepIndex && p.subType === focusedStep?.subType);

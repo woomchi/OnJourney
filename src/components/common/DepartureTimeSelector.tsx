@@ -7,7 +7,8 @@ import { useJourneyStore } from '@/stores/journey-store';
  * 출발 예정 시각을 사용자가 수동 설정할 수 있도록 돕는 콤팩트 셀렉터 컴포넌트
  */
 export default function DepartureTimeSelector() {
-  const { departureTime, setDepartureTime } = useJourneyStore();
+  const departureTime = useJourneyStore((s) => s.departureTime);
+  const setDepartureTime = useJourneyStore((s) => s.setDepartureTime);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 

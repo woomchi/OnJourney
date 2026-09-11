@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import type { TransportType } from '@/types/journey';
 import {
   Dialog,
@@ -21,7 +22,14 @@ const TRANSPORT_OPTIONS = [
 export default function CreateJourneyModal() {
   const queryClient = useQueryClient();
   const { isCreateFormOpen, closeCreateForm, createJourney, isLoading } =
-    useJourneyStore();
+    useJourneyStore(
+      useShallow((s) => ({
+        isCreateFormOpen: s.isCreateFormOpen,
+        closeCreateForm: s.closeCreateForm,
+        createJourney: s.createJourney,
+        isLoading: s.isLoading,
+      }))
+    );
 
   const [title, setTitle] = useState('');
   const [transportType, setTransportType] = useState<TransportType>('public');

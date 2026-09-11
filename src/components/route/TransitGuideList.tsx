@@ -22,7 +22,7 @@ export default function TransitGuideList({
   handleStepClick,
   handleZoomToPoint,
 }: TransitGuideListProps) {
-  const { focusedStep } = useJourneyStore();
+  const focusedStep = useJourneyStore((s) => s.focusedStep);
   const steps = route.steps || [];
   const [expandedSteps, setExpandedSteps] = useState<number[]>([]);
   const [selectedSchedule, setSelectedSchedule] = useState<{

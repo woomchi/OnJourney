@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import type { JourneyStore } from '../journey-store';
-import type { LatLngBoundsLiteral, FocusedSegment, FocusedStep, DirectionResult, PlaceResult, SubwayLineMapTarget, BusLineMapTarget, MapBoundsRect } from '@/types/journey';
+import type { LatLngBoundsLiteral, FocusedSegment, FocusedStep, DirectionResult, PlaceResult, SubwayLineMapTarget, BusLineMapTarget } from '@/types/journey';
 
 export interface MapSlice {
   focusBounds: LatLngBoundsLiteral | null;
@@ -14,7 +14,6 @@ export interface MapSlice {
   busLineMapTarget: BusLineMapTarget | null;
   mapCenterAddress: string;
   mapCenterCoord: { lat: number; lng: number } | null;
-  mapBounds: MapBoundsRect | null;
   mapRegions: string[];
   recommendedPlaces: PlaceResult[];
   setFocusBounds: (bounds: LatLngBoundsLiteral | null) => void;
@@ -28,7 +27,6 @@ export interface MapSlice {
   setBusLineMapTarget: (target: BusLineMapTarget | null) => void;
   setMapCenterAddress: (address: string) => void;
   setMapCenterCoord: (coord: { lat: number; lng: number } | null) => void;
-  setMapBounds: (bounds: MapBoundsRect | null) => void;
   setMapRegions: (regions: string[]) => void;
   setRecommendedPlaces: (places: PlaceResult[]) => void;
   clearRecommendedPlaces: () => void;
@@ -76,7 +74,6 @@ export const createMapSlice: StateCreator<
   busLineMapTarget: null,
   mapCenterAddress: '',
   mapCenterCoord: null,
-  mapBounds: null,
   mapRegions: [],
   recommendedPlaces: [],
   isSearchLoading: false,
@@ -108,7 +105,6 @@ export const createMapSlice: StateCreator<
   setBusLineMapTarget: (target) => set({ busLineMapTarget: target, ...(target ? { subwayLineMapTarget: null } : {}) }),
   setMapCenterAddress: (address) => set({ mapCenterAddress: address }),
   setMapCenterCoord: (coord) => set({ mapCenterCoord: coord }),
-  setMapBounds: (bounds) => set({ mapBounds: bounds }),
   setMapRegions: (regions) => set({ mapRegions: regions }),
   setRecommendedPlaces: (places) => set({ recommendedPlaces: places }),
   clearRecommendedPlaces: () => set({ recommendedPlaces: [] }),

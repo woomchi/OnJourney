@@ -29,7 +29,7 @@ export const directionKeys = {
 };
 
 export function useSegmentDirection(origin: Place | null, dest: Place | null) {
-  const { departureTime } = useJourneyStore();
+  const departureTime = useJourneyStore((s) => s.departureTime);
   const normalizedTime = useMemo(() => normalizeDepartureTime(departureTime), [departureTime]);
   
   const publicQuery = useQuery({
@@ -57,7 +57,7 @@ export function useSegmentDirection(origin: Place | null, dest: Place | null) {
 
 export function useJourneyDirections() {
   const queryClient = useQueryClient();
-  const { departureTime } = useJourneyStore();
+  const departureTime = useJourneyStore((s) => s.departureTime);
   // departureTime을 ref로 유지하여 useCallback deps를 최소화
   const departureTimeRef = useRef(departureTime);
   useEffect(() => {
@@ -116,7 +116,7 @@ export function useJourneyDirections() {
 }
 
 export function useJourneyDirectionsCache(places: Place[] | undefined) {
-  const { departureTime } = useJourneyStore();
+  const departureTime = useJourneyStore((s) => s.departureTime);
   const normalizedTime = useMemo(() => normalizeDepartureTime(departureTime), [departureTime]);
 
   const segmentQueries = useMemo(() => {

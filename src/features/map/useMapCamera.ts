@@ -6,12 +6,12 @@ import { useMapUIStore } from '@/stores/map-store';
 import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/services/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { areBoundsEqual } from '@/stores/slices/mapSlice';
-import type { Place, LatLngBoundsLiteral, DirectionsApiResponse } from '@/types/journey';
+import type { Place, LatLngBoundsLiteral, DirectionsApiResponse, DirectionsCacheRecord } from '@/types/journey';
 
 interface UseMapCameraProps {
   map: naver.maps.Map | null;
   currentMapPadding: { top: number; right: number; bottom: number; left: number };
-  directionsCache: Record<string, DirectionsApiResponse>;
+  directionsCache: DirectionsCacheRecord;
   loadedSegmentsCount: number;
   isMobile: boolean;
   windowWidth: number;
@@ -46,7 +46,9 @@ export function useMapCamera({
     drawerSnapPoint,
   } = useMapState();
 
-  const { setMapCenter, setGpsMode, setUserLocation } = useMapUIStore();
+  const setMapCenter = useMapUIStore((s) => s.setMapCenter);
+  const setGpsMode = useMapUIStore((s) => s.setGpsMode);
+  const setUserLocation = useMapUIStore((s) => s.setUserLocation);
 
   // 여정 전환/해제 시 GPS 모드 및 위치 리셋 (Side effect 분리)
   useEffect(() => {

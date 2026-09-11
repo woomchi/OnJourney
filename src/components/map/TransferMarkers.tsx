@@ -2,6 +2,7 @@ import React, { useMemo, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { CustomOverlayView } from '@/components/map/CustomOverlayView';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { getSequenceTheme } from '@/constants/colors';
 import { calculateHaversineDistance, calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
@@ -39,7 +40,14 @@ export default function TransferMarkers({
 }: TransferMarkersProps) {
   const isMapDragging = useMapUIStore((state) => state.isMapDragging);
   const mapBounds = useMapUIStore((state) => state.mapBounds);
-  const { focusedStep, setFocusedStep, setFocusBounds, setFocusedSegment } = useJourneyStore();
+  const { focusedStep, setFocusedStep, setFocusBounds, setFocusedSegment } = useJourneyStore(
+    useShallow((s) => ({
+      focusedStep: s.focusedStep,
+      setFocusedStep: s.setFocusedStep,
+      setFocusBounds: s.setFocusBounds,
+      setFocusedSegment: s.setFocusedSegment,
+    }))
+  );
   const transportType = activeJourney?.transport_type || 'public';
 
   const transferPoints = useMemo(() => {

@@ -10,10 +10,10 @@ interface UseGeocodeOnIdleProps {
 }
 
 export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
-  const { setZoomLevel, setMapBounds } = useMapUIStore();
+  const setZoomLevel = useMapUIStore((state) => state.setZoomLevel);
+  const setMapBounds = useMapUIStore((state) => state.setMapBounds);
   const setMapCenterAddress = useJourneyStore((state) => state.setMapCenterAddress);
   const setMapCenterCoord = useJourneyStore((state) => state.setMapCenterCoord);
-  const setGlobalMapBounds = useJourneyStore((state) => state.setMapBounds);
 
   const lastGeocodedCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,9 +53,6 @@ export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
         useMapUIStore.setState(updates);
       }
 
-      if (newBoundsRect) {
-        setGlobalMapBounds(newBoundsRect);
-      }
 
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
       geocodeTimerRef.current = setTimeout(() => {
@@ -117,5 +114,5 @@ export function useGeocodeOnIdle({ map }: UseGeocodeOnIdleProps) {
       navermaps.Event.removeListener(idleListener);
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
     };
-  }, [map, setZoomLevel, setMapBounds, setGlobalMapBounds, setMapCenterAddress, setMapCenterCoord]);
+  }, [map, setZoomLevel, setMapBounds, setMapCenterAddress, setMapCenterCoord]);
 }

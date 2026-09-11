@@ -42,9 +42,30 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
         key: 'ONJOURNEY_REACT_QUERY_CACHE',
       });
       
+      const EXCLUDED_DEHYDRATE_ROOT_KEYS = new Set([
+        'realtimeBus',
+        'realtimeSubway',
+        'subwayLinePositions',
+        'busLinePositions',
+        'transit-schedule',
+      ]);
+
       const [, restorePromise] = persistQueryClient({
         queryClient,
         persister,
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => {
+            // 1. 성공 상태인 쿼리만 영속화
+            if (query.state.status !== 'success') return false;
+
+            // 2. 15~30초 주기 휘발성 실시간 대중교통 데이터는 IndexedDB 영구 저장 제외 (메모리 캐시만 유지)
+            const rootKey = query.queryKey[0];
+            if (typeof rootKey === 'string' && EXCLUDED_DEHYDRATE_ROOT_KEYS.has(rootKey)) {
+              return false;
+            }
+            return true;
+          },
+        },
       });
 
       restorePromise.then(() => {

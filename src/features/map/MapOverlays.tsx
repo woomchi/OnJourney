@@ -1,6 +1,7 @@
 "use client";
 
 import { useMapUIStore } from '@/stores/map-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useMapState } from './useMapState';
 import { useDialog } from '@/providers/DialogProvider';
 import { MAX_JOURNEY_PLACES, MAX_JOURNEY_PLACES_ALERT } from '@/constants/journey';
@@ -23,15 +24,20 @@ export function MapOverlays({
     hasSearchQuery,
     isDrawerMaximized,
     addPlace,
+    activeSearchPlace,
+    setActiveSearchPlace,
   } = useMapState();
 
   const { alert } = useDialog();
   const {
-    activeRecommendedPlace,
-    setActiveRecommendedPlace,
     mapClickedPlace,
     setMapClickedPlace,
-  } = useMapUIStore();
+  } = useMapUIStore(
+    useShallow((s) => ({
+      mapClickedPlace: s.mapClickedPlace,
+      setMapClickedPlace: s.setMapClickedPlace,
+    }))
+  );
 
   const places = activeJourney?.places ?? [];
 
@@ -106,7 +112,7 @@ export function MapOverlays({
       )}
 
       {/* ── 추천 장소 상세 오버레이 카드 ── */}
-      {activeRecommendedPlace && (
+      {activeSearchPlace && (
         <div
           className={`absolute bottom-24 left-6 z-[120] w-[320px] bg-white/90 backdrop-blur-xl border border-zinc-100/80 p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-bottom-5 duration-300 flex flex-col gap-4 transition-all ${
             isDrawerMaximized ? 'opacity-0 pointer-events-none translate-y-4' : 'opacity-100'
@@ -115,18 +121,18 @@ export function MapOverlays({
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
               <span className="inline-block text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mb-1">
-                {activeRecommendedPlace.category.split('>').pop()?.trim() || activeRecommendedPlace.category}
+                {activeSearchPlace.category.split('>').pop()?.trim() || activeSearchPlace.category}
               </span>
               <h4 className="text-[15px] font-black text-zinc-900 truncate leading-tight">
-                {activeRecommendedPlace.place_name}
+                {activeSearchPlace.place_name}
               </h4>
               <p className="text-xs text-zinc-400 mt-1 leading-normal truncate">
-                {activeRecommendedPlace.address}
+                {activeSearchPlace.address}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setActiveRecommendedPlace(null)}
+              onClick={() => setActiveSearchPlace(null)}
               className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-all flex-shrink-0 cursor-pointer"
             >
               <svg
@@ -142,11 +148,11 @@ export function MapOverlays({
             </button>
           </div>
           {(() => {
-            const isAlreadyAdded = places.some((p) => p.id === activeRecommendedPlace.id);
+            const isAlreadyAdded = places.some((p) => p.id === activeSearchPlace.id);
             return isAlreadyAdded ? (
               <button
                 type="button"
-                onClick={() => handleRemoveRecommendedPlace(activeRecommendedPlace.id)}
+                onClick={() => handleRemoveRecommendedPlace(activeSearchPlace.id)}
                 className="w-full py-3 bg-red-50 hover:bg-red-500 active:scale-95 text-red-600 hover:text-white text-xs font-bold rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-red-100 hover:border-red-500"
               >
                 <svg
@@ -164,7 +170,7 @@ export function MapOverlays({
             ) : (
               <button
                 type="button"
-                onClick={() => handleAddRecommendedPlace(activeRecommendedPlace)}
+                onClick={() => handleAddRecommendedPlace(activeSearchPlace)}
                 className="relative w-full py-3 bg-zinc-950 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-blue-600 before:to-indigo-600 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300 transition-all"
               >
                 <svg

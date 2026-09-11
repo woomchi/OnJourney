@@ -8,11 +8,18 @@ import MapCategoryChips from '@/components/map/MapCategoryChips';
 import { User, Settings, LogOut, ArrowLeft } from 'lucide-react';
 
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function MapHeaderOverlay() {
   const { user, signOut } = useAuth();
   const { alert } = useDialog();
-  const { isSearchMode, closeSearchMode, targetChangePlaceId } = useJourneyStore();
+  const { isSearchMode, closeSearchMode, targetChangePlaceId } = useJourneyStore(
+    useShallow((s) => ({
+      isSearchMode: s.isSearchMode,
+      closeSearchMode: s.closeSearchMode,
+      targetChangePlaceId: s.targetChangePlaceId,
+    }))
+  );
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 

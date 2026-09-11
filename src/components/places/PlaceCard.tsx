@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useMemo } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useSegmentDirection } from '@/hooks/queries/useDirections';
 import type { Place } from '@/types/journey';
@@ -88,7 +89,26 @@ export default function PlaceCard({
     setTargetChangePlaceId,
     openSearchMode,
     departureTime,
-  } = useJourneyStore();
+    isCacheRestored,
+  } = useJourneyStore(
+    useShallow((state) => ({
+      activeJourney: state.activeJourney,
+      setFocusBounds: state.setFocusBounds,
+      focusedSegment: state.focusedSegment,
+      setFocusedSegment: state.setFocusedSegment,
+      setFocusedStep: state.setFocusedStep,
+      focusedStep: state.focusedStep,
+      isAlternativeFromFocus: state.isAlternativeFromFocus,
+      setIsAlternativeFromFocus: state.setIsAlternativeFromFocus,
+      isDrawerMaximized: state.isDrawerMaximized,
+      alternativeSegment: state.alternativeSegment,
+      setAlternativeSegment: state.setAlternativeSegment,
+      setTargetChangePlaceId: state.setTargetChangePlaceId,
+      openSearchMode: state.openSearchMode,
+      departureTime: state.departureTime,
+      isCacheRestored: state.isCacheRestored,
+    }))
+  );
 
   const isMobile = useMediaQuery('(max-width: 767px)');
   
@@ -195,7 +215,6 @@ export default function PlaceCard({
     };
   }, [nextPlace, publicQuery.data, carWalkQuery.data]);
 
-  const { isCacheRestored } = useJourneyStore();
   const hasSelectedRoute = place.selected_route && place.selected_route.destId === nextPlace?.id;
   const isSegmentLoading = Boolean(
     nextPlace &&

@@ -1,9 +1,11 @@
 "use client";
 
 import { useJourneyStore } from '@/stores/journey-store';
+import { useShallow } from 'zustand/react/shallow';
 import { getSequenceTheme } from '@/constants/colors';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
-import type { Place } from '@/types/journey';
+import type { Place, DirectionResult, SelectedRoute } from '@/types/journey';
+import { Car, Footprints, Bus, Train, Route } from 'lucide-react';
 
 interface TimelineNodeProps {
   index: number;
@@ -11,11 +13,11 @@ interface TimelineNodeProps {
   isLast: boolean;
   editMode: boolean;
   isFocused: boolean;
-  isSegmentPlaying: boolean;
+  isSegmentPlaying?: boolean;
   place: Place;
-  nextPlace: Place | null;
-  activeRoute: any;
-  transportType?: 'public' | 'car' | 'walk';
+  nextPlace?: Place | null;
+  activeRoute?: SelectedRoute | DirectionResult;
+  transportType: 'public' | 'car' | 'walk';
 }
 
 export default function TimelineNode({
@@ -24,7 +26,7 @@ export default function TimelineNode({
   isLast,
   editMode,
   isFocused,
-  isSegmentPlaying,
+  isSegmentPlaying = false,
   place,
   nextPlace,
   activeRoute,
@@ -35,7 +37,14 @@ export default function TimelineNode({
     setFocusedSegment,
     setAlternativeSegment,
     setFocusBounds,
-  } = useJourneyStore();
+  } = useJourneyStore(
+    useShallow((state) => ({
+      setFocusedStep: state.setFocusedStep,
+      setFocusedSegment: state.setFocusedSegment,
+      setAlternativeSegment: state.setAlternativeSegment,
+      setFocusBounds: state.setFocusBounds,
+    }))
+  );
 
   const theme = getSequenceTheme(index, totalPlaces);
   const isInteractive = !isLast && !editMode;

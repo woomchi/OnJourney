@@ -15,8 +15,8 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 60 * 60 * 24, // 24시간 동안 캐시 유지 (오프라인 대응)
-            gcTime: 1000 * 60 * 60 * 24 * 7, // 7일간 캐시 보관
+            staleTime: 1000 * 60 * 30, // 💡 명세서 5.2절 규격: 30분 동안 캐시 신선도 유지
+            gcTime: 1000 * 60 * 60, // 💡 명세서 5.2절 규격: 1시간 동안 메모리 보관
             retry: 1, // 실패 시 1회 재시도
             refetchOnWindowFocus: false, // 윈도우 포커스 시 자동 재요청 방지
           },

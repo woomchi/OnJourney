@@ -4,16 +4,24 @@ import { odsayCircuitBreaker } from '@/lib/infrastructure/circuitBreaker';
 import { OdsayAdapter, AppError } from '@/lib/infrastructure/odsayAdapter';
 import { parseMaasRPResponse } from './maasRPParser';
 
-import { toKstSearchTime } from '../common/timeUtils';
+import { toKstSearchTime, toKstCacheKeyGroup } from '../common/timeUtils';
 
 type MaasRPApiCacheResult =
   | { ok: true; data: any }
   | { ok: false; error: string; code: string };
 
 /**
- * ODsay 멀티모달(maasRP) 대중교통 경로 캐시 함수 (시간대별 5분 캐싱)
+ * ODsay 멀티모달(maasRP) 대중교통 경로 캐시 함수 (명세서 규격: 1시간 캐싱, 3시간 버킷 키)
  */
-function getCachedMaasRP(sx: string, sy: string, ex: string, ey: string, searchTime: string, apiKey: string) {
+function getCachedMaasRP(
+  sx: string,
+  sy: string,
+  ex: string,
+  ey: string,
+  searchTime: string,
+  cacheTimeGroup: string,
+  apiKey: string
+) {
   return unstable_cache(
     async () => {
       return odsayCircuitBreaker.execute<MaasRPApiCacheResult>(
@@ -35,11 +43,10 @@ function getCachedMaasRP(sx: string, sy: string, ex: string, ey: string, searchT
         }
       );
     },
-    ['odsay-maas-rp-v2', sx, sy, ex, ey, searchTime],
-    { revalidate: 60 * 5 }
+    ['odsay-maas-rp-v3', sx, sy, ex, ey, cacheTimeGroup],
+    { revalidate: 3600 } // 💡 명세서 5.2절 규격: 1시간 (3600초)
   )();
 }
-
 
 /**
  * 대중교통 경로 호출 메인 함수 (ODsay maasRP 기반 전면 통합)
@@ -61,8 +68,9 @@ export async function fetchPublicTransitOptions(
   const rex = ex.toFixed(4);
   const rey = ey.toFixed(4);
   const searchTime = toKstSearchTime(departureTime);
+  const cacheTimeGroup = toKstCacheKeyGroup(departureTime);
 
-  const res = await getCachedMaasRP(rsx, rsy, rex, rey, searchTime, apiKey);
+  const res = await getCachedMaasRP(rsx, rsy, rex, rey, searchTime, cacheTimeGroup, apiKey);
 
   if (!res.ok) {
     const isNotFound = (res as any).code === 'TRANSIT_ROUTE_NOT_FOUND' || (res as any).error?.includes('찾을 수 없음') || (res as any).error?.includes('결과 데이터');

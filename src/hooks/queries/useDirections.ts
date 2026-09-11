@@ -5,9 +5,9 @@ import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 
 /**
- * 출발 시각(Unix ms)을 15분 단위 버킷으로 정규화하여 캐시 파편화를 방지하고 적중률을 극대화
+ * 출발 시각(Unix ms)을 1시간(60분) 단위 버킷으로 정규화하여 캐시 파편화를 방지하고 적중률을 극대화 (명세서 규격)
  */
-export function normalizeDepartureTime(time?: number | null, bucketMinutes = 15): number | null {
+export function normalizeDepartureTime(time?: number | null, bucketMinutes = 60): number | null {
   if (!time) return null;
   const bucketMs = bucketMinutes * 60 * 1000;
   return Math.floor(time / bucketMs) * bucketMs;

@@ -18,6 +18,10 @@ import {
   BusPositionStage,
   EdgeAnchorPoints,
 } from '@/types/journey';
+import {
+  BusRoutePersistentCache,
+  HydratedCachedBusRoute,
+} from '@/lib/infrastructure/busRoutePersistentCache';
 
 export interface FetchBusLinePositionsParams {
   busNo: string;
@@ -36,23 +40,7 @@ import { LruTtlCache } from '@/lib/utils/lruCache';
 // ─── 인메모리 캐시 ───────────────────────────────────────────────────────────
 
 /** 정적 노선 정류소 목록 캐시 (TTL: 1시간, 최대 200개) */
-interface CachedBusRoute {
-  busNo: string;
-  busId: string;
-  routeId?: string;
-  routeIds?: string[];
-  busType?: string;
-  busColor?: string;
-  startStationName?: string;
-  endStationName?: string;
-  turningStationName?: string;
-  turningStationSeq?: number;
-  stations: BusLineStation[];
-  stationIndexMap: Map<string, number>; // 전체 통합 인덱스 맵
-  upStationIndexMap: Map<string, number>; // 상행(0 ~ turningSeq-1) 인덱스 맵
-  downStationIndexMap: Map<string, number>; // 하행(turningSeq-1 ~ end) 인덱스 맵
-  stationIndexListMap: Map<string, number[]>; // 중복 정류소명/ID 다중 인덱스 맵
-}
+type CachedBusRoute = HydratedCachedBusRoute;
 
 const BUS_ROUTE_CACHE = new LruTtlCache<string, CachedBusRoute>({
   maxSize: 200,
@@ -90,22 +78,36 @@ export class BusPositionService {
       params.routeId ||
       (params.busId && String(params.busId).length > 6 ? String(params.busId) : undefined);
 
-    // 2. 노선 정적 정보 & 정류소 목록 조회 (ODsay API)
-    const routeData = await this.getOrFetchRouteStations({
+    // 2. 노선 정적 정보 & 정류소 목록 조회 (영속 캐시 -> TAGO API -> ODsay API 3단계)
+    let routeData = await this.getOrFetchRouteStations({
       busNo: cleanNo,
       rawBusNo,
       busId: effectiveOdsayBusId,
+      routeId: effectiveTagoRouteId,
       cityCode: params.cityCode,
       resolvedCityCode,
     });
 
-    if (!routeData || routeData.stations.length === 0) {
-      return null;
+    // 💡 [핵심 해결] 노선 정적 정보에서 확인된 공인 국토부 routeId를 최우선 확정
+    if (routeData?.routeId) {
+      effectiveTagoRouteId = routeData.routeId;
     }
 
-    // 💡 [핵심 해결] ODsay 노선 정적 정보에서 확인된 공인 국토부 routeId (busLocalBlID, 예: DJB30300104)를 최우선 확정
-    if (routeData.routeId) {
-      effectiveTagoRouteId = routeData.routeId;
+    // 💡 [핵심 Graceful Fallback] 정류소 목록 획득에 실패하더라도 실시간 운행 버스 위치로부터 가상 노선 뷰 즉석 합성
+    if (!routeData || routeData.stations.length === 0) {
+      if (effectiveTagoRouteId) {
+        const fallbackRes = await this.createFallbackRouteFromRealtimePositions({
+          routeId: effectiveTagoRouteId,
+          busNo: cleanNo,
+          cityCode: resolvedCityCode,
+          stationName: params.stationName,
+          stationId: params.stationId,
+        });
+        if (fallbackRes) {
+          return fallbackRes;
+        }
+      }
+      return null;
     }
 
     // 💡 [핵심 개선: 항상 상/하행 전체 TAGO routeId 집합을 온전히 확보]
@@ -157,59 +159,207 @@ export class BusPositionService {
   }
 
   /**
-   * ODsay 노선 정류소 목록 조회 및 33%/66% 앵커 포인트 사전 계산 캐싱 (교차 권역 검색 지원)
+   * 정류소 원시 목록으로부터 CachedBusRoute 객체(인덱스 맵, 33/66% 앵커 등) 생성
+   */
+  private static buildRouteData(params: {
+    busNo: string;
+    busId: string;
+    routeId?: string;
+    routeIds?: string[];
+    busType?: string;
+    busColor?: string;
+    startStationName?: string;
+    endStationName?: string;
+    turningStationName?: string;
+    turningStationSeq?: number;
+    rawStations: Array<{
+      stationId: string;
+      stationName: string;
+      stationSeq: number;
+      lat: number;
+      lng: number;
+      arsNo?: string;
+      isTurningPoint?: boolean;
+    }>;
+  }): CachedBusRoute {
+    const rawStations = params.rawStations;
+    const stations: BusLineStation[] = [];
+    const stationIndexMap = new Map<string, number>();
+    const upStationIndexMap = new Map<string, number>();
+    const downStationIndexMap = new Map<string, number>();
+    const stationIndexListMap = new Map<string, number[]>();
+
+    const addToListMap = (key: string, idx: number) => {
+      const list = stationIndexListMap.get(key) || [];
+      list.push(idx);
+      stationIndexListMap.set(key, list);
+    };
+
+    const effectiveTurningSeq = params.turningStationSeq || Math.ceil(rawStations.length / 2);
+
+    for (let i = 0; i < rawStations.length; i++) {
+      const st = rawStations[i];
+      const stationId = String(st.stationId || st.stationSeq || i + 1);
+      const stationName = String(st.stationName || `정류소 ${i + 1}`).trim();
+      const stationSeq = Number(st.stationSeq ?? i + 1);
+      const lat = Number(st.lat || 0);
+      const lng = Number(st.lng || 0);
+      const arsNo = st.arsNo ? String(st.arsNo).trim() : undefined;
+      const isTurning = st.isTurningPoint || stationSeq === effectiveTurningSeq;
+
+      stations.push({
+        stationId,
+        stationName,
+        stationSeq,
+        lat,
+        lng,
+        arsNo,
+        isTurningPoint: isTurning,
+        edgePoints: null,
+      });
+
+      // 1) 전체 통합 맵 및 다중 인덱스 리스트 맵 등록
+      stationIndexMap.set(stationId, i);
+      stationIndexMap.set(`seq:${stationSeq}`, i);
+      stationIndexMap.set(`name:${stationName}`, i);
+      addToListMap(stationId, i);
+      addToListMap(`seq:${stationSeq}`, i);
+      addToListMap(`name:${stationName}`, i);
+
+      if (arsNo) {
+        stationIndexMap.set(`ars:${arsNo}`, i);
+        addToListMap(`ars:${arsNo}`, i);
+      }
+
+      // 2) 방향별 독립 인덱스 맵 분리
+      if (stationSeq <= effectiveTurningSeq) {
+        upStationIndexMap.set(stationId, i);
+        upStationIndexMap.set(`seq:${stationSeq}`, i);
+        upStationIndexMap.set(`name:${stationName}`, i);
+        if (arsNo) upStationIndexMap.set(`ars:${arsNo}`, i);
+      }
+      if (stationSeq >= effectiveTurningSeq) {
+        downStationIndexMap.set(stationId, i);
+        downStationIndexMap.set(`seq:${stationSeq}`, i);
+        downStationIndexMap.set(`name:${stationName}`, i);
+        if (arsNo) downStationIndexMap.set(`ars:${arsNo}`, i);
+      }
+    }
+
+    // 앵커 포인트 계산
+    for (let i = 0; i < stations.length - 1; i++) {
+      const curr = stations[i];
+      const next = stations[i + 1];
+
+      if (curr.lat && curr.lng && next.lat && next.lng) {
+        const latA = curr.lat;
+        const lngA = curr.lng;
+        const latB = next.lat;
+        const lngB = next.lng;
+
+        curr.edgePoints = {
+          departurePoint: {
+            lat: latA + (latB - latA) * (1 / 3),
+            lng: lngA + (lngB - lngA) * (1 / 3),
+            ratio: 0.33,
+          },
+          approachingPoint: {
+            lat: latA + (latB - latA) * (2 / 3),
+            lng: lngA + (lngB - lngA) * (2 / 3),
+            ratio: 0.66,
+          },
+        };
+      }
+    }
+
+    return {
+      busNo: params.busNo,
+      busId: params.busId,
+      routeId: params.routeId,
+      routeIds: params.routeIds,
+      busType: params.busType,
+      busColor: params.busColor,
+      startStationName: params.startStationName || stations[0]?.stationName,
+      endStationName: params.endStationName || stations[stations.length - 1]?.stationName,
+      turningStationName: params.turningStationName || stations[effectiveTurningSeq - 1]?.stationName,
+      turningStationSeq: effectiveTurningSeq,
+      stations,
+      stationIndexMap,
+      upStationIndexMap,
+      downStationIndexMap,
+      stationIndexListMap,
+    };
+  }
+
+  /**
+   * 노선 경유 정류소 목록 조회 (1. 인메모리 -> 2. 영속 파일 캐시 -> 3. TAGO 공공데이터 API -> 4. ODsay API 1회)
    */
   private static async getOrFetchRouteStations(params: {
     busNo: string;
     rawBusNo: string;
     busId?: string;
+    routeId?: string;
     cityCode?: string;
     resolvedCityCode: string;
   }): Promise<CachedBusRoute | null> {
-    const cacheKey = params.busId ? `id:${params.busId}` : `no:${params.busNo}:${params.cityCode || '11'}`;
-    const cached = BUS_ROUTE_CACHE.get(cacheKey);
+    const primaryKey = params.routeId
+      ? `route:${params.routeId}`
+      : params.busId
+      ? `id:${params.busId}`
+      : `no:${params.busNo}:${params.cityCode || '11'}`;
 
-    if (cached) {
-      return cached;
+    // 1. 인메모리 캐시 1차 확인
+    const memCached = BUS_ROUTE_CACHE.get(primaryKey);
+    if (memCached) {
+      return memCached;
     }
 
+    // 2. 영속 캐시(로컬 파일 시스템 / DB) 2차 확인
+    const persistentCached = await BusRoutePersistentCache.get(primaryKey);
+    if (persistentCached) {
+      BUS_ROUTE_CACHE.set(primaryKey, persistentCached);
+      return persistentCached;
+    }
+
+    // 3. 국토교통부(TAGO) 노선 경유 정류소 API 조회 시도 (routeId가 있는 경우)
+    if (params.routeId) {
+      const tagoRes = await TagoBusService.getRouteThroughStations(
+        params.resolvedCityCode,
+        params.routeId
+      ).catch(() => null);
+
+      if (tagoRes && tagoRes.stations && tagoRes.stations.length > 0) {
+        const routeData = this.buildRouteData({
+          busNo: params.busNo,
+          busId: params.busId || params.routeId,
+          routeId: params.routeId,
+          rawStations: tagoRes.stations,
+          turningStationSeq: tagoRes.turningStationSeq,
+          turningStationName: tagoRes.turningStationName,
+        });
+
+        BUS_ROUTE_CACHE.set(primaryKey, routeData);
+        await BusRoutePersistentCache.set(primaryKey, routeData);
+        return routeData;
+      }
+    }
+
+    // 4. ODsay busLaneDetail API 안전 조회 (단 1회 시도, 429 쿼터 초과 시 안전 스킵)
     try {
       let busID = params.busId;
-      // 💡 안전장치: busID가 7자리 이상이면 TAGO routeId이므로 ODsay busID로 사용하지 않고 재검색
       if (busID && String(busID).length > 6) {
         busID = undefined;
       }
 
-      let busLaneDetailRaw: any = null;
-
-      // 1-1. busId가 없거나 TAGO routeId인 경우 searchBusLane으로 ODsay 5자리 busID 탐색
+      // busID가 없는 경우 searchBusLane 1회만 시도
       if (!busID) {
         const odsayCid = resolveOdsayCid(params.cityCode);
-        let searchRes = await OdsayAdapter.fetchBusLane(
+        const searchRes = await OdsayAdapter.fetchBusLane(
           params.rawBusNo || params.busNo,
           odsayCid
         ).catch(() => null);
 
-        let lanes = searchRes?.result?.lane;
-
-        // 1차 검색 실패 시 CID 없이 전국(전체 권역)으로 2차 탐색
-        if (!lanes || (Array.isArray(lanes) && lanes.length === 0)) {
-          const fallbackRes = await OdsayAdapter.fetchBusLane(
-            params.rawBusNo || params.busNo
-          ).catch(() => null);
-          lanes = fallbackRes?.result?.lane;
-        }
-
-        // 그래도 없으면 교차 CID(1000 <-> 1040) 3차 탐색
-        if (!lanes || (Array.isArray(lanes) && lanes.length === 0)) {
-          const crossCid = odsayCid === '1000' ? '1040' : '1000';
-          const crossRes = await OdsayAdapter.fetchBusLane(
-            params.rawBusNo || params.busNo,
-            crossCid
-          ).catch(() => null);
-          lanes = crossRes?.result?.lane;
-        }
-
+        const lanes = searchRes?.result?.lane;
         if (Array.isArray(lanes) && lanes.length > 0) {
           const exact = lanes.find(
             (l: any) => cleanBusNumber(l.busNo) === params.busNo
@@ -220,216 +370,137 @@ export class BusPositionService {
         }
       }
 
-      if (!busID) {
-        return null;
-      }
+      if (busID) {
+        const busLaneDetailRaw = await OdsayAdapter.fetchBusLaneDetail(busID).catch(() => null);
+        const detailResult = busLaneDetailRaw?.result;
 
-      // 1-2. busLaneDetail 호출
-      busLaneDetailRaw = await OdsayAdapter.fetchBusLaneDetail(busID).catch(() => null);
+        if (detailResult && Array.isArray(detailResult.station) && detailResult.station.length > 0) {
+          const rawStations = detailResult.station.map((st: any, idx: number) => ({
+            stationId: String(st.stationID || st.stationSeq || idx + 1),
+            stationName: String(st.stationName || `정류소 ${idx + 1}`).trim(),
+            stationSeq: Number(st.stationSeq ?? idx + 1),
+            lat: Number(st.y || 0),
+            lng: Number(st.x || 0),
+            arsNo: st.arsID ? String(st.arsID).trim() : undefined,
+            isTurningPoint:
+              st.isTurningPoint === 'Y' ||
+              st.isTurningPoint === true ||
+              st.stationClass === '2',
+          }));
 
-      // 만약 기존 busID로 호출 실패 시, searchBusLane으로 ODsay busID 재추출 후 2차 시도
-      if (!busLaneDetailRaw?.result?.station) {
-        const odsayCid = resolveOdsayCid(params.cityCode);
-        const retrySearch = await OdsayAdapter.fetchBusLane(params.rawBusNo || params.busNo, odsayCid).catch(() => null);
-        const retryLanes = retrySearch?.result?.lane;
-        if (Array.isArray(retryLanes) && retryLanes.length > 0) {
-          const retryExact = retryLanes.find((l: any) => cleanBusNumber(l.busNo) === params.busNo) || retryLanes[0];
-          busID = String(retryExact.busID);
-          busLaneDetailRaw = await OdsayAdapter.fetchBusLaneDetail(busID).catch(() => null);
+          const routeData = this.buildRouteData({
+            busNo: detailResult.busNo || params.busNo,
+            busId: String(busID),
+            routeId: detailResult.busLocalBlID ? String(detailResult.busLocalBlID) : params.routeId,
+            busType: detailResult.busType,
+            busColor: detailResult.busColor,
+            startStationName: detailResult.busStartPoint,
+            endStationName: detailResult.busEndPoint,
+            rawStations,
+          });
+
+          BUS_ROUTE_CACHE.set(primaryKey, routeData);
+          await BusRoutePersistentCache.set(primaryKey, routeData);
+          return routeData;
         }
       }
-
-      const detailResult = busLaneDetailRaw?.result;
-      if (!detailResult || !Array.isArray(detailResult.station)) {
-        return null;
-      }
-
-      const rawStations = detailResult.station;
-      const stations: BusLineStation[] = [];
-      const stationIndexMap = new Map<string, number>();
-      const upStationIndexMap = new Map<string, number>();
-      const downStationIndexMap = new Map<string, number>();
-      const stationIndexListMap = new Map<string, number[]>();
-
-      const addToListMap = (key: string, idx: number) => {
-        const list = stationIndexListMap.get(key) || [];
-        list.push(idx);
-        stationIndexListMap.set(key, list);
-      };
-
-      let turningStationName: string | undefined;
-      let turningStationSeq: number | undefined;
-
-      // 1차 회차점 탐색: ODsay 명시적 플래그(isTurningPoint, stationClass === '2')
-      for (let i = 0; i < rawStations.length; i++) {
-        const st = rawStations[i];
-        const isTurning =
-          st.isTurningPoint === 'Y' ||
-          st.isTurningPoint === true ||
-          st.stationClass === '2';
-
-        if (isTurning && !turningStationName) {
-          turningStationName = String(st.stationName || '').trim();
-          turningStationSeq = Number(st.stationSeq ?? i + 1);
-          break;
-        }
-      }
-
-      // 2차 회차점 탐색: ODsay stationDirection 전환 지점 (1 -> 2 또는 상행->하행 변경)
-      if (!turningStationSeq && rawStations.length >= 2) {
-        for (let i = 1; i < rawStations.length; i++) {
-          const prevDir = rawStations[i - 1].stationDirection;
-          const currDir = rawStations[i].stationDirection;
-          if (prevDir !== undefined && currDir !== undefined && String(prevDir) !== String(currDir)) {
-            turningStationSeq = Number(rawStations[i].stationSeq ?? i + 1);
-            turningStationName = String(rawStations[i].stationName || '').trim();
-            break;
-          }
-        }
-      }
-
-      // 3차 회차점 탐색: 노선 중간(시작/끝 제외)에 '종점' 또는 '회차' 명칭이 포함된 정류소
-      if (!turningStationSeq && rawStations.length >= 4) {
-        for (let i = 1; i < rawStations.length - 1; i++) {
-          const name = String(rawStations[i].stationName || '');
-          if (name.includes('종점') || name.includes('회차')) {
-            turningStationSeq = Number(rawStations[i].stationSeq ?? i + 1);
-            turningStationName = name.trim();
-            break;
-          }
-        }
-      }
-
-      // 4차 회차점 폴백 탐색: 명시적 플래그가 없더라도 노선 길이(>=6) 및 기점/종점 순환성 또는 최원단 거리로 자동 산출
-      if (!turningStationSeq && rawStations.length >= 6) {
-        let maxDist = 0;
-        let maxDistIdx = Math.floor(rawStations.length / 2);
-        const startLat = Number(rawStations[0].y || 0);
-        const startLng = Number(rawStations[0].x || 0);
-
-        if (startLat && startLng) {
-          for (let i = 1; i < rawStations.length; i++) {
-            const lat = Number(rawStations[i].y || 0);
-            const lng = Number(rawStations[i].x || 0);
-            if (lat && lng) {
-              const d = calculateHaversineDistanceMeter(startLat, startLng, lat, lng);
-              if (d > maxDist) {
-                maxDist = d;
-                maxDistIdx = i;
-              }
-            }
-          }
-        }
-
-        turningStationSeq = maxDistIdx + 1;
-        turningStationName = String(rawStations[maxDistIdx].stationName || '').trim();
-      }
-
-      const effectiveTurningSeq = turningStationSeq || Math.ceil(rawStations.length / 2);
-
-      // 정류소 목록 생성 및 방향별 독립 인덱싱
-      for (let i = 0; i < rawStations.length; i++) {
-        const st = rawStations[i];
-        const stationId = String(st.stationID || st.stationSeq || i + 1);
-        const stationName = String(st.stationName || `정류소 ${i + 1}`).trim();
-        const stationSeq = Number(st.stationSeq ?? i + 1);
-        const lat = Number(st.y || 0);
-        const lng = Number(st.x || 0);
-        const arsNo = st.arsID ? String(st.arsID).trim() : undefined;
-        const isTurning = stationSeq === effectiveTurningSeq;
-
-        stations.push({
-          stationId,
-          stationName,
-          stationSeq,
-          lat,
-          lng,
-          arsNo,
-          isTurningPoint: isTurning,
-          edgePoints: null, // 아래 2차 패스에서 33%/66% 보간 계산
-        });
-
-        // 1) 전체 통합 맵 및 다중 인덱스 리스트 맵 등록
-        stationIndexMap.set(stationId, i);
-        stationIndexMap.set(`seq:${stationSeq}`, i);
-        stationIndexMap.set(`name:${stationName}`, i);
-        addToListMap(stationId, i);
-        addToListMap(`seq:${stationSeq}`, i);
-        addToListMap(`name:${stationName}`, i);
-
-        if (arsNo) {
-          stationIndexMap.set(`ars:${arsNo}`, i);
-          addToListMap(`ars:${arsNo}`, i);
-        }
-
-        // 2) 방향별 독립 인덱스 맵 분리 (상행: seq <= effectiveTurningSeq, 하행: seq >= effectiveTurningSeq)
-        if (stationSeq <= effectiveTurningSeq) {
-          upStationIndexMap.set(stationId, i);
-          upStationIndexMap.set(`seq:${stationSeq}`, i);
-          upStationIndexMap.set(`name:${stationName}`, i);
-          if (arsNo) upStationIndexMap.set(`ars:${arsNo}`, i);
-        }
-        if (stationSeq >= effectiveTurningSeq) {
-          downStationIndexMap.set(stationId, i);
-          downStationIndexMap.set(`seq:${stationSeq}`, i);
-          downStationIndexMap.set(`name:${stationName}`, i);
-          if (arsNo) downStationIndexMap.set(`ars:${arsNo}`, i);
-        }
-      }
-
-      // 💡 핵심: 정류소 간 33%(출발), 66%(진입) 앵커 포인트 사전 계산 (Pre-computation)
-      for (let i = 0; i < stations.length - 1; i++) {
-        const curr = stations[i];
-        const next = stations[i + 1];
-
-        if (curr.lat && curr.lng && next.lat && next.lng) {
-          const latA = curr.lat;
-          const lngA = curr.lng;
-          const latB = next.lat;
-          const lngB = next.lng;
-
-          const edgePoints: EdgeAnchorPoints = {
-            departurePoint: {
-              lat: latA + (latB - latA) * (1 / 3),
-              lng: lngA + (lngB - lngA) * (1 / 3),
-              ratio: 0.33,
-            },
-            approachingPoint: {
-              lat: latA + (latB - latA) * (2 / 3),
-              lng: lngA + (lngB - lngA) * (2 / 3),
-              ratio: 0.66,
-            },
-          };
-
-          curr.edgePoints = edgePoints;
-        }
-      }
-
-      const routeData: CachedBusRoute = {
-        busNo: detailResult.busNo || params.busNo,
-        busId: String(busID),
-        routeId: detailResult.busLocalBlID ? String(detailResult.busLocalBlID) : undefined,
-        busType: detailResult.busType,
-        busColor: detailResult.busColor,
-        startStationName: stations[0]?.stationName || detailResult.busStartPoint,
-        endStationName: stations[stations.length - 1]?.stationName || detailResult.busEndPoint,
-        turningStationName: turningStationName || stations[effectiveTurningSeq - 1]?.stationName,
-        turningStationSeq: effectiveTurningSeq,
-        stations,
-        stationIndexMap,
-        upStationIndexMap,
-        downStationIndexMap,
-        stationIndexListMap,
-      };
-
-      BUS_ROUTE_CACHE.set(cacheKey, routeData);
-      if (params.busId && cacheKey !== `id:${params.busId}`) {
-        BUS_ROUTE_CACHE.set(`id:${params.busId}`, routeData);
-      }
-
-      return routeData;
     } catch (err: any) {
-      console.error('[BusPositionService] 노선 정류소 조회 실패:', err?.message);
+      console.warn('[BusPositionService] ODsay 노선 정류소 조회 스킵/실패:', err?.message);
+    }
+
+    return null;
+  }
+
+  /**
+   * 💡 [핵심 Graceful Fallback] 노선 정류소 조회가 실패했을 때,
+   * TAGO 실시간 운행 버스 데이터(200 OK)로부터 최소 정류소 축을 즉석 합성하여 반환
+   */
+  private static async createFallbackRouteFromRealtimePositions(params: {
+    routeId: string;
+    busNo: string;
+    cityCode: string;
+    stationName?: string;
+    stationId?: string;
+  }): Promise<BusLinePositionsData | null> {
+    try {
+      const rawPosList = await TagoBusService.getBusLocationInfoMulti(
+        [params.routeId],
+        params.cityCode
+      );
+
+      if (!rawPosList || rawPosList.length === 0) {
+        return null;
+      }
+
+      // 버스들이 위치한 정류소 노드들을 추출
+      const nodeMap = new Map<number, { nodeord: number; nodenm: string; nodeid?: string; lat?: number; lng?: number }>();
+
+      for (const pos of rawPosList) {
+        const ord = pos.nodeord !== undefined ? Number(pos.nodeord) : undefined;
+        if (ord !== undefined && !nodeMap.has(ord)) {
+          nodeMap.set(ord, {
+            nodeord: ord,
+            nodenm: String(pos.nodenm || `정류소 ${ord}`).trim(),
+            nodeid: pos.nodeid ? String(pos.nodeid) : undefined,
+            lat: pos.gpslati ? Number(pos.gpslati) : undefined,
+            lng: pos.gpslong ? Number(pos.gpslong) : undefined,
+          });
+        }
+      }
+
+      // 사용자 탑승 정류소 정보가 있으면 추가
+      if (params.stationName && !Array.from(nodeMap.values()).some(n => n.nodenm.includes(params.stationName!))) {
+        nodeMap.set(999, {
+          nodeord: 999,
+          nodenm: params.stationName,
+          nodeid: params.stationId,
+        });
+      }
+
+      const sortedNodes = Array.from(nodeMap.values()).sort((a, b) => a.nodeord - b.nodeord);
+      if (sortedNodes.length === 0) return null;
+
+      const rawStations = sortedNodes.map((n, idx) => ({
+        stationId: n.nodeid || `fallback_${n.nodeord}`,
+        stationName: n.nodenm,
+        stationSeq: n.nodeord === 999 ? idx + 1 : n.nodeord,
+        lat: n.lat || 0,
+        lng: n.lng || 0,
+      }));
+
+      const routeData = this.buildRouteData({
+        busNo: params.busNo,
+        busId: params.routeId,
+        routeId: params.routeId,
+        rawStations,
+      });
+
+      const positions: BusPosition[] = rawPosList.map((pos) => ({
+        vehicleno: String(pos.vehicleno || ''),
+        nodeid: pos.nodeid ? String(pos.nodeid) : undefined,
+        nodenm: pos.nodenm ? String(pos.nodenm) : undefined,
+        nodeord: pos.nodeord !== undefined ? Number(pos.nodeord) : undefined,
+        direction: '0',
+        gpslati: pos.gpslati !== undefined ? Number(pos.gpslati) : undefined,
+        gpslong: pos.gpslong !== undefined ? Number(pos.gpslong) : undefined,
+        stage: 'at_station',
+        progressRate: 0.0,
+      }));
+
+      return {
+        busNo: params.busNo,
+        busId: params.routeId,
+        routeId: params.routeId,
+        startStationName: routeData.startStationName,
+        endStationName: routeData.endStationName,
+        turningStationName: routeData.turningStationName,
+        turningStationSeq: routeData.turningStationSeq,
+        stations: routeData.stations,
+        positions,
+        timestamp: Date.now(),
+      };
+    } catch (e: any) {
+      console.warn('[BusPositionService] Fallback 위치 합성 실패:', e?.message);
       return null;
     }
   }

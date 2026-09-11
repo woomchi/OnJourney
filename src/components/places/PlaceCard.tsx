@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useJourneyDirectionsCache, directionKeys } from '@/hooks/queries/useDirections';
-import { useQueryClient } from '@tanstack/react-query';
+import { useSegmentDirection } from '@/hooks/queries/useDirections';
 import type { Place } from '@/types/journey';
-import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import SegmentInfo from './SegmentInfo';
@@ -182,23 +180,28 @@ export default function PlaceCard({
     }
   }, [focusedSegment, focusedStep, place.id, nextPlace?.id, editMode, isDrawerMaximized, scrollContainerRef]);
 
-  const queryClient = useQueryClient();
   const places = activeJourney?.places ?? [];
-  const directionsCache = useJourneyDirectionsCache(places);
-  const cacheKey = nextPlace ? `${place.id}-${nextPlace.id}` : '';
-  const segmentData = nextPlace ? directionsCache[cacheKey] : undefined;
+  const { publicQuery, carWalkQuery } = useSegmentDirection(
+    nextPlace ? place : null,
+    nextPlace || null
+  );
+
+  const segmentData = useMemo(() => {
+    if (!nextPlace || (!publicQuery.data && !carWalkQuery.data)) return undefined;
+    return {
+      public: publicQuery.data?.public || [],
+      car: carWalkQuery.data?.car || [],
+      walk: carWalkQuery.data?.walk || [],
+    };
+  }, [nextPlace, publicQuery.data, carWalkQuery.data]);
+
   const { isCacheRestored } = useJourneyStore();
-  const publicQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentPublic(place.id, nextPlace.id, departureTime)) : null;
-  const carQueryState = nextPlace ? queryClient.getQueryState(directionKeys.segmentCar(place.id, nextPlace.id, departureTime)) : null;
   const hasSelectedRoute = place.selected_route && place.selected_route.destId === nextPlace?.id;
   const isSegmentLoading = Boolean(
     nextPlace &&
     !hasSelectedRoute &&
     (!isCacheRestored ||
-      (!segmentData && (
-        !publicQueryState || publicQueryState.status === 'pending' ||
-        !carQueryState || carQueryState.status === 'pending'
-      ))
+      (!segmentData && (publicQuery.isLoading || carWalkQuery.isLoading))
     )
   );
 

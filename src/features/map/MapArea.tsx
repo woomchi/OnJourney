@@ -13,7 +13,7 @@ import TransferMarkers from '@/components/map/TransferMarkers';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMapState } from '@/features/map/useMapState';
 import { useMapUIStore } from '@/stores/map-store';
-import { useJourneyDirections, useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
+import { useJourneyDirectionsCache } from '@/hooks/queries/useDirections';
 import { useMapCamera } from './useMapCamera';
 import { calculateSegmentBounds } from '@/lib/services/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
@@ -211,7 +211,6 @@ export default function MapArea() {
   useGeocodeOnIdle({ map });
   const { currentMapPadding, windowWidth, windowHeight } = useMapPadding(isMobile);
 
-  const { fetchSequentialDirections } = useJourneyDirections();
   const directionsCache = useJourneyDirectionsCache(places);
 
   useEffect(() => {
@@ -468,14 +467,7 @@ export default function MapArea() {
     }
   }, [setMapClickedPlace, focusedPlaceId, setFocusedPlaceId, map, setMapCenter, panToWithOffset, places, directionsCache, activeJourney?.transport_type, focusedSegment, setFocusBounds, setFocusedStep, setFocusedSegment]);
 
-  const { isCacheRestored } = useJourneyStore();
-  const placesKey = places?.map((p) => `${p.id}_${p.lat}_${p.lng}`).join('|') || '';
 
-  useEffect(() => {
-    if (isCacheRestored && places && places.length > 1) {
-      fetchSequentialDirections(places);
-    }
-  }, [placesKey, fetchSequentialDirections, isCacheRestored]);
 
   const animatedSegmentsRef = useRef<Set<string>>(new Set());
   const navermaps = typeof window !== 'undefined' ? window.naver?.maps : null;

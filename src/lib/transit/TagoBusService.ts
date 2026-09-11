@@ -45,6 +45,8 @@ export class TagoBusService {
   // 국토교통부 버스노선정보조회 서비스 (BusRouteInfoInqireService) 공식 엔드포인트
   private static SEARCH_ROUTE_NO_LIST_URL =
     'https://apis.data.go.kr/1613000/BusRouteInfoInqireService/getRouteNoList';
+  private static ROUTE_THROUGH_STTN_URL =
+    'https://apis.data.go.kr/1613000/BusRouteInfoInqireService/getRouteAcctoThrghSttnList';
   // 국토교통부 정류소정보조회 서비스 (BusSttnInfoInqireService) 공식 엔드포인트
   private static SEARCH_STTN_NO_LIST_URL =
     'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList';
@@ -250,6 +252,90 @@ export class TagoBusService {
     }
 
     return [];
+  }
+
+  /**
+   * 국토교통부(TAGO) 노선별 경유 정류소 목록 조회 (/getRouteAcctoThrghSttnList)
+   */
+  public static async getRouteThroughStations(
+    cityCode: string,
+    routeId: string
+  ): Promise<{
+    stations: Array<{
+      stationId: string;
+      stationName: string;
+      stationSeq: number;
+      lat: number;
+      lng: number;
+      arsNo?: string;
+      updowncd?: string | number;
+    }>;
+    turningStationSeq?: number;
+    turningStationName?: string;
+  } | null> {
+    const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
+    if (!apiKey || !routeId) return null;
+
+    try {
+      const serviceKey = apiKey.trim();
+      const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
+      const keyParam = encodeURIComponent(rawServiceKey);
+      const cleanRouteId = routeId.trim();
+
+      const requestUrl = `${this.ROUTE_THROUGH_STTN_URL}?serviceKey=${keyParam}&cityCode=${encodeURIComponent(cityCode)}&routeId=${encodeURIComponent(cleanRouteId)}&pageNo=1&numOfRows=300&_type=json`;
+
+      const res = await fetch(requestUrl, {
+        headers: { Accept: 'application/json, text/xml, */*' },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!res.ok) return null;
+      const json = await res.json().catch(() => null);
+      const items = json?.response?.body?.items?.item;
+
+      const rawStations = Array.isArray(items) ? items : items && typeof items === 'object' ? [items] : [];
+      if (rawStations.length === 0) return null;
+
+      // nodeord 기준 오름차순 정렬
+      rawStations.sort((a: any, b: any) => Number(a.nodeord || 0) - Number(b.nodeord || 0));
+
+      let turningStationSeq: number | undefined;
+      let turningStationName: string | undefined;
+
+      // updowncd 변화 지점(0 -> 1 등)을 탐지하여 회차점 계산
+      for (let i = 0; i < rawStations.length - 1; i++) {
+        const curr = rawStations[i];
+        const next = rawStations[i + 1];
+        if (
+          curr.updowncd !== undefined &&
+          next.updowncd !== undefined &&
+          String(curr.updowncd) !== String(next.updowncd)
+        ) {
+          turningStationSeq = Number(curr.nodeord) || (i + 1);
+          turningStationName = String(curr.nodenm || '').trim();
+          break;
+        }
+      }
+
+      const stations = rawStations.map((st: any, idx: number) => ({
+        stationId: String(st.nodeid || `sttn_${idx + 1}`),
+        stationName: String(st.nodenm || '').trim(),
+        stationSeq: Number(st.nodeord) || (idx + 1),
+        lat: Number(st.gpslati || 0),
+        lng: Number(st.gpslong || 0),
+        arsNo: st.nodeno ? String(st.nodeno).trim() : undefined,
+        updowncd: st.updowncd,
+      }));
+
+      return {
+        stations,
+        turningStationSeq: turningStationSeq || Math.ceil(stations.length / 2),
+        turningStationName,
+      };
+    } catch (err: any) {
+      console.warn('[TagoBusService] getRouteThroughStations 실패:', err?.message);
+      return null;
+    }
   }
 
   /**

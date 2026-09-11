@@ -110,3 +110,13 @@ export function getCacheDuration(departureTime?: number): number {
   // 낮 시간대 (06:00-23:00): 4시간 (14400초) - 길게 캐싱
   return 14400;
 }
+
+/**
+ * 출발 시간 기반 KST 날짜 + 3시간 단위 시간 그룹 결합 캐시 키 생성 (명세서 규격)
+ * 예: 20260911_g5 (3시간 단위로 묶여 1분 단위 캐시 파편화 원천 방지)
+ */
+export function toKstCacheKeyGroup(departureTime?: number): string {
+  const { year, month, day, hour } = getKstDateComponents(departureTime);
+  const group = Math.floor(hour / 3);
+  return `${year}${month}${day}_g${group}`;
+}

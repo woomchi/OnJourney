@@ -26,8 +26,11 @@ src/
 ├── components/       # 공유 UI 컴포넌트 (sidebar / transit / route / places)
 ├── lib/
 │   ├── services/     # 비즈니스 로직 서비스 레이어
-│   ├── infrastructure/ # CircuitBreaker / RateLimiter / OdsayAdapter
+│   ├── transit/      # 전국 버스·도시철도 API 서비스
+│   ├── journeys/     # 여정 데이터 처리 로직
+│   ├── infrastructure/ # CircuitBreaker / RateLimiter / OdsayAdapter / 캐시 매니저
 │   └── utils/        # 공통 유틸 함수
+├── providers/        # Context Providers (QueryProvider, AuthProvider)
 ├── stores/           # Zustand 스토어 (슬라이스 패턴)
 ├── hooks/            # 커스텀 훅
 ├── types/            # 타입 정의
@@ -77,17 +80,23 @@ export async function GET(req: Request) {
 | 변수명 | 용도 |
 |--------|------|
 | `NEXT_PUBLIC_NAVER_CLIENT_ID` | 네이버 지도 (MapArea, QueryProvider) |
-| `ODSAY_API_KEY` | 대중교통 경로 |
+| `NAVER_CLIENT_SECRET` | 네이버 Directions 5 차량 / 경유지 경로 API |
+| `NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID` | 네이버 로그인 OAuth Client ID |
+| `NAVER_LOGIN_CLIENT_SECRET` | 네이버 로그인 OAuth Client Secret |
+| `ODSAY_API_KEY` | 대중교통 및 도보 경로 (ODsay maasRP) |
 | `KAKAO_REST_API_KEY` | 장소 검색 |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 클라이언트 (`sb_publishable_` 포맷) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase 서버 (`sb_secret_` 포맷) |
+| `ADMIN_SECRET_KEY` | 관리자 캐시 재검증 / 온디맨드 무효화 API |
 | `REAL_TIME_SUBWAY_API_KEY` | 지하철 실시간 |
 | `REAL_TIME_SUBWAY_LOCATION_API_KEY` | 열차 위치 |
-| `TMAP_APP_KEY` | 도보 경로 |
+| `REAL_TIME_SUBWAY_TOTAL_API_KEY` | 서울시 지하철 전역 실시간 도착 정보 (OA-15799) |
 | `REAL_TIME_BUS_TAGO_API_KEY` | 전국 버스 |
 | `REAL_TIME_BUS_GYEONGGI_API_KEY` | 경기도 버스 |
 | `REAL_TIME_BUS_BUSAN_API_KEY` | 부산 버스 |
+| `REAL_TIME_BUS_INCHEON_API_KEY` | 인천 버스 |
+| `REAL_TIME_BUS_DAEJEON_API_KEY` | 대전 버스 |
 
 ---
 

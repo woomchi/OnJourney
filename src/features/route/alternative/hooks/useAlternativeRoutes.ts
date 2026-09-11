@@ -8,7 +8,7 @@ import { directionKeys } from '@/hooks/queries/useDirections';
 import {
   fetchPublicDirectionsApi,
   fetchCarWalkDirectionsApi,
-  fetchTmapDetailRouteApi,
+  fetchWalkDetailRouteApi,
 } from '@/lib/services/directionsService';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import type {
@@ -302,7 +302,7 @@ export function useAlternativeRoutes({
         const ex = route.snappedEnd ? route.snappedEnd.lng : destPlace.lng;
         const ey = route.snappedEnd ? route.snappedEnd.lat : destPlace.lat;
 
-        const detail = await fetchTmapDetailRouteApi(sx, sy, ex, ey);
+        const detail = await fetchWalkDetailRouteApi(sx, sy, ex, ey);
 
         queryClient.setQueryData<{ car: DirectionResult[]; walk: DirectionResult[]; snapMeta?: SnapMeta }>(carKey, (oldData) => {
           if (!oldData) return oldData;

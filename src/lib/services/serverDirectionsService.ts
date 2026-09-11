@@ -18,7 +18,7 @@ export { fetchCarRoute, calculateCarFallback } from './directions/car/carRouteSe
 
 // 4. 도보 도메인 서비스
 export { buildWalkFallbackResults } from './directions/walk/walkFallbackService';
-export { fetchOdsayWalkingRoute, fetchOdsayDetailRoute as fetchTmapDetailRoute } from './directions/walk/odsayWalkingService';
+export { fetchOdsayWalkingRoute, fetchOdsayDetailRoute, fetchOdsayDetailRoute as fetchWalkDetailRoute, fetchOdsayDetailRoute as fetchTmapDetailRoute } from './directions/walk/odsayWalkingService';
 
 // 5. 오케스트레이터 파사드 서비스
 export { fetchCarWalkDirections } from './directions/directionsOrchestrator';

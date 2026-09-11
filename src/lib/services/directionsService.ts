@@ -204,7 +204,7 @@ export async function fetchCarWalkDirectionsApi(
 }
 
 /**
- * T맵 상세 경로(폴리라인 + 안내 정보)를 서버 API에서 조회합니다.
+ * 도보 상세 경로(폴리라인 + 안내 정보)를 서버 API에서 조회합니다.
  *
  * @param sx 출발지 경도
  * @param sy 출발지 위도
@@ -212,13 +212,13 @@ export async function fetchCarWalkDirectionsApi(
  * @param ey 목적지 위도
  * @throws 서버 응답 오류 또는 API 오류 시 에러를 재전파합니다.
  */
-export async function fetchTmapDetailRouteApi(
+export async function fetchWalkDetailRouteApi(
   sx: number,
   sy: number,
   ex: number,
   ey: number
 ): Promise<{ polyline: { lat: number; lng: number }[]; guide: RouteGuideNode[] }> {
-  const url = `/api/directions/tmap-detail?sx=${sx}&sy=${sy}&ex=${ex}&ey=${ey}`;
+  const url = `/api/directions/walk-detail?sx=${sx}&sy=${sy}&ex=${ex}&ey=${ey}`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error('상세 경로 요청 실패');
@@ -232,3 +232,6 @@ export async function fetchTmapDetailRouteApi(
 
   return payload.data!;
 }
+
+/** 하위 호환성을 위한 별칭 export */
+export const fetchTmapDetailRouteApi = fetchWalkDetailRouteApi;

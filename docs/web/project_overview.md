@@ -26,7 +26,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 
 | 분류 | 기술 |
 |------|------|
-| 프레임워크 | Next.js 16.2.9 (App Router) + TypeScript 5 |
+| 프레임워크 | Next.js 16.3.4 (App Router) + TypeScript 5 |
 | 스타일링 | Tailwind CSS v4 + `shadcn/ui` (`@radix-ui/react-dialog`) |
 | 지도 | `react-naver-maps` |
 | 클라이언트 상태 | Zustand v5 (슬라이스 패턴: `journeyDataSlice` / `mapSlice` / `uiSlice`) |
@@ -50,7 +50,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | **부산 시내버스 실시간 API** | 부산 버스 도착 조회 | ✅ |
 | **인천 버스 실시간 API** | 인천 버스 도착 조회 | ✅ |
 | **대전 버스·지하철 실시간 API** | 대전 버스·도시철도 도착 조회 | ✅ |
-| **TMAP 보행자 경로 API** | 실제 도보 경로 탐색 (10km 미만) | ✅ |
+| **ODsay maasRP 도보 경로 API** | 실제 도보 경로 탐색 (10km 미만) | ✅ |
 
 ### 주요 의존성
 
@@ -63,7 +63,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `fast-xml-parser` | 공공 API XML 파싱 |
 | `shadcn/ui` + `lucide-react` | UI 컴포넌트 |
 | `date-fns` + `use-debounce` | 날짜/검색 유틸 |
-| `xlsx` + `adm-zip` + `shpjs` | 철도 운행거리·지형 데이터 처리 |
+| `xlsx` | 철도 운행거리 정적 데이터 처리 |
 | `@dnd-kit/*` | 드래그 앤 드롭 (HTML5 Native DnD에서 전환) |
 | `framer-motion` | 바텀 시트·애니메이션 |
 | `@turf/*` | 지오스패셜 연산 (bearing, PIP, line-slice 등) |
@@ -92,7 +92,7 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | 실시간 버스 도착 정보 | ✅ | TAGO + 경기도 API 이중 조회 |
 | 장거리 노선 (기차/시외버스) | ✅ | KTX/SRT 등, 예매 링크 자동 생성 |
 | 모바일 PWA | ✅ | PWA Manifest + 바텀 시트 (`CustomBottomSheet`) |
-| **도보 경로 (TMAP 보행자 API)** | ✅ | 10km 미만 실제 보행 경로 + Fallback |
+| **도보 경로 (ODsay maasRP API)** | ✅ | 10km 미만 실제 보행 경로 + Fallback |
 | **출발 시간 기반 경로 탐색** | ✅ | `DepartureTimePicker` UI + 3시간 단위 캐시 그룹화 |
 | **지형 분류 (산/해변)** | ✅ | GeoJSON + Turf.js BBox+PIP 2단계 검증 |
 | **검색 패턴 기반 장소 추천** | ✅ | `searchPatternService` + Gaussian Decay 거리 점수 |
@@ -138,21 +138,23 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 |------|------|
 | `directions/directionsOrchestrator.ts` | 차량 + 도보 통합 경로 오케스트레이터 |
 | `directions/car/carRouteService.ts` | 네이버 Directions 5 차량 경로 |
-| `directions/transit/publicTransitService.ts` | ODsay 대중교통 경로 |
-| `directions/walk/tmapWalkingService.ts` | TMAP 보행자 경로 API |
+| `directions/transit/publicTransitService.ts` | ODsay 대중교통 경로 (maasRP) |
+| `directions/walk/odsayWalkingService.ts` | ODsay maasRP 도보 경로 API & 상세 선형 파싱 |
 | `directions/walk/walkFallbackService.ts` | 도보 Fallback (직선 거리 기반) |
+| `directionsWaypointsService.ts` | 네이버 NCP 경유지 최적 경로 탐색 |
+| `serverDirectionsService.ts` | 경로 탐색 서비스 파사드 (하위 호환 re-export) |
 | `naverMapRouteService.ts` | 지도 유틸 (폴리라인 렌더러, Haversine) |
 | `subwayService.ts` | 지하철 실시간·시간표 조회 (ODsay) + 정차역 순서 목록 |
 | `subwayRealtimeService.ts` | 지하철 실시간 도착 서비스 (위치 API 조인 ETA 보정) |
 | `subwayPositionService.ts` | 지하철 실시간 열차 위치 서비스 (15초 인메모리 캐시) |
 | `subwayTotalRealtimeService.ts` | 지하철 전역 실시간 통합 서비스 |
-| `busRealtimeService.ts` | 버스 실시간 도착 서비스 |
+| `daejeonSubwayService.ts` | 대전 도시철도 실시간 도착 서비스 |
+| `busPositionService.ts` | 버스 실시간 위치 및 노선도 서비스 |
 | `placesService.ts` | 카카오 API 장소 검색 + Gaussian Decay 랭킹 + 멀티 파이프라인 (v3) |
 | `searchPatternService.ts` | 검색어 패턴 분석 + 카테고리 매핑 |
 | `intercityTransitScheduleService.ts` | 장거리 노선(기차/시외버스) 스케줄 |
-| `directionsService.ts` | 경로 탐색 통합 진입점 |
+| `directionsService.ts` | 경로 탐색 통합 클라이언트 진입점 |
 | `subwayMessageParser.ts` | 지하철 실시간 메시지(`arvlMsg2`) 정밀 파싱 (NFD 정규화, 신뢰도 산출) |
-| `subwayTotalRealtimeService.ts` | 지하철 전역 실시간 통합 서비스 |
 
 ### 인프라 레이어 (`src/lib/infrastructure/`)
 
@@ -160,19 +162,18 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 |------|------|
 | `odsayAdapter.ts` | ODsay API Adapter + 도메인 에러 클래스 |
 | `circuitBreaker.ts` | Circuit Breaker 패턴 (ODsay 장애 보호) |
-| `rateLimiter.ts` | 요청 속도 제한 |
+| `odsayRateLimiter.ts` | ODsay 전용 요청 속도 제한기 |
+| `subwayCacheService.ts` | 지하철 실시간 API 캐시 (Next.js unstable_cache 15초 워커 공유) |
+| `busRoutePersistentCache.ts` | 버스 정류소 노선 정적 정보 파일시스템(로컬) 30일 영속 캐시 |
 
 ### 유틸리티 (`src/lib/utils/`)
 
 | 파일 | 설명 |
 |------|------|
-| `walkabilityCheck.ts` | GeoJSON + Turf BBox+PIP 지형 도보 가능 여부 검사 |
-| `terrainClassifier.ts` | 지형 분류 (normal / mountain / beach) |
-| `snapToRoad.ts` | TMAP Snap-to-Road 유틸 |
+| `lruCache.ts` | LRU + TTL 기반 인메모리 캐시 클래스 (`LruTtlCache`) |
 | `routeUtils.ts` | 경로 관련 유틸 |
 | `journeyUtils.ts` | 여정 관련 유틸 |
 | `externalFetch.ts` | 외부 API 공통 Fetch 래퍼 |
-| `odsayThrottle.ts` | ODsay 요청 쓰로틀 |
 | `timeOffsetManager.ts` | 클라이언트-서버 시각 오프셋 Singleton 관리 (지하철 ETA 보정) |
 | `geoUtils.ts` | 지리 연산 유틸 |
 | `busRegionUtils.ts` | 버스 지역 분류 유틸 |
@@ -190,7 +191,8 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `features/route/AlternativeRoutePanel.tsx` | 대안 이동 수단 패널 |
 | `features/route/RouteGuidePanel.tsx` | 상세 경로 안내 패널 |
 | `features/route/RoutePanels.tsx` | 경로 패널 조합 |
-| `features/places/PlaceSearchBar.tsx` | 장소 검색바 |
+| `features/route/BusLineMapPanel.tsx` | 실시간 버스 노선도 및 위치 패널 |
+| `features/route/SubwayLineMapPanel.tsx` | 실시간 지하철 노선도 및 열차 위치 패널 |
 
 ### UI 컴포넌트 (`src/components/`)
 
@@ -201,27 +203,21 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 | `sidebar/JourneyListSidebar.tsx` | 여정 목록 사이드바 |
 | `sidebar/SearchOverlay.tsx` | 검색 오버레이 |
 | `sidebar/FixedJourneyTimelineSheet.tsx` | 여정 타임라인 바텀 시트 (모바일) |
-| `sidebar/HorizontalJourneyTimelineBar.tsx` | 가로형 여정 타임라인 바 |
-| `sidebar/JourneyControlFloatingBar.tsx` | 여정 재생 컨트롤 플로팅 바 |
 | `sidebar/JourneyPlayerHeader.tsx` | 여정 플레이어 헤더 |
 | `sidebar/SidebarBottomActions.tsx` | 사이드바 하단 액션 버튼 |
 | `common/CustomBottomSheet.tsx` | 통합 바텀 시트 컴포넌트 (framer-motion) |
-| `common/DepartureTimePicker.tsx` | 출발 시간 선택 UI |
 | `places/PlaceCard.tsx` | 장소 카드 |
 | `places/PlaceList.tsx` | 장소 목록 |
 | `places/SegmentInfo.tsx` | 구간 이동 정보 |
-| `places/AlternativeSegmentInfo.tsx` | 대안 구간 이동 정보 |
 | `places/TimelineNode.tsx` | 타임라인 노드 UI |
 | `places/FittedDuration.tsx` | 소요시간 적응형 표시 |
 | `transit/IntercityTransitScheduleWidget.tsx` | 장거리 노선 스케줄 위젯 |
 | `transit/RealtimeArrivalCard.tsx` | 실시간 도착 정보 카드 |
 | `transit/SegmentBusRealtimeChip.tsx` | 구간 버스 실시간 칩 |
 | `transit/SegmentSubwayRealtimeChip.tsx` | 구간 지하철 실시간 칩 (노선도 뷰 트리거) |
-| `transit/SubwayLineMapSheet.tsx` | 지하철 실시간 노선도 현황 뷰 시트/모달 |
 | `transit/ReliabilityBadge.tsx` | 실시간 데이터 신뢰도 배지 |
 | `route/RouteSegmentCard.tsx` | 경로 구간 카드 |
 | `route/RouteSegmentCardStack.tsx` | 구간 카드 스택 레이아웃 |
-| `route/RouteSegmentDetailSheet.tsx` | 구간 상세 바텀 시트 |
 | `route/RouteTimelineGaugeBar.tsx` | 경로 타임라인 게이지 바 |
 | `route/PlaybackBar.tsx` | 재생 컨트롤 바 |
 | `route/FareBreakdownTooltip.tsx` | 요금 내역 툴팁 |
@@ -234,17 +230,22 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 
 ### API Routes (`src/app/api/`)
 
-| 라우트 | 설명 |
-|--------|------|
-| `api/directions/` | 통합 경로 탐색 API (ODsay + Naver + TMAP) |
-| `api/directions-waypoints/` | 경유지 포함 경로 탐색 |
-| `api/subway/` | 지하철 정보 API |
-| `api/subway/positions/` | 지하철 노선도 및 실시간 열차 위치 API |
-| `api/bus/realtime/` | 버스 실시간 도착 API |
-| `api/realtime/bus/` | 실시간 버스 (지역별 통합) |
-| `api/transit/schedule/` | 장거리 노선 스케줄 API |
-| `api/places/` | 장소 검색 API (카카오) |
-| `api/admin/revalidate/` | 캐시 강제 무효화 API |
+| 라우트 | Method | 설명 |
+|--------|:---:|------|
+| `api/directions/public/` | GET | ODsay 대중교통 경로 (1시간 캐싱, 3시간 버킷 키) |
+| `api/directions/car/` | GET | 차량 + 도보 오케스트레이션 경로 (낮 4h / 밤 30m 동적 TTL) |
+| `api/directions/walk-detail/` | GET | ODsay maasRP 도보 상세 선형 및 길안내 정보 |
+| `api/directions-waypoints/` | GET | 네이버 NCP 경유지 포함 차량 경로 |
+| `api/subway/realtime/` | GET | 지하철 역별 실시간 도착 정보 |
+| `api/subway/positions/` | GET | 지하철 노선도 및 실시간 열차 위치 (15초 캐시) |
+| `api/subway/total/` | GET | 서울시 지하철 전역 일괄 실시간 도착 (15초 캐시) |
+| `api/bus/realtime/` | GET | TAGO + 경기도 버스 실시간 도착 |
+| `api/bus/positions/` | GET | 버스 실시간 위치 및 노선도 |
+| `api/realtime/bus/[region]/[stationId]/` | GET | 지역별 버스 실시간 도착 통합 |
+| `api/places/` | GET | 카카오 장소 검색 (멀티 파이프라인 + 태깅) |
+| `api/transit/schedule/` | GET | 장거리 노선(기차/고속버스) 스케줄 |
+| `api/admin/revalidate/` | POST | 관리자 캐시 강제 무효화 |
+| `api/auth/naver/callback/` | GET | 네이버 로그인 OAuth 콜백 |
 
 ---
 
@@ -252,11 +253,14 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 
 - **Circuit Breaker**: ODsay API 연속 실패 시 즉시 Fallback 전환 (CLOSED → OPEN → HALF_OPEN)
 - **Rate Limiter**: ODsay 무료 플랜(1,000회/일) 한도 초과 방지
-- **시간대별 캐싱**: 평일/주말 × 낮(06~23시, 4h TTL) / 밤(23~06시, 30m TTL)
-- **출발 시간 캐시 그룹화**: 3시간 단위로 rounding → 캐시 파편화 최소화
+- **시간대별 동적 캐싱**: 평일/주말 × 낮(06~23시, 4h TTL) / 밤(23~06시, 30m TTL) 차량 경로 캐시
+- **출발 시간 캐시 그룹화**: 3시간 단위로 rounding(`toKstCacheKeyGroup`) → 캐시 파편화 최소화
+- **다층 인메모리 & 영속 캐싱**:
+  - `subwayCacheService.ts`: Next.js `unstable_cache` 기반 15초 워커 공유 캐시
+  - `LruTtlCache`: 정류소·노선 메타데이터 O(1) 인메모리 LRU 캐시
+  - `busRoutePersistentCache.ts`: 버스 정류소 노선 파일시스템 30일 영속 캐시
 - **Gaussian Decay 거리 점수**: 장소 검색 결과 거리 기반 랭킹
 - **BBox+PIP 2단계 지형 검사**: O(1) BBox 선검사 후 Turf.js PIP 정밀 검증
-- **Repository 패턴**: `routeCacheRepository.ts`로 DB 캐시 접근 추상화
 
 ---
 

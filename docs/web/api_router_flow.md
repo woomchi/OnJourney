@@ -13,6 +13,7 @@ flowchart TB
         api_places["GET /api/places"]
         api_car["GET /api/directions/car"]
         api_public["GET /api/directions/public"]
+        api_walk["GET /api/directions/walk-detail"]
         api_waypoints["GET /api/directions-waypoints"]
     end
 
@@ -34,6 +35,7 @@ flowchart TB
         svc_places["fetchPlaces()"]
         svc_car["fetchCarWalkDirections()"]
         svc_public["fetchPublicDirections()"]
+        svc_walk["fetchWalkDetailRoute()"]
         svc_waypoints["fetchDirectionsWaypoints()"]
     end
 
@@ -47,6 +49,7 @@ flowchart TB
     Client --> api_places
     Client --> api_car
     Client --> api_public
+    Client --> api_walk
     Client --> api_waypoints
 
     %% Routes to Error Handler (Wrapper)
@@ -55,6 +58,7 @@ flowchart TB
     api_places --> ErrorHandler
     api_car --> ErrorHandler
     api_public --> ErrorHandler
+    api_walk --> ErrorHandler
     api_waypoints --> ErrorHandler
 
     %% Error Handler to Validation
@@ -70,6 +74,7 @@ flowchart TB
     val_places --> svc_places
     val_dir --> svc_car
     val_dir --> svc_public
+    val_dir --> svc_walk
     val_waypoints --> svc_waypoints
 
     %% Services to Response
@@ -78,6 +83,7 @@ flowchart TB
     svc_places --> SuccessRes
     svc_car --> SuccessRes
     svc_public --> SuccessRes
+    svc_walk --> SuccessRes
     svc_waypoints --> SuccessRes
 
     SuccessRes --> Return((JSON Response))
@@ -86,7 +92,7 @@ flowchart TB
     ErrorHandler -- "Error Caught" --> ErrorResponse((Error Response))
 
     classDef route fill:#f9f,stroke:#333,stroke-width:2px;
-    class api_bus,api_subway,api_places,api_car,api_public,api_waypoints route;
+    class api_bus,api_subway,api_places,api_car,api_public,api_walk,api_waypoints route;
     
     classDef wrapper fill:#ff9,stroke:#333,stroke-width:2px;
     class ErrorHandler wrapper;
@@ -95,7 +101,7 @@ flowchart TB
     class val_bus,val_subway,val_places,val_dir,val_waypoints validation;
 
     classDef service fill:#bfb,stroke:#333,stroke-width:2px;
-    class svc_bus,svc_subway,svc_places,svc_car,svc_public,svc_waypoints service;
+    class svc_bus,svc_subway,svc_places,svc_car,svc_public,svc_walk,svc_waypoints service;
 ```
 
 ## 주요 처리 단계

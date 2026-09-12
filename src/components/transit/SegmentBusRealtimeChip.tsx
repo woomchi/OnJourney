@@ -27,7 +27,7 @@ export interface SegmentBusRealtimeChipProps {
   lat?: number;
   lng?: number;
   manualOnly?: boolean;
-  variant?: 'card' | 'sidebar' | 'compact';
+  variant?: 'card' | 'sidebar' | 'compact' | 'hero';
   hideRefreshButton?: boolean;
   onlyRefreshButton?: boolean;
 }
@@ -349,6 +349,114 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
 
   if (onlyRefreshButton) {
     return renderRefreshButton();
+  }
+
+  // --- [Hero Variant: 이동 상세 상단 Hero 2행 전용 가로 1줄 레이아웃] ---
+  if (variant === 'hero') {
+    if (isFuture) {
+      const intervalLabel = intervalTime ? `배차 ${intervalTime}분` : '배차 운행';
+      return (
+        <div className="flex items-center gap-1.5 w-full text-xs h-[24px]">
+          {!hideRefreshButton && renderRefreshButton()}
+          <div
+            onClick={(e) => handleOpenBusLineMap(e)}
+            title="버스 실시간 노선도 보기"
+            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 h-[20px] rounded-full bg-zinc-50/90 border border-zinc-200/90 shadow-2xs text-zinc-600 font-medium text-[10px] cursor-pointer hover:border-blue-300 hover:bg-zinc-100 transition-all active:scale-95 shrink-0"
+          >
+            <span className="font-semibold text-zinc-700">{intervalLabel}</span>
+            <span className="text-zinc-400 text-[9px]">노선도</span>
+          </div>
+        </div>
+      );
+    }
+
+    const isAnyLoading = isQueryLoading || isFetching || isRefreshLoading;
+    const hasData = targetBuses.length > 0;
+
+    if (isAnyLoading && !hasData && (!data || isQueryLoading || isFetching)) {
+      return (
+        <div className="flex items-center gap-1.5 w-full text-xs h-[24px]">
+          {!hideRefreshButton && renderRefreshButton()}
+          <div className="inline-flex items-center justify-center px-2.5 py-0.5 h-[20px] rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-400 font-medium shrink-0 animate-pulse text-[10px]">
+            <span>확인 중...</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (!hasData || isError) {
+      return (
+        <div className="flex items-center gap-1.5 w-full text-xs h-[24px]">
+          {!hideRefreshButton && renderRefreshButton()}
+          <div
+            onClick={(e) => handleOpenBusLineMap(e)}
+            title="버스 실시간 노선도 보기"
+            className="inline-flex items-center justify-center px-2.5 py-0.5 h-[20px] rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px] hover:border-blue-300 cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span>도착 정보 없음</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-1.5 w-full text-xs h-[24px]">
+        {!hideRefreshButton && renderRefreshButton()}
+        <div
+          title="버스 실시간 노선도 보기"
+          className="flex items-center gap-1.5 min-w-0 flex-1 overflow-x-auto scrollbar-none"
+        >
+          {targetBuses.slice(0, 2).map((bus, idx) => {
+            const isFirst = idx === 0;
+            const timeText = formatBusItemTime(bus.arrivedInSeconds);
+            const stationText = getBusStationCountText(bus, isFirst ? liveStationCount : undefined);
+            const statusBadge = renderSeatOrCrowdedBadge(bus, isFirst);
+
+            return (
+              <div
+                key={`${bus.lineId || bus.lineName}-${bus.vehicleId || idx}`}
+                onClick={(e) => handleOpenBusLineMap(e, bus)}
+                className={clsx(
+                  'inline-flex items-center gap-1.5 px-2.5 py-0.5 h-[20px] rounded-full shadow-2xs text-[10px] whitespace-nowrap transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0',
+                  isFirst
+                    ? 'bg-white border border-blue-200 text-blue-600 hover:border-blue-400 hover:shadow-xs'
+                    : 'bg-zinc-50/80 border border-zinc-200/90 text-zinc-600 hover:border-zinc-300 hover:shadow-xs'
+                )}
+              >
+                {/* 1. 잔여 시간 */}
+                <span
+                  className={clsx(
+                    'tabular-nums font-bold text-left truncate',
+                    isFirst ? 'text-blue-600' : 'text-zinc-700'
+                  )}
+                >
+                  {timeText}
+                </span>
+
+                {/* 2. 남은 정거장 수 */}
+                {stationText && (
+                  <span
+                    className={clsx(
+                      'tabular-nums text-center truncate',
+                      isFirst ? 'font-medium text-zinc-500' : 'font-normal text-zinc-400'
+                    )}
+                  >
+                    {stationText}
+                  </span>
+                )}
+
+                {/* 3. 여석 / 혼잡도 */}
+                {statusBadge && (
+                  <span className="truncate flex items-center">
+                    {statusBadge}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   }
 
   // 0. 미래 출발 시각: 배차 간격 안내 단일 뱃지 중앙 정렬 노출

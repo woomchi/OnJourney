@@ -349,10 +349,17 @@ export default function FixedJourneyTimelineSheet({
     if (!focusedStep || !focusedOrigin || !focusedDest) return -1;
     if (focusedStep.originId !== focusedOrigin.id || focusedStep.destId !== focusedDest.id) return -1;
 
-    // 출발 위치이거나 첫 번째 이동수단(stepIndex === 0)인 경우 1단계(index: 0)로 통합 인지
-    if (focusedStep.subType === 'start' || (focusedStep.stepIndex === 0 && !focusedStep.subType)) return 0;
-    if (focusedStep.subType === 'dest') return stages.length - 1;
+    // 1. 도착지인 경우 마지막 스테이지로 매핑
+    if (focusedStep.subType === 'dest' || (typeof focusedStep.stepIndex === 'number' && focusedStep.stepIndex >= stages.length - 1)) {
+      return stages.length - 1;
+    }
 
+    // 2. 출발 위치 및 첫 번째 이동수단 (stepIndex: 0) -> 0단계 매핑
+    if (focusedStep.stepIndex === 0) {
+      return 0;
+    }
+
+    // 3. 각 이동 스텝 (대중교통 / 환승) 인덱스 매칭
     if (typeof focusedStep.stepIndex === 'number') {
       const foundIdx = stages.findIndex(
         (st) => st.type === 'step' && st.stepIndex === focusedStep.stepIndex
@@ -419,7 +426,17 @@ export default function FixedJourneyTimelineSheet({
         ne: { lat: st.lat + 0.0025, lng: st.lng + 0.0025 },
       });
     } else if (st.step) {
-      if (st.step.pathPoints && st.step.pathPoints.length > 0) {
+      const isTransit = st.step.type === 'bus' || st.step.type === 'expressbus' || st.step.type === 'subway' || st.step.type === 'train';
+
+      if (isTransit) {
+        // 대중교통 단계: 탑승/환승 정류소 마커를 중심으로 줌인
+        const centerLat = st.step.startLat || st.lat;
+        const centerLng = st.step.startLng || st.lng;
+        setFocusBounds({
+          sw: { lat: centerLat - 0.0025, lng: centerLng - 0.0025 },
+          ne: { lat: centerLat + 0.0025, lng: centerLng + 0.0025 },
+        });
+      } else if (st.step.pathPoints && st.step.pathPoints.length > 0) {
         let minLat = st.step.pathPoints[0].lat;
         let maxLat = st.step.pathPoints[0].lat;
         let minLng = st.step.pathPoints[0].lng;
@@ -436,8 +453,8 @@ export default function FixedJourneyTimelineSheet({
         });
       } else if (st.step.startLat && st.step.startLng) {
         setFocusBounds({
-          sw: { lat: st.step.startLat - 0.002, lng: st.step.startLng - 0.002 },
-          ne: { lat: st.step.startLat + 0.002, lng: st.step.startLng + 0.002 },
+          sw: { lat: st.step.startLat - 0.0025, lng: st.step.startLng - 0.0025 },
+          ne: { lat: st.step.startLat + 0.0025, lng: st.step.startLng + 0.0025 },
         });
       }
     }

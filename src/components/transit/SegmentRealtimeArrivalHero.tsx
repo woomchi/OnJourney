@@ -135,7 +135,7 @@ export default function SegmentRealtimeArrivalHero({
 
   return (
     <div
-      className={`w-full px-2 py-2 flex items-center justify-between gap-1 shrink-0 border-b border-zinc-100/80 select-none bg-zinc-50/50 min-h-[52px] ${className}`}
+      className={`w-full px-2 py-2 flex items-center justify-between gap-1.5 shrink-0 border-b border-zinc-100/80 select-none bg-zinc-50/50 min-h-[68px] ${className}`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -154,8 +154,8 @@ export default function SegmentRealtimeArrivalHero({
         <ChevronLeft className="w-4 h-4" />
       </button>
 
-      {/* 2. 중앙 슬라이드 컨테이너 */}
-      <div className="flex-1 min-w-0 overflow-hidden relative py-0.5">
+      {/* 2. 중앙 슬라이드 컨테이너 (2단 수직 분리) */}
+      <div className="flex-1 min-w-0 overflow-hidden relative">
         <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
           <motion.div
             key={currentIndex}
@@ -164,7 +164,7 @@ export default function SegmentRealtimeArrivalHero({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: slideDirection * -20 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="w-full flex items-center justify-between gap-2"
+            className="w-full"
           >
             <SingleTransitCardContent
               step={currentStep}
@@ -198,7 +198,7 @@ export default function SegmentRealtimeArrivalHero({
 }
 
 /**
- * 개별 대중교통 수단 정보 및 실시간 도착 칩 렌더러
+ * 개별 대중교통 수단 정보 및 실시간 도착 칩 렌더러 (2단 수직 분리 구조)
  */
 function SingleTransitCardContent({
   step,
@@ -247,52 +247,56 @@ function SingleTransitCardContent({
   const cityCode = step.startCityCode || step.cityCode;
 
   return (
-    <>
-      {/* 1. 이동 수단 아이콘, 순서 배지 & 정류장 텍스트 */}
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        <span
-          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${
-            isBus
-              ? 'bg-blue-50 text-blue-600 border border-blue-100/60'
-              : 'bg-emerald-50 text-emerald-600 border border-emerald-100/60'
-          }`}
-        >
-          {isBus ? <Bus className="w-4 h-4" /> : <Train className="w-4 h-4" />}
-        </span>
+    <div className="flex flex-col gap-1.5 w-full min-w-0">
+      {/* Row 1: 이동 수단 아이콘, 순서 배지, 노선명, 방면 & 환승 네비게이터 */}
+      <div className="flex items-center justify-between gap-2 w-full min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <span
+            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${
+              isBus
+                ? 'bg-blue-50 text-blue-600 border border-blue-100/60'
+                : 'bg-emerald-50 text-emerald-600 border border-emerald-100/60'
+            }`}
+          >
+            {isBus ? <Bus className="w-4 h-4" /> : <Train className="w-4 h-4" />}
+          </span>
 
-        <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 leading-none ${badgeStyle}`}
-            >
-              {orderLabel}
-            </span>
-            <span className="text-xs font-bold text-zinc-900 truncate">
-              {isBus ? busName : subwayStationName}
-            </span>
-            {busDestination && (
-              <span className="text-[10px] font-medium text-zinc-500 truncate max-w-[100px]">
-                ({busDestination} 방면)
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 leading-none ${badgeStyle}`}
+              >
+                {orderLabel}
               </span>
-            )}
-          </div>
+              <span className="text-[13px] font-extrabold text-zinc-900 truncate">
+                {isBus ? busName : subwayStationName}
+              </span>
+              {busDestination && (
+                <span className="text-[11px] font-medium text-zinc-500 truncate">
+                  ({busDestination} 방면)
+                </span>
+              )}
+            </div>
 
-          <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium mt-0.5 min-w-0">
-            <span className="truncate">
-              {isBus ? `${busStationName} 탑승` : `${subwayStationName} 승차`}
-            </span>
-            {hasMultiple && (
-              <span className="text-[10px] font-bold text-zinc-400 shrink-0">
-                {currentIndex + 1}/{totalTransits}
+            <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium mt-0.5 min-w-0">
+              <span className="truncate">
+                {isBus ? `${busStationName} 탑승` : `${subwayStationName} 승차`}
               </span>
-            )}
+            </div>
           </div>
         </div>
+
+        {/* 다중 환승 시 인디케이터 */}
+        {hasMultiple && (
+          <span className="text-[10px] font-bold text-zinc-500 bg-white/90 border border-zinc-200/90 rounded-full px-2 py-0.5 shrink-0 tabular-nums shadow-2xs">
+            {currentIndex + 1} / {totalTransits}
+          </span>
+        )}
       </div>
 
-      {/* 2. 실시간 도착 정보 칩 연결 (우측 - 터치 이벤트 전파 방지) */}
+      {/* Row 2: 실시간 도착 정보 칩 연결 (가로 1줄 hero variant) */}
       <div
-        className="shrink-0 flex items-center"
+        className="w-full flex items-center pt-1 border-t border-zinc-200/60"
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -314,7 +318,7 @@ function SingleTransitCardContent({
             busColor={step?.color}
             lat={busLat ? Number(busLat) : undefined}
             lng={busLng ? Number(busLng) : undefined}
-            variant="sidebar"
+            variant="hero"
           />
         ) : isSubway && subwayStationName ? (
           <SegmentSubwayRealtimeChip
@@ -323,10 +327,10 @@ function SingleTransitCardContent({
             subwayId={step.rawLineName || step.name}
             destination={step.endName || step.destination}
             headsign={step.headsign}
-            variant="sidebar"
+            variant="hero"
           />
         ) : null}
       </div>
-    </>
+    </div>
   );
 }

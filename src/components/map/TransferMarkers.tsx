@@ -160,11 +160,21 @@ export default function TransferMarkers({
           if (!focusedStep) return false;
           if (focusedStep.originId !== point.originId || focusedStep.destId !== point.destId) return false;
 
+          // 1. 도착지인 경우
           if (focusedStep.subType === 'dest') {
             return !!(point.isSegmentDest || point.stepIndex === focusedStep.stepIndex - 1);
           }
-          if (focusedStep.subType === 'start') {
+
+          // 2. 출발 위치 및 첫 번째 이동 (stepIndex === 0)
+          if (focusedStep.stepIndex === 0) {
             return !!(point.isSegmentStart || (point.stepIndex === 0 && !point.isAlighting && !point.isSegmentDest));
+          }
+
+          // 3. 대중교통 및 환승 단계 (stepIndex >= 1)
+          if (point.isSegmentStart || point.isSegmentDest) return false;
+
+          if (focusedStep.subType === 'start') {
+            return point.stepIndex === focusedStep.stepIndex && !point.isAlighting;
           }
           if (focusedStep.subType === 'end') {
             return point.stepIndex === focusedStep.stepIndex && !!point.isAlighting;

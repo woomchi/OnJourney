@@ -83,10 +83,7 @@ export function FocusedStepControlBar({
       </div>
 
       {/* 오른쪽: 텍스트 정보 */}
-      <div
-        className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer select-none items-end text-right pl-2"
-        onClick={onPlayStepToggle}
-      >
+      <div className="flex-1 min-w-0 flex flex-col justify-center select-none items-end text-right pl-2">
         <div className="text-xs font-extrabold text-zinc-800 flex items-center justify-end gap-1.5 truncate w-full">
           {currentStepIdx >= 0 && stageTitle ? (
             <span className="truncate max-w-[180px] text-blue-600 font-black">

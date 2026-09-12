@@ -119,7 +119,7 @@ export default function PlaybackBar({
       </div>
 
       {/* 오른쪽: 텍스트 정보 */}
-      <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer select-none items-end text-right pl-2" onClick={handlePlayToggle}>
+      <div className="flex-1 min-w-0 flex flex-col justify-center select-none items-end text-right pl-2">
         <div className="text-[13px] font-extrabold text-zinc-800 flex items-center justify-end gap-1.5 truncate w-full">
           <span className="truncate max-w-[120px]" title={originPlace.place_name}>{originPlace.place_name}</span>
           <ArrowRightIcon className="w-3 h-3 text-zinc-400 flex-shrink-0" />

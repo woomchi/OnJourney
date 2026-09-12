@@ -59,7 +59,7 @@ export default function LandingPage() {
               <svg className="w-5 h-5 md:w-6 md:h-6 fill-current shrink-0" viewBox="0 0 24 24">
                 <path d="M16.273 12.845L7.376 0H0v24h7.726v-12.845L16.624 24H24V0h-7.727v12.845z" />
               </svg>
-              <span>{isSubmitting ? '네이버 로그인 연결 중...' : '네이버로 3초 만에 시작하기'}</span>
+              <span>{isSubmitting ? '네이버 로그인 연결 중...' : '네이버로 시작하기'}</span>
             </button>
           </div>
 

@@ -9,6 +9,7 @@
 
 import { OdsayAdapter } from '@/lib/infrastructure/odsayAdapter';
 import { TagoBusService } from '@/lib/transit/TagoBusService';
+import { BusanBusService } from '@/lib/transit/BusanBusService';
 import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
 import { cleanBusNumber, resolveBusRegion, resolveTagoCode, resolveOdsayCid } from '@/lib/utils/busRegionUtils';
 import {
@@ -77,6 +78,37 @@ export class BusPositionService {
       params.tagoRouteId ||
       params.routeId ||
       (params.busId && String(params.busId).length > 6 ? String(params.busId) : undefined);
+
+    // 💡 [부산 권역 전용 고속 BIMS 파이프라인]
+    // 부산 버스는 부산광역시 BIMS API(busInfo, busInfoByRouteId)를 통해 
+    // 1회 호출로 전체 정류소 목록, 회차점, 실시간 운행 버스 위치 및 차량번호를 완벽하게 제공합니다.
+    const isBusan =
+      resolvedRegion === 'busan' ||
+      params.cityCode === '21' ||
+      params.cityCode === '7000' ||
+      params.region === 'busan' ||
+      params.region === '부산' ||
+      (params.stationId && String(params.stationId).toUpperCase().startsWith('BSB')) ||
+      (effectiveTagoRouteId && String(effectiveTagoRouteId).startsWith('52')) ||
+      (params.busId && String(params.busId).startsWith('52'));
+
+    if (isBusan) {
+      try {
+        const busanData = await BusanBusService.getBusLinePositions({
+          busNo: cleanNo,
+          routeId: effectiveTagoRouteId,
+          busId: params.busId,
+          stationId: params.stationId,
+          stationName: params.stationName,
+        });
+
+        if (busanData && busanData.stations.length > 0) {
+          return busanData;
+        }
+      } catch (busanErr: any) {
+        console.warn('[BusPositionService] 부산 전용 노선도 조회 실패, TAGO/ODsay 폴백 진행:', busanErr?.message);
+      }
+    }
 
     // 2. 노선 정적 정보 & 정류소 목록 조회 (영속 캐시 -> TAGO API -> ODsay API 3단계)
     let routeData = await this.getOrFetchRouteStations({

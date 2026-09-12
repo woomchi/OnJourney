@@ -57,6 +57,11 @@ if (isLocalhost) {
   });
 
   self.addEventListener('fetch', (event) => {
+    // Only handle GET requests for service worker caching (POST/PUT/DELETE unsupported by CacheStorage)
+    if (event.request.method !== 'GET') {
+      return;
+    }
+
     const url = new URL(event.request.url);
 
     // 1. Network-Only: API calls and Supabase

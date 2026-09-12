@@ -84,6 +84,7 @@ export async function GET(req: Request) {
 | `NEXT_PUBLIC_NAVER_LOGIN_CLIENT_ID` | 네이버 로그인 OAuth Client ID |
 | `NAVER_LOGIN_CLIENT_SECRET` | 네이버 로그인 OAuth Client Secret |
 | `ODSAY_API_KEY` | 대중교통 및 도보 경로 (ODsay maasRP) |
+| `DOMAIN` | ODsay 웹 서비스 Referer 도메인 (기본: `https://on-journey.vercel.app`) |
 | `KAKAO_REST_API_KEY` | 장소 검색 |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 클라이언트 (`sb_publishable_` 포맷) |

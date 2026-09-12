@@ -65,6 +65,48 @@ export class TransitTimeoutError extends TransitApiError {
  *    - 외부 API 스펙 변경 시 비즈니스 로직 수정 없이 어댑터 계층만 업데이트하면 되는 높은 유지보수성.
  *    - 시스템 전체의 에러 처리 일관성 확보.
  */
+/**
+ * ODsay API 호출 시 사용할 Referer 도메인을 안전하게 산출합니다.
+ * 1. process.env.DOMAIN (설정 시 양끝 따옴표 및 공백 제거, 프로토콜 보장)
+ * 2. process.env.NEXT_PUBLIC_SITE_URL
+ * 3. process.env.VERCEL_PROJECT_PRODUCTION_URL
+ * 4. process.env.VERCEL_URL
+ * 5. NODE_ENV === 'development' 인 경우: http://localhost:3000
+ * 6. 그 외 프로덕션 기본 도메인: https://on-journey.vercel.app
+ */
+export function getOdsayReferer(): string {
+  const sanitize = (val?: string): string | null => {
+    if (!val) return null;
+    let clean = val.trim();
+    if ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
+      clean = clean.slice(1, -1).trim();
+    }
+    if (!clean) return null;
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+      clean = `https://${clean}`;
+    }
+    return clean.replace(/\/+$/, '');
+  };
+
+  const domain = sanitize(process.env.DOMAIN);
+  if (domain) return domain;
+
+  const siteUrl = sanitize(process.env.NEXT_PUBLIC_SITE_URL);
+  if (siteUrl) return siteUrl;
+
+  const vercelProd = sanitize(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+  if (vercelProd) return vercelProd;
+
+  const vercelUrl = sanitize(process.env.VERCEL_URL);
+  if (vercelUrl) return vercelUrl;
+
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+
+  return 'https://on-journey.vercel.app';
+}
+
 export class OdsayAdapter {
   /**
    * ODsay GET API 공통 호출 메서드
@@ -88,6 +130,7 @@ export class OdsayAdapter {
     }
 
     const url = `https://api.odsay.com/v1/api/${endpoint}?${queryParams.toString()}`;
+    const referer = getOdsayReferer();
 
     let res: Response;
     try {
@@ -95,7 +138,7 @@ export class OdsayAdapter {
         externalFetch(url, {
           cache: 'no-store',
           headers: {
-            Referer: process.env.DOMAIN || 'http://localhost:3000',
+            Referer: referer,
           },
         })
       );
@@ -351,7 +394,9 @@ export class OdsayAdapter {
       const errorMsg = String(errorDetail?.message || '');
 
       if (errorCode === 'ApiKeyAuthFailed' || errorMsg.includes('ApiKeyAuthFailed')) {
-        throw new TransitAuthError(`외부 API 인증 오류: ${errorMsg}`);
+        const currentReferer = getOdsayReferer();
+        console.error(`[OdsayAdapter] 외부 API 인증 실패 (ApiKeyAuthFailed). 현재 전송된 Referer: "${currentReferer}", 응답 메시지: ${errorMsg}`);
+        throw new TransitAuthError(`외부 API 인증 오류: ${errorMsg} (전송된 Referer: ${currentReferer})`);
       }
       if (errorCode === 'TooManyRequests' || errorCode === '429' || errorMsg.includes('Requests')) {
         throw new TransitQuotaError(`외부 API 할당량/요청 한도 초과: ${errorMsg}`);

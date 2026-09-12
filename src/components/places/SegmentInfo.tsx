@@ -228,18 +228,42 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     transferLabel = '도보';
   }
 
-  // 이동 구간 내 첫 번째 대중교통 정보 추출 (실시간 칩 연결용 - 첫 번째 이동 수단 우선)
-  const firstTransitStep = data.steps?.find((s: DirectionStep) => s.type !== 'walk') || null;
-  const targetBusStep = firstTransitStep && (firstTransitStep.type === 'bus' || firstTransitStep.type === 'expressbus') ? firstTransitStep : null;
-  const targetSubwayStep = firstTransitStep && (firstTransitStep.type === 'subway' || firstTransitStep.type === 'train') ? firstTransitStep : null;
+  // 이동 구간 내 대중교통 스텝 목록 추출 (도보 및 차량 제외)
+  const realtimeTransitSteps = data.steps?.filter((s: DirectionStep) => s.type !== 'walk' && s.type !== 'car' && s.type !== 'taxi') || [];
+
+  // 헬퍼: 버스 스텝의 유효 stationId 추출 (다양한 ODsay/TAGO 필드 형태 대응)
+  const extractBusStationId = (step: DirectionStep | null | undefined): string | undefined => {
+    if (!step) return undefined;
+    const raw =
+      step.realtimeStationId ||
+      step.startStationID ||
+      step.startID ||
+      step.startStationId ||
+      step.nodeId ||
+      (step as any).localStationID ||
+      (step as any).arsId ||
+      (step as any).arsID;
+    return raw ? String(raw) : undefined;
+  };
+
+  // 실시간 조회가 유효한(Valid) 대중교통 스텝 우선 선별:
+  // 1) 실시간 데이터 조회가 가능한 첫 번째 스텝 탐색: 버스(정류소 ID 및 노선명 보유) 또는 지하철/열차(역명 보유)
+  // 2) 유효 스텝이 없다면 첫 번째 대중교통 스텝으로 폴백
+  const targetTransitStep = realtimeTransitSteps.find((s) => {
+    if (s.type === 'bus' || s.type === 'expressbus') {
+      const stId = extractBusStationId(s);
+      return Boolean(stId && s.name);
+    }
+    if (s.type === 'subway' || s.type === 'train') {
+      return Boolean(s.startName || originPlace?.place_name);
+    }
+    return false;
+  }) || realtimeTransitSteps[0] || null;
+
+  const targetBusStep = targetTransitStep && (targetTransitStep.type === 'bus' || targetTransitStep.type === 'expressbus') ? targetTransitStep : null;
+  const targetSubwayStep = targetTransitStep && (targetTransitStep.type === 'subway' || targetTransitStep.type === 'train') ? targetTransitStep : null;
   const targetSubwayStationName = targetSubwayStep?.startName || originPlace?.place_name;
-  const rawStationId =
-    targetBusStep?.realtimeStationId ||
-    targetBusStep?.startStationID ||
-    targetBusStep?.startID ||
-    targetBusStep?.startStationId ||
-    targetBusStep?.nodeId;
-  const targetBusStationId = rawStationId ? String(rawStationId) : undefined;
+  const targetBusStationId = extractBusStationId(targetBusStep);
   const targetBusStationName = targetBusStep?.startName || originPlace?.place_name;
   const targetBusName = targetBusStep?.name || '';
   const targetOdsayBusId = targetBusStep?.odsayBusId ? String(targetBusStep.odsayBusId) : (targetBusStep?.busID ? String(targetBusStep.busID) : undefined);
@@ -343,7 +367,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 </div>
 
                 {/* 타깃 이동 수단 실시간 수직 독립 레이아웃 */}
-                {targetBusStep && targetBusName ? (
+                {targetBusStep && targetBusName && targetBusStationId ? (
                   <div
                     className="flex items-center pt-0.5"
                     onClick={(e) => e.stopPropagation()}
@@ -692,7 +716,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
             </div>
 
             {/* 타깃 이동 수단 실시간 수직 독립 레이아웃 */}
-            {targetBusStep && targetBusName ? (
+            {targetBusStep && targetBusName && targetBusStationId ? (
               <div
                 className="flex items-center pt-0.5"
                 onClick={(e) => e.stopPropagation()}

@@ -91,6 +91,25 @@ export default function TransferMarkers({
       filteredPoints = points.filter((pt) => {
         return pt.originId === focusedSegment.originId && pt.destId === focusedSegment.destId;
       });
+
+      // 이동 상세에서 전체 경로 보기 상태(!focusedStep 또는 다른 구간의 step)일 때는
+      // 중간 환승/탑승/하차 마커를 숨기고 출발 및 도착 마커만 노출
+      const isSegmentOverallView =
+        !focusedStep ||
+        focusedStep.originId !== focusedSegment.originId ||
+        focusedStep.destId !== focusedSegment.destId;
+
+      if (isSegmentOverallView) {
+        filteredPoints = filteredPoints.filter((pt) => {
+          const isStartMarker = Boolean(
+            pt.isSegmentStart || (pt.subPoints && pt.subPoints.some((p) => p.isSegmentStart))
+          );
+          const isDestMarker = Boolean(
+            pt.isSegmentDest || (pt.subPoints && pt.subPoints.some((p) => p.isSegmentDest))
+          );
+          return isStartMarker || isDestMarker;
+        });
+      }
     }
 
     if (!mapBounds) return filteredPoints;

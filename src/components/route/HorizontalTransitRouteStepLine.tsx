@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { MapPin, Footprints, Bus, Train, Car, Navigation, ArrowRight } from 'lucide-react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useShallow } from 'zustand/react/shallow';
@@ -30,6 +30,48 @@ export default function HorizontalTransitRouteStepLine({
     }))
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const stepRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const isUserTouchingRef = useRef(false);
+
+  const registerStepRef = (key: string, el: HTMLElement | null) => {
+    if (el) stepRefs.current.set(key, el);
+    else stepRefs.current.delete(key);
+  };
+
+  const scrollToStep = useCallback((targetKey: string) => {
+    const container = containerRef.current;
+    const targetEl = stepRefs.current.get(targetKey);
+    if (!container || !targetEl) return;
+
+    if (targetKey === 'origin') {
+      container.scrollTo({
+        left: 0,
+        behavior: 'smooth',
+      });
+      return;
+    }
+
+    if (targetKey === 'dest') {
+      container.scrollTo({
+        left: container.scrollWidth - container.clientWidth,
+        behavior: 'smooth',
+      });
+      return;
+    }
+
+    // 중간 스텝: 뷰포트 내 중앙 정렬 스크롤 계산
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+    const relativeLeft = targetRect.left - containerRect.left;
+    const targetScrollLeft = container.scrollLeft + relativeLeft - (container.clientWidth - targetRect.width) / 2;
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    const finalScrollLeft = Math.max(0, Math.min(maxScroll, targetScrollLeft));
+
+    container.scrollTo({
+      left: finalScrollLeft,
+      behavior: 'smooth',
+    });
+  }, []);
 
   const steps = route?.steps || [];
 
@@ -148,15 +190,46 @@ export default function HorizontalTransitRouteStepLine({
     }
   };
 
+  // 여정 재생 단계(focusedStep) 변경 시 타임라인바 자동 스크롤 동기화
+  useEffect(() => {
+    if (!focusedStep) return;
+    if (isUserTouchingRef.current) return;
+
+    let targetKey = '';
+    if (focusedStep.originId === originPlace.id && focusedStep.destId === destPlace.id) {
+      if (focusedStep.subType === 'dest' || (typeof focusedStep.stepIndex === 'number' && focusedStep.stepIndex >= steps.length)) {
+        targetKey = 'dest';
+      } else if (focusedStep.stepIndex === 0) {
+        targetKey = 'origin';
+      } else if (typeof focusedStep.stepIndex === 'number') {
+        targetKey = `step-${focusedStep.stepIndex}`;
+      }
+    }
+
+    if (targetKey) {
+      const rafId = requestAnimationFrame(() => {
+        scrollToStep(targetKey);
+      });
+      return () => cancelAnimationFrame(rafId);
+    }
+  }, [focusedStep, originPlace.id, destPlace.id, steps.length, scrollToStep]);
+
   return (
     <div
       ref={containerRef}
+      onTouchStart={() => {
+        isUserTouchingRef.current = true;
+      }}
+      onTouchEnd={() => {
+        isUserTouchingRef.current = false;
+      }}
       className={`w-full px-4 py-2 flex items-center overflow-x-auto scrollbar-none shrink-0 select-none ${className}`}
       style={{ height: '104px' }}
     >
       <div className="flex items-center shrink-0 gap-1.5 h-full">
         {/* 1. 출발지 노드 */}
         <div
+          ref={(el) => registerStepRef('origin', el)}
           onClick={handleOriginClick}
           className={`flex flex-col items-center justify-between w-[78px] shrink-0 h-full py-1 cursor-pointer transition-all ${
             isOriginFocused ? 'scale-110' : 'hover:opacity-90'
@@ -204,6 +277,7 @@ export default function HorizontalTransitRouteStepLine({
               return (
                 <div
                   key={`step-walk-${idx}`}
+                  ref={(el) => registerStepRef(`step-${idx}`, el)}
                   onClick={() => (idx === 0 ? handleOriginClick() : handleStepClick(idx, step))}
                   className={`flex flex-col items-center justify-between min-w-[56px] px-1 shrink-0 h-full py-1 cursor-pointer transition-all ${
                     isThisStepActive ? 'opacity-100 scale-105 ring-2 ring-blue-300/60 rounded-xl bg-blue-50/40' : 'opacity-85 hover:opacity-100'
@@ -227,7 +301,11 @@ export default function HorizontalTransitRouteStepLine({
 
             // 대중교통 (지하철 / 버스 / 기차 등)
             return (
-              <div key={`step-transit-${idx}`} className="flex items-center shrink-0">
+              <div
+                key={`step-transit-${idx}`}
+                ref={(el) => registerStepRef(`step-${idx}`, el)}
+                className="flex items-center shrink-0"
+              >
                 {/* 탑승역 노드 */}
                 <div
                   onClick={() => (idx === 0 ? handleOriginClick() : handleStepClick(idx, step))}
@@ -309,7 +387,10 @@ export default function HorizontalTransitRouteStepLine({
           })
         ) : (
           /* 스텝 정보가 없는 기본 연결 라인 */
-          <div className="flex flex-col items-center justify-between min-w-[100px] px-2 shrink-0 h-full py-1">
+          <div
+            ref={(el) => registerStepRef('step-0', el)}
+            className="flex flex-col items-center justify-between min-w-[100px] px-2 shrink-0 h-full py-1"
+          >
             <span className="text-[10px] font-bold text-zinc-500">
               {typeof route?.duration === 'number' ? `${route.duration}분` : '이동'}
             </span>
@@ -322,6 +403,7 @@ export default function HorizontalTransitRouteStepLine({
 
         {/* 3. 도착지 노드 */}
         <div
+          ref={(el) => registerStepRef('dest', el)}
           onClick={handleDestClick}
           className={`flex flex-col items-center justify-between w-[78px] shrink-0 h-full py-1 cursor-pointer transition-all ${
             isDestFocused ? 'scale-110' : 'hover:opacity-90'

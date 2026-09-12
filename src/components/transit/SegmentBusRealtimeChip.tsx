@@ -67,32 +67,12 @@ function getBusStationCountText(bus: ArrivalBusItem, liveStationCount?: number):
   return '대기';
 }
 
-function checkIsFutureDeparture(storeDepartureTime?: number | null, startDateTime?: string): boolean {
-  const nowMs = Date.now();
-  // 1. 유저가 UI에서 설정한 출발 시각(departureTime)이 있는 경우 최우선 판별
+function checkIsFutureDeparture(storeDepartureTime?: number | null): boolean {
+  // 유저가 UI에서 출발 시각(departureTime)을 직접 미래로 설정한 경우에만 미래/배차 모드 적용
   if (storeDepartureTime && typeof storeDepartureTime === 'number') {
-    const diffMinutes = (storeDepartureTime - nowMs) / (1000 * 60);
-    // 현재 시점 대비 30분 이상 미래인 경우에만 미래/예정 모드
-    // ⚠️ 과거 시각이라도 isFuture로 처리하지 않음 (경로가 오래 됐어도 실시간 표시)
+    const diffMinutes = (storeDepartureTime - Date.now()) / (1000 * 60);
+    // 현재 시점 대비 30분 초과 미래인 경우에만 미래/예정 모드 (과거 시각은 실시간 모드 유지)
     if (diffMinutes > 30) return true;
-  }
-
-  // 2. 길찾기 결과의 startDateTime 판별
-  if (startDateTime && startDateTime.length >= 12) {
-    try {
-      const year = parseInt(startDateTime.slice(0, 4), 10);
-      const month = parseInt(startDateTime.slice(4, 6), 10) - 1;
-      const day = parseInt(startDateTime.slice(6, 8), 10);
-      const hour = parseInt(startDateTime.slice(8, 10), 10);
-      const min = parseInt(startDateTime.slice(10, 12), 10);
-      const departureDate = new Date(year, month, day, hour, min);
-      if (isNaN(departureDate.getTime())) return false;
-      const diffMinutes = (departureDate.getTime() - nowMs) / (1000 * 60);
-      // 30분 초과 미래인 경우에만 미래 모드 (과거 시각은 실시간 모드 유지)
-      if (diffMinutes > 30) return true;
-    } catch {
-      // ignore
-    }
   }
 
   return false;
@@ -181,8 +161,8 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   }, [busLiveStationsAwayMap, cleanBusNo, stationId, cleanTargetStation]);
 
   const isFuture = useMemo(
-    () => checkIsFutureDeparture(storeDepartureTime, startDateTime),
-    [storeDepartureTime, startDateTime]
+    () => checkIsFutureDeparture(storeDepartureTime),
+    [storeDepartureTime]
   );
   const setBusLineMapTarget = useJourneyStore((state) => state.setBusLineMapTarget);
 

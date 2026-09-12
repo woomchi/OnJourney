@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from 'react';
-import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
+import type { Place, SelectedRoute, DirectionResult, DirectionStep } from '@/types/journey';
 import { useJourneyStore } from '@/stores/journey-store';
 import { IntercityTransitScheduleWidget } from '@/components/transit/IntercityTransitScheduleWidget';
+import { SegmentBusRealtimeChip } from '@/components/transit/SegmentBusRealtimeChip';
+import { SegmentSubwayRealtimeChip } from '@/components/transit/SegmentSubwayRealtimeChip';
 import { Clock } from 'lucide-react';
-import { formatDurationMinutes } from '@/lib/utils/journeyUtils';
+import { formatDurationMinutes, inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 
 interface TransitGuideListProps {
   route: SelectedRoute | DirectionResult;
@@ -42,6 +44,89 @@ export default function TransitGuideList({
     setExpandedSteps(prev => 
       prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
     );
+  };
+
+  const renderRealtimeChip = (step: DirectionStep, idx: number) => {
+    // 1. 버스 (시내버스, 광역버스, 급행/지선/간선 등)
+    if (step.type === 'bus' || step.type === 'expressbus') {
+      const rawStationId =
+        step.realtimeStationId ||
+        step.startStationID ||
+        step.startID ||
+        step.startStationId ||
+        step.nodeId;
+      const stationId = rawStationId ? String(rawStationId) : undefined;
+      const busNo = step.name;
+      const stationName = step.startName || (idx === 0 ? originPlace.place_name : steps[idx - 1]?.endName);
+      const region = step.startRegion || (originPlace ? inferRegionFromPlace(originPlace) : undefined);
+      const lat = step.startY || step.startLat;
+      const lng = step.startX || step.startLng;
+      const cityCode = step.startCityCode || step.cityCode;
+      const odsayBusId = step.odsayBusId ? String(step.odsayBusId) : (step.busID ? String(step.busID) : undefined);
+      const tagoRouteId = step.tagoRouteId ? String(step.tagoRouteId) : (step.busLocalBlID ? String(step.busLocalBlID) : undefined);
+      const busId = odsayBusId || tagoRouteId;
+      const destination = step.endName || step.destination;
+      const headsign = step.headsign;
+      const intervalTime = step.intervalTime;
+      const startDateTime = step.startDateTime;
+      const busType = step.busType;
+      const busColor = step.busLaneColor || step.color;
+
+      if (!stationId || !busNo) return null;
+
+      return (
+        <div
+          className="mt-1.5 flex items-center shrink-0"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <SegmentBusRealtimeChip
+            region={region}
+            stationId={stationId}
+            stationName={stationName}
+            cityCode={cityCode}
+            busNo={busNo}
+            busId={busId}
+            odsayBusId={odsayBusId}
+            tagoRouteId={tagoRouteId}
+            destination={destination}
+            headsign={headsign}
+            intervalTime={intervalTime}
+            startDateTime={startDateTime}
+            busType={busType}
+            busColor={busColor}
+            lat={lat ? Number(lat) : undefined}
+            lng={lng ? Number(lng) : undefined}
+            variant="sidebar"
+          />
+        </div>
+      );
+    }
+
+    // 2. 지하철 (수도권 전철, 도시철도)
+    if (step.type === 'subway' || (step.type === 'train' && !step.trainSubType && !step.subPathOptions)) {
+      const stationName = step.startName || (idx === 0 ? originPlace.place_name : steps[idx - 1]?.endName);
+      if (!stationName) return null;
+
+      return (
+        <div
+          className="mt-1.5 flex items-center shrink-0"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <SegmentSubwayRealtimeChip
+            stationName={stationName}
+            wayCode={step.wayCode !== undefined ? String(step.wayCode) : undefined}
+            subwayId={step.rawLineName || step.name}
+            destination={step.endName}
+            headsign={step.headsign}
+            variant="sidebar"
+          />
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -139,6 +224,9 @@ export default function TransitGuideList({
                   {formatDurationMinutes(step.duration)}
                 </span>
               </div>
+
+              {/* 실시간 도착 정보 칩 */}
+              {renderRealtimeChip(step, idx)}
 
               {/* 승차 / 하차 정보 (도보인 경우 출발 / 도착) */}
               {((step.type !== 'walk' && (step.startName || step.endName)) || step.type === 'walk') && (() => {

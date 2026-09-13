@@ -17,6 +17,10 @@ export const busPositionsQuerySchema = z.object({
   region: z.string().optional(),
   stationId: z.string().optional(),
   stationName: z.string().optional(),
+  destination: z.string().optional(),
+  headsign: z.string().optional(),
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
 });
 
 export type BusPositionsQueryType = z.infer<typeof busPositionsQuerySchema>;

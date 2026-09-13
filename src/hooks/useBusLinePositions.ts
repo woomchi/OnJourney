@@ -11,6 +11,10 @@ export interface UseBusLinePositionsOptions {
   region?: string;
   stationId?: string;
   stationName?: string;
+  destination?: string;
+  headsign?: string;
+  lat?: number;
+  lng?: number;
   enabled?: boolean;
   refetchInterval?: number | false;
 }
@@ -25,6 +29,10 @@ export function useBusLinePositions({
   region,
   stationId,
   stationName,
+  destination,
+  headsign,
+  lat,
+  lng,
   enabled = true,
   refetchInterval = 30000,
 }: UseBusLinePositionsOptions) {
@@ -40,6 +48,10 @@ export function useBusLinePositions({
       region || '',
       stationId || '',
       stationName || '',
+      destination || '',
+      headsign || '',
+      lat ? String(lat) : '',
+      lng ? String(lng) : '',
     ],
     queryFn: async (): Promise<BusLinePositionsData | null> => {
       if (!busNo) return null;
@@ -54,6 +66,10 @@ export function useBusLinePositions({
       if (region) params.append('region', region);
       if (stationId) params.append('stationId', stationId);
       if (stationName) params.append('stationName', stationName);
+      if (destination) params.append('destination', destination);
+      if (headsign) params.append('headsign', headsign);
+      if (lat !== undefined) params.append('lat', String(lat));
+      if (lng !== undefined) params.append('lng', String(lng));
 
       const res = await fetch(`/api/bus/positions?${params.toString()}`, {
         cache: 'no-store',

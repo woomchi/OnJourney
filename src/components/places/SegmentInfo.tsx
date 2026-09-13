@@ -247,12 +247,13 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   };
 
   // 실시간 조회가 유효한(Valid) 대중교통 스텝 우선 선별:
-  // 1) 실시간 데이터 조회가 가능한 첫 번째 스텝 탐색: 버스(정류소 ID 및 노선명 보유) 또는 지하철/열차(역명 보유)
+  // 1) 실시간 데이터 조회가 가능한 첫 번째 스텝 탐색: 버스(정류소 ID 또는 정류소명+좌표 및 노선명 보유) 또는 지하철/열차(역명 보유)
   // 2) 유효 스텝이 없다면 첫 번째 대중교통 스텝으로 폴백
   const targetTransitStep = realtimeTransitSteps.find((s) => {
     if (s.type === 'bus' || s.type === 'expressbus') {
       const stId = extractBusStationId(s);
-      return Boolean(stId && s.name);
+      const hasCoords = Boolean(s.startLat || s.startY || (s.pathPoints && s.pathPoints.length > 0));
+      return Boolean((stId || (s.startName && hasCoords)) && s.name);
     }
     if (s.type === 'subway' || s.type === 'train') {
       return Boolean(s.startName || originPlace?.place_name);
@@ -263,8 +264,10 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   const targetBusStep = targetTransitStep && (targetTransitStep.type === 'bus' || targetTransitStep.type === 'expressbus') ? targetTransitStep : null;
   const targetSubwayStep = targetTransitStep && (targetTransitStep.type === 'subway' || targetTransitStep.type === 'train') ? targetTransitStep : null;
   const targetSubwayStationName = targetSubwayStep?.startName || originPlace?.place_name;
-  const targetBusStationId = extractBusStationId(targetBusStep);
   const targetBusStationName = targetBusStep?.startName || originPlace?.place_name;
+  const targetBusLat = targetBusStep?.startY || targetBusStep?.startLat || targetBusStep?.pathPoints?.[0]?.lat || originPlace?.lat;
+  const targetBusLng = targetBusStep?.startX || targetBusStep?.startLng || targetBusStep?.pathPoints?.[0]?.lng || originPlace?.lng;
+  const targetBusStationId = extractBusStationId(targetBusStep) || (targetBusStationName && targetBusLat && targetBusLng ? 'auto' : undefined);
   const targetBusName = targetBusStep?.name || '';
   const targetOdsayBusId = targetBusStep?.odsayBusId ? String(targetBusStep.odsayBusId) : (targetBusStep?.busID ? String(targetBusStep.busID) : undefined);
   const targetTagoRouteId = targetBusStep?.tagoRouteId ? String(targetBusStep.tagoRouteId) : (targetBusStep?.busLocalBlID ? String(targetBusStep.busLocalBlID) : undefined);
@@ -275,8 +278,6 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   const targetBusIntervalTime = targetBusStep?.intervalTime;
   const targetBusStartDateTime = targetBusStep?.startDateTime;
   const inferredRegion = targetBusStep?.startRegion || inferRegionFromPlace(originPlace);
-  const targetBusLat = targetBusStep?.startY || targetBusStep?.startLat || originPlace?.lat;
-  const targetBusLng = targetBusStep?.startX || targetBusStep?.startLng || originPlace?.lng;
   const targetCityCode = targetBusStep?.startCityCode || targetBusStep?.cityCode;
 
   const getTransportIcon = (tType: string, steps: DirectionStep[] = []) => {

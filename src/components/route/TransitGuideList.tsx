@@ -49,18 +49,19 @@ export default function TransitGuideList({
   const renderRealtimeChip = (step: DirectionStep, idx: number) => {
     // 1. 버스 (시내버스, 광역버스, 급행/지선/간선 등)
     if (step.type === 'bus' || step.type === 'expressbus') {
+      const stationName = step.startName || (idx === 0 ? originPlace.place_name : steps[idx - 1]?.endName);
+      const lat = step.startY || step.startLat || step.pathPoints?.[0]?.lat;
+      const lng = step.startX || step.startLng || step.pathPoints?.[0]?.lng;
       const rawStationId =
         step.realtimeStationId ||
         step.startStationID ||
         step.startID ||
         step.startStationId ||
-        step.nodeId;
+        step.nodeId ||
+        (stationName && (lat || lng) ? 'auto' : undefined);
       const stationId = rawStationId ? String(rawStationId) : undefined;
       const busNo = step.name;
-      const stationName = step.startName || (idx === 0 ? originPlace.place_name : steps[idx - 1]?.endName);
       const region = step.startRegion || (originPlace ? inferRegionFromPlace(originPlace) : undefined);
-      const lat = step.startY || step.startLat;
-      const lng = step.startX || step.startLng;
       const cityCode = step.startCityCode || step.cityCode;
       const odsayBusId = step.odsayBusId ? String(step.odsayBusId) : (step.busID ? String(step.busID) : undefined);
       const tagoRouteId = step.tagoRouteId ? String(step.tagoRouteId) : (step.busLocalBlID ? String(step.busLocalBlID) : undefined);

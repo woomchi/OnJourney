@@ -179,7 +179,9 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   });
 
   const sharedKey = stationId && cleanBusNo
-    ? `bus:${region || 'tago'}:${stationId}:${cleanBusNo}`
+    ? stationId === 'auto'
+      ? `bus:${region || 'tago'}:auto:${stationName || `${lat}_${lng}`}:${cleanBusNo}`
+      : `bus:${region || 'tago'}:${stationId}:${cleanBusNo}`
     : undefined;
 
   const { buttonText, buttonTitle, start, isLoading: isRefreshLoading } = useAutoRefresh({
@@ -216,35 +218,6 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     if (isRefreshLoading || isFetching) return;
     refetch();
     start();
-  };
-
-  const handleOpenBusLineMap = (e: React.MouseEvent, targetBus?: ArrivalBusItem) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!cleanBusNo) return;
-
-    setBusLineMapTarget({
-      stationName: stationName || '정류소',
-      stationId: stationId ? String(stationId) : undefined,
-      destination: destination || targetBus?.destination,
-      headsign: headsign,
-      busNo: cleanBusNo,
-      busId: busId,
-      odsayBusId: odsayBusId || (busId && busId.length <= 6 ? busId : undefined),
-      tagoRouteId: tagoRouteId || (targetBus?.lineId && targetBus.lineId.length > 6 ? targetBus.lineId : undefined),
-      routeId: tagoRouteId || targetBus?.lineId,
-      busColor,
-      busType: busType || targetBus?.busType,
-      cityCode,
-      busCityCode: cityCode,
-      region,
-      lat,
-      lng,
-      targetVehicleNo: targetBus?.vehicleId ? String(targetBus.vehicleId) : undefined,
-      targetMinutesLeft: targetBus ? Math.max(1, Math.round(targetBus.arrivedInSeconds / 60)) : undefined,
-      targetStationsLeft: targetBus?.currentStationSequence,
-      targetStatusText: targetBus ? formatBusItemTime(targetBus.arrivedInSeconds) : undefined,
-    });
   };
 
   const targetBuses = useMemo(() => {
@@ -316,6 +289,52 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
       return a.arrivedInSeconds - b.arrivedInSeconds;
     });
   }, [data, cleanBusNo, destination, headsign, busNo]);
+
+  const handleOpenBusLineMap = (e: React.MouseEvent, targetBus?: ArrivalBusItem) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!cleanBusNo) return;
+
+    // targetBus가 직접 전달되지 않은 경우(칩 본체 또는 '도착 정보 없음' 클릭 등),
+    // 상단에서 엄격하게 매칭 검증된 targetBuses[0]을 사용 (다른 노선 번호 임의 폴백 완전 차단)
+    const matchedBus = targetBus || targetBuses[0] || undefined;
+
+    // 노선 ID 정규화: 현재 일치하는 버스의 lineId 또는 busId가 경기도 9자리 순수 숫자인 경우 국토교통부 표준 접두사 GGB 결합
+    let resolvedRouteId = tagoRouteId || matchedBus?.lineId;
+    if (!resolvedRouteId && busId && /^[0-9]{9}$/.test(String(busId).trim())) {
+      resolvedRouteId = `GGB${String(busId).trim()}`;
+    } else if (resolvedRouteId && /^[0-9]{9}$/.test(String(resolvedRouteId).trim())) {
+      resolvedRouteId = `GGB${String(resolvedRouteId).trim()}`;
+    }
+
+    const effectiveRegion =
+      region ||
+      (stationId && String(stationId).toUpperCase().startsWith('GGB') ? 'gyeonggi' : undefined) ||
+      (cityCode === '31' || (cityCode && String(cityCode).startsWith('31')) ? 'gyeonggi' : undefined);
+
+    setBusLineMapTarget({
+      stationName: stationName || '정류소',
+      stationId: stationId ? String(stationId) : undefined,
+      destination: destination || matchedBus?.destination,
+      headsign: headsign,
+      busNo: cleanBusNo,
+      busId: busId,
+      odsayBusId: odsayBusId || (busId && busId.length <= 6 ? busId : undefined),
+      tagoRouteId: resolvedRouteId,
+      routeId: resolvedRouteId,
+      busColor,
+      busType: busType || matchedBus?.busType,
+      cityCode,
+      busCityCode: cityCode,
+      region: effectiveRegion,
+      lat,
+      lng,
+      targetVehicleNo: matchedBus?.vehicleId ? String(matchedBus.vehicleId) : undefined,
+      targetMinutesLeft: matchedBus ? Math.max(1, Math.round(matchedBus.arrivedInSeconds / 60)) : undefined,
+      targetStationsLeft: matchedBus?.currentStationSequence,
+      targetStatusText: matchedBus ? formatBusItemTime(matchedBus.arrivedInSeconds) : undefined,
+    });
+  };
 
   if (!stationId || !cleanBusNo) return null;
 

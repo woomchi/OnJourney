@@ -37,6 +37,13 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
   const pathPoints: { lat: number; lng: number }[] =
     path?.points?.map(([lng, lat]) => ({ lat, lng })) || [];
 
+  const firstPoint = pathPoints.length > 0 ? pathPoints[0] : undefined;
+  const lastPoint = pathPoints.length > 0 ? pathPoints[pathPoints.length - 1] : undefined;
+  const startLat = firstPoint?.lat;
+  const startLng = firstPoint?.lng;
+  const endLat = lastPoint?.lat;
+  const endLng = lastPoint?.lng;
+
   // 2. 소요 시간 (초 -> 분 변환, 0초 초과 시 최소 1분 보정)
   const durationMin = properties.time > 0 ? Math.max(1, Math.round(properties.time / 60)) : 0;
 
@@ -47,8 +54,10 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
 
   const passStopList = stops.length > 0
     ? {
-        stationList: stops.map((s) => ({
+        stationList: stops.map((s, sIndex) => ({
           stationName: s.name,
+          lat: sIndex === 0 ? startLat : sIndex === stops.length - 1 ? endLat : undefined,
+          lng: sIndex === 0 ? startLng : sIndex === stops.length - 1 ? endLng : undefined,
         })),
       }
     : undefined;
@@ -82,6 +91,14 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
       pathPoints,
       startName,
       endName,
+      startLat,
+      startLng,
+      startX: startLng,
+      startY: startLat,
+      endLat,
+      endLng,
+      endX: endLng,
+      endY: endLat,
       stationCount: stops.length,
       busType,
       busLaneColor: getKakaoBusColor(busType, vehicleName),
@@ -104,6 +121,14 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
       pathPoints,
       startName,
       endName,
+      startLat,
+      startLng,
+      startX: startLng,
+      startY: startLat,
+      endLat,
+      endLng,
+      endX: endLng,
+      endY: endLat,
       stationCount: stops.length,
       passStopList,
       headsign: properties.guidance,
@@ -120,6 +145,14 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
     pathPoints,
     startName,
     endName,
+    startLat,
+    startLng,
+    startX: startLng,
+    startY: startLat,
+    endLat,
+    endLng,
+    endX: endLng,
+    endY: endLat,
   };
 }
 

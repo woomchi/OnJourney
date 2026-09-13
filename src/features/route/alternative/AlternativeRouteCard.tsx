@@ -37,16 +37,17 @@ export function AlternativeRouteCard({
 
     if (firstTransitStep && (firstTransitStep.type === 'bus' || firstTransitStep.type === 'expressbus')) {
       const firstBusStep = firstTransitStep;
+      const busStationName = firstBusStep.startName || originPlace.place_name;
+      const busLat = firstBusStep.startY || firstBusStep.startLat || firstBusStep.pathPoints?.[0]?.lat || originPlace.lat;
+      const busLng = firstBusStep.startX || firstBusStep.startLng || firstBusStep.pathPoints?.[0]?.lng || originPlace.lng;
       const busStationId =
         firstBusStep.realtimeStationId ||
         firstBusStep.startStationID ||
         firstBusStep.startID ||
-        firstBusStep.nodeId;
+        firstBusStep.nodeId ||
+        (busStationName && (busLat || busLng) ? 'auto' : undefined);
       const busNo = firstBusStep.name;
-      const busStationName = firstBusStep.startName || originPlace.place_name;
       const busRegion = firstBusStep.startRegion || inferRegionFromPlace(originPlace);
-      const busLat = firstBusStep.startY || firstBusStep.startLat || originPlace.lat;
-      const busLng = firstBusStep.startX || firstBusStep.startLng || originPlace.lng;
       const busCityCode = firstBusStep.startCityCode || firstBusStep.cityCode;
       const odsayBusId = firstBusStep.odsayBusId || firstBusStep.busID;
       const tagoRouteId = firstBusStep.tagoRouteId || firstBusStep.busLocalBlID;
@@ -139,16 +140,17 @@ export function AlternativeRouteCard({
 
     if (firstTransitStep && (firstTransitStep.type === 'bus' || firstTransitStep.type === 'expressbus')) {
       const firstBusStep = firstTransitStep;
+      const busStationName = firstBusStep.startName || originPlace.place_name;
+      const busLat = firstBusStep.startY || firstBusStep.startLat || firstBusStep.pathPoints?.[0]?.lat || originPlace.lat;
+      const busLng = firstBusStep.startX || firstBusStep.startLng || firstBusStep.pathPoints?.[0]?.lng || originPlace.lng;
       const busStationId =
         firstBusStep.realtimeStationId ||
         firstBusStep.startStationID ||
         firstBusStep.startID ||
-        firstBusStep.nodeId;
+        firstBusStep.nodeId ||
+        (busStationName && (busLat || busLng) ? 'auto' : undefined);
       const busNo = firstBusStep.name;
-      const busStationName = firstBusStep.startName || originPlace.place_name;
       const busRegion = firstBusStep.startRegion || inferRegionFromPlace(originPlace);
-      const busLat = firstBusStep.startY || firstBusStep.startLat || originPlace.lat;
-      const busLng = firstBusStep.startX || firstBusStep.startLng || originPlace.lng;
       const busCityCode = firstBusStep.startCityCode || firstBusStep.cityCode;
       const odsayBusId = firstBusStep.odsayBusId || firstBusStep.busID;
       const tagoRouteId = firstBusStep.tagoRouteId || firstBusStep.busLocalBlID;

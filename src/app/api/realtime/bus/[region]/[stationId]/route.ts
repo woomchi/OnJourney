@@ -21,11 +21,14 @@ export async function GET(
     const lat = latParam ? parseFloat(latParam) : undefined;
     const lng = lngParam ? parseFloat(lngParam) : undefined;
 
-    if (!stationId) {
+    const hasCoordsOrName = Boolean(stationName || (lat && lng));
+    const isSpecialId = !stationId || stationId === 'auto' || stationId === 'none' || stationId === '_';
+
+    if (isSpecialId && !hasCoordsOrName) {
       return NextResponse.json(
         {
           success: false,
-          error: '정류소 ID(stationId)가 누락되었습니다.',
+          error: '정류소 식별 정보(stationId 또는 stationName/좌표)가 필요합니다.',
           timestamp: Date.now(),
         },
         { status: 400 }

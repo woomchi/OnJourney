@@ -21,6 +21,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     region: validatedParams.region,
     stationId: validatedParams.stationId,
     stationName: validatedParams.stationName,
+    destination: validatedParams.destination,
+    headsign: validatedParams.headsign,
+    lat: validatedParams.lat,
+    lng: validatedParams.lng,
   });
 
   if (!data) {

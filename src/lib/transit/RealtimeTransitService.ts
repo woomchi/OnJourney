@@ -34,10 +34,30 @@ export class RealtimeTransitService {
   }: GetBusArrivalsParams): Promise<NormalizedRealtimeData> {
     let normalizedRegion = region ? region.toLowerCase() : 'seoul';
     let resolvedCityCode = cityCode;
+    let effectiveStationId = stationId || '';
+
+    // 0-0단계: stationId가 비어있거나 가상 ID('auto', 'none', '_')인 경우 좌표/정류소명 기반 공공 정류소 스마트 역조회
+    const isSpecialId = !stationId || stationId === 'auto' || stationId === 'none' || stationId === '_' || !/[0-9]/.test(stationId);
+    if (isSpecialId && lat && lng) {
+      const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
+      if (apiKey) {
+        try {
+          const coordsInfo = await TagoBusService.lookupTagoNodeIdByCoords(lat, lng, stationName, apiKey.trim());
+          if (coordsInfo?.nodeId) {
+            effectiveStationId = coordsInfo.nodeId;
+            if (coordsInfo.cityCode) {
+              resolvedCityCode = coordsInfo.cityCode;
+            }
+          }
+        } catch (lookupErr: any) {
+          console.warn('[RealtimeTransitService] 좌표 기반 정류소 역조회 실패:', lookupErr?.message);
+        }
+      }
+    }
 
     // 0단계: stationId 고유 접두사 기반 최우선 권역 교정 (DJB/GGB/BSB/ICB 등 가장 신뢰도 높은 기준)
-    const upperStationId = (stationId || '').toUpperCase();
-    const pureId = stationId.replace(/[^0-9]/g, '');
+    const upperStationId = effectiveStationId.toUpperCase();
+    const pureId = effectiveStationId.replace(/[^0-9]/g, '');
 
     if (upperStationId.startsWith('DJB')) {
       normalizedRegion = 'daejeon';
@@ -71,7 +91,7 @@ export class RealtimeTransitService {
     // 1단계: 경기도 전용 권역 (Primary: 경기도 버스도착정보 API -> Fallback: TAGO)
     if (normalizedRegion === 'gyeonggi' || normalizedRegion === '경기') {
       try {
-        const ggResult = await GyeonggiBusService.getArrivalInfo(stationId, stationName);
+        const ggResult = await GyeonggiBusService.getArrivalInfo(effectiveStationId, stationName);
         if (ggResult && ggResult.nextArrivals.length > 0) {
           return ggResult; // 경기도 1순위 데이터 즉시 반환
         }
@@ -83,7 +103,7 @@ export class RealtimeTransitService {
       return TagoBusService.getArrivalInfoSmartNodeTrigger({
         cityCode: resolvedCityCode,
         region: normalizedRegion,
-        nodeId: stationId,
+        nodeId: effectiveStationId,
         stationName,
         lat,
         lng,
@@ -93,7 +113,7 @@ export class RealtimeTransitService {
     // 2단계: 부산 권역 (Primary: 부산 버스정보 API -> Fallback: TAGO)
     if (normalizedRegion === 'busan' || normalizedRegion === '부산') {
       try {
-        const busanResult = await BusanBusService.getArrivalInfo(stationId, stationName);
+        const busanResult = await BusanBusService.getArrivalInfo(effectiveStationId, stationName);
         if (busanResult && busanResult.nextArrivals.length > 0) {
           return busanResult; // 부산 1순위 데이터 즉시 반환
         }
@@ -105,7 +125,7 @@ export class RealtimeTransitService {
       return TagoBusService.getArrivalInfoSmartNodeTrigger({
         cityCode: resolvedCityCode,
         region: normalizedRegion,
-        nodeId: stationId,
+        nodeId: effectiveStationId,
         stationName,
         lat,
         lng,
@@ -115,7 +135,7 @@ export class RealtimeTransitService {
     // 3단계: 인천 권역 (Primary: 인천 버스도착정보 API -> Fallback: TAGO)
     if (normalizedRegion === 'incheon' || normalizedRegion === '인천') {
       try {
-        const incheonResult = await IncheonBusService.getArrivalInfo(stationId, stationName);
+        const incheonResult = await IncheonBusService.getArrivalInfo(effectiveStationId, stationName);
         if (incheonResult && incheonResult.nextArrivals.length > 0) {
           return incheonResult; // 인천 1순위 데이터 즉시 반환
         }
@@ -127,7 +147,7 @@ export class RealtimeTransitService {
       return TagoBusService.getArrivalInfoSmartNodeTrigger({
         cityCode: resolvedCityCode || '23',
         region: normalizedRegion,
-        nodeId: stationId,
+        nodeId: effectiveStationId,
         stationName,
         lat,
         lng,
@@ -137,7 +157,7 @@ export class RealtimeTransitService {
     // 4단계: 대전 권역 (대전광역시_정류소별 도착정보 조회 서비스 공식 API 전용 단독 호출)
     if (normalizedRegion === 'daejeon' || normalizedRegion === '대전') {
       return DaejeonBusService.getArrivalInfo(
-        stationId,
+        effectiveStationId,
         stationName,
         destination,
         headsign,
@@ -151,11 +171,11 @@ export class RealtimeTransitService {
     if (normalizedRegion === 'seoul' || normalizedRegion === '서울' || normalizedRegion === 'tago' || !region) {
       try {
         const [ggbSettled, tagoSettled] = await Promise.allSettled([
-          GyeonggiBusService.getArrivalInfo(stationId, stationName),
+          GyeonggiBusService.getArrivalInfo(effectiveStationId, stationName),
           TagoBusService.getArrivalInfoSmartNodeTrigger({
             cityCode: resolvedCityCode || '11',
             region: normalizedRegion,
-            nodeId: stationId,
+            nodeId: effectiveStationId,
             stationName,
             lat,
             lng,
@@ -191,7 +211,7 @@ export class RealtimeTransitService {
     return TagoBusService.getArrivalInfoSmartNodeTrigger({
       cityCode: resolvedCityCode,
       region: normalizedRegion,
-      nodeId: stationId,
+      nodeId: effectiveStationId,
       stationName,
       lat,
       lng,

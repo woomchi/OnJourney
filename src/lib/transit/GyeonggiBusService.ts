@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { RELIABILITY_SCORES } from '@/constants/transit';
+import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
 import {
   ArrivalBusItem,
   BusType,
@@ -10,6 +11,49 @@ import {
   NormalizedRealtimeData,
 } from '@/types/realtimeTransit';
 
+import { LruTtlCache } from '@/lib/utils/lruCache';
+
+export interface GyeonggiRouteItem {
+  routeId: string;
+  routeName: string;
+  routeTypeCd?: number;
+  routeTypeName?: string;
+  startStationId?: string;
+  startStationName?: string;
+  endStationId?: string;
+  endStationName?: string;
+  adminName?: string;
+  regionName?: string;
+}
+
+export interface GyeonggiRouteStationResult {
+  routeId: string;
+  stations: Array<{
+    stationId: string;
+    stationName: string;
+    stationSeq: number;
+    lat: number;
+    lng: number;
+    arsNo?: string;
+    isTurningPoint?: boolean;
+    regionName?: string;
+    adminName?: string;
+  }>;
+  turningStationSeq?: number;
+  turningStationName?: string;
+}
+
+// 24시간 LRU 캐시
+const GYEONGGI_ROUTE_LIST_CACHE = new LruTtlCache<string, GyeonggiRouteItem[]>({
+  maxSize: 300,
+  defaultTtlMs: 24 * 60 * 60 * 1000,
+});
+
+const GYEONGGI_ROUTE_STATION_CACHE = new LruTtlCache<string, GyeonggiRouteStationResult>({
+  maxSize: 300,
+  defaultTtlMs: 24 * 60 * 60 * 1000,
+});
+
 export class GyeonggiBusService {
   private static API_URL =
     'https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2';
@@ -17,6 +61,10 @@ export class GyeonggiBusService {
     'https://apis.data.go.kr/6410000/buslocationservice/v2/getBusLocationListv2';
   private static BUS_POS_API_URL_V1 =
     'https://apis.data.go.kr/6410000/buslocationservice/getBusLocationList';
+  private static BUS_ROUTE_API_URL_V2 =
+    'https://apis.data.go.kr/6410000/busrouteservice/v2/getBusRouteListv2';
+  private static BUS_ROUTE_STATION_API_URL_V2 =
+    'https://apis.data.go.kr/6410000/busrouteservice/v2/getBusRouteStationListv2';
 
   /**
    * GBIS routeTypeCd 및 버스 번호를 바탕으로 BusType 분류
@@ -305,6 +353,319 @@ export class GyeonggiBusService {
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
       console.warn('[GyeonggiBusService] 버스 위치 API 연동 실패:', errMsg);
+      return null;
+    }
+  }
+
+  /**
+   * 경기도 버스 노선 목록 검색 (v2 getBusRouteListv2)
+   */
+  public static async getRouteList(
+    keyword: string
+  ): Promise<GyeonggiRouteItem[] | null> {
+    const cleanKeyword = keyword.trim();
+    if (!cleanKeyword) return null;
+
+    const cached = GYEONGGI_ROUTE_LIST_CACHE.get(cleanKeyword);
+    if (cached) return cached;
+
+    const apiKey =
+      process.env.GYEONGGI_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY;
+
+    if (!apiKey) return null;
+
+    try {
+      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey.trim()) : apiKey.trim();
+      const encodedServiceKey = encodeURIComponent(rawServiceKey);
+      const url = `${this.BUS_ROUTE_API_URL_V2}?serviceKey=${encodedServiceKey}&keyword=${encodeURIComponent(cleanKeyword)}&format=json`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json, text/xml, */*' },
+        signal: AbortSignal.timeout(4000),
+        cache: 'no-store',
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        return null;
+      }
+
+      const text = await response.text();
+      let rawList: unknown = null;
+
+      try {
+        const json = JSON.parse(text) as Record<string, any>;
+        rawList =
+          json.response?.msgBody?.busRouteList ||
+          json.response?.body?.items?.busRouteList ||
+          json.msgBody?.busRouteList;
+      } catch {
+        const parser = new XMLParser();
+        const xml = parser.parse(text) as Record<string, any>;
+        rawList =
+          xml.response?.msgBody?.busRouteList ||
+          xml.response?.body?.items?.busRouteList ||
+          xml.msgBody?.busRouteList;
+      }
+
+      if (!rawList) return null;
+
+      const itemsArray: Record<string, any>[] = Array.isArray(rawList)
+        ? rawList
+        : typeof rawList === 'object'
+        ? [rawList as Record<string, any>]
+        : [];
+
+      const result: GyeonggiRouteItem[] = itemsArray.map((item) => ({
+        routeId: String(item.routeId || ''),
+        routeName: String(item.routeName || item.busRouteNm || '').trim(),
+        routeTypeCd: item.routeTypeCd !== undefined ? Number(item.routeTypeCd) : undefined,
+        routeTypeName: item.routeTypeName ? String(item.routeTypeName).trim() : undefined,
+        startStationId: item.startStationId ? String(item.startStationId) : undefined,
+        startStationName: item.startStationName ? String(item.startStationName).trim() : undefined,
+        endStationId: item.endStationId ? String(item.endStationId) : undefined,
+        endStationName: item.endStationName ? String(item.endStationName).trim() : undefined,
+        adminName: item.adminName ? String(item.adminName).trim() : undefined,
+        regionName: item.regionName ? String(item.regionName).trim() : undefined,
+      })).filter((r) => r.routeId && r.routeName);
+
+      if (result.length > 0) {
+        GYEONGGI_ROUTE_LIST_CACHE.set(cleanKeyword, result);
+      }
+
+      return result.length > 0 ? result : null;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.warn('[GyeonggiBusService] 노선 검색 API 연동 실패:', errMsg);
+      return null;
+    }
+  }
+
+  /**
+   * 단서(정류소명, 좌표, 목적지, 시군)를 바탕으로 동일 번호의 여러 노선 중 최적의 1개 노선 판별
+   */
+  public static async findBestRoute(params: {
+    busNo: string;
+    stationName?: string;
+    destination?: string;
+    headsign?: string;
+    cityCode?: string;
+    lat?: number;
+    lng?: number;
+  }): Promise<GyeonggiRouteItem | null> {
+    const rawList = await this.getRouteList(params.busNo);
+    if (!rawList || rawList.length === 0) return null;
+
+    const cleanNo = params.busNo.trim();
+    // 1단계: 노선 번호가 정확히 일치하는 후보들만 엄선
+    let candidates = rawList.filter((r) => String(r.routeName).trim() === cleanNo);
+    if (candidates.length === 0) {
+      candidates = rawList.filter((r) => String(r.routeName).replace(/번$/, '').trim() === cleanNo);
+    }
+    if (candidates.length === 0) {
+      candidates = rawList;
+    }
+
+    // 후보가 1개뿐이면 즉시 반환
+    if (candidates.length === 1) {
+      return candidates[0];
+    }
+
+    const cleanStation = params.stationName
+      ? params.stationName.replace(/정류소$|정류장$|역$/, '').trim()
+      : undefined;
+
+    // 2단계: stationName이 있는 경우, 각 후보 노선의 정류소 목록에서 해당 정류소 경유 여부 검증
+    if (cleanStation) {
+      const stationChecks = await Promise.all(
+        candidates.map(async (c) => {
+          const detail = await this.getRouteStationList(c.routeId).catch(() => null);
+          if (!detail || !detail.stations) return { candidate: c, matched: false, minDist: Infinity };
+
+          const matched = detail.stations.some((s) =>
+            s.stationName.replace(/정류소$|정류장$|역$/, '').trim().includes(cleanStation) ||
+            cleanStation.includes(s.stationName.replace(/정류소$|정류장$|역$/, '').trim())
+          );
+
+          let minDist = Infinity;
+          if (params.lat && params.lng) {
+            for (const st of detail.stations) {
+              if (st.lat && st.lng) {
+                const d = calculateHaversineDistanceMeter(params.lat, params.lng, st.lat, st.lng);
+                if (d < minDist) minDist = d;
+              }
+            }
+          }
+
+          return { candidate: c, matched, minDist };
+        })
+      );
+
+      // 2-1. 정류소명이 일치하는 노선 탐색
+      const nameMatched = stationChecks.filter((item) => item.matched);
+      if (nameMatched.length === 1) {
+        return nameMatched[0].candidate;
+      }
+      if (nameMatched.length > 1) {
+        // 정류소명 일치 노선이 2개 이상이면 GPS 거리가 가장 가까운 것 선택
+        nameMatched.sort((a, b) => a.minDist - b.minDist);
+        return nameMatched[0].candidate;
+      }
+
+      // 2-2. 정류소명이 완전 일치하진 않더라도, 사용자 좌표 반경 3km 이내 정류소를 지나는 노선 탐색
+      const nearMatched = stationChecks.filter((item) => item.minDist <= 3000);
+      if (nearMatched.length > 0) {
+        nearMatched.sort((a, b) => a.minDist - b.minDist);
+        return nearMatched[0].candidate;
+      }
+    }
+
+    // 3단계: destination / headsign 매칭 (예: "망포역", "영통역" 등)
+    const targetDest = (params.destination || params.headsign || '')
+      .replace(/[\s\(\)\-_]/g, '')
+      .toLowerCase();
+
+    if (targetDest) {
+      const destMatched = candidates.find((c) => {
+        const start = (c.startStationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+        const end = (c.endStationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+        return (
+          (start && (targetDest.includes(start) || start.includes(targetDest))) ||
+          (end && (targetDest.includes(end) || end.includes(targetDest)))
+        );
+      });
+      if (destMatched) return destMatched;
+    }
+
+    // 4단계: cityCode 또는 지역명 매칭
+    if (params.cityCode) {
+      const codeMatch = candidates.find((c) => {
+        const admin = c.adminName || '';
+        const region = c.regionName || '';
+        if (params.cityCode?.startsWith('3124') && (admin.includes('화성') || region.includes('화성'))) return true;
+        if (params.cityCode?.startsWith('3101') && (admin.includes('수원') || region.includes('수원'))) return true;
+        if (params.cityCode?.startsWith('3121') && (admin.includes('오산') || region.includes('오산'))) return true;
+        if (params.cityCode?.startsWith('3119') && (admin.includes('용인') || region.includes('용인'))) return true;
+        if (params.cityCode?.startsWith('3102') && (admin.includes('성남') || region.includes('성남'))) return true;
+        return false;
+      });
+      if (codeMatch) return codeMatch;
+    }
+
+    return candidates[0];
+  }
+
+  /**
+   * 경기도 버스 노선 경유 정류소 목록 조회 (v2 getBusRouteStationListv2)
+   */
+  public static async getRouteStationList(
+    routeId: string
+  ): Promise<GyeonggiRouteStationResult | null> {
+    const cleanRouteId = routeId.replace(/^GGB/i, '').trim();
+    if (!cleanRouteId) return null;
+
+    const cached = GYEONGGI_ROUTE_STATION_CACHE.get(cleanRouteId);
+    if (cached) return cached;
+
+    const apiKey =
+      process.env.GYEONGGI_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY;
+
+    if (!apiKey) return null;
+
+    try {
+      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey.trim()) : apiKey.trim();
+      const encodedServiceKey = encodeURIComponent(rawServiceKey);
+      const url = `${this.BUS_ROUTE_STATION_API_URL_V2}?serviceKey=${encodedServiceKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json, text/xml, */*' },
+        signal: AbortSignal.timeout(4000),
+        cache: 'no-store',
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        return null;
+      }
+
+      const text = await response.text();
+      let rawList: unknown = null;
+      let rawTurnSeq: number | undefined = undefined;
+
+      try {
+        const json = JSON.parse(text) as Record<string, any>;
+        rawList =
+          json.response?.msgBody?.busRouteStationList ||
+          json.response?.body?.items?.busRouteStationList ||
+          json.msgBody?.busRouteStationList;
+        if (json.response?.msgBody?.turnSeq !== undefined) {
+          rawTurnSeq = Number(json.response.msgBody.turnSeq);
+        }
+      } catch {
+        const parser = new XMLParser();
+        const xml = parser.parse(text) as Record<string, any>;
+        rawList =
+          xml.response?.msgBody?.busRouteStationList ||
+          xml.response?.body?.items?.busRouteStationList ||
+          xml.msgBody?.busRouteStationList;
+        if (xml.response?.msgBody?.turnSeq !== undefined) {
+          rawTurnSeq = Number(xml.response.msgBody.turnSeq);
+        }
+      }
+
+      if (!rawList) return null;
+
+      const itemsArray: Record<string, any>[] = Array.isArray(rawList)
+        ? rawList
+        : typeof rawList === 'object'
+        ? [rawList as Record<string, any>]
+        : [];
+
+      let turningStationSeq = rawTurnSeq;
+      let turningStationName: string | undefined = undefined;
+
+      const stations = itemsArray.map((item) => {
+        const seq = Number(item.stationSeq ?? item.stationSequence ?? 0);
+        const isTurning = item.turnYn === 'Y' || (turningStationSeq !== undefined && seq === turningStationSeq);
+        const name = String(item.stationName || '').trim();
+
+        if (isTurning && !turningStationName) {
+          turningStationName = name;
+          if (turningStationSeq === undefined) {
+            turningStationSeq = seq;
+          }
+        }
+
+        return {
+          stationId: String(item.stationId || ''),
+          stationName: name,
+          stationSeq: seq,
+          lat: Number(item.y ?? item.lat ?? 0),
+          lng: Number(item.x ?? item.lng ?? 0),
+          arsNo: item.mobileNo ? String(item.mobileNo).trim() : undefined,
+          isTurningPoint: isTurning,
+          regionName: item.regionName ? String(item.regionName).trim() : undefined,
+          adminName: item.adminName ? String(item.adminName).trim() : undefined,
+        };
+      }).sort((a, b) => a.stationSeq - b.stationSeq);
+
+      const result: GyeonggiRouteStationResult = {
+        routeId: cleanRouteId,
+        stations,
+        turningStationSeq,
+        turningStationName,
+      };
+
+      if (stations.length > 0) {
+        GYEONGGI_ROUTE_STATION_CACHE.set(cleanRouteId, result);
+      }
+
+      return stations.length > 0 ? result : null;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.warn('[GyeonggiBusService] 노선 경유 정류소 조회 실패:', errMsg);
       return null;
     }
   }

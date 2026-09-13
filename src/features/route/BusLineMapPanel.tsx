@@ -286,6 +286,10 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
     region,
     stationId,
     stationName: cleanTargetStation,
+    destination: target.destination,
+    headsign: target.headsign,
+    lat: target.lat,
+    lng: target.lng,
     enabled: isOpen,
     refetchInterval: 30000,
   });

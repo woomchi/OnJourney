@@ -9,9 +9,14 @@
 export { haversineDistance, roundCoord } from './directions/common/distanceUtils';
 export { getTimeSlot, getTimeGroup, getCacheDuration, toKstSearchTime, normalizeTimestampToMs, getKstDateComponents } from './directions/common/timeUtils';
 
-// 2. 대중교통 도메인 서비스
+// 2. 대중교통 도메인 서비스 (카카오 대중교통 기반)
 export { getSubwayColor, cleanSubwayName, getBusColor } from './directions/transit/transitColorUtils';
-export { fetchPublicTransitOptions, fetchPublicDirections } from './directions/transit/publicTransitService';
+export {
+  fetchKakaoTransitOptions,
+  fetchKakaoTransitDirections,
+  fetchKakaoTransitOptions as fetchPublicTransitOptions,
+  fetchKakaoTransitDirections as fetchPublicDirections,
+} from './directions/transit/kakaoTransitService';
 
 // 3. 차량 도메인 서비스
 export { fetchCarRoute, calculateCarFallback } from './directions/car/carRouteService';

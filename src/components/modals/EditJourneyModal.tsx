@@ -104,7 +104,7 @@ export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourn
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-4">
+        <form onSubmit={handleSubmit} className="mt-4 w-full min-w-0">
           <label className="block mb-6">
             <span className="text-sm font-bold text-zinc-700 mb-2 block">여정명</span>
             <input
@@ -153,15 +153,15 @@ export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourn
           </label>
 
           {/* ─ 여정 공개 & 공유 링크 섹션 ─ */}
-          <div className="mb-8 p-4.5 bg-zinc-50 border border-zinc-200/80 rounded-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isPublic ? 'bg-blue-500/10 text-blue-600' : 'bg-zinc-200 text-zinc-500'}`}>
+          <div className="mb-8 p-4.5 bg-zinc-50 border border-zinc-200/80 rounded-2xl w-full min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isPublic ? 'bg-blue-500/10 text-blue-600' : 'bg-zinc-200 text-zinc-500'}`}>
                   {isPublic ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <h4 className="text-sm font-bold text-zinc-900">여정 공개 및 공유</h4>
-                  <p className="text-[12px] text-zinc-400 font-medium">
+                  <p className="text-[12px] text-zinc-400 font-medium truncate">
                     {isPublic ? '링크를 가진 누구나 이 여정을 조회할 수 있습니다' : '현재 비공개 상태입니다 (본인만 열람)'}
                   </p>
                 </div>
@@ -188,8 +188,8 @@ export default function EditJourneyModal({ isOpen, onClose, journey }: EditJourn
 
             {/* 공개 상태일 때 공유 링크 및 복사 버튼 표시 */}
             {isPublic && (
-              <div className="mt-3.5 pt-3.5 border-t border-zinc-200/60 flex items-center gap-2">
-                <div className="flex-1 px-3 py-2 bg-white rounded-xl border border-zinc-200 text-[12px] text-zinc-500 font-mono truncate select-all">
+              <div className="mt-3.5 pt-3.5 border-t border-zinc-200/60 flex items-center gap-2 w-full min-w-0">
+                <div className="flex-1 min-w-0 px-3 py-2 bg-white rounded-xl border border-zinc-200 text-[12px] text-zinc-500 font-mono truncate select-all">
                   {typeof window !== 'undefined' ? `${window.location.origin}/share/${journey.id}` : `/share/${journey.id}`}
                 </div>
                 <button

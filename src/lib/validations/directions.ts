@@ -15,6 +15,8 @@ export const directionsQuerySchema = z.object({
   ex: z.coerce.number({ message: "도착지 경도는 숫자여야 합니다." }).min(-180, "경도는 -180 이상이어야 합니다.").max(180, "경도는 180 이하여야 합니다."),
   ey: z.coerce.number({ message: "도착지 위도는 숫자여야 합니다." }).min(-90, "위도는 -90 이상이어야 합니다.").max(90, "위도는 90 이하여야 합니다."),
   departureTime: z.coerce.number().optional(), // Unix timestamp (선택적)
+  sName: z.string().optional(),
+  eName: z.string().optional(),
 });
 
 export type DirectionsQueryType = z.infer<typeof directionsQuerySchema>;

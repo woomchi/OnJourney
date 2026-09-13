@@ -162,6 +162,8 @@ export async function fetchPublicDirectionsApi(
   departureTime?: number
 ): Promise<{ public: DirectionResult[] }> {
   let url = `/api/directions/public?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+  if (origin.place_name) url += `&sName=${encodeURIComponent(origin.place_name)}`;
+  if (dest.place_name) url += `&eName=${encodeURIComponent(dest.place_name)}`;
   if (departureTime) url += `&departureTime=${departureTime}`;
 
   const res = await fetch(url);

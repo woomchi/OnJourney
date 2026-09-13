@@ -86,7 +86,7 @@ export default function CreateJourneyModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-4">
+        <form onSubmit={handleSubmit} className="mt-4 w-full min-w-0">
           <label className="block mb-6">
             <span className="text-sm font-bold text-zinc-700 mb-2 block">여정명</span>
             <input

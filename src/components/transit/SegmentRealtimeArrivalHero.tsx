@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Bus, Train, Footprints, Car, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bus, Train, Footprints, Car } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { DirectionStep, SelectedRoute, DirectionResult, Place } from '@/types/journey';
 import { SegmentBusRealtimeChip } from '@/components/transit/SegmentBusRealtimeChip';
@@ -9,6 +9,8 @@ import { SegmentSubwayRealtimeChip } from '@/components/transit/SegmentSubwayRea
 import { inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
 import { resolveSubwayNameForApi } from '@/lib/constants/subwayLineMap';
+import { getSubwayColor, getBusColor } from '@/lib/services/directions/transit/transitColorUtils';
+import { useJourneyStore } from '@/stores/journey-store';
 
 interface SegmentRealtimeArrivalHeroProps {
   route: SelectedRoute | DirectionResult | null;
@@ -24,12 +26,179 @@ interface TransitStepContext {
   nextStep?: DirectionStep;
 }
 
+/**
+ * 이동수단 고유 고대비 브랜드 색상 추출
+ */
+export function getTransitColor(step: DirectionStep): string {
+  if (
+    step.color &&
+    step.color.startsWith('#') &&
+    step.color !== '#9CA3AF' &&
+    step.color !== '#A1A1AA' &&
+    step.color !== '#E4E4E7'
+  ) {
+    return step.color;
+  }
+  if (step.busLaneColor && step.busLaneColor.startsWith('#')) {
+    return step.busLaneColor;
+  }
+  if (step.type === 'subway' || step.type === 'train') {
+    return getSubwayColor(step.rawLineName || step.name || '');
+  }
+  if (step.type === 'bus' || step.type === 'expressbus') {
+    return getBusColor(Number(step.busType) || 0, step.name || '');
+  }
+  return '#3B82F6';
+}
+
+/**
+ * 버스 노선명을 'n번' 형식으로 정규화
+ */
+export function formatBusName(rawName?: string): string {
+  if (!rawName) return '버스';
+  const cleaned = cleanBusNumber(rawName) || rawName.trim();
+  if (!cleaned) return '버스';
+  if (cleaned.endsWith('번') || cleaned.endsWith('버스')) return cleaned;
+  return `${cleaned}번`;
+}
+
+/**
+ * 지하철 노선명을 공식 호선명 전체로 정규화
+ */
+export function formatSubwayLineName(step: DirectionStep): string {
+  const resolved = resolveSubwayNameForApi(step.rawLineName || step.name || '');
+  if (resolved) return resolved;
+  const raw = (step.name || '').replace(/^수도권\s*/, '').trim();
+  if (raw && (raw.includes('호선') || raw.includes('선') || raw.includes('철도') || raw.includes('라인'))) {
+    return raw;
+  }
+  if (step.startName) {
+    return `${step.startName.replace(/역$/g, '')}역`;
+  }
+  return '지하철';
+}
+
+/**
+ * 대중교통 스텝 데이터에서 실시간 조회에 필요한 파라미터를 복원하는 헬퍼
+ */
+function extractTransitParams(
+  context: TransitStepContext,
+  originPlace?: Place | null,
+  currentIndex: number = 0
+) {
+  const { step, prevStep } = context;
+  const isBus = step.type === 'bus' || step.type === 'expressbus';
+  const isSubway = step.type === 'subway' || step.type === 'train';
+
+  // 역/정류소 명칭 복원
+  const firstPassStation = step.passStopList?.stationList?.[0]?.stationName;
+  const prevWalkEndName = prevStep && prevStep.type === 'walk' ? prevStep.endName : undefined;
+
+  const rawSubwayStation =
+    step.startName ||
+    firstPassStation ||
+    prevWalkEndName ||
+    (currentIndex === 0 ? originPlace?.place_name : undefined) ||
+    '';
+  const subwayStationName = rawSubwayStation ? rawSubwayStation.replace(/역$/g, '').trim() : '';
+
+  const rawBusStation =
+    step.startName ||
+    firstPassStation ||
+    prevWalkEndName ||
+    (currentIndex === 0 ? originPlace?.place_name : undefined) ||
+    '';
+  const busStationName = rawBusStation.trim();
+
+  // 버스/지하철 탑승 좌표 복원
+  const prevWalkLat = prevStep && prevStep.type === 'walk' ? (prevStep.endY || prevStep.endLat) : undefined;
+  const prevWalkLng = prevStep && prevStep.type === 'walk' ? (prevStep.endX || prevStep.endLng) : undefined;
+  const firstPassLat = step.passStopList?.stationList?.[0]?.lat;
+  const firstPassLng = step.passStopList?.stationList?.[0]?.lng;
+
+  const busLat =
+    step.startY ||
+    step.startLat ||
+    step.pathPoints?.[0]?.lat ||
+    firstPassLat ||
+    prevWalkLat ||
+    (currentIndex === 0 ? originPlace?.lat : undefined);
+  const busLng =
+    step.startX ||
+    step.startLng ||
+    step.pathPoints?.[0]?.lng ||
+    firstPassLng ||
+    prevWalkLng ||
+    (currentIndex === 0 ? originPlace?.lng : undefined);
+
+  const rawStationId =
+    step.realtimeStationId ||
+    step.startStationID ||
+    step.startID ||
+    step.startStationId ||
+    step.nodeId ||
+    (busStationName && (busLat || busLng) ? 'auto' : undefined);
+  const busStationId = rawStationId ? String(rawStationId) : undefined;
+
+  // 순수 버스 번호 정규화
+  const rawBusName = step.name || '';
+  const cleanedBusNo = cleanBusNumber(rawBusName);
+  const busName = cleanedBusNo || rawBusName;
+
+  const odsayBusId = step.odsayBusId || step.busID;
+  const tagoRouteId = step.tagoRouteId || step.busLocalBlID;
+  const busId = odsayBusId ? String(odsayBusId) : (tagoRouteId ? String(tagoRouteId) : undefined);
+  const busType = step.busType;
+  const busDestination = step.endName || step.destination;
+  const busHeadsign = step.headsign;
+  const busIntervalTime = step.intervalTime;
+  const busStartDateTime = step.startDateTime;
+
+  // 탑승 위치 좌표 및 정류소명 기반 권역 동적 역추론
+  const inferredRegion =
+    step.startRegion ||
+    (busLat && busLng
+      ? inferRegionFromPlace({ lat: busLat, lng: busLng, place_name: busStationName })
+      : (originPlace ? inferRegionFromPlace(originPlace) : undefined));
+  const cityCode = step.startCityCode || step.cityCode;
+
+  // 지하철 노선명/식별자 정규화
+  const normalizedSubwayId =
+    resolveSubwayNameForApi(step.rawLineName || step.name || '') || (step.rawLineName || step.name);
+
+  return {
+    step,
+    isBus,
+    isSubway,
+    subwayStationName,
+    busStationName,
+    busStationId,
+    busName,
+    busId,
+    odsayBusId,
+    tagoRouteId,
+    busType,
+    busDestination,
+    busHeadsign,
+    busIntervalTime,
+    busStartDateTime,
+    inferredRegion,
+    cityCode,
+    normalizedSubwayId,
+    busLat,
+    busLng,
+    transitColor: getTransitColor(step),
+  };
+}
+
 export default function SegmentRealtimeArrivalHero({
   route,
   originPlace,
-  destPlace,
+  destPlace: _destPlace,
   className = '',
 }: SegmentRealtimeArrivalHeroProps) {
+  const focusedStep = useJourneyStore((state) => state.focusedStep);
+
   // 1. 이동 구간 내 모든 대중교통 스텝 및 원본 스텝 체인 컨텍스트 추출 (도보 및 차량/택시 제외)
   const transitStepContexts: TransitStepContext[] = useMemo(() => {
     if (!route || !route.steps || !Array.isArray(route.steps)) return [];
@@ -58,6 +227,18 @@ export default function SegmentRealtimeArrivalHero({
   useEffect(() => {
     setCurrentIndex(0);
   }, [route]);
+
+  // 하단 타임라인/스텝 컨트롤러(focusedStep)와 상단 대중교통 카드 양방향 동기화
+  useEffect(() => {
+    if (!focusedStep) return;
+    const matchIdx = transitStepContexts.findIndex(
+      (ctx) => ctx.originalIndex === focusedStep.stepIndex
+    );
+    if (matchIdx !== -1 && matchIdx !== currentIndex) {
+      setSlideDirection(matchIdx > currentIndex ? 1 : -1);
+      setCurrentIndex(matchIdx);
+    }
+  }, [focusedStep, transitStepContexts, currentIndex]);
 
   // 스와이프 제스처 추적용 ref
   const touchStartXRef = useRef<number | null>(null);
@@ -111,9 +292,15 @@ export default function SegmentRealtimeArrivalHero({
     const isCar = route?.type === 'car' || route?.type === 'taxi';
 
     return (
-      <div className={`w-full px-4 py-2 flex items-center justify-between gap-2 shrink-0 border-b border-zinc-100/80 select-none min-h-[50px] ${className}`}>
+      <div
+        className={`w-full px-4 py-2.5 flex items-center justify-between gap-2 shrink-0 border-b border-zinc-100/80 select-none min-h-[50px] bg-white ${className}`}
+      >
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isCar ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
+          <span
+            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${
+              isCar ? 'bg-blue-50 text-blue-600 border border-blue-100/60' : 'bg-emerald-50 text-emerald-600 border border-emerald-100/60'
+            }`}
+          >
             {isCar ? <Car className="w-4 h-4" /> : <Footprints className="w-4 h-4" />}
           </span>
           <div className="flex items-center gap-1.5 min-w-0">
@@ -123,7 +310,9 @@ export default function SegmentRealtimeArrivalHero({
             <span className="text-zinc-300">·</span>
             <span className="text-xs font-medium text-zinc-600 truncate">
               {typeof route?.duration === 'number' ? `${route.duration}분` : '소요시간 계산 중'}
-              {typeof route?.distance === 'number' ? ` (${route.distance >= 1 ? `${route.distance.toFixed(1)}km` : `${Math.round(route.distance * 1000)}m`})` : ''}
+              {typeof route?.distance === 'number'
+                ? ` (${route.distance >= 1 ? `${route.distance.toFixed(1)}km` : `${Math.round(route.distance * 1000)}m`})`
+                : ''}
             </span>
           </div>
         </div>
@@ -134,279 +323,261 @@ export default function SegmentRealtimeArrivalHero({
   // 현재 활성화된 대중교통 컨텍스트
   const currentContext = transitStepContexts[Math.min(currentIndex, totalTransits - 1)];
 
-  // 탑승 단계 배지 라벨 및 스타일
-  let orderLabel = '탑승';
-  let badgeStyle = 'bg-blue-50 text-blue-700 border-blue-100/80';
-
-  if (hasMultiple) {
-    if (currentIndex === 0) {
-      orderLabel = '1차 탑승';
-      badgeStyle = 'bg-blue-50 text-blue-700 border-blue-100/80';
-    } else if (currentIndex === 1) {
-      orderLabel = '2차 환승';
-      badgeStyle = 'bg-purple-50 text-purple-700 border-purple-100/80';
-    } else if (currentIndex === 2) {
-      orderLabel = '3차 환승';
-      badgeStyle = 'bg-amber-50 text-amber-700 border-amber-100/80';
-    } else {
-      orderLabel = `${currentIndex + 1}차 환승`;
-      badgeStyle = 'bg-zinc-100 text-zinc-700 border-zinc-200';
-    }
-  }
-
   return (
     <div
-      className={`w-full px-2 py-2 flex items-center justify-between gap-1.5 shrink-0 border-b border-zinc-100/80 select-none bg-zinc-50/50 min-h-[68px] ${className}`}
+      className={`w-full px-3.5 py-2 flex flex-col gap-1 shrink-0 border-b border-zinc-100/80 select-none bg-zinc-50/50 min-h-[76px] ${className}`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* 1. 좌측 이전 버튼 (상시 배치, 불가능 시 disabled) */}
-      <button
-        type="button"
-        aria-label="이전 대중교통 정보"
-        disabled={!canGoPrev}
-        onClick={handlePrev}
-        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all ${
-          canGoPrev
-            ? 'text-zinc-600 hover:text-zinc-900 active:bg-zinc-200/70 hover:bg-zinc-100 active:scale-95 cursor-pointer'
-            : 'text-zinc-400/60 pointer-events-none cursor-not-allowed'
-        }`}
-      >
-        <ChevronLeft className="w-4 h-4" />
-      </button>
+      {/* 1. 상단 바: 환승 세그먼트 탭 or 탑승 라벨 (좌) + 새로고침 카운터 (우) */}
+      <div className="flex items-center justify-between gap-2 w-full min-w-0">
+        {hasMultiple ? (
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none min-w-0 py-0.5">
+            {transitStepContexts.map((ctx, idx) => {
+              const isBus = ctx.step.type === 'bus' || ctx.step.type === 'expressbus';
+              const isActive = idx === currentIndex;
+              const transitName = isBus
+                ? formatBusName(ctx.step.name)
+                : formatSubwayLineName(ctx.step);
+              const transitColor = getTransitColor(ctx.step);
 
-      {/* 2. 중앙 슬라이드 컨테이너 (2단 수직 분리) */}
-      <div className="flex-1 min-w-0 overflow-hidden relative">
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (idx !== currentIndex) {
+                      setSlideDirection(idx > currentIndex ? 1 : -1);
+                      setCurrentIndex(idx);
+                    }
+                  }}
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: '#FFFFFF',
+                          borderColor: `${transitColor}60`,
+                          boxShadow: `0 1px 4px ${transitColor}25`,
+                        }
+                      : {
+                          backgroundColor: `${transitColor}0F`,
+                          borderColor: 'transparent',
+                        }
+                  }
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] transition-all cursor-pointer select-none shrink-0 border ${
+                    isActive
+                      ? 'font-black text-zinc-950'
+                      : 'font-medium text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/60'
+                  }`}
+                >
+                  <span style={{ color: transitColor }} className="flex items-center justify-center shrink-0">
+                    {isBus ? <Bus className="w-2.5 h-2.5" /> : <Train className="w-2.5 h-2.5" />}
+                  </span>
+                  <span className="truncate max-w-[105px]">
+                    {transitName}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 min-w-0">
+            {(() => {
+              const transitColor = getTransitColor(currentContext.step);
+              return (
+                <span
+                  style={{
+                    backgroundColor: `${transitColor}15`,
+                    color: transitColor,
+                    borderColor: `${transitColor}35`,
+                  }}
+                  className="text-[10px] font-black px-1.5 py-0.5 rounded border shrink-0 leading-none"
+                >
+                  {currentContext.step.type === 'subway' ? '지하철' : '버스'}
+                </span>
+              );
+            })()}
+            <span className="text-[11px] font-semibold text-zinc-400">실시간 도착 현황</span>
+          </div>
+        )}
+
+        {/* 우측: 상단 새로고침 버튼 슬롯 */}
+        <div className="shrink-0 flex items-center">
+          <TopBarRefreshButton context={currentContext} originPlace={originPlace} />
+        </div>
+      </div>
+
+      {/* 2. 중앙 메인 바디: 좌(노선/정류장) / 우(대형 카운트다운 타이머) 2열 분할 */}
+      <div className="w-full min-w-0 overflow-hidden relative">
         <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
           <motion.div
             key={currentIndex}
             custom={slideDirection}
-            initial={{ opacity: 0, x: slideDirection * 20 }}
+            initial={{ opacity: 0, x: slideDirection * 16 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: slideDirection * -20 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            exit={{ opacity: 0, x: slideDirection * -16 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
             className="w-full"
           >
             <SingleTransitCardContent
               context={currentContext}
               originPlace={originPlace}
-              orderLabel={orderLabel}
-              badgeStyle={badgeStyle}
               currentIndex={currentIndex}
-              totalTransits={totalTransits}
-              hasMultiple={hasMultiple}
             />
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {/* 3. 우측 다음 버튼 (상시 배치, 불가능 시 disabled) */}
-      <button
-        type="button"
-        aria-label="다음 대중교통 정보"
-        disabled={!canGoNext}
-        onClick={handleNext}
-        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all ${
-          canGoNext
-            ? 'text-zinc-600 hover:text-zinc-900 active:bg-zinc-200/70 hover:bg-zinc-100 active:scale-95 cursor-pointer'
-            : 'text-zinc-400/60 pointer-events-none cursor-not-allowed'
-        }`}
-      >
-        <ChevronRight className="w-4 h-4" />
-      </button>
     </div>
   );
 }
 
 /**
- * 개별 대중교통 수단 정보 및 실시간 도착 칩 렌더러 (2단 수직 분리 구조)
+ * 상단 바 우측용 초경량 실시간 새로고침 카운터 버튼
+ */
+function TopBarRefreshButton({
+  context,
+  originPlace,
+}: {
+  context: TransitStepContext;
+  originPlace?: Place | null;
+}) {
+  const p = extractTransitParams(context, originPlace);
+
+  if (p.isBus && p.busStationId && p.busName) {
+    return (
+      <SegmentBusRealtimeChip
+        region={p.inferredRegion}
+        stationId={p.busStationId}
+        stationName={p.busStationName}
+        cityCode={p.cityCode}
+        busNo={p.busName}
+        busId={p.busId}
+        odsayBusId={p.odsayBusId ? String(p.odsayBusId) : undefined}
+        tagoRouteId={p.tagoRouteId ? String(p.tagoRouteId) : undefined}
+        destination={p.busDestination}
+        headsign={p.busHeadsign}
+        intervalTime={p.busIntervalTime}
+        startDateTime={p.busStartDateTime}
+        busType={p.busType}
+        busColor={p.transitColor}
+        lat={p.busLat ? Number(p.busLat) : undefined}
+        lng={p.busLng ? Number(p.busLng) : undefined}
+        onlyRefreshButton={true}
+      />
+    );
+  }
+
+  if (p.isSubway && p.subwayStationName) {
+    return (
+      <SegmentSubwayRealtimeChip
+        stationName={p.subwayStationName}
+        wayCode={p.step.wayCode !== undefined ? String(p.step.wayCode) : undefined}
+        subwayId={p.normalizedSubwayId}
+        destination={p.step.endName || p.step.destination}
+        headsign={p.step.headsign}
+        subwayColor={p.transitColor}
+        onlyRefreshButton={true}
+      />
+    );
+  }
+
+  return null;
+}
+
+/**
+ * 개별 대중교통 수단 정보 및 실시간 도착 카운트다운 2열 렌더러
  */
 function SingleTransitCardContent({
   context,
   originPlace,
-  orderLabel,
-  badgeStyle,
-  currentIndex,
-  totalTransits,
-  hasMultiple,
+  currentIndex = 0,
 }: {
   context: TransitStepContext;
   originPlace?: Place | null;
-  orderLabel: string;
-  badgeStyle: string;
-  currentIndex: number;
-  totalTransits: number;
-  hasMultiple: boolean;
+  currentIndex?: number;
 }) {
-  const { step, prevStep } = context;
-  const isBus = step.type === 'bus' || step.type === 'expressbus';
-  const isSubway = step.type === 'subway' || step.type === 'train';
-
-  // 1. 역/정류소 명칭 지능형 복원:
-  // step.startName ➔ passStopList 첫 정류소 ➔ 직전 도보(walk)의 endName ➔ (첫 스텝인 경우만 originPlace.place_name)
-  const firstPassStation = step.passStopList?.stationList?.[0]?.stationName;
-  const prevWalkEndName = prevStep && prevStep.type === 'walk' ? prevStep.endName : undefined;
-
-  const rawSubwayStation =
-    step.startName ||
-    firstPassStation ||
-    prevWalkEndName ||
-    (currentIndex === 0 ? originPlace?.place_name : undefined) ||
-    '';
-  const subwayStationName = rawSubwayStation ? rawSubwayStation.replace(/역$/g, '').trim() : '';
-
-  const rawBusStation =
-    step.startName ||
-    firstPassStation ||
-    prevWalkEndName ||
-    (currentIndex === 0 ? originPlace?.place_name : undefined) ||
-    '';
-  const busStationName = rawBusStation.trim();
-
-  // 2. 버스/지하철 탑승 좌표 정밀 복원:
-  // step 좌표 ➔ pathPoints 첫 점 ➔ passStopList 첫 점 ➔ 직전 도보 도착점 ➔ (첫 스텝인 경우만 originPlace)
-  const prevWalkLat = prevStep && prevStep.type === 'walk' ? (prevStep.endY || prevStep.endLat) : undefined;
-  const prevWalkLng = prevStep && prevStep.type === 'walk' ? (prevStep.endX || prevStep.endLng) : undefined;
-  const firstPassLat = step.passStopList?.stationList?.[0]?.lat;
-  const firstPassLng = step.passStopList?.stationList?.[0]?.lng;
-
-  const busLat =
-    step.startY ||
-    step.startLat ||
-    step.pathPoints?.[0]?.lat ||
-    firstPassLat ||
-    prevWalkLat ||
-    (currentIndex === 0 ? originPlace?.lat : undefined);
-  const busLng =
-    step.startX ||
-    step.startLng ||
-    step.pathPoints?.[0]?.lng ||
-    firstPassLng ||
-    prevWalkLng ||
-    (currentIndex === 0 ? originPlace?.lng : undefined);
-
-  const rawStationId =
-    step.realtimeStationId ||
-    step.startStationID ||
-    step.startID ||
-    step.startStationId ||
-    step.nodeId ||
-    (busStationName && (busLat || busLng) ? 'auto' : undefined);
-  const busStationId = rawStationId ? String(rawStationId) : undefined;
-
-  // 순수 버스 번호 정규화
-  const rawBusName = step.name || '';
-  const cleanedBusNo = cleanBusNumber(rawBusName);
-  const busName = cleanedBusNo || rawBusName;
-
-  const odsayBusId = step.odsayBusId || step.busID;
-  const tagoRouteId = step.tagoRouteId || step.busLocalBlID;
-  const busId = odsayBusId ? String(odsayBusId) : (tagoRouteId ? String(tagoRouteId) : undefined);
-  const busType = step.busType;
-  const busDestination = step.endName || step.destination;
-  const busHeadsign = step.headsign;
-  const busIntervalTime = step.intervalTime;
-  const busStartDateTime = step.startDateTime;
-
-  // 3. 탑승 위치 좌표 및 정류소명 기반 권역 동적 역추론:
-  // 출발지(originPlace)에 종속되지 않고, 실제 버스 탑승 위치 기준으로 권역 판별
-  const inferredRegion =
-    step.startRegion ||
-    (busLat && busLng
-      ? inferRegionFromPlace({ lat: busLat, lng: busLng, place_name: busStationName })
-      : (originPlace ? inferRegionFromPlace(originPlace) : undefined));
-  const cityCode = step.startCityCode || step.cityCode;
-
-  // 지하철 노선명/식별자 정규화 (서울시 API 및 지방 도시철도 표준 식별자 매핑)
-  const normalizedSubwayId =
-    resolveSubwayNameForApi(step.rawLineName || step.name || '') || (step.rawLineName || step.name);
+  const p = extractTransitParams(context, originPlace, currentIndex);
 
   return (
-    <div className="flex flex-col gap-1.5 w-full min-w-0">
-      {/* Row 1: 이동 수단 아이콘, 순서 배지, 노선명, 방면 & 환승 네비게이터 */}
-      <div className="flex items-center justify-between gap-2 w-full min-w-0">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <span
-            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${
-              isBus
-                ? 'bg-blue-50 text-blue-600 border border-blue-100/60'
-                : 'bg-emerald-50 text-emerald-600 border border-emerald-100/60'
-            }`}
-          >
-            {isBus ? <Bus className="w-4 h-4" /> : <Train className="w-4 h-4" />}
-          </span>
+    <div className="flex items-center justify-between gap-3 w-full min-w-0 py-0.5">
+      {/* 좌측 열: 대중교통 아이콘 + 노선명 (굵게) + 방면 / 탑승 정류소명 */}
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <span
+          style={{
+            backgroundColor: `${p.transitColor}15`,
+            color: p.transitColor,
+            borderColor: `${p.transitColor}35`,
+          }}
+          className="w-7.5 h-7.5 rounded-xl flex items-center justify-center shrink-0 shadow-2xs border"
+        >
+          {p.isBus ? <Bus className="w-4 h-4" /> : <Train className="w-4 h-4" />}
+        </span>
 
-          <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 leading-none ${badgeStyle}`}
-              >
-                {orderLabel}
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[13px] font-black text-zinc-900 truncate tracking-tight">
+              {p.isBus
+                ? formatBusName(p.step.name || p.busName)
+                : formatSubwayLineName(p.step)}
+            </span>
+            {p.busDestination && (
+              <span className="text-[11px] font-medium text-zinc-400 truncate">
+                ({p.busDestination} 방면)
               </span>
-              <span className="text-[13px] font-extrabold text-zinc-900 truncate">
-                {isBus ? (step.name || busName) : (subwayStationName ? `${subwayStationName}역` : '지하철역')}
-              </span>
-              {busDestination && (
-                <span className="text-[11px] font-medium text-zinc-500 truncate">
-                  ({busDestination} 방면)
-                </span>
-              )}
-            </div>
+            )}
+          </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium mt-0.5 min-w-0">
-              <span className="truncate">
-                {isBus
-                  ? (busStationName ? `${busStationName} 탑승` : '버스 정류소 탑승')
-                  : (subwayStationName ? `${subwayStationName}역 승차` : '지하철 승차')}
-              </span>
-            </div>
+          <div className="flex items-center gap-1 text-[11px] text-zinc-500 font-medium truncate mt-0.5">
+            <span className="truncate">
+              {p.isBus
+                ? (p.busStationName ? `${p.busStationName} 탑승` : '버스 정류소 탑승')
+                : (p.subwayStationName ? `${p.subwayStationName}역 승차` : '지하철 승차')}
+            </span>
           </div>
         </div>
-
-        {/* 다중 환승 시 인디케이터 */}
-        {hasMultiple && (
-          <span className="text-[10px] font-bold text-zinc-500 bg-white/90 border border-zinc-200/90 rounded-full px-2 py-0.5 shrink-0 tabular-nums shadow-2xs">
-            {currentIndex + 1} / {totalTransits}
-          </span>
-        )}
       </div>
 
-      {/* Row 2: 실시간 도착 정보 칩 연결 (가로 1줄 hero variant) */}
+      {/* 우측 열: 실시간 도착 카운트다운 타이머 & 상태 정보 */}
       <div
-        className="w-full flex items-center pt-1 border-t border-zinc-200/60"
+        className="shrink-0 flex items-center justify-end"
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {isBus && busStationId && busName ? (
+        {p.isBus && p.busStationId && p.busName ? (
           <SegmentBusRealtimeChip
-            region={inferredRegion}
-            stationId={busStationId}
-            stationName={busStationName}
-            cityCode={cityCode}
-            busNo={busName}
-            busId={busId}
-            odsayBusId={odsayBusId ? String(odsayBusId) : undefined}
-            tagoRouteId={tagoRouteId ? String(tagoRouteId) : undefined}
-            destination={busDestination}
-            headsign={busHeadsign}
-            intervalTime={busIntervalTime}
-            startDateTime={busStartDateTime}
-            busType={busType}
-            busColor={step?.color}
-            lat={busLat ? Number(busLat) : undefined}
-            lng={busLng ? Number(busLng) : undefined}
+            region={p.inferredRegion}
+            stationId={p.busStationId}
+            stationName={p.busStationName}
+            cityCode={p.cityCode}
+            busNo={p.busName}
+            busId={p.busId}
+            odsayBusId={p.odsayBusId ? String(p.odsayBusId) : undefined}
+            tagoRouteId={p.tagoRouteId ? String(p.tagoRouteId) : undefined}
+            destination={p.busDestination}
+            headsign={p.busHeadsign}
+            intervalTime={p.busIntervalTime}
+            startDateTime={p.busStartDateTime}
+            busType={p.busType}
+            busColor={p.transitColor}
+            lat={p.busLat ? Number(p.busLat) : undefined}
+            lng={p.busLng ? Number(p.busLng) : undefined}
             variant="hero"
+            hideRefreshButton={true}
           />
-        ) : isSubway && subwayStationName ? (
+        ) : p.isSubway && p.subwayStationName ? (
           <SegmentSubwayRealtimeChip
-            stationName={subwayStationName}
-            wayCode={step.wayCode !== undefined ? String(step.wayCode) : undefined}
-            subwayId={normalizedSubwayId}
-            destination={step.endName || step.destination}
-            headsign={step.headsign}
+            stationName={p.subwayStationName}
+            wayCode={p.step.wayCode !== undefined ? String(p.step.wayCode) : undefined}
+            subwayId={p.normalizedSubwayId}
+            destination={p.step.endName || p.step.destination}
+            headsign={p.step.headsign}
+            subwayColor={p.transitColor}
             variant="hero"
+            hideRefreshButton={true}
           />
-        ) : null}
+        ) : (
+          <span className="text-xs text-zinc-400 font-medium">도착 정보 없음</span>
+        )}
       </div>
     </div>
   );

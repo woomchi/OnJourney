@@ -370,21 +370,21 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     return renderRefreshButton();
   }
 
-  // --- [Hero Variant: 이동 상세 상단 Hero 2행 전용 가로 1줄 레이아웃] ---
+  // --- [Hero Variant: 이동 상세 상단 Hero 전용 2열 우측 고가독성 카운트다운 레이아웃] ---
   if (variant === 'hero') {
     if (isFuture) {
       const intervalLabel = intervalTime ? `배차 ${intervalTime}분` : '배차 운행';
       return (
-        <div className="flex items-center gap-1.5 w-full text-xs h-[24px]">
-          {!hideRefreshButton && renderRefreshButton()}
-          <div
-            onClick={(e) => handleOpenBusLineMap(e)}
-            title="버스 실시간 노선도 보기"
-            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 h-[20px] rounded-full bg-zinc-50/90 border border-zinc-200/90 shadow-2xs text-zinc-600 font-medium text-[10px] cursor-pointer hover:border-blue-300 hover:bg-zinc-100 transition-all active:scale-95 shrink-0"
-          >
-            <span className="font-semibold text-zinc-700">{intervalLabel}</span>
-            <span className="text-zinc-400 text-[9px]">노선도</span>
+        <div
+          onClick={(e) => handleOpenBusLineMap(e)}
+          title="버스 실시간 노선도 보기"
+          className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group"
+        >
+          <div className="inline-flex items-center gap-1 text-xs font-bold text-zinc-700 group-hover:text-blue-600 transition-colors">
+            <span>{intervalLabel}</span>
+            <span className="text-[10px] text-blue-500 font-semibold">노선도 ↗</span>
           </div>
+          <span className="text-[10px] text-zinc-400 font-medium mt-0.5">예정 시각 기준</span>
         </div>
       );
     }
@@ -394,85 +394,84 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
 
     if (isAnyLoading && !hasData && (!data || isQueryLoading || isFetching)) {
       return (
-        <div className="flex items-center gap-1.5 w-full text-xs h-[24px]">
-          {!hideRefreshButton && renderRefreshButton()}
-          <div className="inline-flex items-center justify-center px-2.5 py-0.5 h-[20px] rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-400 font-medium shrink-0 animate-pulse text-[10px]">
-            <span>확인 중...</span>
-          </div>
+        <div className="flex flex-col items-end justify-center min-w-0 shrink-0 animate-pulse">
+          <div className="h-5 w-18 bg-zinc-200/90 rounded-md" />
+          <div className="h-3 w-12 bg-zinc-100 rounded mt-1" />
         </div>
       );
     }
 
     if (!hasData || isError) {
       return (
-        <div className="flex items-center gap-1.5 w-full text-xs h-[24px]">
-          {!hideRefreshButton && renderRefreshButton()}
-          <div
-            onClick={(e) => handleOpenBusLineMap(e)}
-            title="버스 실시간 노선도 보기"
-            className="inline-flex items-center justify-center px-2.5 py-0.5 h-[20px] rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px] hover:border-blue-300 cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <span>도착 정보 없음</span>
-          </div>
+        <div
+          onClick={(e) => handleOpenBusLineMap(e)}
+          title="버스 실시간 노선도 보기"
+          className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group"
+        >
+          <span className="text-xs font-bold text-zinc-500 group-hover:text-blue-600 transition-colors">
+            도착 정보 없음
+          </span>
+          <span className="text-[10px] text-zinc-400 font-medium group-hover:text-blue-500 transition-colors mt-0.5">
+            노선도 확인 ↗
+          </span>
         </div>
       );
     }
 
+    const bus1 = targetBuses[0];
+    const bus2 = targetBuses[1];
+
+    const mins1 = Math.floor(bus1.arrivedInSeconds / 60);
+    const secs1 = bus1.arrivedInSeconds % 60;
+    const isUrgent1 = bus1.arrivedInSeconds <= 120;
+    const isSoon1 = bus1.arrivedInSeconds <= 60;
+
+    let timeDisplay1 = `${mins1}분 후`;
+    if (isSoon1) {
+      timeDisplay1 = '곧 도착';
+    } else if (mins1 === 0) {
+      timeDisplay1 = `${secs1}초 후`;
+    }
+
+    const stationText1 = getBusStationCountText(bus1, liveStationCount);
+    const statusBadge1 = renderSeatOrCrowdedBadge(bus1, true);
+
+    const stationText2 = bus2 ? getBusStationCountText(bus2) : null;
+    const mins2 = bus2 ? Math.floor(bus2.arrivedInSeconds / 60) : 0;
+
     return (
-      <div className="flex items-center gap-1.5 w-full text-xs h-[24px]">
-        {!hideRefreshButton && renderRefreshButton()}
-        <div
-          title="버스 실시간 노선도 보기"
-          className="flex items-center gap-1.5 min-w-0 flex-1 overflow-x-auto scrollbar-none"
-        >
-          {targetBuses.slice(0, 2).map((bus, idx) => {
-            const isFirst = idx === 0;
-            const timeText = formatBusItemTime(bus.arrivedInSeconds);
-            const stationText = getBusStationCountText(bus, isFirst ? liveStationCount : undefined);
-            const statusBadge = renderSeatOrCrowdedBadge(bus, isFirst);
+      <div
+        onClick={(e) => handleOpenBusLineMap(e, bus1)}
+        title="클릭하여 버스 실시간 노선도 및 위치 확인"
+        className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group select-none"
+      >
+        {/* 메인 카운트다운 타이머 & 상태 */}
+        <div className="flex items-center gap-1.5 leading-none">
+          <span
+            style={!isUrgent1 && busColor ? { color: busColor } : undefined}
+            className={clsx(
+              'text-sm sm:text-base font-black tabular-nums tracking-tight transition-colors',
+              isUrgent1 ? 'text-rose-600' : (!busColor ? 'text-blue-600 group-hover:text-blue-700' : '')
+            )}
+          >
+            {timeDisplay1}
+          </span>
+          <div className="flex items-center gap-1 text-[11px] font-semibold text-zinc-600 bg-zinc-100/90 px-1.5 py-0.5 rounded-md border border-zinc-200/60">
+            {stationText1 && <span className="tabular-nums">{stationText1}</span>}
+            {stationText1 && statusBadge1 && <span className="text-zinc-300">·</span>}
+            {statusBadge1}
+          </div>
+        </div>
 
-            return (
-              <div
-                key={`${bus.lineId || bus.lineName}-${bus.vehicleId || idx}`}
-                onClick={(e) => handleOpenBusLineMap(e, bus)}
-                className={clsx(
-                  'inline-flex items-center gap-1.5 px-2.5 py-0.5 h-[20px] rounded-full shadow-2xs text-[10px] whitespace-nowrap transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0',
-                  isFirst
-                    ? 'bg-white border border-blue-200 text-blue-600 hover:border-blue-400 hover:shadow-xs'
-                    : 'bg-zinc-50/80 border border-zinc-200/90 text-zinc-600 hover:border-zinc-300 hover:shadow-xs'
-                )}
-              >
-                {/* 1. 잔여 시간 */}
-                <span
-                  className={clsx(
-                    'tabular-nums font-bold text-left truncate',
-                    isFirst ? 'text-blue-600' : 'text-zinc-700'
-                  )}
-                >
-                  {timeText}
-                </span>
-
-                {/* 2. 남은 정거장 수 */}
-                {stationText && (
-                  <span
-                    className={clsx(
-                      'tabular-nums text-center truncate',
-                      isFirst ? 'font-medium text-zinc-500' : 'font-normal text-zinc-400'
-                    )}
-                  >
-                    {stationText}
-                  </span>
-                )}
-
-                {/* 3. 여석 / 혼잡도 */}
-                {statusBadge && (
-                  <span className="truncate flex items-center">
-                    {statusBadge}
-                  </span>
-                )}
-              </div>
-            );
-          })}
+        {/* 2번째 버스 도착 보조 정보 or 노선도 힌트 */}
+        <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-medium mt-1 leading-none">
+          {bus2 ? (
+            <span className="tabular-nums">
+              다음 <strong className="font-semibold text-zinc-600">{mins2}분</strong> ({stationText2 || '대기'})
+            </span>
+          ) : (
+            <span className="group-hover:text-blue-500 transition-colors">실시간 노선도 ↗</span>
+          )}
         </div>
       </div>
     );

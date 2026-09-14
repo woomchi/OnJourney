@@ -3,7 +3,6 @@ const SCHEMA_NOT_READY_PATTERNS = [
   'PGRST205',
   'PGRST204',
   "Could not find the table 'public.journeys'",
-  "Could not find the 'is_public' column",
 ];
 
 export function isSchemaNotReadyError(message: string): boolean {

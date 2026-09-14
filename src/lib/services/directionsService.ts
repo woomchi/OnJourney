@@ -160,7 +160,7 @@ export async function fetchPublicDirectionsApi(
   origin: Place,
   dest: Place,
   departureTime?: number
-): Promise<{ public: DirectionResult[] }> {
+): Promise<{ public: DirectionResult[]; intercityAvailable?: boolean }> {
   let url = `/api/directions/public?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
   if (origin.place_name) url += `&sName=${encodeURIComponent(origin.place_name)}`;
   if (dest.place_name) url += `&eName=${encodeURIComponent(dest.place_name)}`;
@@ -169,11 +169,43 @@ export async function fetchPublicDirectionsApi(
   const res = await fetch(url);
   if (!res.ok) throw new Error('대중교통 경로 요청 실패');
 
-  const payload = await res.json() as { success: boolean; data?: { public: DirectionResult[] }; error?: string };
+  const payload = (await res.json()) as {
+    success: boolean;
+    data?: { public: DirectionResult[]; intercityAvailable?: boolean };
+    error?: string;
+  };
   if (!payload.success) throw new Error(payload.error || '대중교통 경로 요청 실패');
 
   return payload.data!;
 }
+
+/**
+ * 온디맨드(On-Demand) 장거리/시외 멀티모달(기차/고속버스/항공) 경로를 서버 API에서 조회합니다.
+ */
+export async function fetchIntercityDirectionsApi(
+  origin: Place,
+  dest: Place,
+  departureTime?: number
+): Promise<{ public: DirectionResult[]; isIntercity?: boolean; quota?: { remaining: number; used: number } }> {
+  let url = `/api/directions/intercity?sx=${origin.lng}&sy=${origin.lat}&ex=${dest.lng}&ey=${dest.lat}`;
+  if (origin.place_name) url += `&sName=${encodeURIComponent(origin.place_name)}`;
+  if (dest.place_name) url += `&eName=${encodeURIComponent(dest.place_name)}`;
+  if (departureTime) url += `&departureTime=${departureTime}`;
+
+  const res = await fetch(url);
+  const payload = await res.json();
+  if (!res.ok || !payload.success) {
+    const err: any = new Error(payload.error || '시외 대중교통 경로 요청 실패');
+    if (payload.code === 'ODSAY_QUOTA_EXHAUSTED') {
+      err.code = 'ODSAY_QUOTA_EXHAUSTED';
+      err.data = payload.data;
+    }
+    throw err;
+  }
+
+  return payload.data!;
+}
+
 
 /**
  * 차량 및 도보 경로를 서버 API에서 조회합니다.

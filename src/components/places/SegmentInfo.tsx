@@ -10,8 +10,9 @@ import FittedDuration from './FittedDuration';
 import { Car, Footprints, Bus, Train, RotateCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useQueryClient } from '@tanstack/react-query';
-import { directionKeys } from '@/hooks/queries/useDirections';
-import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
+import { directionKeys, normalizeDepartureTime } from '@/hooks/queries/useDirections';
+import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi, fetchIntercityDirectionsApi } from '@/lib/services/directionsService';
+import { isIntercityEligible } from '@/lib/services/directions/transit/intercityClassifier';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { formatKmDistance, formatDurationMinutes, inferRegionFromPlace } from '@/lib/utils/journeyUtils';
@@ -85,6 +86,42 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     }))
   );
 
+  const [isIntercityLoading, setIsIntercityLoading] = useState(false);
+  const [quotaExhaustedInfo, setQuotaExhaustedInfo] = useState<{ message: string; korailUrl: string; busTagoUrl: string } | null>(null);
+
+  const originPlace = activeJourney?.places.find((p) => p.id === placeId);
+  const destPlace = activeJourney?.places.find((p) => p.id === destId);
+  const intercityCheck = originPlace && destPlace ? isIntercityEligible(originPlace, destPlace) : null;
+  const isIntercityCandidate = intercityCheck?.isEligible ?? false;
+
+  const handleFetchIntercity = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!originPlace || !destPlace || !placeId || !destId) return;
+
+    setIsIntercityLoading(true);
+    setQuotaExhaustedInfo(null);
+
+    try {
+      const res = await fetchIntercityDirectionsApi(originPlace, destPlace, departureTime || undefined);
+      if (res.public && res.public.length > 0) {
+        const normalizedTime = normalizeDepartureTime(departureTime);
+        const publicKey = directionKeys.segmentPublic(placeId, destId, normalizedTime);
+        queryClient.setQueryData(publicKey, { public: res.public });
+        if (onRetry) onRetry();
+      }
+    } catch (err: any) {
+      if (err?.code === 'ODSAY_QUOTA_EXHAUSTED') {
+        setQuotaExhaustedInfo({
+          message: err.message || '금일 무료 시외 대중교통 조회 한도가 마감되었습니다.',
+          korailUrl: err.data?.korailUrl || 'https://www.letskorail.com',
+          busTagoUrl: err.data?.busTagoUrl || 'https://www.bustago.or.kr',
+        });
+      }
+    } finally {
+      setIsIntercityLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!loading) {
       setIsTimedOut(false);
@@ -119,6 +156,72 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   }
 
   if (isTimedOut || !data) {
+    if (isIntercityCandidate) {
+      return (
+        <div className="w-full p-3.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-2xl shadow-2xs flex flex-col gap-2.5 text-xs select-none">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xs font-bold text-[11px]">
+                🚄
+              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="font-bold text-zinc-900 truncate">
+                  장거리 시외 대중교통 구간 ({intercityCheck?.distanceKm ? `${intercityCheck.distanceKm.toFixed(0)}km` : '장거리'})
+                </span>
+                <span className="text-[11px] text-zinc-500 truncate">
+                  시내버스·지하철 경로가 없습니다. 기차/고속버스 경로를 조회할 수 있습니다.
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={isIntercityLoading}
+              onClick={handleFetchIntercity}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl shadow-2xs text-xs font-bold transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
+            >
+              {isIntercityLoading ? (
+                <>
+                  <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>조회 중...</span>
+                </>
+              ) : (
+                <>
+                  <Train className="w-3.5 h-3.5" />
+                  <span>시외 대중교통 조회</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {quotaExhaustedInfo && (
+            <div className="mt-1 p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-1.5">
+              <span className="text-amber-800 font-medium text-[11px]">
+                ⚠️ {quotaExhaustedInfo.message}
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={quotaExhaustedInfo.korailUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2.5 py-1 bg-white border border-amber-300 text-amber-900 rounded-lg text-[11px] font-bold hover:bg-amber-100 transition-colors"
+                >
+                  코레일톡(KTX) 예매 ↗
+                </a>
+                <a
+                  href={quotaExhaustedInfo.busTagoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2.5 py-1 bg-white border border-amber-300 text-amber-900 rounded-lg text-[11px] font-bold hover:bg-amber-100 transition-colors"
+                >
+                  버스타고(시외버스) 예매 ↗
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="w-full px-4 py-3 bg-amber-50/50 border border-amber-200/80 rounded-xl shadow-2xs flex items-center justify-between gap-3 text-xs select-none">
         <div className="flex items-center gap-2 min-w-0">
@@ -157,8 +260,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
   // Get active Places for Alternative route prefetching & distance calculation
   const places = activeJourney?.places || [];
-  const originPlace = places.find(p => p.id === placeId);
-  const destPlace = places.find(p => p.id === destId);
+
 
   const getDistanceKm = (): number | null => {
     if (data?.distance != null && data.distance > 0) {

@@ -2,10 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchJourneys,
   fetchJourneyById,
-  fetchPublicJourneyById,
   insertJourney,
   updateJourney,
-  toggleJourneyPublic,
   deleteJourneys,
 } from '@/lib/journeys/index';
 import type { CreateJourneyInput, TransportType, Journey } from '@/types/journey';
@@ -32,14 +30,6 @@ export function useJourney(id: string | null | undefined, enabled = true) {
   });
 }
 
-export function usePublicJourney(id: string | null | undefined, enabled = true) {
-  return useQuery({
-    queryKey: [...journeyKeys.detail(id ?? ''), 'public'],
-    queryFn: () => (id ? fetchPublicJourneyById(id) : null),
-    enabled: !!id && enabled,
-  });
-}
-
 export function useCreateJourney() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -58,31 +48,16 @@ export function useUpdateJourneyInfo() {
       title,
       journeyDate,
       transportType,
-      isPublic,
     }: {
       id: string;
       title?: string;
       journeyDate?: string;
       transportType?: TransportType;
-      isPublic?: boolean;
     }) => updateJourney(id, {
       ...(title !== undefined ? { title } : {}),
       ...(journeyDate !== undefined ? { journey_date: journeyDate } : {}),
       ...(transportType !== undefined ? { transport_type: transportType } : {}),
-      ...(isPublic !== undefined ? { is_public: isPublic } : {}),
     }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: journeyKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: journeyKeys.detail(data.id) });
-    },
-  });
-}
-
-export function useToggleJourneyPublic() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, isPublic }: { id: string; isPublic: boolean }) =>
-      toggleJourneyPublic(id, isPublic),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: journeyKeys.lists() });
       queryClient.invalidateQueries({ queryKey: journeyKeys.detail(data.id) });

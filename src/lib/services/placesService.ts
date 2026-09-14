@@ -240,8 +240,7 @@ const fetchPopularityCountsMap = unstable_cache(
       const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
       const { data: journeys, error } = await supabase
         .from('journeys')
-        .select('places')
-        .eq('is_public', true);
+        .select('places');
 
       if (error || !journeys) {
         console.error('[placesService] 인기도 점수 DB 조회 실패:', error);

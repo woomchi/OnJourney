@@ -25,5 +25,12 @@ export { fetchCarRoute, calculateCarFallback } from './directions/car/carRouteSe
 export { buildWalkFallbackResults } from './directions/walk/walkFallbackService';
 export { fetchOdsayWalkingRoute, fetchOdsayDetailRoute, fetchOdsayDetailRoute as fetchWalkDetailRoute, fetchOdsayDetailRoute as fetchTmapDetailRoute } from './directions/walk/odsayWalkingService';
 
-// 5. 오케스트레이터 파사드 서비스
+// 5. 장거리/시외 멀티모달 도메인 서비스 (ODsay 기반, 2주 캐시 & 쿼터 가드)
+export { fetchIntercityTransitRoute } from './directions/transit/odsayTransitService';
+export { isIntercityEligible, isIslandIntercity, generateIntercityCacheKey } from './directions/transit/intercityClassifier';
+export { OdsayQuotaGuard } from '@/lib/infrastructure/odsayQuotaGuard';
+export { IntercityRouteCache } from '@/lib/infrastructure/intercityRouteCache';
+
+// 6. 오케스트레이터 파사드 서비스
 export { fetchCarWalkDirections } from './directions/directionsOrchestrator';
+

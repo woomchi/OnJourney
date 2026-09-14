@@ -83,7 +83,6 @@ export interface Journey {
   journey_date: string;
   places: Place[];
   current_step: number;
-  is_public?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -92,14 +91,12 @@ export interface CreateJourneyInput {
   title: string;
   transport_type: TransportType;
   journey_date: string;
-  is_public?: boolean;
 }
 
 export interface UpdateJourneyInput {
   title?: string;
   journey_date?: string;
   transport_type?: TransportType;
-  is_public?: boolean;
 }
 
 // ─── 경로 단계 ────────────────────────────────────────────────────────────────
@@ -117,10 +114,14 @@ export interface SubPathOption {
 
 /** 경로를 구성하는 단일 이동 수단 단계 */
 export interface DirectionStep {
-  type: 'walk' | 'subway' | 'bus' | 'car' | 'train' | 'expressbus' | 'taxi';
+  type: 'walk' | 'subway' | 'bus' | 'car' | 'train' | 'expressbus' | 'taxi' | 'airplane';
   name: string;
   duration: number;
   color?: string;
+  instruction?: string;
+  lineName?: string;
+  lineColor?: string;
+  trainClass?: string;
   pathPoints?: { lat: number; lng: number }[];
   startName?: string;
   endName?: string;
@@ -199,6 +200,7 @@ export interface DirectionsApiResponse {
   public: DirectionResult[];
   car: DirectionResult[];
   walk: DirectionResult[];
+  intercityAvailable?: boolean;
 }
 
 /** 경유지 간 경로 캐시 맵 (키: originId-destId) */

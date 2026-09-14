@@ -1,5 +1,5 @@
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
-import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi } from '@/lib/services/directionsService';
+import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi, fetchIntercityDirectionsApi } from '@/lib/services/directionsService';
 import type { Place, DirectionsApiResponse, DirectionResult, SnapMeta } from '@/types/journey';
 import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
@@ -21,12 +21,18 @@ export const directionKeys = {
     'public',
     normalizeDepartureTime(departureTime) ?? 'now',
   ] as const,
+  segmentIntercity: (originId: string, destId: string, departureTime?: number | null) => [
+    ...directionKeys.segment(originId, destId),
+    'intercity',
+    normalizeDepartureTime(departureTime) ?? 'now',
+  ] as const,
   segmentCar: (originId: string, destId: string, departureTime?: number | null) => [
     ...directionKeys.segment(originId, destId),
     'car',
     normalizeDepartureTime(departureTime) ?? 'now',
   ] as const,
 };
+
 
 export function useSegmentDirection(origin: Place | null, dest: Place | null) {
   const departureTime = useJourneyStore((s) => s.departureTime);

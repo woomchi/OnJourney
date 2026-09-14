@@ -333,9 +333,13 @@ export async function fetchSubwayRealtime(
       }
     }
 
-    // 4. 요청된 wayCode 방향과 일치하는 열차만 엄격 필터링 ('1': 상행/내선, '2': 하행/외선)
+    // 4. 요청된 wayCode 방향과 일치하는 열차 필터링 ('1': 상행/내선, '2': 하행/외선)
+    // wayCode 매핑 불일치(순환선/방면 표기 차이 등)로 0건이 되는 것을 방지하기 위해 일치 항목이 있을 때만 적용
     if (wayCode) {
-      rows = rows.filter((row) => resolveWayCode(row.updnLine) === wayCode);
+      const wayFilteredRows = rows.filter((row) => resolveWayCode(row.updnLine) === wayCode);
+      if (wayFilteredRows.length > 0) {
+        rows = wayFilteredRows;
+      }
     }
 
     // ─ 실시간 열차 위치 정보 조회 (해당 노선) 및 방향 복합키 Map 빌드 ─

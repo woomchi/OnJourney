@@ -127,6 +127,7 @@ describe('kakaoTransitParser', () => {
       expect(busStep?.stationCount).toBe(2);
       expect(busStep?.subPathOptions).toHaveLength(2); // 62-1, 13-5
       expect(busStep?.pathPoints).toHaveLength(3);
+      expect(busStep?.realtimeStationId).toBe('auto');
 
       const subwayStep = r.steps.find((s) => s.type === 'subway');
       expect(subwayStep).toBeDefined();

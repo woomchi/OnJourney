@@ -224,14 +224,17 @@ function SingleTransitCardContent({
   const subwayStationName = step.startName || originPlace?.place_name;
 
   // 버스 속성 추출
+  const busStationName = step.startName || originPlace?.place_name;
+  const busLat = step.startY || step.startLat || step.pathPoints?.[0]?.lat || originPlace?.lat;
+  const busLng = step.startX || step.startLng || step.pathPoints?.[0]?.lng || originPlace?.lng;
   const rawStationId =
     step.realtimeStationId ||
     step.startStationID ||
     step.startID ||
     step.startStationId ||
-    step.nodeId;
+    step.nodeId ||
+    (busStationName && (busLat || busLng) ? 'auto' : undefined);
   const busStationId = rawStationId ? String(rawStationId) : undefined;
-  const busStationName = step.startName || originPlace?.place_name;
   const busName = step.name || '';
   const odsayBusId = step.odsayBusId || step.busID;
   const tagoRouteId = step.tagoRouteId || step.busLocalBlID;
@@ -242,8 +245,6 @@ function SingleTransitCardContent({
   const busIntervalTime = step.intervalTime;
   const busStartDateTime = step.startDateTime;
   const inferredRegion = step.startRegion || (originPlace ? inferRegionFromPlace(originPlace) : undefined);
-  const busLat = step.startY || step.startLat || originPlace?.lat;
-  const busLng = step.startX || step.startLng || originPlace?.lng;
   const cityCode = step.startCityCode || step.cityCode;
 
   return (

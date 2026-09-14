@@ -105,6 +105,7 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
       passStopList,
       subPathOptions,
       headsign: properties.guidance,
+      realtimeStationId: 'auto',
     };
   }
 

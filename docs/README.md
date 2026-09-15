@@ -13,6 +13,7 @@ docs/
 │
 ├── 📐 architecture/  (아키텍처 & 기술 분석)
 │   ├── full_api_and_cache_architecture.md   ← 전체 API 호출 및 캐싱 아키텍처
+│   ├── redis_cache_expansion_report.md      ← Redis 분산 캐시 전수검사 및 확장 로드맵 보고서 ⭐
 │   ├── odsay_api_architecture.md            ← ODsay API 서킷 브레이커 & 캐시 구조
 │   └── naver_map_guide.md                   ← 네이버 지도 React 최적화 수칙 & 무한 루프 분석
 │
@@ -51,6 +52,9 @@ docs/
 
 ### [full_api_and_cache_architecture.md](./architecture/full_api_and_cache_architecture.md)
 클라이언트(React/Zustand/TanStack Query) → 서버(Next.js App Router) → 외부 서비스(ODsay, Naver NCP, Supabase) 간의 전체 API 통합 체계 및 3단계 캐시 계층 구조.
+
+### [redis_cache_expansion_report.md](./architecture/redis_cache_expansion_report.md) ⭐ 최신
+**Redis 분산 캐시 전수검사 및 확장 로드맵 보고서** — 프로젝트 전반의 API 및 쿼리 파이프라인을 전수검사하여 서버리스 환경에서의 캐시 취약점(로컬 파일 휘발, 인메모리 미공유, 쿼터 초과)을 진단하고, 우선순위별(P0/P1/P2) Redis 적용 대상 및 키/TTL 표준 규격을 정리한 마이그레이션 기술 보고서.
 
 ### [odsay_api_architecture.md](./architecture/odsay_api_architecture.md)
 ODsay API 기반 대중교통 경로 조회에서 Rate Limiter, 서킷 브레이커, OdsayAdapter(에러 변환), 2단계 캐싱의 전체 작동 흐름.

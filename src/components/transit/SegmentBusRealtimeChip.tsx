@@ -522,10 +522,10 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
         <div className="inline-flex flex-col justify-center h-[42px] min-h-[42px]">
           <div
             onClick={(e) => handleOpenBusLineMap(e)}
-            title="버스 실시간 노선도 보기"
+            title={isError ? "실시간 정보 조회 실패 (클릭하여 노선도 확인)" : "버스 실시간 노선도 보기"}
             className="inline-flex items-center justify-center w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px] hover:border-blue-300 cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            <span>도착 정보 없음</span>
+            <span>{isError ? '정보 확인 실패' : '도착 정보 없음'}</span>
           </div>
         </div>
       </div>

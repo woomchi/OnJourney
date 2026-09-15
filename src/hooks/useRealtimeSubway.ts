@@ -55,24 +55,30 @@ export function useRealtimeSubway({
       const url = `/api/subway/realtime?${params.toString()}`;
 
 
-      const res = await fetch(url, {
-        cache: 'no-store',
-        headers: {
-          Accept: 'application/json',
-          'Cache-Control': 'no-cache',
-        },
-      });
+      try {
+        const res = await fetch(url, {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(6000),
+          headers: {
+            Accept: 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+        });
 
-      if (!res.ok) {
-        throw new Error(`실시간 지하철 데이터 조회 실패 (HTTP ${res.status})`);
+        if (!res.ok) {
+          throw new Error(`실시간 지하철 데이터 조회 실패 (HTTP ${res.status})`);
+        }
+
+        const json = await res.json();
+        if (!json.success || !json.data) {
+          return [];
+        }
+
+        return (Array.isArray(json.data) ? json.data : [json.data]) as SubwayArrivalItem[];
+      } catch (err) {
+        console.warn('[useRealtimeSubway] 실시간 지하철 데이터 로드 실패:', err);
+        throw err;
       }
-
-      const json = await res.json();
-      if (!json.success || !json.data) {
-        return [];
-      }
-
-      return (Array.isArray(json.data) ? json.data : [json.data]) as SubwayArrivalItem[];
     },
     enabled: Boolean(enabled && cleanStationName),
     refetchInterval,

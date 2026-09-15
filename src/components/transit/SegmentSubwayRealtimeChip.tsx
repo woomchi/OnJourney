@@ -216,11 +216,11 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
         <div
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => handleOpenLineMap(e)}
-          title="지하철 실시간 노선도 보기"
+          title={isError ? "실시간 정보 조회 실패 (클릭하여 노선도 확인)" : "지하철 실시간 노선도 보기"}
           className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group"
         >
           <span className="text-xs font-bold text-zinc-500 group-hover:text-emerald-600 transition-colors">
-            운행 정보 없음
+            {isError ? '정보 확인 실패' : '운행 정보 없음'}
           </span>
           <span className="text-[10px] text-zinc-400 font-medium group-hover:text-emerald-500 transition-colors mt-0.5">
             노선도 확인 ↗
@@ -235,10 +235,10 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
           <div
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => handleOpenLineMap(e)}
-            title="클릭하여 노선도 및 열차 위치 확인"
+            title={isError ? "실시간 정보 조회 실패 (클릭하여 노선도 확인)" : "클릭하여 노선도 및 열차 위치 확인"}
             className="inline-flex items-center justify-center w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-white border border-zinc-200/90 shadow-2xs text-zinc-500 font-semibold shrink-0 text-[10px] cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:shadow-xs transition-all active:scale-98"
           >
-            <span>운행 정보 없음</span>
+            <span>{isError ? '정보 확인 실패' : '운행 정보 없음'}</span>
           </div>
         </div>
       </div>

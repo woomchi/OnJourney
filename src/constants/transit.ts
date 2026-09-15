@@ -69,3 +69,6 @@ export const CACHE_TTL_SECONDS = {
 /** 경기도 9자리 버스 정류소 ID 접두사 (20: 수원, 21: 성남, 22: 의정부, 23: 안양, 24: 부천 등) */
 export const GYEONGGI_STATION_ID_PREFIXES = ['20', '21', '22', '23', '24'] as const;
 
+/** 버스 실시간 잔여 정류장 수(busLiveStationsAwayMap) 캐시 유효 시간 (3분 = 180,000ms) */
+export const BUS_LIVE_STATIONS_TTL_MS = 180_000;
+

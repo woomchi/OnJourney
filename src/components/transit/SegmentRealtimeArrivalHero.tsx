@@ -11,6 +11,7 @@ import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
 import { resolveSubwayNameForApi } from '@/lib/constants/subwayLineMap';
 import { getSubwayColor, getBusColor } from '@/lib/services/directions/transit/transitColorUtils';
 import { useJourneyStore } from '@/stores/journey-store';
+import { GESTURE_THRESHOLDS } from '@/constants/layout';
 
 interface SegmentRealtimeArrivalHeroProps {
   route: SelectedRoute | DirectionResult | null;
@@ -275,8 +276,8 @@ export default function SegmentRealtimeArrivalHero({
     const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
     const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
 
-    // 수평 이동 거리가 수직 이동 거리보다 크고, 35px 이상 이동했을 때만 전환
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 35) {
+    // 수평 이동 거리가 수직 이동 거리보다 크고, 지정된 최소 임계값 이상 이동했을 때만 전환
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > GESTURE_THRESHOLDS.HERO_SWIPE_MIN_PX) {
       if (deltaX < 0 && canGoNext) {
         handleNext();
       } else if (deltaX > 0 && canGoPrev) {

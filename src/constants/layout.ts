@@ -36,3 +36,9 @@ export const HEADER_HEIGHT = {
   /** 모바일 바텀시트 내부 상단 버튼 바 높이 (32px) */
   MOBILE_BUTTON_BAR: 32,
 } as const;
+
+export const GESTURE_THRESHOLDS = {
+  /** 실시간 도착 정보 Hero 카드 좌우 스와이프 감지 최소 거리 (px) */
+  HERO_SWIPE_MIN_PX: 35,
+} as const;
+

@@ -327,7 +327,11 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
             timeText1
           )
         }
-        title="클릭하여 지하철 실시간 노선도 및 열차 위치 확인"
+        title={
+          isRealtime
+            ? '클릭하여 지하철 실시간 노선도 및 열차 위치 확인'
+            : '시간표 기준 운행 정보 - 클릭하여 지하철 노선도 보기'
+        }
         className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group select-none"
       >
         {/* 메인 카운트다운 타이머 & 상태 */}
@@ -356,6 +360,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
               <span className="text-amber-600 font-bold">당역종착</span>
             ) : isExpress1 ? (
               <span className="text-rose-600 font-bold">급행</span>
+            ) : !isRealtime ? (
+              <span className="text-zinc-600 font-semibold">시간표</span>
             ) : (
               <span className="text-zinc-500 font-medium">일반</span>
             )}
@@ -370,7 +376,9 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
               {locText2 && locText2 !== timeText2 && ` (${locText2})`}
             </span>
           ) : (
-            <span className="group-hover:text-emerald-600 transition-colors">실시간 노선도 ↗</span>
+            <span className="group-hover:text-emerald-600 transition-colors">
+              {isRealtime ? '실시간 노선도 ↗' : '노선도 확인 ↗'}
+            </span>
           )}
         </div>
       </div>
@@ -403,27 +411,36 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
                 ? 'border-amber-300 text-amber-700 bg-amber-50/30'
                 : isRealtime
                 ? 'border-blue-200 text-blue-600'
-                : 'border-zinc-200 text-slate-700'
+                : 'border-zinc-200 text-slate-700 bg-zinc-50/50'
             )}
             title={
               !isCanBoard1
                 ? '목적지 미도달 (중간종착 열차) - 클릭하여 노선도 보기'
-                : '클릭하여 실시간 노선도 및 열차 위치 확인'
+                : isRealtime
+                ? '클릭하여 실시간 노선도 및 열차 위치 확인'
+                : '시간표 기준 운행 정보 - 클릭하여 지하철 노선도 보기'
             }
           >
-            <span className="w-[36px] shrink-0 tabular-nums font-semibold text-blue-600 text-left">
+            <span
+              className={clsx(
+                'w-[36px] shrink-0 tabular-nums font-semibold text-left',
+                isRealtime ? 'text-blue-600' : 'text-zinc-700'
+              )}
+            >
               {timeText1}
             </span>
-            <span className="w-[54px] shrink-0 tabular-nums font-medium text-zinc-600 text-center truncate">
+            <span className="w-[50px] shrink-0 tabular-nums font-medium text-zinc-600 text-center truncate">
               {locText1 && locText1 !== timeText1 ? locText1 : ''}
             </span>
-            <span className="w-[24px] shrink-0 text-center">
+            <span className="w-[28px] shrink-0 text-center">
               {!isCanBoard1 ? (
                 <span className="text-amber-600 font-bold text-[9px]">종착</span>
               ) : isExpress1 ? (
-                <span className="text-rose-600 font-bold">급행</span>
+                <span className="text-rose-600 font-bold text-[9px]">급행</span>
+              ) : !isRealtime ? (
+                <span className="text-zinc-600 font-bold text-[9px]">시간표</span>
               ) : (
-                <span className="text-zinc-500 font-medium">일반</span>
+                <span className="text-zinc-500 font-medium text-[9px]">일반</span>
               )}
             </span>
           </div>
@@ -447,22 +464,26 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
               title={
                 !isCanBoard2
                   ? '목적지 미도달 (중간종착 열차) - 클릭하여 노선도 보기'
-                  : '클릭하여 실시간 노선도 및 열차 위치 확인'
+                  : isRealtime
+                  ? '클릭하여 실시간 노선도 및 열차 위치 확인'
+                  : '시간표 기준 운행 정보 - 클릭하여 지하철 노선도 보기'
               }
             >
               <span className="w-[36px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left">
                 {timeText2}
               </span>
-              <span className="w-[54px] shrink-0 tabular-nums font-normal text-zinc-500 text-center truncate">
+              <span className="w-[50px] shrink-0 tabular-nums font-normal text-zinc-500 text-center truncate">
                 {locText2 && locText2 !== timeText2 ? locText2 : ''}
               </span>
-              <span className="w-[24px] shrink-0 text-center">
+              <span className="w-[28px] shrink-0 text-center">
                 {!isCanBoard2 ? (
                   <span className="text-amber-600 font-semibold text-[9px]">종착</span>
                 ) : isExpress2 ? (
-                  <span className="text-rose-500 font-bold">급행</span>
+                  <span className="text-rose-500 font-bold text-[9px]">급행</span>
+                ) : !isRealtime ? (
+                  <span className="text-zinc-600 font-semibold text-[9px]">시간표</span>
                 ) : (
-                  <span className="text-zinc-400 font-normal">일반</span>
+                  <span className="text-zinc-400 font-normal text-[9px]">일반</span>
                 )}
               </span>
             </div>

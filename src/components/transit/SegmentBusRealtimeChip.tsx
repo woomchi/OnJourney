@@ -9,6 +9,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { ArrivalBusItem } from '@/types/realtimeTransit';
 import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
 import { getBusRefreshSharedKey } from '@/lib/transit/transitSharedKey';
+import { BUS_LIVE_STATIONS_TTL_MS } from '@/constants/transit';
 
 export interface SegmentBusRealtimeChipProps {
   region?: string;
@@ -152,11 +153,11 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     const cleanNo = cleanBusNo.toUpperCase();
     if (stationId) {
       const byId = busLiveStationsAwayMap[`bus:${cleanNo}:${stationId}`];
-      if (byId && Date.now() - byId.updatedAt < 180000) return byId.stationsAway;
+      if (byId && Date.now() - byId.updatedAt < BUS_LIVE_STATIONS_TTL_MS) return byId.stationsAway;
     }
     if (cleanTargetStation) {
       const byName = busLiveStationsAwayMap[`bus:${cleanNo}:${cleanTargetStation}`];
-      if (byName && Date.now() - byName.updatedAt < 180000) return byName.stationsAway;
+      if (byName && Date.now() - byName.updatedAt < BUS_LIVE_STATIONS_TTL_MS) return byName.stationsAway;
     }
     return undefined;
   }, [busLiveStationsAwayMap, cleanBusNo, stationId, cleanTargetStation]);

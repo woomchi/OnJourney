@@ -12,6 +12,7 @@
 import { unstable_cache } from 'next/cache';
 import type { RawSubwayArrivalRow } from '../services/subwayTotalRealtimeService';
 import type { SubwayPosition } from '@/types/journey';
+import { getRedisCache, setRedisCache } from './redisClient';
 
 const TOTAL_ARRIVAL_REVALIDATE = 15; // 초
 const POSITION_REVALIDATE = 15;      // 초 (도착 정보 15초 주기와 동기화)
@@ -170,12 +171,9 @@ async function fetchPositionsByLineRaw(
   }
 }
 
-// ─── 캐시 래퍼 (Next.js unstable_cache) ──────────────────────────────────────
+// ─── 캐시 래퍼 (Next.js unstable_cache 기반 로컬 폴백) ─────────────────────────
 
-/**
- * 15초 TTL 캐시가 적용된 일괄 도착 API 조회 함수
- */
-export const fetchCachedTotalArrivals = unstable_cache(
+const fetchTotalArrivalsWithNextCache = unstable_cache(
   async (apiKey: string, startIndex: string, endIndex: string): Promise<RawSubwayArrivalRow[]> => {
     return fetchTotalArrivalsRaw(apiKey, startIndex, endIndex);
   },
@@ -183,18 +181,94 @@ export const fetchCachedTotalArrivals = unstable_cache(
   { revalidate: TOTAL_ARRIVAL_REVALIDATE }
 );
 
-/**
- * 15초 TTL 캐시가 적용된 노선별 열차 위치 API 조회 함수
- * 노선명(subwayNm)별로 캐시 키를 완벽히 격리합니다.
- */
-export async function fetchCachedPositionsByLine(
-  apiKey: string,
-  subwayNm: string
-): Promise<SubwayPosition[]> {
+const fetchPositionsByLineWithNextCache = (apiKey: string, subwayNm: string) => {
   const cachedFn = unstable_cache(
     async () => fetchPositionsByLineRaw(apiKey, subwayNm),
     ['subway-positions-by-line', subwayNm],
     { revalidate: POSITION_REVALIDATE }
   );
   return cachedFn();
+};
+
+// ─── Single-Flight (동시 중복 호출 방지 맵) ────────────────────────────────────
+const inFlightTotalArrivals = new Map<string, Promise<RawSubwayArrivalRow[]>>();
+const inFlightPositions = new Map<string, Promise<SubwayPosition[]>>();
+
+// ─── 다계층 캐시 래퍼 (Upstash Redis -> Single-Flight -> unstable_cache) ─────────
+
+/**
+ * 15초 TTL 캐시가 적용된 일괄 도착 API 조회 함수 (다계층 분산 캐시)
+ */
+export async function fetchCachedTotalArrivals(
+  apiKey: string,
+  startIndex: string,
+  endIndex: string
+): Promise<RawSubwayArrivalRow[]> {
+  const redisKey = `subway:total-arrivals:${startIndex}:${endIndex}`;
+
+  // 1단계: Upstash Redis 글로벌 캐시 조회
+  const cachedData = await getRedisCache<RawSubwayArrivalRow[]>(redisKey);
+  if (cachedData && cachedData.length > 0) {
+    return cachedData;
+  }
+
+  // 2단계: Redis 미스 시 Single-Flight(동시 요청 병합)로 1회만 호출
+  const flightKey = `${startIndex}:${endIndex}`;
+  if (inFlightTotalArrivals.has(flightKey)) {
+    return inFlightTotalArrivals.get(flightKey)!;
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const result = await fetchTotalArrivalsWithNextCache(apiKey, startIndex, endIndex);
+      if (result && result.length > 0) {
+        // 비동기 Redis 캐시 저장 (15초 TTL)
+        setRedisCache(redisKey, result, TOTAL_ARRIVAL_REVALIDATE).catch(() => {});
+      }
+      return result;
+    } finally {
+      inFlightTotalArrivals.delete(flightKey);
+    }
+  })();
+
+  inFlightTotalArrivals.set(flightKey, fetchPromise);
+  return fetchPromise;
+}
+
+/**
+ * 15초 TTL 캐시가 적용된 노선별 열차 위치 API 조회 함수 (다계층 분산 캐시)
+ * 노선명(subwayNm)별로 캐시 키를 완벽히 격리합니다.
+ */
+export async function fetchCachedPositionsByLine(
+  apiKey: string,
+  subwayNm: string
+): Promise<SubwayPosition[]> {
+  const redisKey = `subway:positions:${subwayNm}`;
+
+  // 1단계: Upstash Redis 글로벌 캐시 조회
+  const cachedData = await getRedisCache<SubwayPosition[]>(redisKey);
+  if (cachedData && cachedData.length > 0) {
+    return cachedData;
+  }
+
+  // 2단계: Redis 미스 시 Single-Flight(동시 요청 병합)로 1회만 호출
+  if (inFlightPositions.has(subwayNm)) {
+    return inFlightPositions.get(subwayNm)!;
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const result = await fetchPositionsByLineWithNextCache(apiKey, subwayNm);
+      if (result && result.length > 0) {
+        // 비동기 Redis 캐시 저장 (15초 TTL)
+        setRedisCache(redisKey, result, POSITION_REVALIDATE).catch(() => {});
+      }
+      return result;
+    } finally {
+      inFlightPositions.delete(subwayNm);
+    }
+  })();
+
+  inFlightPositions.set(subwayNm, fetchPromise);
+  return fetchPromise;
 }

@@ -82,7 +82,7 @@ export function formatSubwayLineName(step: DirectionStep): string {
 /**
  * 대중교통 스텝 데이터에서 실시간 조회에 필요한 파라미터를 복원하는 헬퍼
  */
-function extractTransitParams(
+export function extractTransitParams(
   context: TransitStepContext,
   originPlace?: Place | null,
   currentIndex: number = 0
@@ -91,14 +91,14 @@ function extractTransitParams(
   const isBus = step.type === 'bus' || step.type === 'expressbus';
   const isSubway = step.type === 'subway' || step.type === 'train';
 
-  // 역/정류소 명칭 복원
+  // 역/정류소 명칭 복원 (직전 스텝의 하차지점 포함)
   const firstPassStation = step.passStopList?.stationList?.[0]?.stationName;
-  const prevWalkEndName = prevStep && prevStep.type === 'walk' ? prevStep.endName : undefined;
+  const prevStepEndName = prevStep?.endName || (prevStep?.type === 'walk' ? prevStep.name : undefined);
 
   const rawSubwayStation =
     step.startName ||
     firstPassStation ||
-    prevWalkEndName ||
+    prevStepEndName ||
     (currentIndex === 0 ? originPlace?.place_name : undefined) ||
     '';
   const subwayStationName = rawSubwayStation ? rawSubwayStation.replace(/역$/g, '').trim() : '';
@@ -106,30 +106,32 @@ function extractTransitParams(
   const rawBusStation =
     step.startName ||
     firstPassStation ||
-    prevWalkEndName ||
+    prevStepEndName ||
     (currentIndex === 0 ? originPlace?.place_name : undefined) ||
     '';
   const busStationName = rawBusStation.trim();
 
-  // 버스/지하철 탑승 좌표 복원
-  const prevWalkLat = prevStep && prevStep.type === 'walk' ? (prevStep.endY || prevStep.endLat) : undefined;
-  const prevWalkLng = prevStep && prevStep.type === 'walk' ? (prevStep.endX || prevStep.endLng) : undefined;
+  // 버스/지하철 탑승 좌표 복원 (직전 스텝의 하차 좌표 및 경로 종점 포함)
+  const prevStepEndLat =
+    prevStep ? (prevStep.endY ?? prevStep.endLat ?? prevStep.pathPoints?.[prevStep.pathPoints.length - 1]?.lat) : undefined;
+  const prevStepEndLng =
+    prevStep ? (prevStep.endX ?? prevStep.endLng ?? prevStep.pathPoints?.[prevStep.pathPoints.length - 1]?.lng) : undefined;
   const firstPassLat = step.passStopList?.stationList?.[0]?.lat;
   const firstPassLng = step.passStopList?.stationList?.[0]?.lng;
 
   const busLat =
-    step.startY ||
-    step.startLat ||
-    step.pathPoints?.[0]?.lat ||
-    firstPassLat ||
-    prevWalkLat ||
+    step.startY ??
+    step.startLat ??
+    step.pathPoints?.[0]?.lat ??
+    firstPassLat ??
+    prevStepEndLat ??
     (currentIndex === 0 ? originPlace?.lat : undefined);
   const busLng =
-    step.startX ||
-    step.startLng ||
-    step.pathPoints?.[0]?.lng ||
-    firstPassLng ||
-    prevWalkLng ||
+    step.startX ??
+    step.startLng ??
+    step.pathPoints?.[0]?.lng ??
+    firstPassLng ??
+    prevStepEndLng ??
     (currentIndex === 0 ? originPlace?.lng : undefined);
 
   const rawStationId =

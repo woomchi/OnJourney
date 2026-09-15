@@ -98,6 +98,8 @@ export async function GET(req: Request) {
 | `REAL_TIME_BUS_BUSAN_API_KEY` | 부산 버스 |
 | `REAL_TIME_BUS_INCHEON_API_KEY` | 인천 버스 |
 | `REAL_TIME_BUS_DAEJEON_API_KEY` | 대전 버스 |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL (지하철 실시간 분산 캐시) |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST Token (지하철 실시간 분산 캐시) |
 
 ---
 

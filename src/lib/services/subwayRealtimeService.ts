@@ -345,8 +345,8 @@ export async function fetchSubwayRealtime(
     // ─ 실시간 열차 위치 정보 조회 (해당 노선) 및 방향 복합키 Map 빌드 ─
     // Key: `${posDirection}_${trainNo}` 및 열차 번호 단독 키
     let positionMap = new Map<string, SubwayPosition>();
+    const targetSubwayId = subwayId || (rows[0] ? String(rows[0].subwayId || '') : '');
     try {
-      const targetSubwayId = subwayId || (rows[0] ? String(rows[0].subwayId || '') : '');
       if (targetSubwayId) {
         const positions = await fetchSubwayPositionsByLine(targetSubwayId);
         for (const pos of positions) {
@@ -364,7 +364,8 @@ export async function fetchSubwayRealtime(
           }
         }
       }
-    } catch {
+    } catch (err) {
+      console.warn(`[subwayRealtimeService] 실시간 열차 위치 조회 실패 (노선: ${targetSubwayId || 'unknown'}):`, err);
       // 위치 정보 조회 실패 시 기본 도착 정보만으로 계속 진행
     }
 

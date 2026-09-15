@@ -277,8 +277,8 @@ export function useAutoRefresh({
     buttonText = `${state.countdown}초`;
     buttonTitle = `자동 갱신 진행 중 (${state.refreshCount + 1}/${maxRefreshCount}회)`;
   } else if (state.status === 'paused') {
-    buttonText = '갱신';
-    buttonTitle = `${maxRefreshCount}회 자동 갱신 완료 (클릭 시 갱신 재개)`;
+    buttonText = '재개';
+    buttonTitle = '자동 갱신 일시정지됨 (클릭하여 다시 갱신)';
   }
 
   return {

@@ -64,8 +64,8 @@ class SharedTransitRefreshStore {
       session.state.buttonText = '갱신 중';
       session.state.buttonTitle = '실시간 정보를 불러오는 중입니다...';
     } else if (session.state.status === 'paused') {
-      session.state.buttonText = '갱신';
-      session.state.buttonTitle = '자동 갱신 일시정지 (클릭하여 재개)';
+      session.state.buttonText = '재개';
+      session.state.buttonTitle = '자동 갱신 일시정지됨 (클릭하여 다시 갱신)';
     } else if (session.state.status === 'idle') {
       session.state.buttonText = '갱신';
       session.state.buttonTitle = '클릭하여 실시간 정보 갱신';
@@ -229,15 +229,20 @@ class SharedTransitRefreshStore {
       }
     }, 2000);
 
-    // 등록된 모든 리프레시 핸들러 실행 (단 1개만 실행해도 됨)
+    // 등록된 모든 리프레시 핸들러 안전 병렬 실행 (예외 격리)
     const handlers = Array.from(session.onRefreshHandlers);
-    if (handlers.length > 0) {
+    handlers.forEach((handler) => {
       try {
-        handlers[0]();
+        const result = handler();
+        if (result instanceof Promise) {
+          result.catch((err) => {
+            console.warn('[sharedTransitRefreshStore] 비동기 리프레시 핸들러 실패:', err);
+          });
+        }
       } catch (err) {
-        console.warn('[sharedTransitRefreshStore] 리프레시 핸들러 실행 실패:', err);
+        console.warn('[sharedTransitRefreshStore] 동기 리프레시 핸들러 실행 실패:', err);
       }
-    }
+    });
 
     if (!session.timer) {
       this.startTimer(key);

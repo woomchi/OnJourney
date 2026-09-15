@@ -7,6 +7,7 @@ import { useRealtimeSubway } from '@/hooks/useRealtimeSubway';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useJourneyStore } from '@/stores/journey-store';
 import { resolveSubwayNameForApi } from '@/lib/constants/subwayLineMap';
+import { getSubwayRefreshSharedKey } from '@/lib/transit/transitSharedKey';
 
 export interface SegmentSubwayRealtimeChipProps {
   stationName?: string;
@@ -53,11 +54,15 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     enabled: Boolean(cleanStationName && !isFuture),
   });
 
-  const sharedKey = cleanStationName
-    ? `subway:${cleanStationName}:${wayCode || ''}:${subwayId || ''}:${destination || ''}:${headsign || ''}`
-    : undefined;
+  const sharedKey = getSubwayRefreshSharedKey({
+    stationName: cleanStationName,
+    wayCode,
+    subwayId,
+    destination,
+    headsign,
+  });
 
-  const { buttonText, buttonTitle, start, isLoading: isRefreshLoading } = useAutoRefresh({
+  const { status: refreshStatus, buttonText, buttonTitle, start, isLoading: isRefreshLoading } = useAutoRefresh({
     intervalSeconds: 15,
     maxRefreshCount: 3,
     onRefresh: refetch,
@@ -119,6 +124,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   if (!cleanStationName) return null;
 
   const renderRefreshButton = () => {
+    const isPaused = refreshStatus === 'paused';
+
     return (
       <button
         type="button"
@@ -127,19 +134,31 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
         disabled={isRefreshLoading || isFetching}
         title={buttonTitle}
         className={clsx(
-          'inline-flex items-center justify-center w-[70px] min-w-[70px] h-[20px] min-h-[20px] max-h-[20px] gap-1 px-2 py-0.5 rounded-full bg-white text-zinc-700 font-semibold border border-zinc-200/90 shadow-2xs shrink-0 text-[10px] transition-all',
+          'inline-flex items-center justify-center w-[70px] min-w-[70px] h-[20px] min-h-[20px] max-h-[20px] gap-1 px-2 py-0.5 rounded-full font-semibold border shadow-2xs shrink-0 text-[10px] transition-all',
+          isPaused
+            ? 'bg-amber-50/90 border-amber-300 text-amber-800 hover:bg-amber-100/90 cursor-pointer active:scale-95'
+            : 'bg-white border-zinc-200/90 text-zinc-700',
           isRefreshLoading
             ? 'opacity-90 cursor-wait'
-            : 'hover:bg-zinc-50 cursor-pointer active:scale-95'
+            : (!isPaused ? 'hover:bg-zinc-50 cursor-pointer active:scale-95' : '')
         )}
       >
         <RefreshCw
           className={clsx(
-            'w-3 h-3 text-zinc-500 shrink-0',
-            isRefreshLoading ? 'animate-spin-fast text-blue-600' : 'transition-transform duration-300'
+            'w-3 h-3 shrink-0',
+            isRefreshLoading
+              ? 'animate-spin-fast text-blue-600'
+              : isPaused
+                ? 'text-amber-600'
+                : 'text-zinc-500 transition-transform duration-300'
           )}
         />
-        <span className="tabular-nums font-semibold text-[10px] text-zinc-700 whitespace-nowrap">
+        <span
+          className={clsx(
+            'tabular-nums font-semibold text-[10px] whitespace-nowrap',
+            isPaused ? 'text-amber-800 font-bold' : 'text-zinc-700'
+          )}
+        >
           {buttonText}
         </span>
       </button>

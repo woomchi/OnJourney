@@ -65,3 +65,7 @@ export const CACHE_TTL_SECONDS = {
   daejeon: 15,
   default: 20,
 };
+
+/** 경기도 9자리 버스 정류소 ID 접두사 (20: 수원, 21: 성남, 22: 의정부, 23: 안양, 24: 부천 등) */
+export const GYEONGGI_STATION_ID_PREFIXES = ['20', '21', '22', '23', '24'] as const;
+

@@ -6,6 +6,7 @@ import { MergeService } from './MergeService';
 import { TagoBusService } from './TagoBusService';
 import { NormalizedRealtimeData } from '@/types/realtimeTransit';
 import { resolveBusRegion, resolveTagoCode } from '@/lib/utils/busRegionUtils';
+import { GYEONGGI_STATION_ID_PREFIXES } from '@/constants/transit';
 
 export interface GetBusArrivalsParams {
   region: string;
@@ -64,12 +65,7 @@ export class RealtimeTransitService {
       resolvedCityCode = '25';
     } else if (
       upperStationId.startsWith('GGB') ||
-      (pureId.length === 9 &&
-        (pureId.startsWith('20') ||
-          pureId.startsWith('21') ||
-          pureId.startsWith('22') ||
-          pureId.startsWith('23') ||
-          pureId.startsWith('24')))
+      (pureId.length === 9 && GYEONGGI_STATION_ID_PREFIXES.some((prefix) => pureId.startsWith(prefix)))
     ) {
       normalizedRegion = 'gyeonggi';
       resolvedCityCode = '31';

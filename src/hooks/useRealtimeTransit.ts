@@ -26,8 +26,14 @@ export function useRealtimeTransit({
   enabled = true,
   refetchInterval = false,
 }: UseRealtimeTransitOptions) {
+  // 특수 ID('auto', 'none', '_' 또는 숫자가 없는 ID)인 경우에만 좌표 기반 역조회가 필요하므로 queryKey에 좌표 포함
+  // 미세한 GPS 오차(소수점 5~6자리)로 인한 캐시 파편화 방지를 위해 약 11m 해상도(소수점 4자리)로 정규화
+  const isSpecialId = !stationId || stationId === 'auto' || stationId === 'none' || stationId === '_' || !/[0-9]/.test(stationId);
+  const normalizedLat = isSpecialId && lat !== undefined ? Number(lat.toFixed(4)) : undefined;
+  const normalizedLng = isSpecialId && lng !== undefined ? Number(lng.toFixed(4)) : undefined;
+
   const query = useQuery({
-    queryKey: ['realtimeBus', region, stationId, stationName, cityCode, destination, headsign, lat, lng],
+    queryKey: ['realtimeBus', region, stationId, stationName, cityCode, destination, headsign, normalizedLat, normalizedLng],
     queryFn: async (): Promise<NormalizedRealtimeData> => {
       const params = new URLSearchParams();
       if (stationName) params.append('stationName', stationName);

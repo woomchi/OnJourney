@@ -178,4 +178,66 @@ describe('useRealtimeTransit query behavior', () => {
       })
     ).rejects.toThrow('aborted due to timeout');
   });
+
+  describe('Q-3 queryKey normalization & cache reuse', () => {
+    // useRealtimeTransit 내부의 queryKey 생성 로직과 동일
+    const computeBusQueryKey = (
+      region: string,
+      stationId: string,
+      stationName?: string,
+      cityCode?: string,
+      destination?: string,
+      headsign?: string,
+      lat?: number,
+      lng?: number
+    ) => {
+      const isSpecialId =
+        !stationId ||
+        stationId === 'auto' ||
+        stationId === 'none' ||
+        stationId === '_' ||
+        !/[0-9]/.test(stationId);
+      const normalizedLat = isSpecialId && lat !== undefined ? Number(lat.toFixed(4)) : undefined;
+      const normalizedLng = isSpecialId && lng !== undefined ? Number(lng.toFixed(4)) : undefined;
+
+      return [
+        'realtimeBus',
+        region,
+        stationId,
+        stationName,
+        cityCode,
+        destination,
+        headsign,
+        normalizedLat,
+        normalizedLng,
+      ];
+    };
+
+    it('유효한 stationId가 있을 때 좌표(lat/lng)가 미세하게 달라도 동일한 queryKey가 생성되어야 한다', () => {
+      const key1 = computeBusQueryKey('gyeonggi', '228000713', '판교역', undefined, undefined, undefined, 37.394812, 127.111923);
+      const key2 = computeBusQueryKey('gyeonggi', '228000713', '판교역', undefined, undefined, undefined, 37.394888, 127.111999);
+
+      // 좌표가 undefined로 정규화되어 동일한 queryKey를 가짐
+      expect(key1).toEqual(key2);
+      expect(key1[7]).toBeUndefined();
+      expect(key1[8]).toBeUndefined();
+    });
+
+    it('가상 stationId("auto")일 때 11m 이내(소수점 4자리 이하)의 미세 좌표 변동은 동일한 queryKey로 통합되어야 한다', () => {
+      const key1 = computeBusQueryKey('tago', 'auto', '정류소', undefined, undefined, undefined, 37.394812, 127.111923);
+      const key2 = computeBusQueryKey('tago', 'auto', '정류소', undefined, undefined, undefined, 37.394849, 127.111941);
+
+      // 둘 다 소수점 4자리(37.3948, 127.1119)로 정규화되어 동일한 queryKey를 가짐
+      expect(key1).toEqual(key2);
+      expect(key1[7]).toBe(37.3948);
+      expect(key1[8]).toBe(127.1119);
+    });
+
+    it('가상 stationId("auto")일 때 11m 이상 차이나는 좌표는 다른 queryKey가 생성되어야 한다', () => {
+      const key1 = computeBusQueryKey('tago', 'auto', '정류소', undefined, undefined, undefined, 37.3948, 127.1119);
+      const key2 = computeBusQueryKey('tago', 'auto', '정류소', undefined, undefined, undefined, 37.4001, 127.1205);
+
+      expect(key1).not.toEqual(key2);
+    });
+  });
 });

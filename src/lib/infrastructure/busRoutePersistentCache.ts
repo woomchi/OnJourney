@@ -41,10 +41,12 @@ export interface HydratedCachedBusRoute {
 
 const CACHE_DIR = path.join(process.cwd(), 'data', 'cache', 'bus-routes');
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30일 영구 수준 캐시
+const CACHE_VERSION = 'v2';
 
-// 안전한 파일명 생성 (특수문자 치환)
+// 안전한 파일명 생성 (특수문자 치환 및 버전 프리픽스)
 function sanitizeKey(key: string): string {
-  return key.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const safe = key.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  return `${CACHE_VERSION}_${safe}`;
 }
 
 /**
@@ -137,6 +139,22 @@ export class BusRoutePersistentCache {
       await fs.promises.writeFile(filePath, JSON.stringify(persistent), 'utf-8');
     } catch (e: any) {
       console.warn('[BusRoutePersistentCache] 파일 캐시 저장 실패:', e?.message);
+    }
+  }
+
+  /**
+   * 영속 캐시에서 특정 키의 노선 데이터 삭제 (무효화)
+   */
+  public static async delete(key: string): Promise<void> {
+    const cleanKey = sanitizeKey(key);
+    this.memoryCache.delete(cleanKey);
+    try {
+      const filePath = path.join(CACHE_DIR, `${cleanKey}.json`);
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath);
+      }
+    } catch (e: any) {
+      console.warn('[BusRoutePersistentCache] 파일 캐시 삭제 실패:', e?.message);
     }
   }
 }

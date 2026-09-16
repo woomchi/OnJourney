@@ -193,7 +193,8 @@ export class TagoBusService {
     cityCode: string,
     routeNo: string
   ): Promise<string[]> {
-    const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
+    const rawKey = process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
     if (!apiKey || !routeNo) return [];
 
     const cleanNo = routeNo.trim();
@@ -273,7 +274,8 @@ export class TagoBusService {
     turningStationSeq?: number;
     turningStationName?: string;
   } | null> {
-    const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
+    const rawKey = process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
     if (!apiKey || !routeId) return null;
 
     try {
@@ -416,8 +418,9 @@ export class TagoBusService {
     lat,
     lng,
   }: FetchTagoParams): Promise<NormalizedRealtimeData> {
-    const apiKey =
-      process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
+    const rawKey =
+      process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
 
     // API 키가 없거나 미설정된 경우 Mock 데이터 폴백
     if (!apiKey) {
@@ -615,7 +618,8 @@ export class TagoBusService {
     routeId: string,
     cityCode?: string
   ): Promise<Array<{ vehicleno?: string; nodeid?: string; nodenm?: string; nodeord?: number; gpslati?: number; gpslong?: number }> | null> {
-    const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
+    const rawKey = process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
     if (!apiKey || !routeId) return null;
 
     try {

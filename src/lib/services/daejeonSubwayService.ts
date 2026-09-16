@@ -115,9 +115,9 @@ function getSafeApiKey(): string {
   const rawKey = (
     env.DAEJEON_SUBWAY_API_KEY ||
     env.REAL_TIME_BUS_DAEJEON_API_KEY ||
+    env.REAL_TIME_BUS_TAGO_API_KEY ||
     env.DATA_GO_KR_API_KEY ||
     env.TAGO_API_KEY ||
-    env.REAL_TIME_BUS_TAGO_API_KEY ||
     env.REAL_TIME_BUS_API_KEY ||
     ''
   ).trim().replace(/^["']|["']$/g, '');

@@ -91,9 +91,10 @@ export class GyeonggiBusService {
     stationId: string,
     stationName: string = '경기 정류소'
   ): Promise<NormalizedRealtimeData> {
-    const apiKey =
-      process.env.GYEONGGI_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY;
+    const rawKey =
+      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
+      process.env.GYEONGGI_BUS_API_KEY;
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
 
     if (!apiKey) {
       return this.getMockData(stationId, stationName);
@@ -254,9 +255,10 @@ export class GyeonggiBusService {
   public static async getBusLocationList(
     routeId: string
   ): Promise<GyeonggiBusLocationItem[] | null> {
-    const apiKey =
-      process.env.GYEONGGI_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY;
+    const rawKey =
+      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
+      process.env.GYEONGGI_BUS_API_KEY;
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
 
     if (!apiKey || !routeId) {
       return null;
@@ -369,9 +371,10 @@ export class GyeonggiBusService {
     const cached = GYEONGGI_ROUTE_LIST_CACHE.get(cleanKeyword);
     if (cached) return cached;
 
-    const apiKey =
-      process.env.GYEONGGI_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY;
+    const rawKey =
+      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
+      process.env.GYEONGGI_BUS_API_KEY;
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
 
     if (!apiKey) return null;
 
@@ -568,9 +571,10 @@ export class GyeonggiBusService {
     const cached = GYEONGGI_ROUTE_STATION_CACHE.get(cleanRouteId);
     if (cached) return cached;
 
-    const apiKey =
-      process.env.GYEONGGI_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY;
+    const rawKey =
+      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
+      process.env.GYEONGGI_BUS_API_KEY;
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
 
     if (!apiKey) return null;
 

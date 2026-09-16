@@ -22,10 +22,13 @@ export class IncheonBusService {
     stationId: string,
     stationName: string = '인천 정류소'
   ): Promise<NormalizedRealtimeData> {
-    const apiKey =
+    const rawKey =
       process.env.REAL_TIME_BUS_INCHEON_API_KEY ||
+      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
       process.env.REAL_TIME_BUS_API_KEY ||
       process.env.TAGO_API_KEY;
+
+    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
 
     if (!apiKey) {
       return this.getFallbackData(stationId, stationName, '인천 버스 API 키가 설정되지 않았습니다.');
@@ -33,17 +36,17 @@ export class IncheonBusService {
 
     try {
       const cleanStationId = stationId.replace(/^(ICB|INB|IC|IN)/i, '').trim();
-      const serviceKey = apiKey.trim();
+      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey) : apiKey;
+      const keyParam = encodeURIComponent(rawServiceKey);
 
       const params = new URLSearchParams({
-        serviceKey,
         bstopId: cleanStationId,
         pageNo: '1',
         numOfRows: '50',
         _type: 'json',
       });
 
-      const requestUrl = `${this.API_URL}?${params.toString()}`;
+      const requestUrl = `${this.API_URL}?serviceKey=${keyParam}&${params.toString()}`;
       const res = await fetch(requestUrl, {
         method: 'GET',
         signal: AbortSignal.timeout(3500),

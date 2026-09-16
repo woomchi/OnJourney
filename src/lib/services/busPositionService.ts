@@ -54,6 +54,19 @@ const BUS_ROUTE_CACHE = new LruTtlCache<string, CachedBusRoute>({
   defaultTtlMs: 60 * 60 * 1000, // 1시간
 });
 
+/**
+ * 반환 또는 캐시된 노선 데이터가 조회 대상 정류소(stationName)를 실제로 포함하는지 정합성을 검증합니다.
+ */
+function validateRouteContainsStation(routeData: CachedBusRoute | null, stationName?: string): boolean {
+  if (!routeData || !stationName) return true;
+  const cleanTarget = stationName.replace(/정류소$|역$/, '').trim();
+  if (cleanTarget.length < 2) return true;
+  return routeData.stations.some((st) => {
+    const cleanSt = (st.stationName || '').replace(/정류소$|역$/, '').trim();
+    return cleanSt.includes(cleanTarget) || cleanTarget.includes(cleanSt);
+  });
+}
+
 /** 실시간 버스 위치 캐시 (TTL: 30초, 최대 100개) */
 interface CachedBusPositions {
   positions: BusPosition[];
@@ -416,7 +429,13 @@ export class BusPositionService {
       : null;
 
     let targetGgbRouteId = ggbRouteId;
-    if (!targetGgbRouteId && (params.resolvedCityCode === '31' || params.resolvedCityCode?.startsWith('31') || !params.routeId)) {
+    const isGyeonggiRegion =
+      params.resolvedCityCode === '31' ||
+      params.resolvedCityCode?.startsWith('31') ||
+      params.cityCode === '31' ||
+      String(params.cityCode).startsWith('31');
+
+    if (!targetGgbRouteId && isGyeonggiRegion) {
       const best = await GyeonggiBusService.findBestRoute({
         busNo: params.busNo,
         stationName: params.stationName,
@@ -432,25 +451,33 @@ export class BusPositionService {
     }
 
     const cleanStationKey = params.stationName ? params.stationName.replace(/정류소$|역$/, '').trim() : '';
+    const cityPrefix = params.resolvedCityCode || params.cityCode || '11';
     const primaryKey = targetGgbRouteId
       ? `route:GGB${targetGgbRouteId}`
       : params.routeId
-      ? `route:${params.routeId}`
+      ? `route:${cityPrefix}:${params.routeId}`
       : params.busId
       ? `id:${params.busId}`
-      : `no:${params.busNo}:${cleanStationKey || params.cityCode || '11'}`;
+      : `no:${cityPrefix}:${params.busNo}:${cleanStationKey}`;
 
-    // 1. 인메모리 캐시 1차 확인
+    // 1. 인메모리 캐시 1차 확인 (정합성 검증)
     const memCached = BUS_ROUTE_CACHE.get(primaryKey);
     if (memCached) {
-      return memCached;
+      if (validateRouteContainsStation(memCached, params.stationName)) {
+        return memCached;
+      }
+      BUS_ROUTE_CACHE.delete(primaryKey);
     }
 
-    // 2. 영속 캐시(로컬 파일 시스템 / DB) 2차 확인
+    // 2. 영속 캐시(로컬 파일 시스템 / DB) 2차 확인 (정합성 검증)
     const persistentCached = await BusRoutePersistentCache.get(primaryKey);
     if (persistentCached) {
-      BUS_ROUTE_CACHE.set(primaryKey, persistentCached);
-      return persistentCached;
+      if (validateRouteContainsStation(persistentCached, params.stationName)) {
+        BUS_ROUTE_CACHE.set(primaryKey, persistentCached);
+        return persistentCached;
+      }
+      // 정합성 불일치 오염 캐시 무효화
+      await BusRoutePersistentCache.delete(primaryKey).catch(() => {});
     }
 
     if (targetGgbRouteId) {
@@ -465,9 +492,11 @@ export class BusPositionService {
           turningStationName: ggbRes.turningStationName,
         });
 
-        BUS_ROUTE_CACHE.set(primaryKey, routeData);
-        await BusRoutePersistentCache.set(primaryKey, routeData);
-        return routeData;
+        if (validateRouteContainsStation(routeData, params.stationName)) {
+          BUS_ROUTE_CACHE.set(primaryKey, routeData);
+          await BusRoutePersistentCache.set(primaryKey, routeData);
+          return routeData;
+        }
       }
     }
 
@@ -488,9 +517,11 @@ export class BusPositionService {
           turningStationName: tagoRes.turningStationName,
         });
 
-        BUS_ROUTE_CACHE.set(primaryKey, routeData);
-        await BusRoutePersistentCache.set(primaryKey, routeData);
-        return routeData;
+        if (validateRouteContainsStation(routeData, params.stationName)) {
+          BUS_ROUTE_CACHE.set(primaryKey, routeData);
+          await BusRoutePersistentCache.set(primaryKey, routeData);
+          return routeData;
+        }
       }
     }
 
@@ -503,20 +534,33 @@ export class BusPositionService {
 
       // busID가 없는 경우 searchBusLane 1회만 시도
       if (!busID) {
-        const odsayCid = resolveOdsayCid(params.cityCode);
+        const odsayCid = resolveOdsayCid(params.cityCode || params.resolvedCityCode);
         const searchRes = await OdsayAdapter.fetchBusLane(
           params.rawBusNo || params.busNo,
           odsayCid
         ).catch(() => null);
 
-        const lanes = searchRes?.result?.lane;
-        if (Array.isArray(lanes) && lanes.length > 0) {
-          const exact = lanes.find(
-            (l: any) => cleanBusNumber(l.busNo) === params.busNo
-          ) || lanes[0];
-          busID = String(exact.busID);
-        } else if (lanes?.busID) {
-          busID = String(lanes.busID);
+        const rawLanes = searchRes?.result?.lane;
+        const lanes: any[] = Array.isArray(rawLanes) ? rawLanes : rawLanes?.busID ? [rawLanes] : [];
+
+        if (lanes.length > 0) {
+          const targetCleanNo = cleanBusNumber(params.busNo);
+          // 1) 노선 번호 완전 일치 필터링
+          const exactNumberLanes = lanes.filter(
+            (l: any) => cleanBusNumber(l.busNo) === targetCleanNo
+          );
+
+          if (exactNumberLanes.length === 1) {
+            busID = String(exactNumberLanes[0].busID);
+          } else if (exactNumberLanes.length > 1) {
+            // 정류소명이나 방향과 매칭 시도
+            const cleanStation = (params.stationName || '').replace(/정류소$|역$/, '').trim();
+            const matched = exactNumberLanes.find((l: any) => {
+              const busInfo = `${l.busCityName || ''} ${l.busFirstStationName || ''} ${l.busLastStationName || ''} ${l.busDestination || ''}`;
+              return cleanStation && busInfo.includes(cleanStation);
+            });
+            busID = String((matched || exactNumberLanes[0]).busID);
+          }
         }
       }
 
@@ -549,9 +593,11 @@ export class BusPositionService {
             rawStations,
           });
 
-          BUS_ROUTE_CACHE.set(primaryKey, routeData);
-          await BusRoutePersistentCache.set(primaryKey, routeData);
-          return routeData;
+          if (validateRouteContainsStation(routeData, params.stationName)) {
+            BUS_ROUTE_CACHE.set(primaryKey, routeData);
+            await BusRoutePersistentCache.set(primaryKey, routeData);
+            return routeData;
+          }
         }
       }
     } catch (err: any) {

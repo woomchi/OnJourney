@@ -40,7 +40,8 @@ export class RealtimeTransitService {
     // 0-0단계: stationId가 비어있거나 가상 ID('auto', 'none', '_')인 경우 좌표/정류소명 기반 공공 정류소 스마트 역조회
     const isSpecialId = !stationId || stationId === 'auto' || stationId === 'none' || stationId === '_' || !/[0-9]/.test(stationId);
     if (isSpecialId && lat && lng) {
-      const apiKey = process.env.TAGO_API_KEY || process.env.REAL_TIME_BUS_TAGO_API_KEY;
+      const rawKey = process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
+      const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
       if (apiKey) {
         try {
           const coordsInfo = await TagoBusService.lookupTagoNodeIdByCoords(lat, lng, stationName, apiKey.trim());

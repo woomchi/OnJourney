@@ -125,7 +125,7 @@ export function resolveOdsayCid(cityCode?: string | number): string {
   if (codeStr === '11' || codeStr === '1000' || codeStr === 'seoul') return '1000';
   if (codeStr === '21' || codeStr === '7000' || codeStr === 'busan') return '7000';
   if (codeStr === '22' || codeStr === '4000' || codeStr === 'daegu') return '4000';
-  if (codeStr === '23' || codeStr === 'incheon') return '1040';
+  if (codeStr === '23' || codeStr === 'incheon') return '1000';
   if (codeStr === '24' || codeStr === '5000' || codeStr === 'gwangju') return '5000';
   if (codeStr === '25' || codeStr === '3000' || codeStr === '6000' || codeStr === 'daejeon') return '3000';
   if (codeStr === '26' || codeStr === '8000' || codeStr === 'ulsan') return '8000';

@@ -36,7 +36,6 @@ export interface HydratedCachedBusRoute {
   stationIndexMap: Map<string, number>;
   upStationIndexMap: Map<string, number>;
   downStationIndexMap: Map<string, number>;
-  stationIndexListMap: Map<string, number[]>;
 }
 
 const CACHE_DIR = path.join(process.cwd(), 'data', 'cache', 'bus-routes');
@@ -60,8 +59,9 @@ export class BusRoutePersistentCache {
       if (!fs.existsSync(CACHE_DIR)) {
         fs.mkdirSync(CACHE_DIR, { recursive: true });
       }
-    } catch (e: any) {
-      console.warn('[BusRoutePersistentCache] 디렉토리 생성 경고:', e?.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[BusRoutePersistentCache] 디렉토리 생성 경고:', msg);
     }
   }
 
@@ -90,14 +90,14 @@ export class BusRoutePersistentCache {
             stationIndexMap: new Map(parsed.stationIndexMap || []),
             upStationIndexMap: new Map(parsed.upStationIndexMap || []),
             downStationIndexMap: new Map(parsed.downStationIndexMap || []),
-            stationIndexListMap: new Map(parsed.stationIndexListMap || []),
           };
           this.memoryCache.set(cleanKey, { data: hydrated, cachedAt: parsed.cachedAt });
           return hydrated;
         }
       }
-    } catch (e: any) {
-      console.warn('[BusRoutePersistentCache] 파일 캐시 읽기 실패:', e?.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[BusRoutePersistentCache] 파일 캐시 읽기 실패:', msg);
     }
 
     return null;
@@ -131,14 +131,14 @@ export class BusRoutePersistentCache {
         stationIndexMap: Array.from(data.stationIndexMap.entries()),
         upStationIndexMap: Array.from(data.upStationIndexMap.entries()),
         downStationIndexMap: Array.from(data.downStationIndexMap.entries()),
-        stationIndexListMap: Array.from(data.stationIndexListMap.entries()),
         cachedAt: now,
       };
 
       const filePath = path.join(CACHE_DIR, `${cleanKey}.json`);
       await fs.promises.writeFile(filePath, JSON.stringify(persistent), 'utf-8');
-    } catch (e: any) {
-      console.warn('[BusRoutePersistentCache] 파일 캐시 저장 실패:', e?.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[BusRoutePersistentCache] 파일 캐시 저장 실패:', msg);
     }
   }
 
@@ -153,8 +153,9 @@ export class BusRoutePersistentCache {
       if (fs.existsSync(filePath)) {
         await fs.promises.unlink(filePath);
       }
-    } catch (e: any) {
-      console.warn('[BusRoutePersistentCache] 파일 캐시 삭제 실패:', e?.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[BusRoutePersistentCache] 파일 캐시 삭제 실패:', msg);
     }
   }
 }

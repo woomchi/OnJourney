@@ -9,6 +9,7 @@ import { BottomSheetFloatingButtonsTarget } from '@/components/common/BottomShee
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useJourneyStore } from '@/stores/journey-store';
 import { BusPosition, BusLineStation, BusLineMapTarget } from '@/types/journey';
+import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
 
 export interface BusLineMapPanelProps {
   isOpen: boolean;
@@ -209,12 +210,14 @@ function isTargetStationMatch(
 function findBestMatchingStationIndex(
   stations: BusLineStation[],
   targetStationId?: string,
-  rawTargetName?: string
+  rawTargetName?: string,
+  lat?: number,
+  lng?: number
 ): number {
   if (!stations || stations.length === 0) return -1;
 
-  // 1순위: ID/ARS 완전 일치
-  if (targetStationId) {
+  // 1순위: ID/ARS 완전 일치 (단, 'auto' 및 비숫자 가상 ID 제외)
+  if (targetStationId && targetStationId !== 'auto' && /[0-9]/.test(targetStationId)) {
     const idIdx = stations.findIndex((st) => isTargetStationMatch(st, targetStationId, undefined));
     if (idIdx !== -1) return idIdx;
   }
@@ -229,6 +232,23 @@ function findBestMatchingStationIndex(
   // 3순위: 접두사 또는 포함 매칭
   const matchIdx = stations.findIndex((st) => isTargetStationMatch(st, targetStationId, rawTargetName));
   if (matchIdx !== -1) return matchIdx;
+
+  // 4순위: 사용자 좌표(lat, lng) 기반 최단 거리 정류소 근접 매칭 (최대 2km 이내)
+  if (lat && lng) {
+    let bestIdx = -1;
+    let minDistance = Infinity;
+    for (let i = 0; i < stations.length; i++) {
+      const st = stations[i];
+      if (st.lat && st.lng) {
+        const d = calculateHaversineDistanceMeter(lat, lng, st.lat, st.lng);
+        if (d < minDistance && d <= 2000) {
+          minDistance = d;
+          bestIdx = i;
+        }
+      }
+    }
+    if (bestIdx !== -1) return bestIdx;
+  }
 
   return -1;
 }
@@ -316,8 +336,8 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
 
     let finalIndex = -1;
 
-    // 1단계: stationId / ARS 번호 기반 완전 일치 탐색 (상행/하행 정류소는 고유 ID/ARS가 다름)
-    if (stationId) {
+    // 1단계: stationId / ARS 번호 기반 완전 일치 탐색 (상행/하행 정류소는 고유 ID/ARS가 다름, auto 가상 ID 제외)
+    if (stationId && stationId !== 'auto' && /[0-9]/.test(stationId)) {
       const pureTarget = String(stationId).replace(/[^0-9]/g, '').trim();
       const rawTarget = String(stationId).trim();
 
@@ -338,8 +358,8 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
       const dir0Stations = stations.slice(0, turningSeq);
       const dir1Stations = stations.slice(turningSeq - 1);
 
-      const match0 = findBestMatchingStationIndex(dir0Stations, stationId, stationName);
-      const match1 = findBestMatchingStationIndex(dir1Stations, stationId, stationName);
+      const match0 = findBestMatchingStationIndex(dir0Stations, stationId, stationName, target.lat, target.lng);
+      const match1 = findBestMatchingStationIndex(dir1Stations, stationId, stationName, target.lat, target.lng);
 
       // destination / headsign 기반 방향 힌트 검증
       const targetDirText = (destination || headsign || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
@@ -368,7 +388,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
       } else if (match0 !== -1 && match1 !== -1) {
         finalIndex = preferDir1 ? (turningSeq - 1) + match1 : match0;
       } else {
-        finalIndex = findBestMatchingStationIndex(stations, stationId, stationName);
+        finalIndex = findBestMatchingStationIndex(stations, stationId, stationName, target.lat, target.lng);
       }
     }
 

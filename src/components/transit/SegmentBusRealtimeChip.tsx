@@ -10,6 +10,7 @@ import { ArrivalBusItem } from '@/types/realtimeTransit';
 import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
 import { getBusRefreshSharedKey } from '@/lib/transit/transitSharedKey';
 import { BUS_LIVE_STATIONS_TTL_MS } from '@/constants/transit';
+import { inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 
 export interface SegmentBusRealtimeChipProps {
   region?: string;
@@ -168,21 +169,40 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   );
   const setBusLineMapTarget = useJourneyStore((state) => state.setBusLineMapTarget);
 
+  const inferredCoordRegion = useMemo(() => {
+    if (lat && lng) {
+      return inferRegionFromPlace({ lat, lng, place_name: stationName });
+    }
+    return undefined;
+  }, [lat, lng, stationName]);
+
+  const effectiveRegion = useMemo(() => {
+    if (stationId && String(stationId).toUpperCase().startsWith('GGB')) return 'gyeonggi';
+    if (cityCode === '31' || (cityCode && String(cityCode).startsWith('31'))) return 'gyeonggi';
+    if (inferredCoordRegion === 'gyeonggi') return 'gyeonggi';
+    if (region && region !== 'tago' && region !== 'seoul') return region;
+    if (inferredCoordRegion) return inferredCoordRegion;
+    return region || 'tago';
+  }, [region, stationId, cityCode, inferredCoordRegion]);
+
+  const effectiveStationId = stationId || (stationName && (lat || lng) ? 'auto' : '');
+  const effectiveCityCode = effectiveRegion === 'gyeonggi' ? (cityCode || '31') : cityCode;
+
   const { data, isLoading: isQueryLoading, isError, isFetching, refetch } = useRealtimeTransit({
-    region: region || 'tago',
-    stationId: String(stationId || ''),
+    region: effectiveRegion,
+    stationId: String(effectiveStationId),
     stationName,
-    cityCode,
+    cityCode: effectiveCityCode,
     destination,
     headsign,
     lat,
     lng,
-    enabled: Boolean(stationId && cleanBusNo && !isFuture),
+    enabled: Boolean(effectiveStationId && cleanBusNo && !isFuture),
   });
 
   const sharedKey = getBusRefreshSharedKey({
-    region,
-    stationId,
+    region: effectiveRegion,
+    stationId: effectiveStationId,
     stationName,
     cleanBusNo,
     lat,
@@ -312,14 +332,9 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
       resolvedRouteId = `GGB${String(resolvedRouteId).trim()}`;
     }
 
-    const effectiveRegion =
-      region ||
-      (stationId && String(stationId).toUpperCase().startsWith('GGB') ? 'gyeonggi' : undefined) ||
-      (cityCode === '31' || (cityCode && String(cityCode).startsWith('31')) ? 'gyeonggi' : undefined);
-
     setBusLineMapTarget({
       stationName: stationName || '정류소',
-      stationId: stationId ? String(stationId) : undefined,
+      stationId: effectiveStationId || undefined,
       destination: destination || matchedBus?.destination,
       headsign: headsign,
       busNo: cleanBusNo,
@@ -329,8 +344,8 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
       routeId: resolvedRouteId,
       busColor,
       busType: busType || matchedBus?.busType,
-      cityCode,
-      busCityCode: cityCode,
+      cityCode: effectiveCityCode,
+      busCityCode: effectiveCityCode,
       region: effectiveRegion,
       lat,
       lng,
@@ -341,7 +356,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     });
   };
 
-  if (!stationId || !cleanBusNo) return null;
+  if ((!stationId && !(stationName && (lat || lng))) || !cleanBusNo) return null;
 
   // 새로고침 버튼 렌더링 (상태별 디자인 및 텍스트 표현)
   const renderRefreshButton = () => {

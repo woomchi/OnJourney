@@ -61,8 +61,12 @@ export default function TransitGuideList({
         (stationName && (lat || lng) ? 'auto' : undefined);
       const stationId = rawStationId ? String(rawStationId) : undefined;
       const busNo = step.name;
-      const region = step.startRegion || (originPlace ? inferRegionFromPlace(originPlace) : undefined);
-      const cityCode = step.startCityCode || step.cityCode;
+      const region =
+        step.startRegion ||
+        (lat && lng
+          ? inferRegionFromPlace({ lat, lng, place_name: stationName })
+          : (originPlace ? inferRegionFromPlace(originPlace) : undefined));
+      const cityCode = step.startCityCode || step.cityCode || (region === 'gyeonggi' ? '31' : undefined);
       const odsayBusId = step.odsayBusId ? String(step.odsayBusId) : (step.busID ? String(step.busID) : undefined);
       const tagoRouteId = step.tagoRouteId ? String(step.tagoRouteId) : (step.busLocalBlID ? String(step.busLocalBlID) : undefined);
       const busId = odsayBusId || tagoRouteId;

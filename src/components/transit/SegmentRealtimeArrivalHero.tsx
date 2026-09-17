@@ -163,7 +163,7 @@ export function extractTransitParams(
     (busLat && busLng
       ? inferRegionFromPlace({ lat: busLat, lng: busLng, place_name: busStationName })
       : (originPlace ? inferRegionFromPlace(originPlace) : undefined));
-  const cityCode = step.startCityCode || step.cityCode;
+  const cityCode = step.startCityCode || step.cityCode || (inferredRegion === 'gyeonggi' ? '31' : undefined);
 
   // 지하철 노선명/식별자 정규화
   const normalizedSubwayId =

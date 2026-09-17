@@ -7,6 +7,7 @@ import { TagoBusService } from './TagoBusService';
 import { NormalizedRealtimeData } from '@/types/realtimeTransit';
 import { resolveBusRegion, resolveTagoCode } from '@/lib/utils/busRegionUtils';
 import { GYEONGGI_STATION_ID_PREFIXES } from '@/constants/transit';
+import { inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 
 export interface GetBusArrivalsParams {
   region: string;
@@ -48,6 +49,17 @@ export class RealtimeTransitService {
     let resolvedCityCode = cityCode;
     let effectiveStationId = stationId || '';
 
+    // 0-0-1단계: 좌표(lat, lng)가 주어졌을 때 권역 최우선 보정 (서울 오인 방지)
+    if (lat && lng) {
+      const coordRegion = inferRegionFromPlace({ lat, lng, place_name: stationName });
+      if (coordRegion && (normalizedRegion === 'seoul' || normalizedRegion === 'tago' || !region)) {
+        normalizedRegion = coordRegion;
+        if (coordRegion === 'gyeonggi' && !resolvedCityCode) {
+          resolvedCityCode = '31';
+        }
+      }
+    }
+
     // 0-0단계: stationId가 비어있거나 가상 ID('auto', 'none', '_')인 경우 좌표/정류소명 기반 공공 정류소 스마트 역조회
     const isSpecialId = !stationId || stationId === 'auto' || stationId === 'none' || stationId === '_' || !/[0-9]/.test(stationId);
     if (isSpecialId && lat && lng) {
@@ -58,6 +70,9 @@ export class RealtimeTransitService {
             effectiveStationId = coordsInfo.nodeId;
             if (coordsInfo.cityCode) {
               resolvedCityCode = coordsInfo.cityCode;
+              if (String(coordsInfo.cityCode).startsWith('31') || coordsInfo.nodeId.toUpperCase().startsWith('GGB')) {
+                normalizedRegion = 'gyeonggi';
+              }
             }
           }
         } catch (lookupErr: any) {
@@ -96,18 +111,21 @@ export class RealtimeTransitService {
 
     // 1단계: 경기도 전용 권역 (Primary: 경기도 버스도착정보 API -> Fallback: TAGO)
     if (normalizedRegion === 'gyeonggi' || normalizedRegion === '경기') {
-      try {
-        const ggResult = await GyeonggiBusService.getArrivalInfo(effectiveStationId, stationName);
-        if (ggResult && ggResult.nextArrivals.length > 0) {
-          return ggResult; // 경기도 1순위 데이터 즉시 반환
+      const hasValidNumericId = /[0-9]/.test(effectiveStationId);
+      if (hasValidNumericId) {
+        try {
+          const ggResult = await GyeonggiBusService.getArrivalInfo(effectiveStationId, stationName);
+          if (ggResult && ggResult.nextArrivals.length > 0) {
+            return ggResult; // 경기도 1순위 데이터 즉시 반환
+          }
+        } catch (err: any) {
+          console.warn(`[RealtimeTransitService] 경기도 1순위 API 호출 실패, TAGO 폴백 진행: ${err?.message}`);
         }
-      } catch (err: any) {
-        console.warn(`[RealtimeTransitService] 경기도 1순위 API 호출 실패, TAGO 폴백 진행: ${err?.message}`);
       }
 
-      // 경기도 API 결과 0건 또는 실패 시 TAGO로 폴백
+      // 경기도 API 결과 0건 또는 stationId 미식별 시 TAGO 스마트 노드 트리거로 폴백
       return TagoBusService.getArrivalInfoSmartNodeTrigger({
-        cityCode: resolvedCityCode,
+        cityCode: resolvedCityCode || '31',
         region: normalizedRegion,
         nodeId: effectiveStationId,
         stationName,
@@ -175,9 +193,29 @@ export class RealtimeTransitService {
     // 5단계: 서울 및 수도권 복합 권역 (GBIS 경기도 광역버스 + TAGO 서울/전국 버스 병렬 호출 및 머지)
     // 'tago'는 region 미지정 시 SegmentBusRealtimeChip이 내려주는 기본값이므로 서울 블록과 동일하게 처리
     if (normalizedRegion === 'seoul' || normalizedRegion === '서울' || normalizedRegion === 'tago' || !region) {
+      // 💡 [안전 가드] 좌표가 경기도 영역인 경우 서울 블록이 아닌 1단계 경기도 블록으로 리다이렉트
+      if (lat && lng) {
+        const checkRegion = inferRegionFromPlace({ lat, lng, place_name: stationName });
+        if (checkRegion === 'gyeonggi') {
+          return this.getBusArrivals({
+            region: 'gyeonggi',
+            stationId: effectiveStationId,
+            stationName,
+            cityCode: resolvedCityCode || '31',
+            lat,
+            lng,
+            destination,
+            headsign,
+          });
+        }
+      }
+
       try {
+        const hasValidNumericId = /[0-9]/.test(effectiveStationId);
         const [ggbSettled, tagoSettled] = await Promise.allSettled([
-          GyeonggiBusService.getArrivalInfo(effectiveStationId, stationName),
+          hasValidNumericId
+            ? GyeonggiBusService.getArrivalInfo(effectiveStationId, stationName)
+            : Promise.resolve(null),
           TagoBusService.getArrivalInfoSmartNodeTrigger({
             cityCode: resolvedCityCode || '11',
             region: normalizedRegion,

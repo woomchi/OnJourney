@@ -47,8 +47,12 @@ export function AlternativeRouteCard({
         firstBusStep.nodeId ||
         (busStationName && (busLat || busLng) ? 'auto' : undefined);
       const busNo = firstBusStep.name;
-      const busRegion = firstBusStep.startRegion || inferRegionFromPlace(originPlace);
-      const busCityCode = firstBusStep.startCityCode || firstBusStep.cityCode;
+      const busRegion =
+        firstBusStep.startRegion ||
+        (busLat && busLng
+          ? inferRegionFromPlace({ lat: busLat, lng: busLng, place_name: busStationName })
+          : inferRegionFromPlace(originPlace));
+      const busCityCode = firstBusStep.startCityCode || firstBusStep.cityCode || (busRegion === 'gyeonggi' ? '31' : undefined);
       const odsayBusId = firstBusStep.odsayBusId || firstBusStep.busID;
       const tagoRouteId = firstBusStep.tagoRouteId || firstBusStep.busLocalBlID;
       const busId = odsayBusId || tagoRouteId;
@@ -150,8 +154,12 @@ export function AlternativeRouteCard({
         firstBusStep.nodeId ||
         (busStationName && (busLat || busLng) ? 'auto' : undefined);
       const busNo = firstBusStep.name;
-      const busRegion = firstBusStep.startRegion || inferRegionFromPlace(originPlace);
-      const busCityCode = firstBusStep.startCityCode || firstBusStep.cityCode;
+      const busRegion =
+        firstBusStep.startRegion ||
+        (busLat && busLng
+          ? inferRegionFromPlace({ lat: busLat, lng: busLng, place_name: busStationName })
+          : inferRegionFromPlace(originPlace));
+      const busCityCode = firstBusStep.startCityCode || firstBusStep.cityCode || (busRegion === 'gyeonggi' ? '31' : undefined);
       const odsayBusId = firstBusStep.odsayBusId || firstBusStep.busID;
       const tagoRouteId = firstBusStep.tagoRouteId || firstBusStep.busLocalBlID;
       const busId = odsayBusId || tagoRouteId;

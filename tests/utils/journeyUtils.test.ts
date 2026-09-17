@@ -77,6 +77,20 @@ describe('journeyUtils', () => {
       expect(inferRegionFromPlace({ address: '성남시 분당구 판교역' })).toBe('gyeonggi');
     });
 
+    it('지명/주소에 경기도 키워드가 없어도 경기도 좌표이면 "gyeonggi"를 반환해야 한다', () => {
+      // 수원역 인근 좌표 (37.2659, 127.0000)
+      expect(inferRegionFromPlace({ lat: 37.2659, lng: 127.0000, place_name: '중간정류소' })).toBe('gyeonggi');
+      // 화성 동탄 인근 좌표 (37.2000, 127.0700)
+      expect(inferRegionFromPlace({ lat: 37.2000, lng: 127.0700, place_name: '어느정류소' })).toBe('gyeonggi');
+      // 고양 일산 인근 좌표 (37.6600, 126.7700)
+      expect(inferRegionFromPlace({ lat: 37.6600, lng: 126.7700, place_name: '버스정류장' })).toBe('gyeonggi');
+    });
+
+    it('서울 중심부 좌표는 "seoul"을 반환해야 한다', () => {
+      // 서울 시청 좌표 (37.5665, 126.9780)
+      expect(inferRegionFromPlace({ lat: 37.5665, lng: 126.9780, place_name: '서울시청' })).toBe('seoul');
+    });
+
     it('기본값은 "seoul"을 반환해야 한다', () => {
       expect(inferRegionFromPlace({ address: '서울특별시 중구 태평로' })).toBe('seoul');
       expect(inferRegionFromPlace(null)).toBe('seoul');

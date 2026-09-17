@@ -3,6 +3,8 @@ import type { KakaoPublicTrafficResponse, KakaoRoute, KakaoStep } from '@/types/
 import { getSubwayColor } from './transitColorUtils';
 import { BUS_COLORS } from '@/constants/colors';
 import { haversineDistance } from '../common/distanceUtils';
+import { inferRegionFromPlace } from '@/lib/utils/journeyUtils';
+import { TAGO_CITY_CODES } from '@/constants/transit';
 
 /**
  * 카카오 버스 타입별 색상 매핑 유틸
@@ -82,6 +84,13 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
 
   // 5. 타입별 특화 매핑
   if (stepType === 'BUS') {
+    const stepRegion = inferRegionFromPlace({
+      lat: startLat,
+      lng: startLng,
+      place_name: startName,
+    });
+    const stepCityCode = TAGO_CITY_CODES[stepRegion] || (stepRegion === 'gyeonggi' ? '31' : undefined);
+
     return {
       type: 'bus',
       name: vehicleName,
@@ -106,6 +115,9 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
       subPathOptions,
       headsign: properties.guidance,
       realtimeStationId: 'auto',
+      startRegion: stepRegion,
+      startCityCode: stepCityCode,
+      cityCode: stepCityCode,
     };
   }
 

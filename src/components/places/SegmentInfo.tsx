@@ -379,8 +379,12 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
   const targetBusHeadsign = targetBusStep?.headsign;
   const targetBusIntervalTime = targetBusStep?.intervalTime;
   const targetBusStartDateTime = targetBusStep?.startDateTime;
-  const inferredRegion = targetBusStep?.startRegion || inferRegionFromPlace(originPlace);
-  const targetCityCode = targetBusStep?.startCityCode || targetBusStep?.cityCode;
+  const inferredRegion =
+    targetBusStep?.startRegion ||
+    (targetBusLat && targetBusLng
+      ? inferRegionFromPlace({ lat: targetBusLat, lng: targetBusLng, place_name: targetBusStationName })
+      : inferRegionFromPlace(originPlace));
+  const targetCityCode = targetBusStep?.startCityCode || targetBusStep?.cityCode || (inferredRegion === 'gyeonggi' ? '31' : undefined);
 
   const getTransportIcon = (tType: string, steps: DirectionStep[] = []) => {
     if (tType === 'car' || tType === 'taxi') return <Car className="w-7 h-7" />;

@@ -279,7 +279,30 @@ export function inferRegionFromPlace(place?: any): string {
     if (lat >= 35.08 && lat <= 35.25 && lng >= 126.68 && lng <= 127.00) return 'gwangju';
     if (lat >= 35.40 && lat <= 35.65 && lng >= 129.15 && lng <= 129.45) return 'ulsan';
     if (lat >= 36.45 && lat <= 36.65 && lng >= 127.20 && lng <= 127.35) return 'sejong';
-    if (lat >= 37.35 && lat <= 37.65 && lng >= 126.5 && lng <= 126.85) return 'incheon';
+    if (lat >= 37.35 && lat <= 37.65 && lng >= 126.35 && lng <= 126.73) return 'incheon';
+
+    // 수도권 좌표 정밀 판별 (인천 제외 후 서울 핵심 영역 외 모든 수도권은 경기도로 판별)
+    if (lat >= 36.89 && lat <= 38.29 && lng >= 126.37 && lng <= 127.86) {
+      // 서울특별시 공식 행정 경계 정밀 판별
+      const isWithinSeoul = (() => {
+        if (lat < 37.428 || lat > 37.701 || lng < 126.764 || lng > 127.183) return false;
+        // 1. 북서부 (고양시 일산/덕양 접경): lat >= 37.58에서 lng < 126.86은 고양시
+        if (lat >= 37.58 && lng < 126.86) return false;
+        // 2. 남서부 (광명/안양 접경): lat < 37.47에서 lng < 126.88은 광명/안양/부천
+        if (lat < 37.47 && lng < 126.88) return false;
+        // 3. 북동부 (구리/남양주 접경): lat >= 37.60에서 lng > 127.13은 구리/남양주
+        if (lat >= 37.60 && lng > 127.13) return false;
+        // 4. 남동부 (성남 접경): lat < 37.46에서 lng > 127.12는 성남시
+        if (lat < 37.46 && lng > 127.12) return false;
+        // 5. 남부 (과천 접경): lat < 37.45 && lng 126.96~127.03은 과천시
+        if (lat < 37.45 && lng >= 126.96 && lng <= 127.03) return false;
+        return true;
+      })();
+
+      if (!isWithinSeoul) {
+        return 'gyeonggi';
+      }
+    }
   }
 
   return 'seoul';

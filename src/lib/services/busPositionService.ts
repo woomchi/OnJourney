@@ -14,6 +14,7 @@ import { GyeonggiBusService } from '@/lib/transit/GyeonggiBusService';
 import { RealtimeTransitService } from '@/lib/transit/RealtimeTransitService';
 import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
 import { cleanBusNumber, resolveBusRegion, resolveTagoCode, resolveOdsayCid } from '@/lib/utils/busRegionUtils';
+import { inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 import {
   BusLinePositionsData,
   BusLineStation,
@@ -87,7 +88,14 @@ export class BusPositionService {
     const rawBusNo = params.busNo.trim();
     const cleanNo = cleanBusNumber(rawBusNo);
     const resolvedCityCode = resolveTagoCode(params.cityCode);
-    const resolvedRegion = resolveBusRegion(params.cityCode || params.region);
+    const coordRegion = params.lat && params.lng
+      ? inferRegionFromPlace({ lat: params.lat, lng: params.lng, place_name: params.stationName })
+      : undefined;
+
+    let resolvedRegion = resolveBusRegion(params.cityCode || params.region);
+    if (coordRegion && (resolvedRegion === 'seoul' || !params.region)) {
+      resolvedRegion = coordRegion;
+    }
 
     // 1. ODsay 전용 5자리 busID와 TAGO 전용 routeId 분리
     const effectiveOdsayBusId =
@@ -106,6 +114,7 @@ export class BusPositionService {
     // 💡 [경기도 권역 전용 판별 및 routeId 조회]
     const isGyeonggiHint =
       resolvedRegion === 'gyeonggi' ||
+      coordRegion === 'gyeonggi' ||
       params.cityCode === '31' ||
       (params.cityCode && params.cityCode.startsWith('31')) ||
       params.region === 'gyeonggi' ||
@@ -114,14 +123,14 @@ export class BusPositionService {
       (effectiveTagoRouteId && String(effectiveTagoRouteId).toUpperCase().startsWith('GGB'));
 
     // 경기도 버스이거나 routeId가 없는 경우, 스마트 매칭(정류소명, 좌표, 목적지)을 통해 최적의 routeId 확정
-    if (!effectiveTagoRouteId && (isGyeonggiHint || cleanNo.includes('-') || !params.region)) {
+    if (!effectiveTagoRouteId && (isGyeonggiHint || cleanNo.includes('-') || !params.region || coordRegion === 'gyeonggi')) {
       try {
         const bestRoute = await GyeonggiBusService.findBestRoute({
           busNo: cleanNo,
           stationName: params.stationName,
           destination: params.destination,
           headsign: params.headsign,
-          cityCode: params.cityCode,
+          cityCode: params.cityCode || (isGyeonggiHint ? '31' : undefined),
           lat: params.lat,
           lng: params.lng,
         });
@@ -139,10 +148,10 @@ export class BusPositionService {
     if (!effectiveTagoRouteId && (params.stationId || params.stationName)) {
       try {
         const arrivalData = await RealtimeTransitService.getBusArrivals({
-          region: params.region || 'seoul',
+          region: isGyeonggiHint ? 'gyeonggi' : (params.region || 'seoul'),
           stationId: params.stationId || 'auto',
           stationName: params.stationName,
-          cityCode: params.cityCode,
+          cityCode: params.cityCode || (isGyeonggiHint ? '31' : undefined),
           lat: params.lat,
           lng: params.lng,
         });
@@ -433,7 +442,8 @@ export class BusPositionService {
       params.resolvedCityCode === '31' ||
       params.resolvedCityCode?.startsWith('31') ||
       params.cityCode === '31' ||
-      String(params.cityCode).startsWith('31');
+      String(params.cityCode).startsWith('31') ||
+      (params.lat && params.lng && inferRegionFromPlace({ lat: params.lat, lng: params.lng, place_name: params.stationName }) === 'gyeonggi');
 
     if (!targetGgbRouteId && isGyeonggiRegion) {
       const best = await GyeonggiBusService.findBestRoute({

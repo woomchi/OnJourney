@@ -29,20 +29,16 @@ export function MapFloatingControls({
     activeJourney,
     focusedSegment,
     alternativeSegment,
-    setFocusedSegment,
-    setFocusedStep,
-    setAlternativeSegment,
-    setFocusBounds,
+    busLineMapTarget,
+    subwayLineMapTarget,
     isDrawerMaximized,
   } = useJourneyStore(
     useShallow((s) => ({
       activeJourney: s.activeJourney,
       focusedSegment: s.focusedSegment,
       alternativeSegment: s.alternativeSegment,
-      setFocusedSegment: s.setFocusedSegment,
-      setFocusedStep: s.setFocusedStep,
-      setAlternativeSegment: s.setAlternativeSegment,
-      setFocusBounds: s.setFocusBounds,
+      busLineMapTarget: s.busLineMapTarget,
+      subwayLineMapTarget: s.subwayLineMapTarget,
       isDrawerMaximized: s.isDrawerMaximized,
     }))
   );
@@ -63,11 +59,33 @@ export function MapFloatingControls({
     }
 
     const findTarget = () => {
+      // 1순위: 버스/지하철 실시간 노선도 바텀 시트가 열려있는 경우 최우선 타겟팅
+      const isLineActive = !!busLineMapTarget || !!subwayLineMapTarget;
+      if (isLineActive) {
+        const lineTarget = document.getElementById('mobile-map-buttons-target-line');
+        if (lineTarget) {
+          setPortalTarget(lineTarget);
+          return;
+        }
+      }
+
+      // 2순위: 구간 상세 또는 대체 경로 패널이 활성화된 경우
       const isRouteActive = !!focusedSegment || !!alternativeSegment;
-      const target = isRouteActive
-        ? (document.getElementById('mobile-map-buttons-target-route') || document.getElementById('mobile-map-buttons-target'))
-        : (document.getElementById('mobile-map-buttons-target') || document.getElementById('mobile-map-buttons-target-route'));
-      setPortalTarget(target);
+      if (isRouteActive) {
+        const routeTarget = document.getElementById('mobile-map-buttons-target-route');
+        if (routeTarget) {
+          setPortalTarget(routeTarget);
+          return;
+        }
+      }
+
+      // 3순위: 기본 전체 여정 타임라인 바텀 시트 (또는 폴백)
+      const defaultTarget =
+        document.getElementById('mobile-map-buttons-target') ||
+        document.getElementById('mobile-map-buttons-target-route') ||
+        document.getElementById('mobile-map-buttons-target-line');
+
+      setPortalTarget(defaultTarget);
     };
 
     findTarget();
@@ -76,7 +94,7 @@ export function MapFloatingControls({
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => observer.disconnect();
-  }, [mounted, isMobile, focusedSegment, alternativeSegment]);
+  }, [mounted, isMobile, focusedSegment, alternativeSegment, busLineMapTarget, subwayLineMapTarget]);
 
   // Handle clicking "전체 여정 보기 / 해당 구간 전체 경로 보기"
   const handleFullJourneyClick = () => {

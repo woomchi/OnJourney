@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw, Train, ArrowDown, ArrowUp, Navigation } from 'luc
 import { clsx } from 'clsx';
 import { useSubwayLinePositions } from '@/hooks/useSubwayLinePositions';
 import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
+import { BottomSheetFloatingButtonsTarget } from '@/components/common/BottomSheetFloatingButtonsTarget';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { SubwayPosition, SubwayLineStation, SubwayLineMapTarget } from '@/types/journey';
 import { getBranchDataById, isTrainMatchingBranch } from '@/lib/data/subwayBranches';
@@ -1065,6 +1066,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         onClose={onClose}
         onExited={onExited}
       >
+        <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-line" />
         <div className="flex flex-col relative w-full h-full min-h-0 bg-white pb-6">
           {headerContent}
           {mainBodyContent}

@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useShallow } from 'zustand/react/shallow';
-import { CustomBottomSheet, useOptionalBottomSheet } from '@/components/common/CustomBottomSheet';
+import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
+import { BottomSheetFloatingButtonsTarget } from '@/components/common/BottomSheetFloatingButtonsTarget';
 import { BOTTOM_SHEET_SNAP } from '@/constants/layout';
-import { motion, useTransform, useMotionValue } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
 import { parseSnapVal } from '@/lib/utils/snapUtils';
@@ -26,22 +27,6 @@ interface AlternativeRoutePanelProps {
   onExited?: () => void;
 }
 
-const FloatingButtonsContainer = ({ altHeight }: { altHeight: number }) => {
-  const bottomSheet = useOptionalBottomSheet();
-  const fallbackY = useMotionValue(0);
-  const y = bottomSheet?.y || fallbackY;
-  const maxHeight = bottomSheet?.maxHeight ?? 800;
-  const opacity = useTransform(y, [-maxHeight + 160, -maxHeight + 40], [1, 0]);
-  const pointerEvents = useTransform(y, (latest: number) => (latest < -maxHeight + 60 ? 'none' : 'auto'));
-
-  return (
-    <motion.div
-      id="mobile-map-buttons-target-route"
-      className="absolute bottom-[100%] right-4 mb-4 flex flex-col gap-3 z-[2000] *:pointer-events-auto"
-      style={{ opacity, pointerEvents: pointerEvents as unknown as React.CSSProperties['pointerEvents'] }}
-    />
-  );
-};
 
 export default function AlternativeRoutePanel({
   originPlace,
@@ -273,7 +258,7 @@ export default function AlternativeRoutePanel({
           }}
           onExited={onExited}
         >
-          <FloatingButtonsContainer altHeight={altHeight} />
+          <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-route" />
           <div className="flex flex-col relative w-full h-full min-h-0 pb-[60px] bg-white">
             {headerContent}
             {listContent}

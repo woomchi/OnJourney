@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw, Bus, ArrowDown, ArrowUp, Navigation, Info } from 
 import { clsx } from 'clsx';
 import { useBusLinePositions } from '@/hooks/useBusLinePositions';
 import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
+import { BottomSheetFloatingButtonsTarget } from '@/components/common/BottomSheetFloatingButtonsTarget';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useJourneyStore } from '@/stores/journey-store';
 import { BusPosition, BusLineStation, BusLineMapTarget } from '@/types/journey';
@@ -1042,6 +1043,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
         onClose={onClose}
         onExited={onExited}
       >
+        <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-line" />
         <div className="flex flex-col relative w-full h-full min-h-0 bg-white pb-6">
           {headerContent}
           {listContent}

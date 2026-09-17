@@ -108,17 +108,16 @@ export function getDaejeonStationNum(stationName: string): string | null {
 }
 
 /**
- * 안전한 API 키 획득 (이중 인코딩 방지)
+ * 공공데이터포털 지하철 API 통합 인증키 획득 (대전/부산 공통)
+ * 1순위: SUBWAY_DATA_API_KEY
+ * 2순위: BUS_DATA_API_KEY (공공데이터포털 공통 키 Fallback)
  */
 function getSafeApiKey(): string {
   const env = process.env as Record<string, string | undefined>;
   const rawKey = (
+    env.SUBWAY_DATA_API_KEY ||
+    env.BUS_DATA_API_KEY ||
     env.REAL_TIME_BUS_API_KEY ||
-    env.DAEJEON_SUBWAY_API_KEY ||
-    env.DATA_GO_KR_API_KEY ||
-    env.REAL_TIME_BUS_DAEJEON_API_KEY ||
-    env.REAL_TIME_BUS_TAGO_API_KEY ||
-    env.TAGO_API_KEY ||
     ''
   ).trim().replace(/^["']|["']$/g, '');
 

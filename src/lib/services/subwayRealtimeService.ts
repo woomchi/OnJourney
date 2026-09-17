@@ -23,6 +23,7 @@ import type { SubwayArrival, SubwayPosition } from '@/types/journey';
 import { getStationArrivalsFromTotalCache } from './subwayTotalRealtimeService';
 import { fetchSubwayPositionsByLine } from './subwayPositionService';
 import { fetchDaejeonSubwayArrivals } from './daejeonSubwayService';
+import { fetchBusanSubwayArrivals } from './busanSubwayService';
 import { detectSubwayRegion } from './subwayRegionRouter';
 import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
 import { isMatchingSubwayId, resolveWayCode, resolvePositionDirection } from '@/lib/constants/subwayLineMap';
@@ -265,8 +266,21 @@ export async function fetchSubwayRealtime(
     return buildTimetableFallback(cleanStation, wayCode, subwayId);
   }
 
-  // 1-2. 부산 / 대구 / 광주 등 기타 지방 도시철도 (배차간격 Fallback)
-  if (region === 'busan' || region === 'daegu' || region === 'gwangju') {
+  // 1-2. 부산 도시철도 전용 분기 (공공데이터포털 GW 열차시각표 기반)
+  if (region === 'busan') {
+    try {
+      const busanArrivals = await fetchBusanSubwayArrivals(cleanStation, wayCode, subwayId);
+      if (busanArrivals && busanArrivals.length > 0) {
+        return busanArrivals;
+      }
+    } catch (e) {
+      console.warn(`[subwayRealtimeService] 부산 시각표 조회 실패 (${cleanStation}):`, e);
+    }
+    return buildTimetableFallback(cleanStation, wayCode, subwayId);
+  }
+
+  // 1-3. 대구 / 광주 등 기타 지방 도시철도 (배차간격 Fallback)
+  if (region === 'daegu' || region === 'gwangju') {
     return buildTimetableFallback(cleanStation, wayCode, subwayId);
   }
 

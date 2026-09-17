@@ -3,12 +3,13 @@ import { BusanBusService } from '@/lib/transit/BusanBusService';
 import { IncheonBusService } from '@/lib/transit/IncheonBusService';
 import { DaejeonBusService } from '@/lib/transit/DaejeonBusService';
 
-describe('버스 실시간 API 키 통합 검증 (REAL_TIME_BUS_API_KEY)', () => {
+describe('버스 실시간 API 키 통합 검증 (BUS_DATA_API_KEY)', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     vi.resetModules();
     process.env = { ...originalEnv };
+    delete process.env.BUS_DATA_API_KEY;
     delete process.env.REAL_TIME_BUS_API_KEY;
     delete process.env.REAL_TIME_BUS_TAGO_API_KEY;
     delete process.env.REAL_TIME_BUS_GYEONGGI_API_KEY;
@@ -36,8 +37,8 @@ describe('버스 실시간 API 키 통합 검증 (REAL_TIME_BUS_API_KEY)', () =>
     expect(daejeon.errorMessage).toBe('대전 버스 API 키가 설정되지 않았습니다.');
   });
 
-  it('통합 키 REAL_TIME_BUS_API_KEY만 설정되어 있어도 부산/인천/대전 서비스가 키를 인식하여 진입한다', async () => {
-    process.env.REAL_TIME_BUS_API_KEY = 'TEST_CONSOLIDATED_KEY';
+  it('통합 키 BUS_DATA_API_KEY만 설정되어 있어도 부산/인천/대전 서비스가 키를 인식하여 진입한다', async () => {
+    process.env.BUS_DATA_API_KEY = 'TEST_CONSOLIDATED_KEY';
 
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
       Promise.resolve(new Response('<response><header><resultCode>99</resultCode></header></response>', { status: 200 }))

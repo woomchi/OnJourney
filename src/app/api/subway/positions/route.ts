@@ -10,6 +10,10 @@ import {
   fetchDaejeonStationUpcomingTimetable,
   isDaejeonSubwayStation,
 } from '@/lib/services/daejeonSubwayService';
+import {
+  fetchBusanStationUpcomingTimetable,
+  isBusanSubwayStation,
+} from '@/lib/services/busanSubwayService';
 import { getSeoulTimetableList } from '@/lib/services/subway/seoulTimetableService';
 import { SubwayLinePositionsData } from '@/types/journey';
 
@@ -33,11 +37,14 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     validatedParams.stationName
   );
 
-  // 3. 시간표 리스트 조회 (대전 1호선 공공 API 또는 서울 1~9호선 공식 시간표)
+  // 3. 시간표 리스트 조회 (대전 1호선, 부산 1~4호선 또는 서울 1~9호선 공식 시간표)
   let timetable = undefined;
   const isDaejeon =
     subwayNm.includes('대전') ||
     (validatedParams.stationName && isDaejeonSubwayStation(validatedParams.stationName));
+  const isBusan =
+    subwayNm.includes('부산') ||
+    (validatedParams.stationName && isBusanSubwayStation(validatedParams.stationName));
 
   if (isDaejeon) {
     const targetStation = validatedParams.stationName || '대전역';
@@ -45,6 +52,13 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       timetable = await fetchDaejeonStationUpcomingTimetable(targetStation);
     } catch (e) {
       console.warn('[api/subway/positions] 대전 시간표 조회 실패:', e);
+    }
+  } else if (isBusan) {
+    const targetStation = validatedParams.stationName || '부산역';
+    try {
+      timetable = await fetchBusanStationUpcomingTimetable(targetStation, subwayTarget);
+    } catch (e) {
+      console.warn('[api/subway/positions] 부산 시간표 조회 실패:', e);
     }
   } else if (validatedParams.stationName) {
     try {

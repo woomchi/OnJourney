@@ -10,11 +10,11 @@ const sharedXmlParser = new XMLParser({
 
 /**
  * 지역별 실시간 버스 API 인증키 조회 유틸리티
- * - 공공데이터포털 통합 키(REAL_TIME_BUS_API_KEY)를 1순위로 참조
+ * - 공공데이터포털 통합 키(BUS_DATA_API_KEY)를 1순위로 참조 (레거시 REAL_TIME_BUS_API_KEY Fallback)
  * - 각 지자체별/TAGO 레거시 환경변수를 순차적으로 Fallback 참조
  */
 export function getTransitApiKey(region?: string): string {
-  const primary = process.env.REAL_TIME_BUS_API_KEY;
+  const primary = process.env.BUS_DATA_API_KEY || process.env.REAL_TIME_BUS_API_KEY;
   if (primary && primary.trim()) {
     return primary.trim().replace(/^["']|["']$/g, '');
   }

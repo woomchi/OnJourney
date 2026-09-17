@@ -1,32 +1,12 @@
 import type { DirectionResult, DirectionStep, SubPathOption } from '@/types/journey';
 import type { KakaoPublicTrafficResponse, KakaoRoute, KakaoStep } from '@/types/kakaoTransit';
-import { getSubwayColor } from './transitColorUtils';
-import { BUS_COLORS } from '@/constants/colors';
+import { getSubwayColor, cleanSubwayName, getKakaoBusColor } from './transitColorUtils';
 import { haversineDistance } from '../common/distanceUtils';
 import { inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 import { TAGO_CITY_CODES } from '@/constants/transit';
 
-/**
- * 카카오 버스 타입별 색상 매핑 유틸
- */
-export function getKakaoBusColor(busType?: string, routeName?: string): string {
-  const type = busType || '';
-  const name = routeName || '';
+export { getKakaoBusColor } from './transitColorUtils';
 
-  if (type.includes('광역') || type.includes('직행') || type.includes('급행') || type.includes('시외') || name.startsWith('M')) {
-    return BUS_COLORS.RED;
-  }
-  if (type.includes('마을') || type.includes('지선')) {
-    return BUS_COLORS.GREEN;
-  }
-  if (type.includes('순환')) {
-    return BUS_COLORS.YELLOW;
-  }
-  if (type.includes('간선') || type.includes('일반') || type.includes('좌석')) {
-    return BUS_COLORS.BLUE;
-  }
-  return BUS_COLORS.BLUE;
-}
 
 /**
  * 카카오 대중교통 단일 스텝(KakaoStep)을 OnJourney DirectionStep으로 변환
@@ -122,7 +102,7 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
   }
 
   if (stepType === 'SUBWAY') {
-    const cleanName = vehicleName.replace(/^(수도권|인천|부산|대구|대전|광주)\s+/, '');
+    const cleanName = cleanSubwayName(vehicleName);
     const subwayColor = getSubwayColor(cleanName);
 
     return {
@@ -266,9 +246,11 @@ export function parseKakaoTransitResponse(
       tags.push(`환승 ${p.transfers}회`);
     }
 
-    // 7. 총 소요시간 및 거리 환산
+    // 7. 총 소요시간 및 거리 환산 (카카오 route.properties 공식 총 시간/거리 기준)
     const durationMin = Math.max(1, Math.round(p.totalTime / 60));
     const distanceKm = Number((p.totalDistance / 1000).toFixed(1));
+
+
 
     return {
       id: `kakao-transit-${rIdx}`,

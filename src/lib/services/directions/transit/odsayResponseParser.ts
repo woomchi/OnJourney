@@ -1,5 +1,5 @@
 /**
- * ODsay API 응답 표준 파서 모듈
+ * ODsay API 응답 표준 파서 모듈 (시외 대중교통 시간표 및 접속편)
  * 
  * - parseTrainSchedule: 열차 시간표 및 trainNo+trainClass 파싱
  * - parseBusSchedule: 고속/시외버스 시간표 및 요금 파싱
@@ -44,24 +44,81 @@ export interface ParsedBusItem {
   nightSchedule?: string;
 }
 
+interface RawTrainStationItem {
+  trainClass?: string;
+  trainNo?: number | string;
+  trainCode?: number | string;
+  departureTime?: string;
+  arrivalTime?: string;
+  wasteTime?: string;
+  runDay?: string;
+  fare?: {
+    general?: number | string;
+    special?: number | string;
+    standing?: number | string;
+  };
+  generalFare?: { weekday?: number | string };
+  specialFare?: { weekday?: number | string };
+  standingFare?: { weekday?: number | string };
+}
+
+interface RawBusStationItem {
+  startTerminal?: string;
+  destTerminal?: string;
+  wasteTime?: string;
+  normalFare?: number;
+  specialFare?: number;
+  nightFare?: number;
+  nightSpecialFare?: number;
+  schedule?: string;
+  nightSchedule?: string;
+}
+
+interface RawPathSubItem {
+  trafficType?: number;
+  sectionTime?: number;
+  distance?: number;
+  lane?: Array<{ name?: string; busNo?: string }>;
+  stationCount?: number;
+  passStopList?: {
+    stations?: unknown[];
+  };
+}
+
+interface RawPathItem {
+  subPath?: RawPathSubItem[];
+}
+
 /**
  * ODsay trainServiceTime 응답 파서
  */
-export function parseTrainSchedule(data: any): ParsedTrainItem[] {
-  const result = data?.result;
+export function parseTrainSchedule(data: unknown): ParsedTrainItem[] {
+  const result = (data as { result?: { station?: RawTrainStationItem[] } })?.result;
   if (!result || !result.station || !Array.isArray(result.station)) {
     return [];
   }
 
-  return result.station.map((item: any) => {
+  return result.station.map((item: RawTrainStationItem) => {
     const rawTrainClass = item.trainClass || '열차';
     const trainNo = item.trainNo || item.trainCode || '';
     const trainNumber = trainNo ? `${rawTrainClass} ${trainNo}` : rawTrainClass;
 
     // 요금 파싱
-    const generalFare = item.fare?.general ? Number(item.fare.general) : (item.generalFare?.weekday ? Number(item.generalFare.weekday) : undefined);
-    const specialFare = item.fare?.special ? Number(item.fare.special) : (item.specialFare?.weekday ? Number(item.specialFare.weekday) : undefined);
-    const standingFare = item.fare?.standing ? Number(item.fare.standing) : (item.standingFare?.weekday ? Number(item.standingFare.weekday) : undefined);
+    const generalFare = item.fare?.general
+      ? Number(item.fare.general)
+      : item.generalFare?.weekday
+        ? Number(item.generalFare.weekday)
+        : undefined;
+    const specialFare = item.fare?.special
+      ? Number(item.fare.special)
+      : item.specialFare?.weekday
+        ? Number(item.specialFare.weekday)
+        : undefined;
+    const standingFare = item.fare?.standing
+      ? Number(item.fare.standing)
+      : item.standingFare?.weekday
+        ? Number(item.standingFare.weekday)
+        : undefined;
 
     return {
       trainNumber,
@@ -83,13 +140,13 @@ export function parseTrainSchedule(data: any): ParsedTrainItem[] {
 /**
  * ODsay searchInterBusSchedule 응답 파서
  */
-export function parseBusSchedule(data: any): ParsedBusItem[] {
-  const result = data?.result;
+export function parseBusSchedule(data: unknown): ParsedBusItem[] {
+  const result = (data as { result?: { station?: RawBusStationItem[] } })?.result;
   if (!result || !result.station || !Array.isArray(result.station)) {
     return [];
   }
 
-  return result.station.map((item: any) => {
+  return result.station.map((item: RawBusStationItem) => {
     const isExpress = (item.specialFare && item.specialFare > 0) || (item.startTerminal || '').includes('고속');
     return {
       busTypeLabel: isExpress ? '고속버스' : '시외버스',
@@ -109,8 +166,8 @@ export function parseBusSchedule(data: any): ParsedBusItem[] {
 /**
  * ODsay searchPubTransPathT 응답에서 첫 번째 Leg(접속 이동수단) 파싱
  */
-export function parseFirstLegFromPath(pathData: any): FirstLegInfo | null {
-  const paths = pathData?.result?.path;
+export function parseFirstLegFromPath(pathData: unknown): FirstLegInfo | null {
+  const paths = (pathData as { result?: { path?: RawPathItem[] } })?.result?.path;
   if (!paths || !Array.isArray(paths) || paths.length === 0) {
     return null;
   }

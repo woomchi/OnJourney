@@ -34,3 +34,32 @@ export function getBusColor(busType: number, laneName: string): string {
   if (laneName.includes('순환') || laneName.includes('yellow')) return BUS_COLORS.YELLOW;
   return BUS_COLORS.BLUE;
 }
+
+/**
+ * 카카오 버스 타입 및 노선명 기반 버스 색상 매핑
+ */
+export function getKakaoBusColor(busType?: string, routeName?: string): string {
+  const type = busType || '';
+  const name = routeName || '';
+
+  if (
+    type.includes('광역') ||
+    type.includes('직행') ||
+    type.includes('급행') ||
+    type.includes('시외') ||
+    name.startsWith('M')
+  ) {
+    return BUS_COLORS.RED;
+  }
+  if (type.includes('마을') || type.includes('지선')) {
+    return BUS_COLORS.GREEN;
+  }
+  if (type.includes('순환')) {
+    return BUS_COLORS.YELLOW;
+  }
+  if (type.includes('간선') || type.includes('일반') || type.includes('좌석')) {
+    return BUS_COLORS.BLUE;
+  }
+  return BUS_COLORS.BLUE;
+}
+

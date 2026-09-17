@@ -10,7 +10,8 @@ export { haversineDistance, roundCoord } from './directions/common/distanceUtils
 export { getTimeSlot, getTimeGroup, getCacheDuration, toKstSearchTime, normalizeTimestampToMs, getKstDateComponents } from './directions/common/timeUtils';
 
 // 2. 대중교통 도메인 서비스 (카카오 대중교통 기반)
-export { getSubwayColor, cleanSubwayName, getBusColor } from './directions/transit/transitColorUtils';
+export { getSubwayColor, cleanSubwayName, getBusColor, getKakaoBusColor } from './directions/transit/transitColorUtils';
+
 export {
   fetchKakaoTransitOptions,
   fetchKakaoTransitDirections,

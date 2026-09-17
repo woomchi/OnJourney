@@ -138,7 +138,9 @@ n개의 방문지를 추가하고 드래그 앤 드롭으로 순서를 조정하
 |------|------|
 | `directions/directionsOrchestrator.ts` | 차량 + 도보 통합 경로 오케스트레이터 |
 | `directions/car/carRouteService.ts` | 네이버 Directions 5 차량 경로 |
-| `directions/transit/publicTransitService.ts` | ODsay 대중교통 경로 (maasRP) |
+| `directions/transit/kakaoTransitService.ts` | 카카오 대중교통 경로 (시내/광역) |
+| `directions/transit/odsayTransitService.ts` | ODsay 장거리/시외 멀티모달 경로 (기차/고속버스/항공) |
+
 | `directions/walk/odsayWalkingService.ts` | ODsay maasRP 도보 경로 API & 상세 선형 파싱 |
 | `directions/walk/walkFallbackService.ts` | 도보 Fallback (직선 거리 기반) |
 | `directionsWaypointsService.ts` | 네이버 NCP 경유지 최적 경로 탐색 |

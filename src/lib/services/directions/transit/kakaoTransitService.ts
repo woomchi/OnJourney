@@ -7,11 +7,12 @@ import { AppError, TransitRouteNotFoundError } from '@/lib/infrastructure/odsayA
 
 type KakaoTransitCacheResult =
   | { ok: true; data: KakaoPublicTrafficResponse }
-  | { ok: false; error: string; code: string };
+  | { ok: false; isNotFound: true; message: string };
 
 /**
  * 카카오 대중교통 경로 검색 캐시 래퍼 (Next.js unstable_cache, 1시간 TTL)
  * - 동일 좌표 구간(소수점 4자리, 약 11m 해상도) 중복 호출 방지로 일일 1,000회 쿼터 극대화
+ * - 일시적 오류 발생 시 캐시되지 않도록 re-throw하여 재시도 보장
  */
 function getCachedKakaoTransit(
   sx: string,
@@ -21,6 +22,10 @@ function getCachedKakaoTransit(
   sName?: string,
   eName?: string
 ) {
+  const cacheKeyParts = ['kakao-transit-v2', sx, sy, ex, ey];
+  if (sName) cacheKeyParts.push(sName);
+  if (eName) cacheKeyParts.push(eName);
+
   return unstable_cache(
     async (): Promise<KakaoTransitCacheResult> => {
       try {
@@ -33,13 +38,25 @@ function getCachedKakaoTransit(
           eName,
         });
         return { ok: true, data };
-      } catch (err: any) {
-        const message = err?.message || '카카오 대중교통 경로 검색 실패';
-        const code = err?.code || 'KAKAO_TRANSIT_ERROR';
-        return { ok: false, error: message, code };
+      } catch (err: unknown) {
+        const isNotFound =
+          err instanceof TransitRouteNotFoundError ||
+          (err as { code?: string })?.code === 'TRANSIT_ROUTE_NOT_FOUND' ||
+          (err as { message?: string })?.message?.includes('정류장을 찾을 수 없습니다');
+
+        if (isNotFound) {
+          return {
+            ok: false,
+            isNotFound: true,
+            message: (err as Error)?.message || '대중교통 정류장 또는 경로를 찾을 수 없습니다.',
+          };
+        }
+
+        // 일시적 통신 장애, 서버 에러 등은 캐시되지 않도록 throw
+        throw err;
       }
     },
-    ['kakao-transit-v1', sx, sy, ex, ey],
+    cacheKeyParts,
     { revalidate: 3600 } // 1시간 (3600초) 캐싱
   )();
 }
@@ -53,6 +70,7 @@ function getCachedKakaoTransit(
  * @param ey 도착지 위도
  * @param sName 출발지 명칭 (선택)
  * @param eName 도착지 명칭 (선택)
+ * @param departureTime 출발 희망 시각 (타임스탬프, ms/s)
  * @returns DirectionResult[] (표준 대중교통 경로 목록)
  */
 export async function fetchKakaoTransitOptions(
@@ -61,28 +79,33 @@ export async function fetchKakaoTransitOptions(
   ex: number,
   ey: number,
   sName?: string,
-  eName?: string
+  eName?: string,
+  departureTime?: number
 ): Promise<DirectionResult[]> {
   const rsx = sx.toFixed(4);
   const rsy = sy.toFixed(4);
   const rex = ex.toFixed(4);
   const rey = ey.toFixed(4);
 
-  const res = await getCachedKakaoTransit(rsx, rsy, rex, rey, sName, eName);
+  let res: KakaoTransitCacheResult;
+  try {
+    res = await getCachedKakaoTransit(rsx, rsy, rex, rey, sName, eName);
+  } catch (err: unknown) {
+    if (err instanceof AppError) {
+      throw err;
+    }
+    const message = err instanceof Error ? err.message : '카카오 대중교통 경로 검색 실패';
+    const code = (err as { code?: string })?.code || 'KAKAO_TRANSIT_ERROR';
+    throw new AppError(`[카카오 대중교통 오류] ${message}`, code, 500, false);
+  }
 
   if (!res.ok) {
-    const isNotFound =
-      res.code === 'TRANSIT_ROUTE_NOT_FOUND' ||
-      res.error.includes('정류장을 찾을 수 없습니다') ||
-      res.error.includes('결과 데이터');
-
-    if (isNotFound) {
+    if (res.isNotFound) {
       console.warn(`[kakaoTransitService] 해당 좌표 구간에 검색된 대중교통 정류장 또는 경로가 없습니다: (${rsx},${rsy}) -> (${rex},${rey})`);
-      return [];
     }
-
-    throw new AppError(`[카카오 대중교통 오류] ${res.error}`, res.code, 500, false);
+    return [];
   }
+
 
   const data = res.data;
 
@@ -107,5 +130,13 @@ export async function fetchKakaoTransitDirections(params: {
   eName?: string;
   departureTime?: number;
 }): Promise<DirectionResult[]> {
-  return fetchKakaoTransitOptions(params.sx, params.sy, params.ex, params.ey, params.sName, params.eName);
+  return fetchKakaoTransitOptions(
+    params.sx,
+    params.sy,
+    params.ex,
+    params.ey,
+    params.sName,
+    params.eName,
+    params.departureTime
+  );
 }

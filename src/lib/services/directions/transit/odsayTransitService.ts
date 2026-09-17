@@ -62,7 +62,7 @@ export async function fetchIntercityTransitRoute(
 
   // 4. ODsay API 호출
   const isIsland = isIslandIntercity({ lat: sy, lng: sx }, { lat: ey, lng: ex });
-  let rawData: any;
+  let rawData: unknown;
 
   try {
     if (isIsland) {
@@ -92,10 +92,12 @@ export async function fetchIntercityTransitRoute(
 
     // 실제 외부 호출 성공 시 쿼터 카운트 1 증가
     OdsayQuotaGuard.recordCall();
-  } catch (error: any) {
-    console.error('[odsayTransitService] ODsay API 호출 실패:', error?.message || error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[odsayTransitService] ODsay API 호출 실패:', message);
     throw error;
   }
+
 
   // 5. 응답 파싱
   const results = parseOdsayIntercityResponse(rawData, sx, sy, ex, ey);

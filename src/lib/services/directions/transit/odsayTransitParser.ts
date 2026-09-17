@@ -3,6 +3,63 @@ import { getSubwayColor } from './transitColorUtils';
 import { BUS_COLORS } from '@/constants/colors';
 
 /**
+ * ODsay API 서브패스 및 경로 원천 데이터 인터페이스
+ */
+export interface OdsayStationItem {
+  stationName?: string;
+  name?: string;
+  x?: string | number;
+  y?: string | number;
+  stationID?: string | number;
+}
+
+export interface OdsayLaneItem {
+  name?: string;
+  busNo?: string;
+  type?: number;
+}
+
+export interface OdsaySubPath {
+  trafficType?: number;
+  sectionTime?: number;
+  distance?: number;
+  startName?: string;
+  endName?: string;
+  startX?: string | number;
+  startY?: string | number;
+  endX?: string | number;
+  endY?: string | number;
+  stationCount?: number;
+  lane?: OdsayLaneItem[];
+  passStopList?: {
+    stations?: OdsayStationItem[];
+  };
+}
+
+export interface OdsayPathInfo {
+  totalTime?: number;
+  time?: number;
+  totalDistance?: number;
+  distance?: number;
+  payment?: number;
+  totalFare?: number;
+}
+
+export interface OdsayPath {
+  info?: OdsayPathInfo;
+  subPath?: OdsaySubPath[];
+  subPaths?: OdsaySubPath[];
+}
+
+export interface OdsayIntercityApiResponse {
+  result?: {
+    path?: OdsayPath[];
+    paths?: OdsayPath[];
+    routes?: OdsayPath[];
+  };
+}
+
+/**
  * ODsay 이동수단 타입 코드 매핑:
  * 1: 지하철, 2: 버스, 3: 도보, 4: 열차(KTX/SRT/ITX/무궁화), 5: 고속/시외버스, 6: 항공, 7: 해운
  */
@@ -28,7 +85,7 @@ export function getOdsayStepType(trafficType: number): DirectionStep['type'] {
 /**
  * ODsay 서브패스를 OnJourney DirectionStep으로 변환
  */
-export function parseOdsaySubPathToStep(sub: any, index: number): DirectionStep {
+export function parseOdsaySubPathToStep(sub: OdsaySubPath, _index: number): DirectionStep {
   const trafficType = sub.trafficType || 3;
   const stepType = getOdsayStepType(trafficType);
   const duration = sub.sectionTime || (sub.distance ? Math.max(1, Math.round(sub.distance / 67)) : 0);
@@ -76,7 +133,7 @@ export function parseOdsaySubPathToStep(sub: any, index: number): DirectionStep 
 
   // 경유 정류소 목록 파싱
   const rawStations = sub.passStopList?.stations || [];
-  const stationList = rawStations.map((s: any) => ({
+  const stationList = rawStations.map((s: OdsayStationItem) => ({
     stationName: s.stationName || s.name || '',
     lat: s.y ? Number(s.y) : undefined,
     lng: s.x ? Number(s.x) : undefined,
@@ -87,7 +144,7 @@ export function parseOdsaySubPathToStep(sub: any, index: number): DirectionStep 
   const pathPoints: { lat: number; lng: number }[] = [];
   if (startLat && startLng) pathPoints.push({ lat: startLat, lng: startLng });
   if (stationList.length > 0) {
-    stationList.forEach((st: any) => {
+    stationList.forEach((st) => {
       if (st.lat && st.lng) pathPoints.push({ lat: st.lat, lng: st.lng });
     });
   }
@@ -120,28 +177,30 @@ export function parseOdsaySubPathToStep(sub: any, index: number): DirectionStep 
  * ODsay API 응답(searchPubTransPathT 또는 maasRP)을 DirectionResult[] 로 변환
  */
 export function parseOdsayIntercityResponse(
-  data: any,
+  data: OdsayIntercityApiResponse | unknown,
   sx: number,
   sy: number,
   ex: number,
   ey: number
 ): DirectionResult[] {
-  const result = data?.result;
+  const typedData = data as OdsayIntercityApiResponse;
+  const result = typedData?.result;
   if (!result) return [];
 
-  const paths = result.path || (result.routes ? result.routes : []);
+  // searchPubTransPathT(path) 및 maasRP(paths, routes) 모두 지원
+  const paths = result.path || result.paths || (result.routes ? result.routes : []);
   if (!Array.isArray(paths) || paths.length === 0) return [];
 
-  return paths.slice(0, 3).map((p: any, pIndex: number) => {
+  return paths.slice(0, 3).map((p: OdsayPath, pIndex: number) => {
     const info = p.info || {};
-    const subPaths = p.subPath || [];
+    const subPaths = p.subPath || p.subPaths || [];
 
-    const duration = info.totalTime || 0;
-    const distanceMeters = info.totalDistance || 0;
+    const duration = info.totalTime || info.time || 0;
+    const distanceMeters = info.totalDistance || info.distance || 0;
     const distanceKm = Math.round((distanceMeters / 1000) * 10) / 10;
-    const fare = info.payment || 0;
+    const fare = info.payment || info.totalFare || 0;
 
-    const steps: DirectionStep[] = subPaths.map((sub: any, sIdx: number) =>
+    const steps: DirectionStep[] = subPaths.map((sub: OdsaySubPath, sIdx: number) =>
       parseOdsaySubPathToStep(sub, sIdx)
     );
 

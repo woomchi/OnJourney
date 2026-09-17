@@ -124,7 +124,7 @@ export class TagoBusService {
         try {
           const res = await fetch(searchUrl, {
             headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(2500),
+            signal: AbortSignal.timeout(1500),
             next: { revalidate: 86400 },
           });
           if (!res.ok) return null;
@@ -376,7 +376,7 @@ export class TagoBusService {
 
       const res = await fetch(requestUrl, {
         headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(2500),
+        signal: AbortSignal.timeout(1500),
         next: { revalidate: 86400 },
       });
 
@@ -448,7 +448,7 @@ export class TagoBusService {
         const res = await fetch(requestUrl, {
           method: 'GET',
           headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(2500),
+          signal: AbortSignal.timeout(1500),
           cache: 'no-store',
         });
         if (!res.ok) return null;
@@ -456,27 +456,53 @@ export class TagoBusService {
       };
 
       let validJson: TagoApiResponse | null = null;
+      const isAutoOrNonNumeric = !nodeId || nodeId === 'auto' || !/[0-9]/.test(nodeId);
 
-      // 1순위: 입력된 nodeId 및 접두사 제거된 순수 숫자 nodeId(예: "8005925" & "DJB8005925") 병렬 조회 (0.2초)
-      const pureNumeric = nodeId.replace(/[^0-9]/g, '');
-      const initialCandidateIds = Array.from(new Set([pureNumeric, nodeId].filter(Boolean)));
+      // [Fast-Path: 카카오 대중교통 및 auto 정류소 식별자 대응]
+      // nodeId가 'auto'이거나 숫자가 없는 경우: 실패가 확실한 direct 조회를 스킵하고 좌표 근접 조회를 0순위로 즉시 실행 (1~1.5초 이내 완료)
+      if (isAutoOrNonNumeric && lat && lng) {
+        const coordsInfo = await this.lookupTagoNodeIdByCoords(lat, lng, stationName, this.API_KEY);
+        if (coordsInfo?.nodeId) {
+          const coordsRes = await fetchCandidate(coordsInfo.nodeId, coordsInfo.cityCode || resolvedCityCode);
+          if (coordsRes && (coordsRes.response?.body?.totalCount || 0) > 0) {
+            validJson = coordsRes;
+          }
+        }
+      }
 
-      if (initialCandidateIds.length > 0) {
-        const directResults = await Promise.allSettled(
-          initialCandidateIds.map((cId) => fetchCandidate(cId))
-        );
-        for (const result of directResults) {
-          if (result.status === 'fulfilled' && result.value) {
-            const json = result.value;
-            if ((json.response?.body?.totalCount || 0) > 0) {
-              validJson = json;
-              break;
+      // [일반 경로 1순위]: 유효한 숫자 nodeId가 있는 경우 직접 병렬 조회
+      if (!validJson && !isAutoOrNonNumeric) {
+        const pureNumeric = nodeId.replace(/[^0-9]/g, '');
+        const initialCandidateIds = Array.from(new Set([pureNumeric, nodeId].filter(Boolean)));
+
+        if (initialCandidateIds.length > 0) {
+          const directResults = await Promise.allSettled(
+            initialCandidateIds.map((cId) => fetchCandidate(cId))
+          );
+          for (const result of directResults) {
+            if (result.status === 'fulfilled' && result.value) {
+              const json = result.value;
+              if ((json.response?.body?.totalCount || 0) > 0) {
+                validJson = json;
+                break;
+              }
             }
           }
         }
       }
 
-      // 2순위: 결과가 0건인 경우 ➔ lookupTagoNodeId로 표준 nodeid를 1회 정확히 찾아 호출 (0.3초)
+      // [Fallback 2순위]: 유효한 결과가 없고 좌표가 제공된 경우 (좌표 근접 정류소가 텍스트 검색보다 훨씬 정확하고 빠름)
+      if ((!validJson || (validJson.response?.body?.totalCount || 0) === 0) && lat && lng) {
+        const coordsInfo = await this.lookupTagoNodeIdByCoords(lat, lng, stationName, this.API_KEY);
+        if (coordsInfo?.nodeId) {
+          const coordsRes = await fetchCandidate(coordsInfo.nodeId, coordsInfo.cityCode || resolvedCityCode);
+          if (coordsRes && (coordsRes.response?.body?.totalCount || 0) > 0) {
+            validJson = coordsRes;
+          }
+        }
+      }
+
+      // [Fallback 3순위]: 여전히 결과가 없는 경우 정류소 번호(nodeNo) 또는 명칭(nodeNm)으로 TAGO 표준 nodeId 룩업
       if (!validJson || (validJson.response?.body?.totalCount || 0) === 0) {
         const resolvedNodeId = await this.lookupTagoNodeId(
           resolvedCityCode,
@@ -489,17 +515,6 @@ export class TagoBusService {
           const foundRes = await fetchCandidate(resolvedNodeId);
           if (foundRes && (foundRes.response?.body?.totalCount || 0) > 0) {
             validJson = foundRes;
-          }
-        }
-      }
-
-      // 3순위: 그래도 없으면서 lat, lng가 있는 경우에만 최종 백업으로 좌표 근접 정류소 1회 확인
-      if ((!validJson || (validJson.response?.body?.totalCount || 0) === 0) && lat && lng) {
-        const coordsInfo = await this.lookupTagoNodeIdByCoords(lat, lng, stationName, this.API_KEY);
-        if (coordsInfo?.nodeId) {
-          const coordsRes = await fetchCandidate(coordsInfo.nodeId, coordsInfo.cityCode || resolvedCityCode);
-          if (coordsRes && (coordsRes.response?.body?.totalCount || 0) > 0) {
-            validJson = coordsRes;
           }
         }
       }

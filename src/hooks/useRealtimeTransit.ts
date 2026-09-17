@@ -48,7 +48,7 @@ export function useRealtimeTransit({
       try {
         const res = await fetch(url, {
           headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(12000),
           cache: 'no-store',
         });
 

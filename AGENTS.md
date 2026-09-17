@@ -93,11 +93,7 @@ export async function GET(req: Request) {
 | `REAL_TIME_SUBWAY_API_KEY` | 지하철 실시간 |
 | `REAL_TIME_SUBWAY_LOCATION_API_KEY` | 열차 위치 |
 | `REAL_TIME_SUBWAY_TOTAL_API_KEY` | 서울시 지하철 전역 실시간 도착 정보 (OA-15799) |
-| `REAL_TIME_BUS_TAGO_API_KEY` | 전국 버스 |
-| `REAL_TIME_BUS_GYEONGGI_API_KEY` | 경기도 버스 |
-| `REAL_TIME_BUS_BUSAN_API_KEY` | 부산 버스 |
-| `REAL_TIME_BUS_INCHEON_API_KEY` | 인천 버스 |
-| `REAL_TIME_BUS_DAEJEON_API_KEY` | 대전 버스 |
+| `REAL_TIME_BUS_API_KEY` | 공공데이터포털 전국 버스 실시간 도착 정보 통합 키 (TAGO/경기/부산/인천/대전 공통) |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL (지하철 실시간 분산 캐시) |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST Token (지하철 실시간 분산 캐시) |
 

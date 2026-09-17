@@ -186,6 +186,25 @@ export class TagoBusService {
     return routeIds.length > 0 ? routeIds[0] : null;
   }
 
+  /** 모듈 로드 시 1회 계산 후 캐싱 — 이후 요청에서는 순수 메모리 참조 */
+  private static readonly API_KEY: string = (() => {
+    const raw =
+      process.env.REAL_TIME_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
+      process.env.TAGO_API_KEY ||
+      process.env.DATA_GO_KR_API_KEY ||
+      '';
+    return raw.trim().replace(/^["']|["']$/g, '');
+  })();
+
+  /** URL 쿼리 파라미터용 인코딩 serviceKey — 모듈 로드 시 1회 계산 */
+  private static readonly SERVICE_KEY: string = (() => {
+    const key = TagoBusService.API_KEY;
+    if (!key) return '';
+    const decoded = key.includes('%') ? decodeURIComponent(key) : key;
+    return encodeURIComponent(decoded);
+  })();
+
   /**
    * 노선 번호(routeNo)에 해당하는 상행/하행 모든 TAGO routeId 목록 조회
    */
@@ -193,9 +212,7 @@ export class TagoBusService {
     cityCode: string,
     routeNo: string
   ): Promise<string[]> {
-    const rawKey = process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-    if (!apiKey || !routeNo) return [];
+    if (!this.API_KEY || !routeNo) return [];
 
     const cleanNo = routeNo.trim();
     const cacheKey = `multi_${cityCode}_${cleanNo}`;
@@ -205,9 +222,7 @@ export class TagoBusService {
     }
 
     try {
-      const serviceKey = apiKey.trim();
-      const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
-      const keyParam = encodeURIComponent(rawServiceKey);
+      const keyParam = this.SERVICE_KEY;
 
       const requestUrl = `${this.SEARCH_ROUTE_NO_LIST_URL}?serviceKey=${keyParam}&cityCode=${cityCode}&routeNo=${encodeURIComponent(cleanNo)}&pageNo=1&numOfRows=20&_type=json`;
 
@@ -274,14 +289,10 @@ export class TagoBusService {
     turningStationSeq?: number;
     turningStationName?: string;
   } | null> {
-    const rawKey = process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-    if (!apiKey || !routeId) return null;
+    if (!this.API_KEY || !routeId) return null;
 
     try {
-      const serviceKey = apiKey.trim();
-      const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
-      const keyParam = encodeURIComponent(rawServiceKey);
+      const keyParam = this.SERVICE_KEY;
       const cleanRouteId = routeId.trim();
 
       const requestUrl = `${this.ROUTE_THROUGH_STTN_URL}?serviceKey=${keyParam}&cityCode=${encodeURIComponent(cityCode)}&routeId=${encodeURIComponent(cleanRouteId)}&pageNo=1&numOfRows=300&_type=json`;
@@ -418,20 +429,14 @@ export class TagoBusService {
     lat,
     lng,
   }: FetchTagoParams): Promise<NormalizedRealtimeData> {
-    const rawKey =
-      process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-
     // API 키가 없거나 미설정된 경우 Mock 데이터 폴백
-    if (!apiKey) {
+    if (!this.API_KEY) {
       return this.getMockData(nodeId, stationName, region);
     }
 
     try {
       const normalizedRegion = region.toLowerCase();
-      const serviceKey = apiKey.trim();
-      const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
-      const keyParam = encodeURIComponent(rawServiceKey);
+      const keyParam = this.SERVICE_KEY;
 
       let resolvedCityCode =
         cityCode || TAGO_CITY_CODES[normalizedRegion] || '11';
@@ -477,7 +482,7 @@ export class TagoBusService {
           resolvedCityCode,
           nodeId,
           stationName,
-          serviceKey
+          this.API_KEY
         );
 
         if (resolvedNodeId) {
@@ -490,7 +495,7 @@ export class TagoBusService {
 
       // 3순위: 그래도 없으면서 lat, lng가 있는 경우에만 최종 백업으로 좌표 근접 정류소 1회 확인
       if ((!validJson || (validJson.response?.body?.totalCount || 0) === 0) && lat && lng) {
-        const coordsInfo = await this.lookupTagoNodeIdByCoords(lat, lng, stationName, serviceKey);
+        const coordsInfo = await this.lookupTagoNodeIdByCoords(lat, lng, stationName, this.API_KEY);
         if (coordsInfo?.nodeId) {
           const coordsRes = await fetchCandidate(coordsInfo.nodeId, coordsInfo.cityCode || resolvedCityCode);
           if (coordsRes && (coordsRes.response?.body?.totalCount || 0) > 0) {
@@ -618,9 +623,7 @@ export class TagoBusService {
     routeId: string,
     cityCode?: string
   ): Promise<Array<{ vehicleno?: string; nodeid?: string; nodenm?: string; nodeord?: number; gpslati?: number; gpslong?: number }> | null> {
-    const rawKey = process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-    if (!apiKey || !routeId) return null;
+    if (!this.API_KEY || !routeId) return null;
 
     try {
       const rawRouteId = String(routeId).trim();
@@ -674,9 +677,7 @@ export class TagoBusService {
         }
       }
 
-      const serviceKey = apiKey.trim();
-      const rawServiceKey = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
-      const keyParam = encodeURIComponent(rawServiceKey);
+      const keyParam = this.SERVICE_KEY;
 
       const requestUrl = `${this.BUS_POS_API_URL}?serviceKey=${keyParam}&cityCode=${effectiveCityCode}&routeId=${encodeURIComponent(normalizedRouteId)}&pageNo=1&numOfRows=50&_type=json`;
 

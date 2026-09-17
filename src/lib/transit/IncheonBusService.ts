@@ -15,6 +15,26 @@ export class IncheonBusService {
   private static API_URL =
     'https://apis.data.go.kr/6280000/busArrivalService/getAllRouteBusArrivalList';
 
+  /** 모듈 로드 시 1회 계산 후 캐싱 — 이후 요청에서는 순수 메모리 참조 */
+  private static readonly API_KEY: string = (() => {
+    const raw =
+      process.env.REAL_TIME_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_INCHEON_API_KEY ||
+      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
+      process.env.TAGO_API_KEY ||
+      process.env.DATA_GO_KR_API_KEY ||
+      '';
+    return raw.trim().replace(/^["']|["']$/g, '');
+  })();
+
+  /** URL 쿼리 파라미터용 인코딩 serviceKey — 모듈 로드 시 1회 계산 */
+  private static readonly SERVICE_KEY: string = (() => {
+    const key = IncheonBusService.API_KEY;
+    if (!key) return '';
+    const decoded = key.includes('%') ? decodeURIComponent(key) : key;
+    return encodeURIComponent(decoded);
+  })();
+
   /**
    * 인천광역시 정류소별 전체 노선 버스 도착 정보 조회
    */
@@ -22,22 +42,13 @@ export class IncheonBusService {
     stationId: string,
     stationName: string = '인천 정류소'
   ): Promise<NormalizedRealtimeData> {
-    const rawKey =
-      process.env.REAL_TIME_BUS_INCHEON_API_KEY ||
-      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
-      process.env.REAL_TIME_BUS_API_KEY ||
-      process.env.TAGO_API_KEY;
-
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-
-    if (!apiKey) {
+    if (!this.API_KEY) {
       return this.getFallbackData(stationId, stationName, '인천 버스 API 키가 설정되지 않았습니다.');
     }
 
     try {
       const cleanStationId = stationId.replace(/^(ICB|INB|IC|IN)/i, '').trim();
-      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey) : apiKey;
-      const keyParam = encodeURIComponent(rawServiceKey);
+      const keyParam = this.SERVICE_KEY;
 
       const params = new URLSearchParams({
         bstopId: cleanStationId,

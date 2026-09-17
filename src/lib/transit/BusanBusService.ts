@@ -94,6 +94,27 @@ export class BusanBusService {
     return '#2563EB'; // 파랑 (일반 시내버스)
   }
 
+  /** 모듈 로드 시 1회 계산 후 캐싱 — 이후 요청에서는 순수 메모리 참조 */
+  private static readonly API_KEY: string = (() => {
+    const raw =
+      process.env.REAL_TIME_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_BUSAN_API_KEY ||
+      process.env.BUSAN_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
+      process.env.TAGO_API_KEY ||
+      process.env.DATA_GO_KR_API_KEY ||
+      '';
+    return raw.trim().replace(/^["']|["']$/g, '');
+  })();
+
+  /** URL 쿼리 파라미터용 인코딩 serviceKey — 모듈 로드 시 1회 계산 */
+  private static readonly SERVICE_KEY: string = (() => {
+    const key = BusanBusService.API_KEY;
+    if (!key) return '';
+    const decoded = key.includes('%') ? decodeURIComponent(key) : key;
+    return encodeURIComponent(decoded);
+  })();
+
   /**
    * 부산광역시 버스 도착 정보 조회 (stopArrByBstopid)
    */
@@ -101,16 +122,13 @@ export class BusanBusService {
     stationId: string,
     stationName: string = '부산 정류소'
   ): Promise<NormalizedRealtimeData> {
-    const apiKey = process.env.REAL_TIME_BUS_BUSAN_API_KEY;
-
-    if (!apiKey) {
+    if (!this.API_KEY) {
       return this.getFallbackData(stationId, stationName, '부산 버스 API 키가 설정되지 않았습니다.');
     }
 
     try {
       const cleanStationId = stationId.replace(/^BSB/i, '').trim();
-      const rawKey = apiKey.includes('%') ? decodeURIComponent(apiKey) : apiKey;
-      const serviceKey = encodeURIComponent(rawKey);
+      const serviceKey = this.SERVICE_KEY;
 
       const requestUrl = `${this.ARRIVAL_API_URL}?serviceKey=${serviceKey}&bstopid=${encodeURIComponent(cleanStationId)}`;
       const res = await fetch(requestUrl, {
@@ -204,12 +222,10 @@ export class BusanBusService {
       return cached;
     }
 
-    const apiKey = process.env.REAL_TIME_BUS_BUSAN_API_KEY;
-    if (!apiKey) return null;
+    if (!this.API_KEY) return null;
 
     try {
-      const rawKey = apiKey.includes('%') ? decodeURIComponent(apiKey) : apiKey;
-      const serviceKey = encodeURIComponent(rawKey);
+      const serviceKey = this.SERVICE_KEY;
       const url = `${this.BUS_INFO_URL}?serviceKey=${serviceKey}&lineno=${encodeURIComponent(cleanNo)}`;
 
       const res = await fetch(url, {
@@ -262,8 +278,7 @@ export class BusanBusService {
   public static async getBusLinePositions(
     params: FetchBusanBusLineParams
   ): Promise<BusLinePositionsData | null> {
-    const apiKey = process.env.REAL_TIME_BUS_BUSAN_API_KEY;
-    if (!apiKey) return null;
+    if (!this.API_KEY) return null;
 
     const rawBusNo = params.busNo.trim();
     const cleanNo = cleanBusNumber(rawBusNo);
@@ -289,8 +304,7 @@ export class BusanBusService {
     }
 
     try {
-      const rawKey = apiKey.includes('%') ? decodeURIComponent(apiKey) : apiKey;
-      const serviceKey = encodeURIComponent(rawKey);
+      const serviceKey = this.SERVICE_KEY;
       const url = `${this.BUS_LINE_DETAIL_URL}?serviceKey=${serviceKey}&lineid=${encodeURIComponent(lineId)}`;
 
       const res = await fetch(url, {

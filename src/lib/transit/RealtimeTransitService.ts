@@ -20,6 +20,17 @@ export interface GetBusArrivalsParams {
 }
 
 export class RealtimeTransitService {
+  /** 모듈 로드 시 1회 계산 후 캐싱 — 이후 요청에서는 순수 메모리 참조 */
+  private static readonly API_KEY: string = (() => {
+    const raw =
+      process.env.REAL_TIME_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
+      process.env.TAGO_API_KEY ||
+      process.env.DATA_GO_KR_API_KEY ||
+      '';
+    return raw.trim().replace(/^["']|["']$/g, '');
+  })();
+
   /**
    * 실시간 버스 도착 정보 조회 (TAGO 주축 -> 시도별 보완 순차 호출 및 머지)
    */
@@ -40,11 +51,9 @@ export class RealtimeTransitService {
     // 0-0단계: stationId가 비어있거나 가상 ID('auto', 'none', '_')인 경우 좌표/정류소명 기반 공공 정류소 스마트 역조회
     const isSpecialId = !stationId || stationId === 'auto' || stationId === 'none' || stationId === '_' || !/[0-9]/.test(stationId);
     if (isSpecialId && lat && lng) {
-      const rawKey = process.env.REAL_TIME_BUS_TAGO_API_KEY || process.env.TAGO_API_KEY;
-      const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-      if (apiKey) {
+      if (this.API_KEY) {
         try {
-          const coordsInfo = await TagoBusService.lookupTagoNodeIdByCoords(lat, lng, stationName, apiKey.trim());
+          const coordsInfo = await TagoBusService.lookupTagoNodeIdByCoords(lat, lng, stationName, this.API_KEY);
           if (coordsInfo?.nodeId) {
             effectiveStationId = coordsInfo.nodeId;
             if (coordsInfo.cityCode) {

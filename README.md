@@ -130,9 +130,7 @@ cp .env.example .env.local
 | `SEOUL_SUBWAY_API_KEY` | [서울 열린데이터광장](https://data.seoul.go.kr/) |
 | `REAL_TIME_SUBWAY_LOCATION_API_KEY` | 서울 열린데이터광장 |
 | `TMAP_APP_KEY` | [TMAP Developers](https://tmapapi.sktelecom.com/) |
-| `TAGO_API_KEY` | [공공데이터포털](https://www.data.go.kr/) |
-| `GYEONGGI_BUS_API_KEY` | 공공데이터포털 |
-| `BUSAN_BUS_API_KEY` | 공공데이터포털 |
+| `REAL_TIME_BUS_API_KEY` | [공공데이터포털](https://www.data.go.kr/) (전국/경기/부산/인천/대전 버스 통합 인증키) |
 
 ### 2. 의존성 설치 및 실행
 

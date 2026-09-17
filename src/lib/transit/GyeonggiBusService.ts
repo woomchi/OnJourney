@@ -84,6 +84,27 @@ export class GyeonggiBusService {
     return 'normal';
   }
 
+  /** 모듈 로드 시 1회 계산 후 캐싱 — 이후 요청에서는 순수 메모리 참조 */
+  private static readonly API_KEY: string = (() => {
+    const raw =
+      process.env.REAL_TIME_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
+      process.env.GYEONGGI_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
+      process.env.TAGO_API_KEY ||
+      process.env.DATA_GO_KR_API_KEY ||
+      '';
+    return raw.trim().replace(/^["']|["']$/g, '');
+  })();
+
+  /** URL 쿼리 파라미터용 인코딩 serviceKey — 모듈 로드 시 1회 계산 */
+  private static readonly SERVICE_KEY: string = (() => {
+    const key = GyeonggiBusService.API_KEY;
+    if (!key) return '';
+    const decoded = key.includes('%') ? decodeURIComponent(key) : key;
+    return encodeURIComponent(decoded);
+  })();
+
   /**
    * 경기도 버스 도착 정보 조회
    */
@@ -91,12 +112,7 @@ export class GyeonggiBusService {
     stationId: string,
     stationName: string = '경기 정류소'
   ): Promise<NormalizedRealtimeData> {
-    const rawKey =
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
-      process.env.GYEONGGI_BUS_API_KEY;
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-
-    if (!apiKey) {
+    if (!this.API_KEY) {
       return this.getMockData(stationId, stationName);
     }
 
@@ -106,8 +122,7 @@ export class GyeonggiBusService {
       const stationIdCandidates = Array.from(
         new Set([cleanStationId, pureNumeric, stationId.trim()].filter(Boolean))
       );
-      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey.trim()) : apiKey.trim();
-      const encodedServiceKey = encodeURIComponent(rawServiceKey);
+      const encodedServiceKey = this.SERVICE_KEY;
 
       const fetchCandidate = async (candidateId: string): Promise<GyeonggiApiResponse | null> => {
         const requestUrl = `${this.API_URL}?serviceKey=${encodedServiceKey}&stationId=${encodeURIComponent(candidateId)}&format=json`;
@@ -255,19 +270,13 @@ export class GyeonggiBusService {
   public static async getBusLocationList(
     routeId: string
   ): Promise<GyeonggiBusLocationItem[] | null> {
-    const rawKey =
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
-      process.env.GYEONGGI_BUS_API_KEY;
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-
-    if (!apiKey || !routeId) {
+    if (!this.API_KEY || !routeId) {
       return null;
     }
 
     try {
       const cleanRouteId = routeId.replace(/^GGB/i, '').trim();
-      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey.trim()) : apiKey.trim();
-      const encodedServiceKey = encodeURIComponent(rawServiceKey);
+      const encodedServiceKey = this.SERVICE_KEY;
 
       // 1. v2 공식 엔드포인트 호출
       const v2Url = `${this.BUS_POS_API_URL_V2}?serviceKey=${encodedServiceKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
@@ -371,16 +380,10 @@ export class GyeonggiBusService {
     const cached = GYEONGGI_ROUTE_LIST_CACHE.get(cleanKeyword);
     if (cached) return cached;
 
-    const rawKey =
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
-      process.env.GYEONGGI_BUS_API_KEY;
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-
-    if (!apiKey) return null;
+    if (!this.API_KEY) return null;
 
     try {
-      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey.trim()) : apiKey.trim();
-      const encodedServiceKey = encodeURIComponent(rawServiceKey);
+      const encodedServiceKey = this.SERVICE_KEY;
       const url = `${this.BUS_ROUTE_API_URL_V2}?serviceKey=${encodedServiceKey}&keyword=${encodeURIComponent(cleanKeyword)}&format=json`;
 
       const response = await fetch(url, {
@@ -571,16 +574,10 @@ export class GyeonggiBusService {
     const cached = GYEONGGI_ROUTE_STATION_CACHE.get(cleanRouteId);
     if (cached) return cached;
 
-    const rawKey =
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
-      process.env.GYEONGGI_BUS_API_KEY;
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-
-    if (!apiKey) return null;
+    if (!this.API_KEY) return null;
 
     try {
-      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey.trim()) : apiKey.trim();
-      const encodedServiceKey = encodeURIComponent(rawServiceKey);
+      const encodedServiceKey = this.SERVICE_KEY;
       const url = `${this.BUS_ROUTE_STATION_API_URL_V2}?serviceKey=${encodedServiceKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
 
       const response = await fetch(url, {

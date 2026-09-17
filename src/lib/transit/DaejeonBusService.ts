@@ -17,6 +17,26 @@ export class DaejeonBusService {
   private static API_URL =
     'https://apis.data.go.kr/6300000/arrive/getArrInfoByStopID';
 
+  /** 모듈 로드 시 1회 계산 후 캐싱 — 이후 요청에서는 순수 메모리 참조 */
+  private static readonly API_KEY: string = (() => {
+    const raw =
+      process.env.REAL_TIME_BUS_API_KEY ||
+      process.env.REAL_TIME_BUS_DAEJEON_API_KEY ||
+      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
+      process.env.TAGO_API_KEY ||
+      process.env.DATA_GO_KR_API_KEY ||
+      '';
+    return raw.trim().replace(/^["']|["']$/g, '');
+  })();
+
+  /** URL 쿼리 파라미터용 인코딩 serviceKey — 모듈 로드 시 1회 계산 */
+  private static readonly SERVICE_KEY: string = (() => {
+    const key = DaejeonBusService.API_KEY;
+    if (!key) return '';
+    const decoded = key.includes('%') ? decodeURIComponent(key) : key;
+    return encodeURIComponent(decoded);
+  })();
+
   /**
    * 대전 BIS ROUTE_TP 및 노선명을 바탕으로 BusType 분류
    */
@@ -46,15 +66,7 @@ export class DaejeonBusService {
       return this.getFallbackData(stationId, stationName, '정류소 식별 정보가 유효하지 않습니다.');
     }
 
-    const rawKey =
-      process.env.REAL_TIME_BUS_DAEJEON_API_KEY ||
-      process.env.REAL_TIME_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
-      process.env.TAGO_API_KEY;
-
-    const apiKey = rawKey ? rawKey.trim().replace(/^["']|["']$/g, '') : '';
-
-    if (!apiKey) {
+    if (!this.API_KEY) {
       return this.getFallbackData(stationId, stationName, '대전 버스 API 키가 설정되지 않았습니다.');
     }
 
@@ -72,7 +84,7 @@ export class DaejeonBusService {
           '25',
           pureNumeric,
           stationName,
-          apiKey
+          this.API_KEY
         );
 
         if (!lookedUpNodeId && lat && lng) {
@@ -80,7 +92,7 @@ export class DaejeonBusService {
             lat,
             lng,
             stationName,
-            apiKey
+            this.API_KEY
           );
           if (coordsResult?.nodeId) {
             lookedUpNodeId = coordsResult.nodeId;
@@ -92,8 +104,7 @@ export class DaejeonBusService {
         }
       }
 
-      const rawServiceKey = apiKey.includes('%') ? decodeURIComponent(apiKey) : apiKey;
-      const encodedKey = encodeURIComponent(rawServiceKey);
+      const encodedKey = this.SERVICE_KEY;
 
       // 단일 HTTP 호출 (공공데이터포털 공식 엔드포인트 -> 3초 타임아웃)
       const requestUrl = `${this.API_URL}?serviceKey=${encodedKey}&BusStopID=${encodeURIComponent(targetStopId)}&_type=json`;

@@ -1,5 +1,5 @@
 /**
- * ODsay busCityCode 및 지역 정보를 TAGO / 지자체 실시간 API 규격으로 변환하는 유틸리티
+ * 전국 지자체 및 공공데이터포털(TAGO) 버스 도시코드(cityCode) 변환 유틸리티
  */
 
 export interface BusRegionMapping {
@@ -8,18 +8,19 @@ export interface BusRegionMapping {
 }
 
 /**
- * ODsay busCityCode (또는 CID) -> { region, tagoCode } 매핑 테이블
+ * 전국 지자체 / 공공데이터포털(TAGO) 도시코드 -> { region, tagoCode } 매핑 테이블
+ * (전국 시군구 행정/도시코드 및 레거시 CID 통합 호환)
  */
-const ODSAY_CITY_CODE_MAP: Record<string, BusRegionMapping> = {
+const CITY_CODE_MAP: Record<string, BusRegionMapping> = {
   '11': { region: 'seoul', tagoCode: '11' },
   '1000': { region: 'seoul', tagoCode: '11' },
   '1040': { region: 'gyeonggi', tagoCode: '31010' }, // 경기도 수원/남부
-  '1100': { region: 'gyeonggi', tagoCode: '31240' }, // 수도권/화성 권역 CID
-  '1110': { region: 'gyeonggi', tagoCode: '31190' }, // 경기도 용인/수지 권역
-  '1120': { region: 'gyeonggi', tagoCode: '31020' }, // 경기도 성남 권역
-  '1130': { region: 'gyeonggi', tagoCode: '31040' }, // 경기도 안양 권역
-  '1140': { region: 'gyeonggi', tagoCode: '31050' }, // 경기도 부천 권역
-  '1150': { region: 'gyeonggi', tagoCode: '31100' }, // 경기도 고양 권역
+  '1100': { region: 'gyeonggi', tagoCode: '31240' }, // 경기도 화성
+  '1110': { region: 'gyeonggi', tagoCode: '31190' }, // 경기도 용인/수지
+  '1120': { region: 'gyeonggi', tagoCode: '31020' }, // 경기도 성남
+  '1130': { region: 'gyeonggi', tagoCode: '31040' }, // 경기도 안양
+  '1140': { region: 'gyeonggi', tagoCode: '31050' }, // 경기도 부천
+  '1150': { region: 'gyeonggi', tagoCode: '31100' }, // 경기도 고양
   '21': { region: 'busan', tagoCode: '21' },
   '7000': { region: 'busan', tagoCode: '21' },
   '22': { region: 'daegu', tagoCode: '22' },
@@ -28,7 +29,7 @@ const ODSAY_CITY_CODE_MAP: Record<string, BusRegionMapping> = {
   '24': { region: 'gwangju', tagoCode: '24' },
   '5000': { region: 'gwangju', tagoCode: '24' },
   '25': { region: 'daejeon', tagoCode: '25' },
-  '3000': { region: 'daejeon', tagoCode: '25' }, // ODsay 대전광역시 표준 CID (3000)
+  '3000': { region: 'daejeon', tagoCode: '25' }, // 대전광역시
   '6000': { region: 'daejeon', tagoCode: '25' },
   '26': { region: 'ulsan', tagoCode: '26' },
   '8000': { region: 'ulsan', tagoCode: '26' },
@@ -37,7 +38,7 @@ const ODSAY_CITY_CODE_MAP: Record<string, BusRegionMapping> = {
   '9000': { region: 'sejong', tagoCode: '12' },
   '31': { region: 'gyeonggi', tagoCode: '31' },
   '2000': { region: 'gyeonggi', tagoCode: '31' },
-  // ODsay 경기도 주요 시군 CID (1200~1300대)
+  // 경기도 주요 시군 TAGO 매핑 (31xxx)
   '1200': { region: 'gyeonggi', tagoCode: '31010' }, // 수원
   '1210': { region: 'gyeonggi', tagoCode: '31020' }, // 성남
   '1220': { region: 'gyeonggi', tagoCode: '31040' }, // 안양
@@ -76,18 +77,21 @@ const ODSAY_CITY_CODE_MAP: Record<string, BusRegionMapping> = {
   '3900': { region: 'jeju', tagoCode: '39' },
 };
 
+/** 하위 호환용 alias */
+export const ODSAY_CITY_CODE_MAP = CITY_CODE_MAP;
+
 /**
- * ODsay 버스 도시 코드(busCityCode)를 바탕으로 내부 region ID를 반환합니다.
+ * 버스 도시코드(cityCode)를 바탕으로 내부 표준 권역 ID(region)를 반환합니다.
  */
 export function resolveBusRegion(busCityCode?: string | number): string {
   if (!busCityCode) return 'seoul';
   const codeStr = String(busCityCode).trim();
   
-  if (ODSAY_CITY_CODE_MAP[codeStr]) {
-    return ODSAY_CITY_CODE_MAP[codeStr].region;
+  if (CITY_CODE_MAP[codeStr]) {
+    return CITY_CODE_MAP[codeStr].region;
   }
 
-  // 31xxx 형태 또는 ODsay 1040~1390 경기도 시군 CID 처리 (1000 서울 제외)
+  // 31xxx 형태(TAGO 경기도 시군코드) 또는 1040~1390 시군 식별코드 처리 (1000 서울 제외)
   const numCode = parseInt(codeStr, 10);
   if (codeStr.startsWith('31') || (numCode >= 1040 && numCode <= 1390 && numCode !== 1000)) {
     return 'gyeonggi';
@@ -97,14 +101,14 @@ export function resolveBusRegion(busCityCode?: string | number): string {
 }
 
 /**
- * ODsay 버스 도시 코드(busCityCode)를 바탕으로 TAGO cityCode를 반환합니다.
+ * 버스 도시코드(cityCode)를 바탕으로 공공데이터포털 TAGO cityCode를 반환합니다.
  */
 export function resolveTagoCode(busCityCode?: string | number): string {
   if (!busCityCode) return '11';
   const codeStr = String(busCityCode).trim();
 
-  if (ODSAY_CITY_CODE_MAP[codeStr]) {
-    return ODSAY_CITY_CODE_MAP[codeStr].tagoCode;
+  if (CITY_CODE_MAP[codeStr]) {
+    return CITY_CODE_MAP[codeStr].tagoCode;
   }
 
   const numCode = parseInt(codeStr, 10);

@@ -12,12 +12,13 @@ import {
 } from '@/types/journey';
 import { cleanBusNumber } from '@/lib/utils/busRegionUtils';
 import { LruTtlCache } from '@/lib/utils/lruCache';
-import { XMLParser } from 'fast-xml-parser';
-
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  trimValues: true,
-});
+import {
+  getTransitApiKey,
+  getEncodedServiceKey,
+  parseXmlOrJsonItems,
+  safeNumber,
+  safeString,
+} from './transitUtils';
 
 /** 부산 버스 노선 검색 메타데이터 */
 export interface BusanRouteMeta {
@@ -39,22 +40,22 @@ export interface FetchBusanBusLineParams {
 
 export class BusanBusService {
   // 부산광역시_버스정보시스템 BusanBIMS 공식 엔드포인트
-  private static ARRIVAL_API_URL =
+  private static readonly ARRIVAL_API_URL =
     'https://apis.data.go.kr/6260000/BusanBIMS/stopArrByBstopid';
-  private static BUS_INFO_URL =
+  private static readonly BUS_INFO_URL =
     'https://apis.data.go.kr/6260000/BusanBIMS/busInfo';
-  private static BUS_LINE_DETAIL_URL =
+  private static readonly BUS_LINE_DETAIL_URL =
     'https://apis.data.go.kr/6260000/BusanBIMS/busInfoByRouteId';
 
   // ─── 인메모리 캐시 ───────────────────────────────────────────────────────────
   // 노선 번호 -> lineId 캐시 (24시간)
-  private static ROUTE_ID_CACHE = new LruTtlCache<string, BusanRouteMeta>({
+  private static readonly ROUTE_ID_CACHE = new LruTtlCache<string, BusanRouteMeta>({
     maxSize: 300,
     defaultTtlMs: 24 * 60 * 60 * 1000,
   });
 
   // 정적 노선 정류소 목록 캐시 (1시간)
-  private static STATIONS_CACHE = new LruTtlCache<string, {
+  private static readonly STATIONS_CACHE = new LruTtlCache<string, {
     stations: BusLineStation[];
     startStationName?: string;
     endStationName?: string;
@@ -67,7 +68,7 @@ export class BusanBusService {
   });
 
   // 실시간 버스 위치 캐시 (20초)
-  private static REALTIME_POS_CACHE = new LruTtlCache<string, BusPosition[]>({
+  private static readonly REALTIME_POS_CACHE = new LruTtlCache<string, BusPosition[]>({
     maxSize: 100,
     defaultTtlMs: 20 * 1000,
   });
@@ -94,27 +95,6 @@ export class BusanBusService {
     return '#2563EB'; // 파랑 (일반 시내버스)
   }
 
-  /** 모듈 로드 시 1회 계산 후 캐싱 — 이후 요청에서는 순수 메모리 참조 */
-  private static readonly API_KEY: string = (() => {
-    const raw =
-      process.env.REAL_TIME_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_BUSAN_API_KEY ||
-      process.env.BUSAN_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
-      process.env.TAGO_API_KEY ||
-      process.env.DATA_GO_KR_API_KEY ||
-      '';
-    return raw.trim().replace(/^["']|["']$/g, '');
-  })();
-
-  /** URL 쿼리 파라미터용 인코딩 serviceKey — 모듈 로드 시 1회 계산 */
-  private static readonly SERVICE_KEY: string = (() => {
-    const key = BusanBusService.API_KEY;
-    if (!key) return '';
-    const decoded = key.includes('%') ? decodeURIComponent(key) : key;
-    return encodeURIComponent(decoded);
-  })();
-
   /**
    * 부산광역시 버스 도착 정보 조회 (stopArrByBstopid)
    */
@@ -122,15 +102,16 @@ export class BusanBusService {
     stationId: string,
     stationName: string = '부산 정류소'
   ): Promise<NormalizedRealtimeData> {
-    if (!this.API_KEY) {
+    const apiKey = getTransitApiKey('busan');
+    if (!apiKey) {
       return this.getFallbackData(stationId, stationName, '부산 버스 API 키가 설정되지 않았습니다.');
     }
 
     try {
       const cleanStationId = stationId.replace(/^BSB/i, '').trim();
-      const serviceKey = this.SERVICE_KEY;
+      const encodedKey = getEncodedServiceKey('busan');
 
-      const requestUrl = `${this.ARRIVAL_API_URL}?serviceKey=${serviceKey}&bstopid=${encodeURIComponent(cleanStationId)}`;
+      const requestUrl = `${this.ARRIVAL_API_URL}?serviceKey=${encodedKey}&bstopid=${encodeURIComponent(cleanStationId)}`;
       const res = await fetch(requestUrl, {
         method: 'GET',
         signal: AbortSignal.timeout(3000),
@@ -142,44 +123,26 @@ export class BusanBusService {
       }
 
       const text = await res.text();
-      let itemsArray: any[] = [];
-
-      try {
-        const parsed = xmlParser.parse(text);
-        const rawItems = parsed?.response?.body?.items?.item;
-        if (Array.isArray(rawItems)) {
-          itemsArray = rawItems;
-        } else if (rawItems && typeof rawItems === 'object') {
-          itemsArray = [rawItems];
-        }
-      } catch {
-        const json = JSON.parse(text);
-        const rawItems = json.response?.body?.items?.item || json.response?.body?.items;
-        if (Array.isArray(rawItems)) {
-          itemsArray = rawItems;
-        } else if (rawItems && typeof rawItems === 'object') {
-          itemsArray = [rawItems];
-        }
-      }
+      const { items: itemsArray } = parseXmlOrJsonItems<Record<string, unknown>>(text);
 
       const nextArrivals: ArrivalBusItem[] = [];
 
       for (const item of itemsArray) {
-        const lineName = String(item.lineno || item.lineNo || '버스');
-        const min1 = Number(item.min1) || 0;
-        const min2 = Number(item.min2) || 0;
-        const lineId = item.lineid ? String(item.lineid) : item.lineId ? String(item.lineId) : `BUSAN_${lineName}`;
-        const busType = this.parseBusType(item.bustype, lineName);
+        const lineName = safeString(item.lineno || item.lineNo, '버스');
+        const min1 = safeNumber(item.min1, 0) ?? 0;
+        const min2 = safeNumber(item.min2, 0) ?? 0;
+        const lineId = item.lineid ? safeString(item.lineid) : item.lineId ? safeString(item.lineId) : `BUSAN_${lineName}`;
+        const busType = this.parseBusType(item.bustype as string | undefined, lineName);
 
         if (min1 > 0) {
           nextArrivals.push({
             lineId,
             lineName,
             arrivedInSeconds: min1 * 60,
-            currentStationSequence: item.station1 !== undefined ? Number(item.station1) : undefined,
+            currentStationSequence: safeNumber(item.station1),
             busType,
             destination: '종점 방향',
-            vehicleId: item.carno1 ? String(item.carno1).trim() : undefined,
+            vehicleId: item.carno1 ? safeString(item.carno1) : undefined,
           });
         }
 
@@ -188,10 +151,10 @@ export class BusanBusService {
             lineId,
             lineName,
             arrivedInSeconds: min2 * 60,
-            currentStationSequence: item.station2 !== undefined ? Number(item.station2) : undefined,
+            currentStationSequence: safeNumber(item.station2),
             busType,
             destination: '종점 방향',
-            vehicleId: item.carno2 ? String(item.carno2).trim() : undefined,
+            vehicleId: item.carno2 ? safeString(item.carno2) : undefined,
           });
         }
       }
@@ -206,9 +169,10 @@ export class BusanBusService {
         lastUpdated: Date.now(),
         reliability: RELIABILITY_SCORES.busan,
       };
-    } catch (error: any) {
-      console.warn('[BusanBusService] API 호출 오류:', error?.message);
-      return this.getFallbackData(stationId, stationName, `부산 버스 연동 에러: ${error?.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : '알 수 없는 오류';
+      console.warn('[BusanBusService] API 호출 오류:', errMsg);
+      return this.getFallbackData(stationId, stationName, `부산 버스 연동 에러: ${errMsg}`);
     }
   }
 
@@ -222,11 +186,12 @@ export class BusanBusService {
       return cached;
     }
 
-    if (!this.API_KEY) return null;
+    const apiKey = getTransitApiKey('busan');
+    if (!apiKey) return null;
 
     try {
-      const serviceKey = this.SERVICE_KEY;
-      const url = `${this.BUS_INFO_URL}?serviceKey=${serviceKey}&lineno=${encodeURIComponent(cleanNo)}`;
+      const encodedKey = getEncodedServiceKey('busan');
+      const url = `${this.BUS_INFO_URL}?serviceKey=${encodedKey}&lineno=${encodeURIComponent(cleanNo)}`;
 
       const res = await fetch(url, {
         method: 'GET',
@@ -236,20 +201,12 @@ export class BusanBusService {
 
       if (!res.ok) return null;
       const text = await res.text();
-      const parsed = xmlParser.parse(text);
-      const rawItems = parsed?.response?.body?.items?.item;
-
-      let items: any[] = [];
-      if (Array.isArray(rawItems)) {
-        items = rawItems;
-      } else if (rawItems && typeof rawItems === 'object') {
-        items = [rawItems];
-      }
+      const { items } = parseXmlOrJsonItems<Record<string, unknown>>(text);
 
       if (items.length === 0) return null;
 
       // 1순위: buslinenum과 cleanNo 완전 일치
-      let matched = items.find((it) => cleanBusNumber(String(it.buslinenum || '')) === cleanNo);
+      let matched = items.find((it) => cleanBusNumber(safeString(it.buslinenum)) === cleanNo);
       if (!matched) {
         matched = items[0];
       }
@@ -257,17 +214,18 @@ export class BusanBusService {
       if (!matched?.lineid) return null;
 
       const meta: BusanRouteMeta = {
-        lineId: String(matched.lineid).trim(),
-        busNo: String(matched.buslinenum || cleanNo).trim(),
-        busType: matched.bustype ? String(matched.bustype).trim() : undefined,
-        startPoint: matched.startpoint ? String(matched.startpoint).trim() : undefined,
-        endPoint: matched.endpoint ? String(matched.endpoint).trim() : undefined,
+        lineId: safeString(matched.lineid),
+        busNo: safeString(matched.buslinenum || cleanNo),
+        busType: matched.bustype ? safeString(matched.bustype) : undefined,
+        startPoint: matched.startpoint ? safeString(matched.startpoint) : undefined,
+        endPoint: matched.endpoint ? safeString(matched.endpoint) : undefined,
       };
 
       this.ROUTE_ID_CACHE.set(cleanNo, meta);
       return meta;
-    } catch (err: any) {
-      console.warn('[BusanBusService] busInfo 조회 실패:', err?.message);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.warn('[BusanBusService] busInfo 조회 실패:', errMsg);
       return null;
     }
   }
@@ -278,7 +236,8 @@ export class BusanBusService {
   public static async getBusLinePositions(
     params: FetchBusanBusLineParams
   ): Promise<BusLinePositionsData | null> {
-    if (!this.API_KEY) return null;
+    const apiKey = getTransitApiKey('busan');
+    if (!apiKey) return null;
 
     const rawBusNo = params.busNo.trim();
     const cleanNo = cleanBusNumber(rawBusNo);
@@ -304,8 +263,8 @@ export class BusanBusService {
     }
 
     try {
-      const serviceKey = this.SERVICE_KEY;
-      const url = `${this.BUS_LINE_DETAIL_URL}?serviceKey=${serviceKey}&lineid=${encodeURIComponent(lineId)}`;
+      const encodedKey = getEncodedServiceKey('busan');
+      const url = `${this.BUS_LINE_DETAIL_URL}?serviceKey=${encodedKey}&lineid=${encodeURIComponent(lineId)}`;
 
       const res = await fetch(url, {
         method: 'GET',
@@ -318,15 +277,7 @@ export class BusanBusService {
       }
 
       const text = await res.text();
-      const parsed = xmlParser.parse(text);
-      const rawItems = parsed?.response?.body?.items?.item;
-
-      let items: any[] = [];
-      if (Array.isArray(rawItems)) {
-        items = rawItems;
-      } else if (rawItems && typeof rawItems === 'object') {
-        items = [rawItems];
-      }
+      const { items } = parseXmlOrJsonItems<Record<string, unknown>>(text);
 
       if (items.length === 0) {
         return null;
@@ -339,10 +290,10 @@ export class BusanBusService {
 
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        const stationSeq = Number(it.bstopidx ?? i + 1);
-        const stationName = String(it.bstopnm || `정류소 ${i + 1}`).trim();
-        const stationId = String(it.nodeid || it.bstopidx || i + 1).trim();
-        const arsNo = it.arsno ? String(it.arsno).trim() : undefined;
+        const stationSeq = safeNumber(it.bstopidx, i + 1) ?? (i + 1);
+        const stationName = safeString(it.bstopnm, `정류소 ${i + 1}`);
+        const stationId = safeString(it.nodeid || it.bstopidx || i + 1);
+        const arsNo = it.arsno ? safeString(it.arsno) : undefined;
         const isTurning = it.rpoint === 1 || it.rpoint === '1';
 
         if (isTurning && turningSeq === -1) {
@@ -355,14 +306,13 @@ export class BusanBusService {
           stationName,
           stationSeq,
           arsNo,
-          lat: it.lat ? Number(it.lat) : 0,
-          lng: it.lin ? Number(it.lin) : 0, // 부산 BIMS의 경도 필드는 lin
+          lat: safeNumber(it.lat, 0) ?? 0,
+          lng: safeNumber(it.lin, 0) ?? 0, // 부산 BIMS의 경도 필드는 lin
           isTurningPoint: isTurning,
           edgePoints: null,
         });
       }
 
-      // 회차점이 명시되지 않은 경우 중간 지점으로 추정
       const effectiveTurningSeq = turningSeq !== -1 ? turningSeq : Math.ceil(stations.length / 2);
       const effectiveTurningName = turningName || stations[effectiveTurningSeq - 1]?.stationName;
 
@@ -371,18 +321,17 @@ export class BusanBusService {
       const seenVehicles = new Set<string>();
 
       for (const it of items) {
-        const carno = it.carno ? String(it.carno).trim() : '';
+        const carno = safeString(it.carno);
         if (!carno || seenVehicles.has(carno)) continue;
         seenVehicles.add(carno);
 
-        const nodeord = it.bstopidx !== undefined ? Number(it.bstopidx) : undefined;
-        const nodeid = it.nodeid ? String(it.nodeid).trim() : undefined;
-        const nodenm = it.bstopnm ? String(it.bstopnm).trim() : undefined;
-        const gpslati = it.lat !== undefined ? Number(it.lat) : undefined;
-        const gpslong = it.lin !== undefined ? Number(it.lin) : undefined;
+        const nodeord = safeNumber(it.bstopidx);
+        const nodeid = it.nodeid ? safeString(it.nodeid) : undefined;
+        const nodenm = it.bstopnm ? safeString(it.bstopnm) : undefined;
+        const gpslati = safeNumber(it.lat);
+        const gpslong = safeNumber(it.lin);
 
-        // 부산 BIMS direction: 1 (순방향/상행), 2 (역방향/하행), 3 (회차지 부근)
-        const rawDir = it.direction !== undefined ? Number(it.direction) : undefined;
+        const rawDir = safeNumber(it.direction);
         let finalDir: '0' | '1' = '0';
         if (rawDir === 2) {
           finalDir = '1';
@@ -392,8 +341,7 @@ export class BusanBusService {
           finalDir = nodeord >= effectiveTurningSeq ? '1' : '0';
         }
 
-        // 부산 BIMS nodekn: 0: 정류소 정차, 3: 출발 및 주행
-        const nodekn = it.nodekn !== undefined ? Number(it.nodekn) : 0;
+        const nodekn = safeNumber(it.nodekn, 0);
         let stage: BusPositionStage = 'at_station';
         let progressRate = 0.0;
 
@@ -418,10 +366,9 @@ export class BusanBusService {
         });
       }
 
-      // 첫 번째 아이템의 노선 유형 및 기종점
       const sampleItem = items[0];
-      const busType = this.parseBusType(sampleItem?.bustype, cleanNo);
-      const busColor = this.resolveBusColor(sampleItem?.bustype);
+      const busType = this.parseBusType(sampleItem?.bustype as string | undefined, cleanNo);
+      const busColor = this.resolveBusColor(sampleItem?.bustype as string | undefined);
 
       const result: BusLinePositionsData = {
         busNo: cleanNo,
@@ -438,7 +385,6 @@ export class BusanBusService {
         timestamp: Date.now(),
       };
 
-      // 캐시 저장
       this.STATIONS_CACHE.set(lineId, {
         stations,
         startStationName: result.startStationName,
@@ -450,14 +396,15 @@ export class BusanBusService {
       this.REALTIME_POS_CACHE.set(`realtime:${lineId}`, positions);
 
       return result;
-    } catch (err: any) {
-      console.warn('[BusanBusService] getBusLinePositions 실패:', err?.message);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.warn('[BusanBusService] getBusLinePositions 실패:', errMsg);
       return null;
     }
   }
 
   /**
-   * 부산 지역 Fallback 데이터 (가짜 하드코딩 노선 제거)
+   * 부산 지역 Fallback 데이터
    */
   private static getFallbackData(
     stationId: string,

@@ -1,17 +1,19 @@
-import { XMLParser } from 'fast-xml-parser';
 import { RELIABILITY_SCORES } from '@/constants/transit';
 import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
 import {
   ArrivalBusItem,
   BusType,
-  GyeonggiApiResponse,
-  GyeonggiBusItem,
-  GyeonggiBusLocationApiResponse,
   GyeonggiBusLocationItem,
   NormalizedRealtimeData,
 } from '@/types/realtimeTransit';
-
 import { LruTtlCache } from '@/lib/utils/lruCache';
+import {
+  getTransitApiKey,
+  getEncodedServiceKey,
+  parseXmlOrJsonItems,
+  safeNumber,
+  safeString,
+} from './transitUtils';
 
 export interface GyeonggiRouteItem {
   routeId: string;
@@ -55,15 +57,15 @@ const GYEONGGI_ROUTE_STATION_CACHE = new LruTtlCache<string, GyeonggiRouteStatio
 });
 
 export class GyeonggiBusService {
-  private static API_URL =
+  private static readonly API_URL =
     'https://apis.data.go.kr/6410000/busarrivalservice/v2/getBusArrivalListv2';
-  private static BUS_POS_API_URL_V2 =
+  private static readonly BUS_POS_API_URL_V2 =
     'https://apis.data.go.kr/6410000/buslocationservice/v2/getBusLocationListv2';
-  private static BUS_POS_API_URL_V1 =
+  private static readonly BUS_POS_API_URL_V1 =
     'https://apis.data.go.kr/6410000/buslocationservice/getBusLocationList';
-  private static BUS_ROUTE_API_URL_V2 =
+  private static readonly BUS_ROUTE_API_URL_V2 =
     'https://apis.data.go.kr/6410000/busrouteservice/v2/getBusRouteListv2';
-  private static BUS_ROUTE_STATION_API_URL_V2 =
+  private static readonly BUS_ROUTE_STATION_API_URL_V2 =
     'https://apis.data.go.kr/6410000/busrouteservice/v2/getBusRouteStationListv2';
 
   /**
@@ -84,134 +86,76 @@ export class GyeonggiBusService {
     return 'normal';
   }
 
-  /** 모듈 로드 시 1회 계산 후 캐싱 — 이후 요청에서는 순수 메모리 참조 */
-  private static readonly API_KEY: string = (() => {
-    const raw =
-      process.env.REAL_TIME_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||
-      process.env.GYEONGGI_BUS_API_KEY ||
-      process.env.REAL_TIME_BUS_TAGO_API_KEY ||
-      process.env.TAGO_API_KEY ||
-      process.env.DATA_GO_KR_API_KEY ||
-      '';
-    return raw.trim().replace(/^["']|["']$/g, '');
-  })();
-
-  /** URL 쿼리 파라미터용 인코딩 serviceKey — 모듈 로드 시 1회 계산 */
-  private static readonly SERVICE_KEY: string = (() => {
-    const key = GyeonggiBusService.API_KEY;
-    if (!key) return '';
-    const decoded = key.includes('%') ? decodeURIComponent(key) : key;
-    return encodeURIComponent(decoded);
-  })();
-
   /**
-   * 경기도 버스 도착 정보 조회
+   * 경기도 버스 도착 정보 조회 (단일 9자리 정류소 ID 기준 신속 호출)
    */
   public static async getArrivalInfo(
     stationId: string,
     stationName: string = '경기 정류소'
   ): Promise<NormalizedRealtimeData> {
-    if (!this.API_KEY) {
+    const apiKey = getTransitApiKey('gyeonggi');
+    if (!apiKey) {
       return this.getMockData(stationId, stationName);
     }
 
     try {
+      // 경기도 정류소 ID는 9자리 숫자 고유번호가 표준
       const cleanStationId = stationId.replace(/^GGB/i, '').trim();
       const pureNumeric = stationId.replace(/[^0-9]/g, '');
-      const stationIdCandidates = Array.from(
-        new Set([cleanStationId, pureNumeric, stationId.trim()].filter(Boolean))
-      );
-      const encodedServiceKey = this.SERVICE_KEY;
+      const targetStationId = cleanStationId || pureNumeric || stationId.trim();
 
-      const fetchCandidate = async (candidateId: string): Promise<GyeonggiApiResponse | null> => {
-        const requestUrl = `${this.API_URL}?serviceKey=${encodedServiceKey}&stationId=${encodeURIComponent(candidateId)}&format=json`;
-        const res = await fetch(requestUrl, {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(3000),
-          next: { revalidate: 20 },
-        });
-        if (!res.ok) return null;
-        return (await res.json().catch(() => null)) as GyeonggiApiResponse | null;
-      };
-
-      const candidateResults = await Promise.allSettled(
-        stationIdCandidates.map((cId) => fetchCandidate(cId))
-      );
-
-      let validJson: GyeonggiApiResponse | null = null;
-      for (const result of candidateResults) {
-        if (result.status === 'fulfilled' && result.value) {
-          const json = result.value;
-          const list = json.response?.msgBody?.busArrivalList || json.response?.body?.items;
-          if (list && (Array.isArray(list) ? list.length > 0 : true)) {
-            validJson = json;
-            break;
-          } else if (!validJson) {
-            validJson = json;
-          }
-        }
+      if (!targetStationId) {
+        return this.getMockData(stationId, stationName);
       }
 
-      if (!validJson || !validJson.response) {
-        throw new Error('경기도 버스 API 유효 응답 없음');
+      const encodedKey = getEncodedServiceKey('gyeonggi');
+      const requestUrl = `${this.API_URL}?serviceKey=${encodedKey}&stationId=${encodeURIComponent(targetStationId)}&format=json`;
+
+      const res = await fetch(requestUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json, text/xml, */*' },
+        signal: AbortSignal.timeout(2000),
+        cache: 'no-store',
+      });
+
+      if (!res.ok) {
+        throw new Error(`경기도 버스 API HTTP ${res.status}`);
       }
 
-      const json = validJson as Record<string, any>;
-      const rawList =
-        json.response?.msgBody?.busArrivalList ||
-        json.response?.body?.items?.busArrivalItem ||
-        json.response?.body?.items ||
-        [];
-
-      const itemsArray: Record<string, any>[] = Array.isArray(rawList)
-        ? rawList
-        : rawList && typeof rawList === 'object'
-        ? [rawList]
-        : [];
+      const text = await res.text();
+      const { items: itemsArray } = parseXmlOrJsonItems<Record<string, unknown>>(text);
 
       const nextArrivals: ArrivalBusItem[] = [];
 
       for (const item of itemsArray) {
         const rawTime1 = item.predictTime1 ?? item.predictedTime1;
         const rawTime2 = item.predictTime2 ?? item.predictedTime2;
-        const time1 = rawTime1 !== undefined && rawTime1 !== '' ? Number(rawTime1) || 0 : 0;
-        const time2 = rawTime2 !== undefined && rawTime2 !== '' ? Number(rawTime2) || 0 : 0;
-        const lineName = String(item.routeName || item.routeNo || '').trim();
-        const routeId = String(item.routeId || lineName || '버스');
-        const destination = item.routeDestName || item.stopName || undefined;
-        const busType = this.parseGyeonggiBusType(item.routeTypeCd, lineName);
-
+        const time1 = safeNumber(rawTime1, 0) ?? 0;
+        const time2 = safeNumber(rawTime2, 0) ?? 0;
+        const lineName = safeString(item.routeName || item.routeNo);
+        const routeId = safeString(item.routeId || lineName || '버스');
+        const destination = item.routeDestName ? safeString(item.routeDestName) : (item.stopName ? safeString(item.stopName) : undefined);
+        const busType = this.parseGyeonggiBusType(item.routeTypeCd as number | string | undefined, lineName);
         const isExpress = busType === 'express';
 
-        const parseLocationNo = (val: unknown): number | undefined => {
-          if (val === undefined || val === null || val === '') return undefined;
-          const num = Number(val);
-          return !isNaN(num) ? num : undefined;
-        };
-
         const parseRemainSeats = (val: unknown): number | undefined => {
-          // 일반 시내버스는 좌석 예약제가 아니므로 항상 undefined 반환하여 '만석' 오표시 차단
           if (!isExpress) return undefined;
-          if (val === undefined || val === null || val === '') return undefined;
-          const num = Number(val);
-          return !isNaN(num) && num >= 0 ? num : undefined;
+          const num = safeNumber(val);
+          return num !== undefined && num >= 0 ? num : undefined;
         };
 
         const parseCrowdedStatus = (val: unknown): string | undefined => {
-          if (val === undefined || val === null || val === '') return undefined;
-          const str = String(val).trim();
-          if (str === '0') return undefined; // 정보 없음
+          const str = safeString(val);
+          if (!str || str === '0') return undefined;
           if (str === '1') return '여유';
           if (str === '2') return '보통';
           if (str === '3') return '혼잡';
           if (str === '4') return '매우혼잡';
-          return str || undefined;
+          return str;
         };
 
-        const loc1 = parseLocationNo(item.locationNo1 ?? item.locationNumber1);
-        const loc2 = parseLocationNo(item.locationNo2 ?? item.locationNumber2);
+        const loc1 = safeNumber(item.locationNo1 ?? item.locationNumber1);
+        const loc2 = safeNumber(item.locationNo2 ?? item.locationNumber2);
         const seats1 = parseRemainSeats(item.remainSeatCnt1);
         const seats2 = parseRemainSeats(item.remainSeatCnt2);
         const crowded1 = parseCrowdedStatus(item.crowded1);
@@ -256,7 +200,7 @@ export class GyeonggiBusService {
       };
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : '알 수 없는 오류';
-      console.error('[GyeonggiBusService] API 호출 실패:', errMsg);
+      console.warn('[GyeonggiBusService] API 호출 실패:', errMsg);
       const mock = this.getMockData(stationId, stationName);
       mock.errorMessage = `경기도 API 연동 에러: ${errMsg}`;
       mock.reliability = 0.5;
@@ -265,21 +209,22 @@ export class GyeonggiBusService {
   }
 
   /**
-   * 경기도 실시간 버스 위치 목록 조회 (v2 getBusLocationListv2 우선 연동)
+   * 경기도 실시간 버스 위치 목록 조회 (v2 getBusLocationListv2 우선 연동, v1 fallback)
    */
   public static async getBusLocationList(
     routeId: string
   ): Promise<GyeonggiBusLocationItem[] | null> {
-    if (!this.API_KEY || !routeId) {
+    const apiKey = getTransitApiKey('gyeonggi');
+    if (!apiKey || !routeId) {
       return null;
     }
 
     try {
       const cleanRouteId = routeId.replace(/^GGB/i, '').trim();
-      const encodedServiceKey = this.SERVICE_KEY;
+      const encodedKey = getEncodedServiceKey('gyeonggi');
 
       // 1. v2 공식 엔드포인트 호출
-      const v2Url = `${this.BUS_POS_API_URL_V2}?serviceKey=${encodedServiceKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
+      const v2Url = `${this.BUS_POS_API_URL_V2}?serviceKey=${encodedKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
 
       let response = await fetch(v2Url, {
         method: 'GET',
@@ -290,7 +235,7 @@ export class GyeonggiBusService {
 
       // 2. v2 응답이 정상이 아니면 v1 엔드포인트로 Fallback
       if (!response || !response.ok) {
-        const v1Url = `${this.BUS_POS_API_URL_V1}?serviceKey=${encodedServiceKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
+        const v1Url = `${this.BUS_POS_API_URL_V1}?serviceKey=${encodedKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
         response = await fetch(v1Url, {
           method: 'GET',
           headers: { Accept: 'application/json, text/xml, */*' },
@@ -304,61 +249,22 @@ export class GyeonggiBusService {
       }
 
       const text = await response.text();
-      let rawList: unknown = null;
+      const { items } = parseXmlOrJsonItems<Record<string, unknown>>(text);
+      if (items.length === 0) return null;
 
-      // JSON 파싱 시도
-      try {
-        const json = JSON.parse(text) as Record<string, any>;
-        rawList =
-          json.response?.msgBody?.busLocationList ||
-          json.response?.body?.items?.busLocationItem ||
-          json.response?.body?.items ||
-          json.msgBody?.busLocationList;
-      } catch {
-        // XML 파싱 Fallback
-        const parser = new XMLParser();
-        const xml = parser.parse(text) as Record<string, any>;
-        rawList =
-          xml.response?.msgBody?.busLocationList ||
-          xml.response?.body?.items?.busLocationItem ||
-          xml.response?.body?.items ||
-          xml.msgBody?.busLocationList;
-      }
-
-      if (!rawList) {
-        return null;
-      }
-
-      const itemsArray: Record<string, any>[] = Array.isArray(rawList)
-        ? rawList
-        : rawList && typeof rawList === 'object'
-        ? [rawList as Record<string, any>]
-        : [];
-
-      return itemsArray.map((item) => {
-        const parseRemainSeats = (val: unknown): number | undefined => {
-          if (val === undefined || val === null || val === '') return undefined;
-          const num = Number(val);
-          return !isNaN(num) ? num : undefined;
-        };
-
-        const parseSeq = (val: unknown): number | undefined => {
-          if (val === undefined || val === null || val === '') return undefined;
-          const num = Number(val);
-          return !isNaN(num) ? num : undefined;
-        };
-
+      return items.map((item) => {
+        const remainSeats = safeNumber(item.remainSeatCnt);
         return {
-          routeId: item.routeId ? String(item.routeId) : cleanRouteId,
-          stationId: item.stationId ? String(item.stationId) : undefined,
-          stationSeq: parseSeq(item.stationSeq ?? item.stationSequence),
-          plateNo: item.plateNo ? String(item.plateNo).trim() : undefined,
-          remainSeatCnt: parseRemainSeats(item.remainSeatCnt),
-          plateType: item.plateType !== undefined ? Number(item.plateType) : undefined,
-          lowPlate: item.lowPlate !== undefined ? Number(item.lowPlate) : undefined,
-          endBus: item.endBus !== undefined ? Number(item.endBus) : undefined,
-          density: item.density !== undefined ? Number(item.density) : undefined,
-          vehId: item.vehId ? String(item.vehId) : undefined,
+          routeId: item.routeId ? safeString(item.routeId) : cleanRouteId,
+          stationId: item.stationId ? safeString(item.stationId) : undefined,
+          stationSeq: safeNumber(item.stationSeq ?? item.stationSequence),
+          plateNo: item.plateNo ? safeString(item.plateNo) : undefined,
+          remainSeatCnt: remainSeats !== undefined && remainSeats >= 0 ? remainSeats : undefined,
+          plateType: safeNumber(item.plateType),
+          lowPlate: safeNumber(item.lowPlate),
+          endBus: safeNumber(item.endBus),
+          density: safeNumber(item.density),
+          vehId: item.vehId ? safeString(item.vehId) : undefined,
         };
       });
     } catch (err: unknown) {
@@ -380,11 +286,12 @@ export class GyeonggiBusService {
     const cached = GYEONGGI_ROUTE_LIST_CACHE.get(cleanKeyword);
     if (cached) return cached;
 
-    if (!this.API_KEY) return null;
+    const apiKey = getTransitApiKey('gyeonggi');
+    if (!apiKey) return null;
 
     try {
-      const encodedServiceKey = this.SERVICE_KEY;
-      const url = `${this.BUS_ROUTE_API_URL_V2}?serviceKey=${encodedServiceKey}&keyword=${encodeURIComponent(cleanKeyword)}&format=json`;
+      const encodedKey = getEncodedServiceKey('gyeonggi');
+      const url = `${this.BUS_ROUTE_API_URL_V2}?serviceKey=${encodedKey}&keyword=${encodeURIComponent(cleanKeyword)}&format=json`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -398,43 +305,23 @@ export class GyeonggiBusService {
       }
 
       const text = await response.text();
-      let rawList: unknown = null;
+      const { items } = parseXmlOrJsonItems<Record<string, unknown>>(text);
+      if (items.length === 0) return null;
 
-      try {
-        const json = JSON.parse(text) as Record<string, any>;
-        rawList =
-          json.response?.msgBody?.busRouteList ||
-          json.response?.body?.items?.busRouteList ||
-          json.msgBody?.busRouteList;
-      } catch {
-        const parser = new XMLParser();
-        const xml = parser.parse(text) as Record<string, any>;
-        rawList =
-          xml.response?.msgBody?.busRouteList ||
-          xml.response?.body?.items?.busRouteList ||
-          xml.msgBody?.busRouteList;
-      }
-
-      if (!rawList) return null;
-
-      const itemsArray: Record<string, any>[] = Array.isArray(rawList)
-        ? rawList
-        : typeof rawList === 'object'
-        ? [rawList as Record<string, any>]
-        : [];
-
-      const result: GyeonggiRouteItem[] = itemsArray.map((item) => ({
-        routeId: String(item.routeId || ''),
-        routeName: String(item.routeName || item.busRouteNm || '').trim(),
-        routeTypeCd: item.routeTypeCd !== undefined ? Number(item.routeTypeCd) : undefined,
-        routeTypeName: item.routeTypeName ? String(item.routeTypeName).trim() : undefined,
-        startStationId: item.startStationId ? String(item.startStationId) : undefined,
-        startStationName: item.startStationName ? String(item.startStationName).trim() : undefined,
-        endStationId: item.endStationId ? String(item.endStationId) : undefined,
-        endStationName: item.endStationName ? String(item.endStationName).trim() : undefined,
-        adminName: item.adminName ? String(item.adminName).trim() : undefined,
-        regionName: item.regionName ? String(item.regionName).trim() : undefined,
-      })).filter((r) => r.routeId && r.routeName);
+      const result: GyeonggiRouteItem[] = items
+        .map((item) => ({
+          routeId: safeString(item.routeId),
+          routeName: safeString(item.routeName || item.busRouteNm),
+          routeTypeCd: safeNumber(item.routeTypeCd),
+          routeTypeName: item.routeTypeName ? safeString(item.routeTypeName) : undefined,
+          startStationId: item.startStationId ? safeString(item.startStationId) : undefined,
+          startStationName: item.startStationName ? safeString(item.startStationName) : undefined,
+          endStationId: item.endStationId ? safeString(item.endStationId) : undefined,
+          endStationName: item.endStationName ? safeString(item.endStationName) : undefined,
+          adminName: item.adminName ? safeString(item.adminName) : undefined,
+          regionName: item.regionName ? safeString(item.regionName) : undefined,
+        }))
+        .filter((r) => r.routeId && r.routeName);
 
       if (result.length > 0) {
         GYEONGGI_ROUTE_LIST_CACHE.set(cleanKeyword, result);
@@ -473,7 +360,6 @@ export class GyeonggiBusService {
       candidates = rawList;
     }
 
-    // 후보가 1개뿐이면 즉시 반환
     if (candidates.length === 1) {
       return candidates[0];
     }
@@ -482,7 +368,7 @@ export class GyeonggiBusService {
       ? params.stationName.replace(/정류소$|정류장$|역$/, '').trim()
       : undefined;
 
-    // 2단계: stationName이 있는 경우, 각 후보 노선의 정류소 목록에서 해당 정류소 경유 여부 검증
+    // 2단계: stationName이 있는 경우 경유 정류소 검증
     if (cleanStation) {
       const stationChecks = await Promise.all(
         candidates.map(async (c) => {
@@ -514,12 +400,11 @@ export class GyeonggiBusService {
         return nameMatched[0].candidate;
       }
       if (nameMatched.length > 1) {
-        // 정류소명 일치 노선이 2개 이상이면 GPS 거리가 가장 가까운 것 선택
         nameMatched.sort((a, b) => a.minDist - b.minDist);
         return nameMatched[0].candidate;
       }
 
-      // 2-2. 정류소명이 완전 일치하진 않더라도, 사용자 좌표 반경 3km 이내 정류소를 지나는 노선 탐색
+      // 2-2. 사용자 좌표 반경 3km 이내 정류소를 지나는 노선 탐색
       const nearMatched = stationChecks.filter((item) => item.minDist <= 3000);
       if (nearMatched.length > 0) {
         nearMatched.sort((a, b) => a.minDist - b.minDist);
@@ -527,7 +412,7 @@ export class GyeonggiBusService {
       }
     }
 
-    // 3단계: destination / headsign 매칭 (예: "망포역", "영통역" 등)
+    // 3단계: destination / headsign 매칭
     const targetDest = (params.destination || params.headsign || '')
       .replace(/[\s\(\)\-_]/g, '')
       .toLowerCase();
@@ -574,11 +459,12 @@ export class GyeonggiBusService {
     const cached = GYEONGGI_ROUTE_STATION_CACHE.get(cleanRouteId);
     if (cached) return cached;
 
-    if (!this.API_KEY) return null;
+    const apiKey = getTransitApiKey('gyeonggi');
+    if (!apiKey) return null;
 
     try {
-      const encodedServiceKey = this.SERVICE_KEY;
-      const url = `${this.BUS_ROUTE_STATION_API_URL_V2}?serviceKey=${encodedServiceKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
+      const encodedKey = getEncodedServiceKey('gyeonggi');
+      const url = `${this.BUS_ROUTE_STATION_API_URL_V2}?serviceKey=${encodedKey}&routeId=${encodeURIComponent(cleanRouteId)}&format=json`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -592,45 +478,24 @@ export class GyeonggiBusService {
       }
 
       const text = await response.text();
-      let rawList: unknown = null;
-      let rawTurnSeq: number | undefined = undefined;
+      const { items, rawResponse } = parseXmlOrJsonItems<Record<string, unknown>>(text);
+      if (items.length === 0) return null;
 
-      try {
-        const json = JSON.parse(text) as Record<string, any>;
-        rawList =
-          json.response?.msgBody?.busRouteStationList ||
-          json.response?.body?.items?.busRouteStationList ||
-          json.msgBody?.busRouteStationList;
-        if (json.response?.msgBody?.turnSeq !== undefined) {
-          rawTurnSeq = Number(json.response.msgBody.turnSeq);
-        }
-      } catch {
-        const parser = new XMLParser();
-        const xml = parser.parse(text) as Record<string, any>;
-        rawList =
-          xml.response?.msgBody?.busRouteStationList ||
-          xml.response?.body?.items?.busRouteStationList ||
-          xml.msgBody?.busRouteStationList;
-        if (xml.response?.msgBody?.turnSeq !== undefined) {
-          rawTurnSeq = Number(xml.response.msgBody.turnSeq);
-        }
+      // turnSeq 추출
+      let rawTurnSeq: number | undefined;
+      const resObj = (rawResponse?.response || rawResponse) as Record<string, unknown> | undefined;
+      const msgBodyObj = resObj?.msgBody as Record<string, unknown> | undefined;
+      if (msgBodyObj?.turnSeq !== undefined) {
+        rawTurnSeq = safeNumber(msgBodyObj.turnSeq);
       }
-
-      if (!rawList) return null;
-
-      const itemsArray: Record<string, any>[] = Array.isArray(rawList)
-        ? rawList
-        : typeof rawList === 'object'
-        ? [rawList as Record<string, any>]
-        : [];
 
       let turningStationSeq = rawTurnSeq;
       let turningStationName: string | undefined = undefined;
 
-      const stations = itemsArray.map((item) => {
-        const seq = Number(item.stationSeq ?? item.stationSequence ?? 0);
+      const stations = items.map((item) => {
+        const seq = safeNumber(item.stationSeq ?? item.stationSequence, 0) ?? 0;
         const isTurning = item.turnYn === 'Y' || (turningStationSeq !== undefined && seq === turningStationSeq);
-        const name = String(item.stationName || '').trim();
+        const name = safeString(item.stationName);
 
         if (isTurning && !turningStationName) {
           turningStationName = name;
@@ -640,15 +505,15 @@ export class GyeonggiBusService {
         }
 
         return {
-          stationId: String(item.stationId || ''),
+          stationId: safeString(item.stationId),
           stationName: name,
           stationSeq: seq,
-          lat: Number(item.y ?? item.lat ?? 0),
-          lng: Number(item.x ?? item.lng ?? 0),
-          arsNo: item.mobileNo ? String(item.mobileNo).trim() : undefined,
+          lat: safeNumber(item.y ?? item.lat, 0) ?? 0,
+          lng: safeNumber(item.x ?? item.lng, 0) ?? 0,
+          arsNo: item.mobileNo ? safeString(item.mobileNo) : undefined,
           isTurningPoint: isTurning,
-          regionName: item.regionName ? String(item.regionName).trim() : undefined,
-          adminName: item.adminName ? String(item.adminName).trim() : undefined,
+          regionName: item.regionName ? safeString(item.regionName) : undefined,
+          adminName: item.adminName ? safeString(item.adminName) : undefined,
         };
       }).sort((a, b) => a.stationSeq - b.stationSeq);
 

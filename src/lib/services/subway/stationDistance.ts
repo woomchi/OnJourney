@@ -14,6 +14,8 @@ import type {
 import type { SubwayLineBranch } from '@/types/journey';
 import { normalizeStationName, parseMinSecToSeconds, extractTrainMetadata } from './trainMetadata';
 import { getLineBranchesAndStations } from '@/lib/data/subwayBranches';
+import { getBusanLineStations } from '@/lib/services/busanSubwayService';
+import { getDaejeonLineStations } from '@/lib/services/daejeonSubwayService';
 import {
   resolveCandidateLineCodes as resolveCandidateCodesFromMap,
   resolveWayCode,
@@ -179,7 +181,43 @@ export function getLineStationListWithBranches(
     };
   }
 
-  // 2. 단일 계통 노선은 기존 역간거리 DB 인덱스 맵 활용
+  // 2. 부산 도시철도 (1~4호선) 정차역 지원
+  if (subwayIdOrName.includes('부산')) {
+    const busanStations = getBusanLineStations(subwayIdOrName);
+    if (busanStations.length > 0) {
+      return {
+        branches: [],
+        selectedBranchId: '',
+        stations: busanStations.map((st) => ({
+          index: st.index,
+          stationName: st.stationName,
+          hmSeconds: 120,
+          cumulativeSeconds: (st.index + 1) * 120,
+          distKm: 1.2,
+        })),
+      };
+    }
+  }
+
+  // 3. 대전 도시철도 (1호선) 정차역 지원
+  if (subwayIdOrName.includes('대전')) {
+    const daejeonStations = getDaejeonLineStations();
+    if (daejeonStations.length > 0) {
+      return {
+        branches: [],
+        selectedBranchId: '',
+        stations: daejeonStations.map((st) => ({
+          index: st.index,
+          stationName: st.stationName,
+          hmSeconds: 120,
+          cumulativeSeconds: (st.index + 1) * 120,
+          distKm: 1.2,
+        })),
+      };
+    }
+  }
+
+  // 4. 단일 계통 노선은 기존 역간거리 DB 인덱스 맵 활용
   const defaultStations = getLineStationList(subwayIdOrName);
   return {
     branches: [],

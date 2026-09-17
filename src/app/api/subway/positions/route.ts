@@ -15,6 +15,7 @@ import {
   isBusanSubwayStation,
 } from '@/lib/services/busanSubwayService';
 import { getSeoulTimetableList } from '@/lib/services/subway/seoulTimetableService';
+import { detectSubwayRegion } from '@/lib/services/subwayRegionRouter';
 import { SubwayLinePositionsData } from '@/types/journey';
 
 export const dynamic = 'force-dynamic';
@@ -24,47 +25,63 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const rawParams = Object.fromEntries(searchParams.entries());
 
   const validatedParams = subwayPositionsQuerySchema.parse(rawParams);
-  const subwayTarget = validatedParams.subwayNm || validatedParams.subwayId || '1002';
+  const inputSubway = validatedParams.subwayNm || validatedParams.subwayId || '';
+  const stationName = validatedParams.stationName || '';
+  const destination = typeof rawParams.destination === 'string' ? rawParams.destination : undefined;
+  const headsign = typeof rawParams.headsign === 'string' ? rawParams.headsign : undefined;
+
+  // 정밀 지역 감지 (동명역 혼선 방지)
+  const detectedRegion = detectSubwayRegion({
+    station: stationName,
+    subwayId: inputSubway,
+    destination,
+    headsign,
+  });
+
+  // 지역에 맞는 노선 식별자 보정 (부산/대전에서 서울 2호선 Fallback 방지)
+  let subwayTarget = inputSubway;
+  if (detectedRegion === 'busan') {
+    const numMatch = inputSubway.match(/\d/);
+    subwayTarget = numMatch ? `부산${numMatch[0]}호선` : '부산1호선';
+  } else if (detectedRegion === 'daejeon') {
+    subwayTarget = '대전1호선';
+  } else if (!subwayTarget) {
+    subwayTarget = '1002'; // 수도권 기본값
+  }
+
   const subwayNm = resolveSubwayNameForPositionApi(subwayTarget);
 
-  // 1. 실시간 열차 위치 목록 조회 (15초 인메모리 캐시)
+  // 1. 실시간 열차 위치 목록 조회 (15초 인메모리 캐시, 수도권 전용)
   const positions = await fetchSubwayPositionsByLine(subwayTarget);
 
-  // 2. 해당 노선의 운행 계통 목록 및 선택된 계통의 정차역 목록 조회
+  // 2. 해당 노선의 운행 계통 목록 및 선택된 계통의 정차역 목록 조회 (부산/대전 포함)
   const { branches, selectedBranchId, stations } = getLineStationListWithBranches(
     subwayTarget,
     validatedParams.branchId,
     validatedParams.stationName
   );
 
-  // 3. 시간표 리스트 조회 (대전 1호선, 부산 1~4호선 또는 서울 1~9호선 공식 시간표)
+  // 3. 시간표 리스트 조회 (감지된 지역 기준 전용 서비스 호출)
   let timetable = undefined;
-  const isDaejeon =
-    subwayNm.includes('대전') ||
-    (validatedParams.stationName && isDaejeonSubwayStation(validatedParams.stationName));
-  const isBusan =
-    subwayNm.includes('부산') ||
-    (validatedParams.stationName && isBusanSubwayStation(validatedParams.stationName));
-
-  if (isDaejeon) {
-    const targetStation = validatedParams.stationName || '대전역';
+  if (detectedRegion === 'daejeon') {
+    const targetStation = stationName || '대전역';
     try {
       timetable = await fetchDaejeonStationUpcomingTimetable(targetStation);
     } catch (e) {
       console.warn('[api/subway/positions] 대전 시간표 조회 실패:', e);
     }
-  } else if (isBusan) {
-    const targetStation = validatedParams.stationName || '부산역';
+  } else if (detectedRegion === 'busan') {
+    const targetStation = stationName || '부산역';
     try {
       timetable = await fetchBusanStationUpcomingTimetable(targetStation, subwayTarget);
     } catch (e) {
       console.warn('[api/subway/positions] 부산 시간표 조회 실패:', e);
     }
-  } else if (validatedParams.stationName) {
+  } else if (stationName) {
     try {
       const wayCode = typeof rawParams.wayCode === 'string' ? rawParams.wayCode : '1';
       const seoulTimetable = getSeoulTimetableList(
-        validatedParams.stationName,
+        stationName,
         wayCode,
         subwayTarget
       );

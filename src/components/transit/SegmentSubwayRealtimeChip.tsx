@@ -8,6 +8,7 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useJourneyStore } from '@/stores/journey-store';
 import { resolveSubwayNameForApi } from '@/lib/constants/subwayLineMap';
 import { getSubwayRefreshSharedKey } from '@/lib/transit/transitSharedKey';
+import { detectSubwayRegion } from '@/lib/services/subwayRegionRouter';
 
 export interface SegmentSubwayRealtimeChipProps {
   stationName?: string;
@@ -98,12 +99,35 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   ) => {
     e.stopPropagation();
     e.preventDefault();
-    const rawIdentifier = subwayId || (data && data[0]?.subwayId) || undefined;
-    const targetSubwayIdentifier = resolveSubwayNameForApi(rawIdentifier || '');
+
+    // 1. data[0]?.subwayId(실시간 API 응답)에 지역명이 포함되어 있으면 우선 채택
+    const dataSubwayId = data && data[0]?.subwayId;
+    let baseIdentifier = subwayId || dataSubwayId || undefined;
+    if (dataSubwayId && (/부산|대전|대구|광주/.test(dataSubwayId))) {
+      baseIdentifier = dataSubwayId;
+    }
+
+    // 2. 지역 감지
+    const region = detectSubwayRegion({
+      station: cleanStationName,
+      subwayId: baseIdentifier,
+      destination,
+      headsign,
+    });
+
+    // 3. 지역에 맞춘 표준 노선명 해석
+    let targetSubwayIdentifier = resolveSubwayNameForApi(baseIdentifier || '');
+    if (region === 'busan') {
+      const numMatch = (baseIdentifier || '').match(/\d/);
+      targetSubwayIdentifier = numMatch ? `부산${numMatch[0]}호선` : '부산1호선';
+    } else if (region === 'daejeon') {
+      targetSubwayIdentifier = '대전1호선';
+    }
+
     setSubwayLineMapTarget({
       stationName: cleanStationName,
-      subwayId: targetSubwayIdentifier || rawIdentifier,
-      subwayNm: targetSubwayIdentifier || rawIdentifier,
+      subwayId: targetSubwayIdentifier || baseIdentifier,
+      subwayNm: targetSubwayIdentifier || baseIdentifier,
       wayCode,
       targetTrainNo: trainNo,
       targetMinutesLeft: minutesLeft,

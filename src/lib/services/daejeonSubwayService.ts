@@ -11,7 +11,7 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
-import type { SubwayArrival, SubwayTimetableEntry } from '@/types/journey';
+import type { SubwayArrival, SubwayTimetableEntry, SubwayLineStation } from '@/types/journey';
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -577,4 +577,22 @@ export async function fetchDaejeonStationUpcomingTimetable(
   // 시간순(minutesLeft 오름차순) 정렬
   entries.sort((a, b) => a.minutesLeft - b.minutesLeft);
   return entries;
+}
+
+/**
+ * 대전 1호선 전체 정차역 순서 목록을 반환합니다 (노선도 뷰용, 판암 -> 반석).
+ */
+export function getDaejeonLineStations(): SubwayLineStation[] {
+  const uniqueByNum = new Map<string, string>();
+  for (const item of Object.values(DAEJEON_LINE_1_STATIONS)) {
+    if (!uniqueByNum.has(item.stNum)) {
+      uniqueByNum.set(item.stNum, item.name);
+    }
+  }
+  return Array.from(uniqueByNum.entries())
+    .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
+    .map(([_, name], idx) => ({
+      index: idx,
+      stationName: name.endsWith('역') ? name : `${name}역`,
+    }));
 }

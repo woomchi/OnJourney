@@ -10,7 +10,7 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
-import type { SubwayArrival, SubwayTimetableEntry } from '@/types/journey';
+import type { SubwayArrival, SubwayTimetableEntry, SubwayLineStation } from '@/types/journey';
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -567,4 +567,34 @@ export async function fetchBusanStationUpcomingTimetable(
       isUpcoming: idx === 0,
     };
   });
+}
+
+/**
+ * 부산 도시철도 특정 호선(1~4호선)의 전체 정차역 순서 목록을 반환합니다 (노선도 뷰용).
+ */
+export function getBusanLineStations(lineOrSubwayId: string): SubwayLineStation[] {
+  const clean = String(lineOrSubwayId || '').trim();
+  let targetLine = '1';
+  if (clean.includes('4')) targetLine = '4';
+  else if (clean.includes('3')) targetLine = '3';
+  else if (clean.includes('2')) targetLine = '2';
+  else targetLine = '1';
+
+  // 고유한 scode별로 대표 역 추출
+  const uniqueStationsByScode = new Map<string, BusanStationMeta>();
+  for (const meta of Object.values(BUSAN_SUBWAY_STATIONS)) {
+    if (meta.line === targetLine && !uniqueStationsByScode.has(meta.scode)) {
+      uniqueStationsByScode.set(meta.scode, meta);
+    }
+  }
+
+  // scode 숫자 기준 오름차순 정렬 (기점 -> 종점)
+  const sorted = Array.from(uniqueStationsByScode.values()).sort(
+    (a, b) => parseInt(a.scode, 10) - parseInt(b.scode, 10)
+  );
+
+  return sorted.map((meta, idx) => ({
+    index: idx,
+    stationName: meta.name.endsWith('역') ? meta.name : `${meta.name}역`,
+  }));
 }

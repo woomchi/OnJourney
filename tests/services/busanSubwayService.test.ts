@@ -242,5 +242,39 @@ describe('busanSubwayService & regional routing', () => {
       expect(timetable[0].depTime).toBe('12:05');
       expect(timetable[1].depTime).toBe('12:08');
     });
+
+    it('부산 1~4호선의 실제 정차역 목록(getBusanLineStations)을 순서대로 반환해야 한다', async () => {
+      const { getBusanLineStations } = await import('@/lib/services/busanSubwayService');
+      const { getLineStationListWithBranches } = await import('@/lib/services/subway/stationDistance');
+
+      // 1호선 (다대포해수욕장 ~ 노포)
+      const line1 = getBusanLineStations('부산 1호선');
+      expect(line1.length).toBe(40);
+      expect(line1[0].stationName).toBe('다대포해수욕장역');
+      expect(line1[line1.length - 1].stationName).toBe('노포역');
+
+      // 2호선 (장산 ~ 양산)
+      const line2 = getBusanLineStations('부산2호선');
+      expect(line2.length).toBe(43);
+      expect(line2[0].stationName).toBe('장산역');
+      expect(line2[line2.length - 1].stationName).toBe('양산역');
+
+      // 3호선 (수영 ~ 대저)
+      const line3 = getBusanLineStations('부산 3호선');
+      expect(line3.length).toBe(17);
+      expect(line3[0].stationName).toBe('수영역');
+      expect(line3[line3.length - 1].stationName).toBe('대저역');
+
+      // 4호선 (미남 ~ 안평)
+      const line4 = getBusanLineStations('부산 4호선');
+      expect(line4.length).toBe(14);
+      expect(line4[0].stationName).toBe('미남역');
+      expect(line4[line4.length - 1].stationName).toBe('안평역');
+
+      // getLineStationListWithBranches 연동 검증
+      const res = getLineStationListWithBranches('부산2호선', undefined, '해운대');
+      expect(res.stations.length).toBe(43);
+      expect(res.stations[0].stationName).toBe('장산역');
+    });
   });
 });

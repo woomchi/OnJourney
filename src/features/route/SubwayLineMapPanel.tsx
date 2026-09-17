@@ -164,20 +164,22 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   const [selectedDirection, setSelectedDirection] = useState<'0' | '1'>(initialDirection);
 
   const lineTarget = subwayNm || subwayId || '2호선';
+  const isBusan = lineTarget.includes('부산');
   const isDaejeon = lineTarget.includes('대전') || cleanTargetStation === '대전역' || cleanTargetStation === '대전';
+  const isRegional = isBusan || isDaejeon;
 
   // 뷰 모드: 'timetable' (시간표 리스트) vs 'map' (노선도)
-  const [viewMode, setViewMode] = useState<'timetable' | 'map'>(isDaejeon ? 'timetable' : 'map');
+  const [viewMode, setViewMode] = useState<'timetable' | 'map'>(isRegional ? 'timetable' : 'map');
 
   useEffect(() => {
     if (isOpen) {
       setSelectedDirection(wayCode === '2' ? '1' : '0');
       setUserSelectedTrainNo(null);
-      if (isDaejeon) {
+      if (isRegional) {
         setViewMode('timetable');
       }
     }
-  }, [isOpen, wayCode, isDaejeon]);
+  }, [isOpen, wayCode, isRegional]);
 
   const theme = useMemo(() => getSubwayLineTheme(lineTarget), [lineTarget]);
 
@@ -215,29 +217,50 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     }
   }, [isOpen]);
 
-  // 방향별 라벨 산출 (2호선은 내선/외선, 대전은 판암/반석, 기타는 상행/하행)
-  const isLine2 = lineTarget === '1002' || lineTarget === '2' || lineTarget.includes('2호선');
-  const upLabel = isLine2
+  // 방향별 라벨 산출 (서울 2호선은 내선/외선, 대전은 판암/반석, 부산은 기점/종점 방면, 기타는 상행/하행)
+  const isSeoulLine2 =
+    (lineTarget === '1002' || lineTarget === '2' || lineTarget === '2호선' || lineTarget === '수도권 2호선') &&
+    !isBusan &&
+    !lineTarget.includes('대구');
+
+  const upLabel = isSeoulLine2
     ? '내선 순환'
     : isDaejeon
     ? '판암 방면 (상행)'
+    : isBusan && lineTarget.includes('1호선')
+    ? '노포 방면 (상행)'
+    : isBusan && lineTarget.includes('2호선')
+    ? '장산 방면 (상행)'
+    : isBusan && lineTarget.includes('3호선')
+    ? '수영 방면 (상행)'
+    : isBusan && lineTarget.includes('4호선')
+    ? '미남 방면 (상행)'
     : '상행';
-  const downLabel = isLine2
+
+  const downLabel = isSeoulLine2
     ? '외선 순환'
     : isDaejeon
     ? '반석 방면 (하행)'
+    : isBusan && lineTarget.includes('1호선')
+    ? '다대포 방면 (하행)'
+    : isBusan && lineTarget.includes('2호선')
+    ? '양산 방면 (하행)'
+    : isBusan && lineTarget.includes('3호선')
+    ? '대저 방면 (하행)'
+    : isBusan && lineTarget.includes('4호선')
+    ? '안평 방면 (하행)'
     : '하행';
 
   // 정차역 목록 (진행 방향에 맞춰 순서 정렬)
-  // - 일반 노선: 기본 DB는 하행(인천/신창 방면) 순서이므로 상행('0')일 때 반전(reverse)
-  // - 2호선: 기본 DB는 내선순환(시계방향) 순서이므로 외선순환('1')일 때 반전(reverse)
+  // - 일반 노선: 기본 DB는 하행(인천/신창/양산 방면) 순서이므로 상행('0')일 때 반전(reverse)
+  // - 서울 2호선: 기본 DB는 내선순환(시계방향) 순서이므로 외선순환('1')일 때 반전(reverse)
   const orderedStations = useMemo(() => {
     if (!data?.stations || data.stations.length === 0) return [];
     const stationsCopy = [...data.stations];
 
-    const shouldReverse = isLine2 ? selectedDirection === '1' : selectedDirection === '0';
+    const shouldReverse = isSeoulLine2 ? selectedDirection === '1' : selectedDirection === '0';
     return shouldReverse ? stationsCopy.reverse() : stationsCopy;
-  }, [data?.stations, selectedDirection, isLine2]);
+  }, [data?.stations, selectedDirection, isSeoulLine2]);
 
   // 대전 시간표 필터링 (선택된 방향에 맞는 현재 시각 이후 열차 목록)
   const filteredTimetable = useMemo(() => {
@@ -584,8 +607,8 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         </div>
       )}
 
-      {/* 2.5층: 뷰 모드 토글 (시간표 보기 vs 노선도 보기 - 대전 등 지원) */}
-      {(isDaejeon || (data?.timetable && data.timetable.length > 0)) && (
+      {/* 2.5층: 뷰 모드 토글 (시간표 보기 vs 노선도 보기 - 부산, 대전 등 지원) */}
+      {(isRegional || (data?.timetable && data.timetable.length > 0)) && (
         <div className="px-3 pb-2">
           <div className="flex bg-zinc-100 p-0.5 rounded-xl text-xs font-bold">
             <button
@@ -626,7 +649,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
           className={clsx(
             'flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer select-none',
             selectedDirection === '0'
-              ? isDaejeon
+              ? isRegional
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-blue-600 text-white shadow-xs'
               : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70'
@@ -642,7 +665,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
           className={clsx(
             'flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer select-none',
             selectedDirection === '1'
-              ? isDaejeon
+              ? isRegional
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-blue-600 text-white shadow-xs'
               : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70'
@@ -953,7 +976,11 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
             <span className="text-xs font-bold text-emerald-100">다음 출발 열차</span>
           </div>
           <span className="text-[10px] font-semibold bg-emerald-800/60 px-2 py-0.5 rounded-full text-emerald-200">
-            대전교통공사 공식 시간표
+            {isBusan
+              ? '부산교통공사 공식 시간표'
+              : isDaejeon
+              ? '대전교통공사 공식 시간표'
+              : '공식 운행 시간표'}
           </span>
         </div>
 

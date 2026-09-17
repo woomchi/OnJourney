@@ -22,6 +22,7 @@ interface DailyQuotaRecord {
 
 export class OdsayQuotaGuard {
   private static cachedRecord: DailyQuotaRecord | null = null;
+  private static dirEnsured = false;
 
   /**
    * KST 기준 오늘 날짜 문자열 반환 (YYYY-MM-DD)
@@ -38,12 +39,15 @@ export class OdsayQuotaGuard {
   }
 
   private static ensureDir(): void {
+    if (this.dirEnsured) return;
     try {
       if (!fs.existsSync(QUOTA_DIR)) {
         fs.mkdirSync(QUOTA_DIR, { recursive: true });
       }
-    } catch (e) {
-      console.warn('[OdsayQuotaGuard] 디렉터리 생성 실패:', e);
+      this.dirEnsured = true;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[OdsayQuotaGuard] 디렉터리 생성 실패:', msg);
     }
   }
 
@@ -68,8 +72,9 @@ export class OdsayQuotaGuard {
           return parsed;
         }
       }
-    } catch (e) {
-      console.warn('[OdsayQuotaGuard] 쿼터 파일 읽기 실패, 새로 초기화:', e);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[OdsayQuotaGuard] 쿼터 파일 읽기 실패, 새로 초기화:', msg);
     }
 
     const newRecord: DailyQuotaRecord = {
@@ -83,14 +88,18 @@ export class OdsayQuotaGuard {
   }
 
   /**
-   * 쿼터 레코드 디스크 저장
+   * 쿼터 레코드 디스크 저장 (비동기 백그라운드)
    */
   private static persistRecord(record: DailyQuotaRecord): void {
     try {
       this.ensureDir();
-      fs.writeFileSync(QUOTA_FILE, JSON.stringify(record, null, 2), 'utf-8');
-    } catch (e) {
-      console.warn('[OdsayQuotaGuard] 쿼터 파일 저장 실패:', e);
+      fs.promises.writeFile(QUOTA_FILE, JSON.stringify(record, null, 2), 'utf-8').catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn('[OdsayQuotaGuard] 쿼터 파일 비동기 저장 실패:', msg);
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[OdsayQuotaGuard] 쿼터 파일 저장 실패:', msg);
     }
   }
 

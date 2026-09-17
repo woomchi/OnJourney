@@ -48,8 +48,13 @@ class OdsayRateLimiter {
 
           const result = await fn();
           resolve(result);
-        } catch (error: any) {
-          if (error?.status === 429 || error?.code === 'TRANSIT_QUOTA_EXCEEDED' || error?.message?.includes('429')) {
+        } catch (error: unknown) {
+          const errObj = error as { status?: number; code?: string; message?: string } | undefined;
+          if (
+            errObj?.status === 429 ||
+            errObj?.code === 'TRANSIT_QUOTA_EXCEEDED' ||
+            errObj?.message?.includes('429')
+          ) {
             this.triggerCooldown(2500);
           }
           reject(error);

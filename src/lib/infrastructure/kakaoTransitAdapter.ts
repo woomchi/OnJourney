@@ -5,7 +5,7 @@ import {
   TransitQuotaError,
   TransitRouteNotFoundError,
   AppError,
-} from '@/lib/infrastructure/odsayAdapter';
+} from '@/lib/infrastructure/transitErrors';
 import type { KakaoPublicTrafficParams, KakaoPublicTrafficResponse } from '@/types/kakaoTransit';
 
 /**
@@ -84,7 +84,7 @@ export class KakaoTransitAdapter {
       }
       throw new TransitApiError(`카카오 대중교통 통신 오류: ${err.message}`, err.code, err.status, err.isRetryable);
     }
-    throw err as Error;
+    throw err instanceof Error ? err : new Error(String(err));
   }
 
   /**
@@ -111,8 +111,10 @@ export class KakaoTransitAdapter {
       case 'INVALID_REQUEST':
         throw new AppError('카카오 대중교통 요청 파라미터가 유효하지 않습니다.', 'INVALID_REQUEST', 400, false);
 
-      default:
-        console.warn(`[KakaoTransitAdapter] 미정의 상태 코드 감지: ${(data as any).status}`);
+      default: {
+        const rawStatus = (data as { status?: string }).status ?? 'UNKNOWN';
+        console.warn(`[KakaoTransitAdapter] 미정의 상태 코드 감지: ${rawStatus}`);
+      }
     }
   }
 }

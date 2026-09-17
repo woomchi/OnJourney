@@ -1,8 +1,7 @@
 /**
  * @fileoverview 지하철 실시간 API 캐시 서비스
  *
- * Next.js unstable_cache를 사용하여 워커 간 공유 캐시를 구현합니다.
- * 서버리스 환경(Vercel Functions 등)에서도 15초 TTL 기반 캐시가 안정적으로 작동합니다.
+ * Next.js unstable_cache 및 Upstash Redis를 결합하여 워커/서버리스 간 공유 캐시를 구현합니다.
  *
  * 캐시 전략:
  * - 일괄 도착 API (swopenAPI): revalidate 15초
@@ -17,6 +16,23 @@ import { getRedisCache, setRedisCache } from './redisClient';
 const TOTAL_ARRIVAL_REVALIDATE = 15; // 초
 const POSITION_REVALIDATE = 15;      // 초 (도착 정보 15초 주기와 동기화)
 const FETCH_TIMEOUT_MS = 6_000;
+
+interface RawSubwayPositionRow {
+  trainNo?: string;
+  subwayId?: string;
+  subwayNm?: string;
+  statnId?: string;
+  statnNm?: string;
+  lastRecptnDt?: string;
+  recptnDt?: string;
+  updnLine?: string;
+  statnTid?: string;
+  statnTnm?: string;
+  trainSttus?: string | number;
+  directAt?: string;
+  lstcarAt?: string;
+  trainLineNm?: string;
+}
 
 /** API 실패/타임아웃 대비 노선별 직전 정상 스냅샷 메모리 캐시 */
 const lastKnownPositionsMap = new Map<string, SubwayPosition[]>();
@@ -100,10 +116,10 @@ async function fetchPositionsByLineRaw(
       throw new Error(`서울시 열차 위치 API 오류: ${data.errorMessage.message}`);
     }
 
-    const rawList: any[] = data.realtimePositionList || [];
+    const rawList: RawSubwayPositionRow[] = data.realtimePositionList || [];
 
     // trainNo 기준 중복 제거 (가장 최신 recptnDt 유지)
-    const latestTrainMap = new Map<string, any>();
+    const latestTrainMap = new Map<string, RawSubwayPositionRow>();
     for (const row of rawList) {
       const trainNo = String(row.trainNo || '').trim();
       if (!trainNo) continue;
@@ -122,7 +138,7 @@ async function fetchPositionsByLineRaw(
 
     const deduplicatedRows = Array.from(latestTrainMap.values());
 
-    const mappedPositions = deduplicatedRows.map((row) => {
+    const mappedPositions: SubwayPosition[] = deduplicatedRows.map((row) => {
       const isExpress =
         row.directAt === '1' ||
         String(row.trainLineNm || '').includes('급행') ||
@@ -171,7 +187,7 @@ async function fetchPositionsByLineRaw(
   }
 }
 
-// ─── 캐시 래퍼 (Next.js unstable_cache 기반 로컬 폴백) ─────────────────────────
+// ─── 캐시 래퍼 (Next.js unstable_cache 기반 로컬 폴백: 모듈 레벨 1회 정의) ─────────
 
 const fetchTotalArrivalsWithNextCache = unstable_cache(
   async (apiKey: string, startIndex: string, endIndex: string): Promise<RawSubwayArrivalRow[]> => {
@@ -181,14 +197,13 @@ const fetchTotalArrivalsWithNextCache = unstable_cache(
   { revalidate: TOTAL_ARRIVAL_REVALIDATE }
 );
 
-const fetchPositionsByLineWithNextCache = (apiKey: string, subwayNm: string) => {
-  const cachedFn = unstable_cache(
-    async () => fetchPositionsByLineRaw(apiKey, subwayNm),
-    ['subway-positions-by-line', subwayNm],
-    { revalidate: POSITION_REVALIDATE }
-  );
-  return cachedFn();
-};
+const fetchPositionsByLineWithNextCache = unstable_cache(
+  async (apiKey: string, subwayNm: string): Promise<SubwayPosition[]> => {
+    return fetchPositionsByLineRaw(apiKey, subwayNm);
+  },
+  ['subway-positions-by-line'],
+  { revalidate: POSITION_REVALIDATE }
+);
 
 // ─── Single-Flight (동시 중복 호출 방지 맵) ────────────────────────────────────
 const inFlightTotalArrivals = new Map<string, Promise<RawSubwayArrivalRow[]>>();

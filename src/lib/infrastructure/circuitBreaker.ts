@@ -9,12 +9,13 @@
  *      서킷이 OPEN 상태일 때 들어오는 모든 요청은 즉시 외부 API 네트워크 호출을 건너뛰고,
  *      딜레이 없이 준비된 대체(Fallback) 데이터를 반환합니다 (Fail-Fast).
  *    - HALF_OPEN (반열림 - 복구 시험): 서킷 오픈 후 쿨다운 시간(cooldownMs, 예: 10초)이 지나면
- *      시험적으로 1개의 요청을 외부 API로 전달하여 서비스가 복구되었는지 테스트합니다.
+ *      시험적으로 단 1개의 요청만 외부 API로 전달하여 서비스가 복구되었는지 테스트합니다.
+ *      시험 도중 들어오는 다른 동시 요청들은 안전하게 Fallback으로 보호됩니다.
  *      성공 시 CLOSED 상태로 복귀하고, 실패 시 다시 OPEN 상태로 되돌아갑니다.
  * 
  * 2. 기대 효과 (Expected Effects):
- *    - 서버 스레드 및 커넥션 고갈 방지: 동기식 딜레이(300ms, 600ms)로 인해 HTTP 라우트 작업자 스레드가 차단되는 문제를 원천 차단합니다.
- *    - 장애 전파 방지 (Fail-Fast): 장애가 발생한 외부 서비스(ODsay 등)로 불필요한 요청을 계속 보내는 캐스케이딩 고장(Cascading Failure)을 방지합니다.
+ *    - 서버 스레드 및 커넥션 고갈 방지: 동기식 딜레이로 인해 HTTP 라우트 작업자 스레드가 차단되는 문제를 원천 차단합니다.
+ *    - 장애 전파 방지 (Fail-Fast): 장애가 발생한 외부 서비스로 불필요한 요청을 계속 보내는 캐스케이딩 고장을 방지합니다.
  *    - 응답 속도 향상: 장애 상황 시 대기시간 없이 0ms에 가깝게 즉각적인 대체 경로(Fallback)를 응답합니다.
  */
 
@@ -37,6 +38,7 @@ export class CircuitBreaker {
   private cooldownMs: number;
   private shouldTrip?: (error: unknown) => boolean;
   private lastStateChange: number = Date.now();
+  private isHalfOpenTrialRunning = false; // HALF_OPEN 상태에서 단 1건의 시험 요청만 허용
 
   constructor(options?: CircuitBreakerOptions) {
     this.failureThreshold = options?.failureThreshold ?? 3;
@@ -48,6 +50,7 @@ export class CircuitBreaker {
     // OPEN 상태이고 쿨다운 시간이 경과했으면 HALF_OPEN 상태로 전환
     if (this.state === CircuitState.OPEN && Date.now() - this.lastStateChange >= this.cooldownMs) {
       this.state = CircuitState.HALF_OPEN;
+      this.isHalfOpenTrialRunning = false;
     }
     return this.state;
   }
@@ -66,6 +69,15 @@ export class CircuitBreaker {
       return fallbackFn(new Error('Circuit breaker is OPEN'));
     }
 
+    // HALF_OPEN 상태인 경우: 단 1개의 시험 요청만 통과시키고 나머지는 Fail-Fast 처리
+    if (currentState === CircuitState.HALF_OPEN) {
+      if (this.isHalfOpenTrialRunning) {
+        console.warn(`[CircuitBreaker] Circuit is HALF_OPEN and trial request is already in progress. Returning fallback.`);
+        return fallbackFn(new Error('Circuit breaker trial request in progress'));
+      }
+      this.isHalfOpenTrialRunning = true;
+    }
+
     try {
       const result = await requestFn();
       this.onSuccess();
@@ -73,30 +85,33 @@ export class CircuitBreaker {
     } catch (error: unknown) {
       this.onFailure(error);
       return fallbackFn(error);
+    } finally {
+      if (this.state === CircuitState.HALF_OPEN) {
+        this.isHalfOpenTrialRunning = false;
+      }
     }
   }
 
   private onSuccess(): void {
     this.failureCount = 0;
+    this.isHalfOpenTrialRunning = false;
     if (this.state !== CircuitState.CLOSED) {
-      // console.info(`[CircuitBreaker] Circuit state changed to CLOSED`);
       this.state = CircuitState.CLOSED;
       this.lastStateChange = Date.now();
     }
   }
 
   private onFailure(error: unknown): void {
+    this.isHalfOpenTrialRunning = false;
     if (this.shouldTrip && !this.shouldTrip(error)) {
       return;
     }
 
     this.failureCount++;
-    // console.warn(`[CircuitBreaker] Execution failed (${this.failureCount}/${this.failureThreshold}): ${error?.message || error}`);
 
-    if (this.failureCount >= this.failureThreshold) {
+    if (this.failureCount >= this.failureThreshold || this.state === CircuitState.HALF_OPEN) {
       this.state = CircuitState.OPEN;
       this.lastStateChange = Date.now();
-      // console.error(`[CircuitBreaker] Failure threshold reached. Circuit switched to OPEN state.`);
     }
   }
 }
@@ -105,11 +120,12 @@ export class CircuitBreaker {
 export const odsayCircuitBreaker = new CircuitBreaker({
   failureThreshold: 3,
   cooldownMs: 10000,
-  shouldTrip: (error: any) => {
-    const msg = String(error?.message || error || '');
-    const code = String(error?.code || '');
+  shouldTrip: (error: unknown) => {
+    const errObj = error as { message?: string; code?: string; status?: number } | undefined;
+    const msg = String(errObj?.message || error || '');
+    const code = String(errObj?.code || '');
     // 429 (Too Many Requests), Rate Limit, Quota Exceeded 등은 서킷 트립에서 제외
-    if (msg.includes('Too Many Requests') || msg.includes('429') || code === 'TRANSIT_QUOTA_EXCEEDED' || error?.status === 429) {
+    if (msg.includes('Too Many Requests') || msg.includes('429') || code === 'TRANSIT_QUOTA_EXCEEDED' || errObj?.status === 429) {
       return false;
     }
     return true;

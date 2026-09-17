@@ -45,7 +45,6 @@ export default function JourneyPlayerHeader({
     setEditMode,
     setDrawerSnapPoint,
     isCacheRestored,
-    departureTime,
     directionsCache,
   } = useJourneyStore(
     useShallow((state) => ({
@@ -64,7 +63,6 @@ export default function JourneyPlayerHeader({
       setEditMode: state.setEditMode,
       setDrawerSnapPoint: state.setDrawerSnapPoint,
       isCacheRestored: state.isCacheRestored,
-      departureTime: state.departureTime,
       directionsCache: state.directionsCache,
     }))
   );
@@ -113,10 +111,10 @@ export default function JourneyPlayerHeader({
         const cacheKey = `${origin.id}-${dest.id}`;
         const cachedData = directionsCache[cacheKey];
 
-        const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-        const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id, departureTime));
-        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id, departureTime));
-        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id, departureTime));
+        const publicQueryState = queryClient.getQueryState(directionKeys.segmentPublic(origin.id, dest.id));
+        const carQueryState = queryClient.getQueryState(directionKeys.segmentCar(origin.id, dest.id));
+        const publicData = cachedData ? { public: cachedData.public } : queryClient.getQueryData<{ public: DirectionResult[] }>(directionKeys.segmentPublic(origin.id, dest.id));
+        const carData = cachedData ? { car: cachedData.car, walk: cachedData.walk } : queryClient.getQueryData<{ car: DirectionResult[]; walk: DirectionResult[] }>(directionKeys.segmentCar(origin.id, dest.id));
 
         const hasData = (cachedData && (cachedData.public.length > 0 || cachedData.car.length > 0 || cachedData.walk.length > 0)) || !!publicData || !!carData;
 
@@ -421,8 +419,8 @@ export default function JourneyPlayerHeader({
                       const firstPlace = places[0];
                       const secondPlace = places[1];
 
-                      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id, departureTime));
-                      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id, departureTime));
+                      const publicData = queryClient.getQueryData<any>(directionKeys.segmentPublic(firstPlace.id, secondPlace.id));
+                      const carData = queryClient.getQueryData<any>(directionKeys.segmentCar(firstPlace.id, secondPlace.id));
                       const segmentData = {
                         public: publicData?.public || [],
                         car: carData?.car || [],

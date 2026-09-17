@@ -88,7 +88,6 @@ export default function PlaceCard({
     setAlternativeSegment,
     setTargetChangePlaceId,
     openSearchMode,
-    departureTime,
     isCacheRestored,
   } = useJourneyStore(
     useShallow((state) => ({
@@ -105,7 +104,6 @@ export default function PlaceCard({
       setAlternativeSegment: state.setAlternativeSegment,
       setTargetChangePlaceId: state.setTargetChangePlaceId,
       openSearchMode: state.openSearchMode,
-      departureTime: state.departureTime,
       isCacheRestored: state.isCacheRestored,
     }))
   );

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
-import DepartureTimeSelector from '@/components/common/DepartureTimeSelector';
 import FareBreakdownTooltip from '@/components/route/FareBreakdownTooltip';
 import type { Place, SelectedRoute, DirectionResult } from '@/types/journey';
 
@@ -170,11 +169,7 @@ export function RouteGuideHeader({
         </div>
       </div>
 
-      {/* 세 번째 행: 출발 시각 선택기 */}
-      <div className="px-5 pb-2.5 flex items-center justify-between border-t border-zinc-100/50 pt-2.5 bg-zinc-50/50">
-        <span className="text-[11px] font-bold text-zinc-500">길찾기 출발 시각</span>
-        <DepartureTimeSelector />
-      </div>
+
 
       {/* 네 번째 행: 예상 요금 정보 */}
       {route.type === 'public' && (route.fare ?? 0) > 0 && (

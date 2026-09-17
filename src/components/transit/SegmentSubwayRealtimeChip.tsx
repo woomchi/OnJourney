@@ -33,17 +33,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   subwayColor,
 }) => {
   const setSubwayLineMapTarget = useJourneyStore((state) => state.setSubwayLineMapTarget);
-  const storeDepartureTime = useJourneyStore((state) => state.departureTime);
   const cleanStationName = stationName ? stationName.replace(/역$/g, '').trim() : '';
-
-  const isFuture = React.useMemo(() => {
-    if (storeDepartureTime && typeof storeDepartureTime === 'number') {
-      const diffMin = (storeDepartureTime - Date.now()) / (1000 * 60);
-      // 현재 시점 대비 30분 초과 미래인 경우에만 미래/시간표 모드 (과거 시각은 실시간 모드 유지)
-      if (diffMin > 30) return true;
-    }
-    return false;
-  }, [storeDepartureTime]);
 
   const { data, isLoading: isQueryLoading, isError, isFetching, refetch } = useRealtimeSubway({
     stationName: cleanStationName,
@@ -51,7 +41,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     subwayId,
     destination,
     headsign,
-    enabled: Boolean(cleanStationName && !isFuture),
+    enabled: Boolean(cleanStationName),
   });
 
   const sharedKey = getSubwayRefreshSharedKey({
@@ -169,41 +159,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     return renderRefreshButton();
   }
 
-  // 0. 미래 출발 시각: 실시간 도착 정보 대신 시간표 운행 안내 단일 뱃지 노출 (42px 중앙 정렬)
-  if (isFuture) {
-    if (variant === 'hero') {
-      return (
-        <div
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => handleOpenLineMap(e)}
-          title="지하철 노선도 보기"
-          className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group"
-        >
-          <div className="inline-flex items-center gap-1 text-xs font-bold text-zinc-700 group-hover:text-emerald-600 transition-colors">
-            <span>시간표 운행</span>
-            <span className="text-[10px] text-emerald-500 font-semibold">노선도 ↗</span>
-          </div>
-          <span className="text-[10px] text-zinc-400 font-medium mt-0.5">시간표 기준 안내</span>
-        </div>
-      );
-    }
-    return (
-      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs h-[42px] min-h-[42px]" onClick={(e) => e.stopPropagation()}>
-        {!hideRefreshButton && renderRefreshButton()}
-        <div className="inline-flex flex-col justify-center h-[42px] min-h-[42px]">
-          <div
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => handleOpenLineMap(e)}
-            title="클릭하여 지하철 노선도 확인"
-            className="inline-flex items-center justify-between w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-zinc-50/90 border border-zinc-200/90 shadow-2xs text-zinc-600 font-medium shrink-0 text-[10px] cursor-pointer hover:border-blue-300 hover:bg-zinc-100 transition-all active:scale-95"
-          >
-            <span className="font-semibold text-zinc-700">시간표 운행</span>
-            <span className="text-zinc-400 text-[9px]">노선도</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   const isAnyLoading = isQueryLoading || isFetching || isRefreshLoading;
   const hasData = Array.isArray(data) && data.length > 0;

@@ -70,16 +70,7 @@ function getBusStationCountText(bus: ArrivalBusItem, liveStationCount?: number):
   return '대기';
 }
 
-function checkIsFutureDeparture(storeDepartureTime?: number | null): boolean {
-  // 유저가 UI에서 출발 시각(departureTime)을 직접 미래로 설정한 경우에만 미래/배차 모드 적용
-  if (storeDepartureTime && typeof storeDepartureTime === 'number') {
-    const diffMinutes = (storeDepartureTime - Date.now()) / (1000 * 60);
-    // 현재 시점 대비 30분 초과 미래인 경우에만 미래/예정 모드 (과거 시각은 실시간 모드 유지)
-    if (diffMinutes > 30) return true;
-  }
 
-  return false;
-}
 
 function renderSeatOrCrowdedBadge(bus: ArrivalBusItem, isPrimary: boolean = true) {
   // 1. 잔여 좌석 (광역/직행 등)
@@ -142,7 +133,6 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   onlyRefreshButton = false,
 }) => {
   const cleanBusNo = useMemo(() => cleanBusNumber(busNo), [busNo]);
-  const storeDepartureTime = useJourneyStore((state) => state.departureTime);
   const busLiveStationsAwayMap = useJourneyStore((state) => state.busLiveStationsAwayMap);
   const cleanTargetStation = useMemo(
     () => (stationName ? stationName.replace(/정류소$|정류장$|역$/, '').trim().toUpperCase() : ''),
@@ -162,11 +152,6 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     }
     return undefined;
   }, [busLiveStationsAwayMap, cleanBusNo, stationId, cleanTargetStation]);
-
-  const isFuture = useMemo(
-    () => checkIsFutureDeparture(storeDepartureTime),
-    [storeDepartureTime]
-  );
   const setBusLineMapTarget = useJourneyStore((state) => state.setBusLineMapTarget);
 
   const inferredCoordRegion = useMemo(() => {
@@ -197,7 +182,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     headsign,
     lat,
     lng,
-    enabled: Boolean(effectiveStationId && cleanBusNo && !isFuture),
+    enabled: Boolean(effectiveStationId && cleanBusNo),
   });
 
   const sharedKey = getBusRefreshSharedKey({
@@ -406,22 +391,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
 
   // --- [Hero Variant: 이동 상세 상단 Hero 전용 2열 우측 고가독성 카운트다운 레이아웃] ---
   if (variant === 'hero') {
-    if (isFuture) {
-      const intervalLabel = intervalTime ? `배차 ${intervalTime}분` : '배차 운행';
-      return (
-        <div
-          onClick={(e) => handleOpenBusLineMap(e)}
-          title="버스 실시간 노선도 보기"
-          className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group"
-        >
-          <div className="inline-flex items-center gap-1 text-xs font-bold text-zinc-700 group-hover:text-blue-600 transition-colors">
-            <span>{intervalLabel}</span>
-            <span className="text-[10px] text-blue-500 font-semibold">노선도 ↗</span>
-          </div>
-          <span className="text-[10px] text-zinc-400 font-medium mt-0.5">예정 시각 기준</span>
-        </div>
-      );
-    }
+
 
     const isAnyLoading = isQueryLoading || isFetching || isRefreshLoading;
     const hasData = targetBuses.length > 0;
@@ -511,25 +481,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     );
   }
 
-  // 0. 미래 출발 시각: 배차 간격 안내 단일 뱃지 중앙 정렬 노출
-  if (isFuture) {
-    const intervalLabel = intervalTime ? `배차 ${intervalTime}분` : '배차 운행';
-    return (
-      <div className="inline-flex items-center gap-1.5 shrink-0 text-xs h-[42px] min-h-[42px]">
-        {!hideRefreshButton && renderRefreshButton()}
-        <div className="inline-flex flex-col justify-center h-[42px] min-h-[42px]">
-          <div
-            onClick={(e) => handleOpenBusLineMap(e)}
-            title="버스 실시간 노선도 보기"
-            className="inline-flex items-center justify-between w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-zinc-50/90 border border-zinc-200/90 shadow-2xs text-zinc-600 font-medium shrink-0 text-[10px] cursor-pointer hover:border-blue-300 hover:bg-zinc-100 transition-all active:scale-95"
-          >
-            <span className="font-semibold text-zinc-700">{intervalLabel}</span>
-            <span className="text-zinc-400 text-[9px]">노선도</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   const isAnyLoading = isQueryLoading || isFetching || isRefreshLoading;
   const hasData = targetBuses.length > 0;

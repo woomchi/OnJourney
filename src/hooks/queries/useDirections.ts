@@ -1,58 +1,48 @@
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi, fetchIntercityDirectionsApi } from '@/lib/services/directionsService';
 import type { Place, DirectionsApiResponse, DirectionResult, SnapMeta } from '@/types/journey';
-import { useEffect, useRef, useMemo, useCallback } from 'react';
-import { useJourneyStore } from '@/stores/journey-store';
+import { useMemo, useCallback } from 'react';
 
 /**
- * 출발 시각(Unix ms)을 1시간(60분) 단위 버킷으로 정규화하여 캐시 파편화를 방지하고 적중률을 극대화 (명세서 규격)
+ * @deprecated 출발 시각 정규화 함수 (더 이상 directionKeys에 시간을 반영하지 않으므로 하위 호환용으로만 유지)
  */
-export function normalizeDepartureTime(time?: number | null, bucketMinutes = 60): number | null {
-  if (!time) return null;
-  const bucketMs = bucketMinutes * 60 * 1000;
-  return Math.floor(time / bucketMs) * bucketMs;
+export function normalizeDepartureTime(_time?: number | null, _bucketMinutes = 60): number | null {
+  return null;
 }
 
 export const directionKeys = {
   all: ['directions'] as const,
   segment: (originId: string, destId: string) => [...directionKeys.all, originId, destId] as const,
-  segmentPublic: (originId: string, destId: string, departureTime?: number | null) => [
+  segmentPublic: (originId: string, destId: string, _departureTime?: number | null) => [
     ...directionKeys.segment(originId, destId),
     'public',
-    normalizeDepartureTime(departureTime) ?? 'now',
   ] as const,
-  segmentIntercity: (originId: string, destId: string, departureTime?: number | null) => [
+  segmentIntercity: (originId: string, destId: string, _departureTime?: number | null) => [
     ...directionKeys.segment(originId, destId),
     'intercity',
-    normalizeDepartureTime(departureTime) ?? 'now',
   ] as const,
-  segmentCar: (originId: string, destId: string, departureTime?: number | null) => [
+  segmentCar: (originId: string, destId: string, _departureTime?: number | null) => [
     ...directionKeys.segment(originId, destId),
     'car',
-    normalizeDepartureTime(departureTime) ?? 'now',
   ] as const,
 };
 
-
 export function useSegmentDirection(origin: Place | null, dest: Place | null) {
-  const departureTime = useJourneyStore((s) => s.departureTime);
-  const normalizedTime = useMemo(() => normalizeDepartureTime(departureTime), [departureTime]);
-  
   const publicQuery = useQuery({
-    queryKey: origin && dest ? directionKeys.segmentPublic(origin.id, dest.id, normalizedTime) : directionKeys.all,
+    queryKey: origin && dest ? directionKeys.segmentPublic(origin.id, dest.id) : directionKeys.all,
     queryFn: () => {
       if (!origin || !dest) throw new Error('Invalid origin or dest');
-      return fetchPublicDirectionsApi(origin, dest, normalizedTime || undefined);
+      return fetchPublicDirectionsApi(origin, dest);
     },
     enabled: !!origin && !!dest,
     staleTime: 1000 * 60 * 30,
   });
 
   const carWalkQuery = useQuery({
-    queryKey: origin && dest ? directionKeys.segmentCar(origin.id, dest.id, normalizedTime) : directionKeys.all,
+    queryKey: origin && dest ? directionKeys.segmentCar(origin.id, dest.id) : directionKeys.all,
     queryFn: () => {
       if (!origin || !dest) throw new Error('Invalid origin or dest');
-      return fetchCarWalkDirectionsApi(origin, dest, normalizedTime || undefined);
+      return fetchCarWalkDirectionsApi(origin, dest);
     },
     enabled: !!origin && !!dest,
     staleTime: 1000 * 60 * 30,
@@ -63,18 +53,11 @@ export function useSegmentDirection(origin: Place | null, dest: Place | null) {
 
 export function useJourneyDirections() {
   const queryClient = useQueryClient();
-  const departureTime = useJourneyStore((s) => s.departureTime);
-  // departureTime을 ref로 유지하여 useCallback deps를 최소화
-  const departureTimeRef = useRef(departureTime);
-  useEffect(() => {
-    departureTimeRef.current = departureTime;
-  }, [departureTime]);
 
   // useCallback으로 함수 참조를 안정화 — 렌더마다 새 참조가 생성되지 않음
   const fetchSequentialDirections = useCallback(async (places: Place[]) => {
     if (!places || places.length < 2) return;
 
-    const normalizedTime = normalizeDepartureTime(departureTimeRef.current);
     const allPromises: Promise<unknown>[] = [];
 
     for (let i = 0; i < places.length - 1; i++) {
@@ -85,8 +68,8 @@ export function useJourneyDirections() {
         continue;
       }
 
-      const publicKey = directionKeys.segmentPublic(currentPlace.id, nextPlace.id, normalizedTime);
-      const carKey = directionKeys.segmentCar(currentPlace.id, nextPlace.id, normalizedTime);
+      const publicKey = directionKeys.segmentPublic(currentPlace.id, nextPlace.id);
+      const carKey = directionKeys.segmentCar(currentPlace.id, nextPlace.id);
       
       const publicCached = queryClient.getQueryData(publicKey);
       const carCached = queryClient.getQueryData(carKey);
@@ -94,14 +77,14 @@ export function useJourneyDirections() {
       if (!publicCached) {
         allPromises.push(queryClient.fetchQuery({
           queryKey: publicKey,
-          queryFn: () => fetchPublicDirectionsApi(currentPlace, nextPlace, normalizedTime || undefined),
+          queryFn: () => fetchPublicDirectionsApi(currentPlace, nextPlace),
           staleTime: 1000 * 60 * 30,
         }));
       }
       if (!carCached) {
         allPromises.push(queryClient.fetchQuery({
           queryKey: carKey,
-          queryFn: () => fetchCarWalkDirectionsApi(currentPlace, nextPlace, normalizedTime || undefined),
+          queryFn: () => fetchCarWalkDirectionsApi(currentPlace, nextPlace),
           staleTime: 1000 * 60 * 30,
         }));
       }
@@ -114,17 +97,12 @@ export function useJourneyDirections() {
         console.error('[useJourneyDirections] Error fetching segment:', error);
       }
     }
-  // queryClient는 안정적인 참조이므로 deps에서 제외해도 안전
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryClient]);
 
   return { fetchSequentialDirections };
 }
 
 export function useJourneyDirectionsCache(places: Place[] | undefined) {
-  const departureTime = useJourneyStore((s) => s.departureTime);
-  const normalizedTime = useMemo(() => normalizeDepartureTime(departureTime), [departureTime]);
-
   const segmentQueries = useMemo(() => {
     if (!places || places.length < 2) return [];
 
@@ -134,21 +112,21 @@ export function useJourneyDirectionsCache(places: Place[] | undefined) {
       const dest = places[i + 1];
 
       queries.push({
-        queryKey: directionKeys.segmentPublic(origin.id, dest.id, normalizedTime),
-        queryFn: () => fetchPublicDirectionsApi(origin, dest, normalizedTime || undefined),
+        queryKey: directionKeys.segmentPublic(origin.id, dest.id),
+        queryFn: () => fetchPublicDirectionsApi(origin, dest),
         staleTime: 1000 * 60 * 30,
         enabled: !!origin && !!dest,
       });
 
       queries.push({
-        queryKey: directionKeys.segmentCar(origin.id, dest.id, normalizedTime),
-        queryFn: () => fetchCarWalkDirectionsApi(origin, dest, normalizedTime || undefined),
+        queryKey: directionKeys.segmentCar(origin.id, dest.id),
+        queryFn: () => fetchCarWalkDirectionsApi(origin, dest),
         staleTime: 1000 * 60 * 30,
         enabled: !!origin && !!dest,
       });
     }
     return queries;
-  }, [places, normalizedTime]);
+  }, [places]);
 
   const queryResults = useQueries({ queries: segmentQueries });
   const resultsKey = queryResults.map((r) => `${r.status}-${r.dataUpdatedAt}`).join('|');

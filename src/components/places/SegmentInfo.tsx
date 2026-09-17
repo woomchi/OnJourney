@@ -10,7 +10,7 @@ import FittedDuration from './FittedDuration';
 import { Car, Footprints, Bus, Train, RotateCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useQueryClient } from '@tanstack/react-query';
-import { directionKeys, normalizeDepartureTime } from '@/hooks/queries/useDirections';
+import { directionKeys } from '@/hooks/queries/useDirections';
 import { fetchPublicDirectionsApi, fetchCarWalkDirectionsApi, fetchIntercityDirectionsApi } from '@/lib/services/directionsService';
 import { isIntercityEligible } from '@/lib/services/directions/transit/intercityClassifier';
 import { AlternativeRouteIcon } from '@/components/ui/icons';
@@ -69,7 +69,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     isAlternativeFromFocus,
     setIsAlternativeFromFocus,
     activeJourney,
-    departureTime,
+    isCacheRestored,
   } = useJourneyStore(
     useShallow((state) => ({
       focusedStep: state.focusedStep,
@@ -82,7 +82,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
       isAlternativeFromFocus: state.isAlternativeFromFocus,
       setIsAlternativeFromFocus: state.setIsAlternativeFromFocus,
       activeJourney: state.activeJourney,
-      departureTime: state.departureTime,
+      isCacheRestored: state.isCacheRestored,
     }))
   );
 
@@ -102,10 +102,9 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     setQuotaExhaustedInfo(null);
 
     try {
-      const res = await fetchIntercityDirectionsApi(originPlace, destPlace, departureTime || undefined);
+      const res = await fetchIntercityDirectionsApi(originPlace, destPlace);
       if (res.public && res.public.length > 0) {
-        const normalizedTime = normalizeDepartureTime(departureTime);
-        const publicKey = directionKeys.segmentPublic(placeId, destId, normalizedTime);
+        const publicKey = directionKeys.segmentPublic(placeId, destId);
         queryClient.setQueryData(publicKey, { public: res.public });
         if (onRetry) onRetry();
       }
@@ -540,16 +539,16 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 }
                 // prefetch alternate routes data
                 const cacheKey = `${placeId}-${destId}`;
-                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId, departureTime));
+                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId));
                 if (!segmentDataInCache) {
                   Promise.allSettled([
                     queryClient.fetchQuery({
-                      queryKey: directionKeys.segmentPublic(placeId, destId, departureTime),
-                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace, departureTime || undefined)
+                      queryKey: directionKeys.segmentPublic(placeId, destId),
+                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
                     }),
                     queryClient.fetchQuery({
-                      queryKey: directionKeys.segmentCar(placeId, destId, departureTime),
-                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined)
+                      queryKey: directionKeys.segmentCar(placeId, destId),
+                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
                     })
                   ]).catch(console.error);
                 }
@@ -887,16 +886,16 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 }
                 // prefetch alternate routes data
                 const cacheKey = `${placeId}-${destId}`;
-                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId, departureTime));
+                const segmentDataInCache = queryClient.getQueryData(directionKeys.segmentPublic(placeId, destId));
                 if (!segmentDataInCache) {
                   Promise.allSettled([
                     queryClient.fetchQuery({
-                      queryKey: directionKeys.segmentPublic(placeId, destId, departureTime),
-                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace, departureTime || undefined)
+                      queryKey: directionKeys.segmentPublic(placeId, destId),
+                      queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace)
                     }),
                     queryClient.fetchQuery({
-                      queryKey: directionKeys.segmentCar(placeId, destId, departureTime),
-                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined)
+                      queryKey: directionKeys.segmentCar(placeId, destId),
+                      queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace)
                     })
                   ]).catch(console.error);
                 }

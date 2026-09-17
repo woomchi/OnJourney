@@ -74,18 +74,16 @@ export function useAlternativeRoutes({
     activeJourney,
     selectSegmentRoute,
     setHoveredAlternativeRoute,
-    departureTime,
   } = useJourneyStore(
     useShallow((state) => ({
       activeJourney: state.activeJourney,
       selectSegmentRoute: state.selectSegmentRoute,
       setHoveredAlternativeRoute: state.setHoveredAlternativeRoute,
-      departureTime: state.departureTime,
     }))
   );
 
-  const publicKey = directionKeys.segmentPublic(originPlace.id, destPlace.id, departureTime);
-  const carKey = directionKeys.segmentCar(originPlace.id, destPlace.id, departureTime);
+  const publicKey = directionKeys.segmentPublic(originPlace.id, destPlace.id);
+  const carKey = directionKeys.segmentCar(originPlace.id, destPlace.id);
 
   const publicData = queryClient.getQueryData<{ public: DirectionResult[] }>(publicKey);
   const carData = queryClient.getQueryState(carKey)?.data as { car: DirectionResult[]; walk: DirectionResult[] } | undefined;
@@ -151,16 +149,16 @@ export function useAlternativeRoutes({
     if (!publicData && !publicLoading) {
       queryClient.fetchQuery({
         queryKey: publicKey,
-        queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace, departureTime || undefined),
+        queryFn: () => fetchPublicDirectionsApi(originPlace, destPlace),
       }).catch(console.error);
     }
     if (!carData && !carLoading) {
       queryClient.fetchQuery({
         queryKey: carKey,
-        queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace, departureTime || undefined),
+        queryFn: () => fetchCarWalkDirectionsApi(originPlace, destPlace),
       }).catch(console.error);
     }
-  }, [isOpen, publicData, publicLoading, carData, carLoading, publicKey, carKey, queryClient, originPlace, destPlace, departureTime]);
+  }, [isOpen, publicData, publicLoading, carData, carLoading, publicKey, carKey, queryClient, originPlace, destPlace]);
 
   const publicRouteGroups = useMemo(() => {
     if (activeTab !== 'public' || !routes) return {};

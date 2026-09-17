@@ -2,7 +2,6 @@
 
 import React, { useRef, useCallback } from 'react';
 import ScrollContainer from 'react-indiana-drag-scroll';
-import DepartureTimeSelector from '@/components/common/DepartureTimeSelector';
 
 interface AlternativeRouteTabsProps {
   activeTab: 'public' | 'car' | 'walk';
@@ -40,11 +39,7 @@ export function AlternativeRouteTabs({
 
   return (
     <>
-      {/* 3층: 출발 시각 설정 */}
-      <div className="mx-4 pb-3 flex items-center justify-between border-t border-zinc-100/50 pt-2.5 bg-zinc-50/50 -mt-3 mb-2 px-3 rounded-lg">
-        <span className="text-[11px] font-bold text-zinc-500">길찾기 출발 시각</span>
-        <DepartureTimeSelector />
-      </div>
+
 
       <div className={`px-5 ${isMobile ? 'pt-1.5 pb-1' : 'pt-4 pb-2'} flex-shrink-0 flex flex-col gap-1.5`}>
         {/* 데스크톱 전용 탭 바 */}

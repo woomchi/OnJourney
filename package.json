@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:setup": "node scripts/setup-db.mjs",
+    "build:timetables": "node scripts/build-seoul-subway-timetables.mjs",
     "clean": "npx rimraf .next"
   },
   "dependencies": {

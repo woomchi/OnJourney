@@ -36,47 +36,33 @@ type ScheduleCacheResult =
 
 /**
  * ODsay 열차/KTX 운행시간표 캐시 함수 (24시간 캐싱)
+ * [ODsay 30회 쿼터 보호] 외부 ODsay 호출을 차단하고 안전하게 비활성화 상태를 반환합니다.
  */
 const getCachedTrainSchedule = unstable_cache(
-  async (startStationID: string, endStationID: string, apiKey: string) => {
-    return odsayCircuitBreaker.execute<ScheduleCacheResult>(
-      async () => {
-        const data = await OdsayAdapter.fetchTrainServiceTime(startStationID, endStationID, apiKey);
-        return { ok: true as const, data };
-      },
-      (err: any) => {
-        const isRetryable = err?.isRetryable === true || err?.message?.includes('Circuit breaker is OPEN');
-        if (!isRetryable) {
-          return { ok: false as const, error: err?.message || 'Train Schedule Error', code: err?.code || 'TRAIN_SCHEDULE_ERROR' };
-        }
-        throw err;
-      }
-    );
+  async (_startStationID: string, _endStationID: string, _apiKey: string): Promise<ScheduleCacheResult> => {
+    return {
+      ok: false as const,
+      error: 'ODsay 일일 30회 쿼터 제한으로 인해 기차 시간표 조회가 비활성화되었습니다.',
+      code: 'ODSAY_TIMETABLE_BLOCKED',
+    };
   },
-  ['odsay-train-schedule-v3'],
+  ['odsay-train-schedule-v4'],
   { revalidate: 60 * 60 * 24 }
 );
 
 /**
  * ODsay 고속/시외버스 운행시간표 캐시 함수 (24시간 캐싱)
+ * [ODsay 30회 쿼터 보호] 외부 ODsay 호출을 차단하고 안전하게 비활성화 상태를 반환합니다.
  */
 const getCachedBusSchedule = unstable_cache(
-  async (startStationID: string, endStationID: string, apiKey: string) => {
-    return odsayCircuitBreaker.execute<ScheduleCacheResult>(
-      async () => {
-        const data = await OdsayAdapter.fetchInterBusSchedule(startStationID, endStationID, apiKey);
-        return { ok: true as const, data };
-      },
-      (err: any) => {
-        const isRetryable = err?.isRetryable === true || err?.message?.includes('Circuit breaker is OPEN');
-        if (!isRetryable) {
-          return { ok: false as const, error: err?.message || 'Bus Schedule Error', code: err?.code || 'BUS_SCHEDULE_ERROR' };
-        }
-        throw err;
-      }
-    );
+  async (_startStationID: string, _endStationID: string, _apiKey: string): Promise<ScheduleCacheResult> => {
+    return {
+      ok: false as const,
+      error: 'ODsay 일일 30회 쿼터 제한으로 인해 버스 시간표 조회가 비활성화되었습니다.',
+      code: 'ODSAY_TIMETABLE_BLOCKED',
+    };
   },
-  ['odsay-bus-schedule-v3'],
+  ['odsay-bus-schedule-v4'],
   { revalidate: 60 * 60 * 24 }
 );
 

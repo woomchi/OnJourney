@@ -10,6 +10,7 @@ import {
   fetchDaejeonStationUpcomingTimetable,
   isDaejeonSubwayStation,
 } from '@/lib/services/daejeonSubwayService';
+import { getSeoulTimetableList } from '@/lib/services/subway/seoulTimetableService';
 import { SubwayLinePositionsData } from '@/types/journey';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +33,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     validatedParams.stationName
   );
 
-  // 3. 대전 1호선인 경우 현재 시각 기준 이후 열차 시간표 리스트 조회
+  // 3. 시간표 리스트 조회 (대전 1호선 공공 API 또는 서울 1~9호선 공식 시간표)
   let timetable = undefined;
   const isDaejeon =
     subwayNm.includes('대전') ||
@@ -44,6 +45,20 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       timetable = await fetchDaejeonStationUpcomingTimetable(targetStation);
     } catch (e) {
       console.warn('[api/subway/positions] 대전 시간표 조회 실패:', e);
+    }
+  } else if (validatedParams.stationName) {
+    try {
+      const wayCode = typeof rawParams.wayCode === 'string' ? rawParams.wayCode : '1';
+      const seoulTimetable = getSeoulTimetableList(
+        validatedParams.stationName,
+        wayCode,
+        subwayTarget
+      );
+      if (seoulTimetable && seoulTimetable.length > 0) {
+        timetable = seoulTimetable;
+      }
+    } catch (e) {
+      console.warn('[api/subway/positions] 서울 시간표 조회 실패:', e);
     }
   }
 

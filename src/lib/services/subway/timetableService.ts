@@ -7,6 +7,14 @@ import { LruTtlCache } from '@/lib/utils/lruCache';
 import type { ScheduleItem } from './types';
 import { normalizeStationName } from './trainMetadata';
 import { resolveWayCode } from '@/lib/constants/subwayLineMap';
+import {
+  getNextTrainFromSeoulTimetable,
+  loadStationTimetable,
+  resolveWeekTag,
+  normalizeLineNumber,
+  resolveInOutTag,
+  toOperationalMinutes,
+} from './seoulTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -93,6 +101,7 @@ export function parseOdsaySubwayTimeList(timeNodes: any[]): ScheduleItem[] {
 
 /**
  * 역명으로 ODsay 대중교통 정류장 검색 API(#14 searchStation)에서 지하철 Station ID를 조회합니다.
+ * [ODsay 30회 쿼터 보호] 외부 API 호출을 차단하고 캐시된 값만 반환합니다.
  */
 export async function fetchStationId(stationName: string): Promise<string> {
   const cleanName = normalizeStationName(stationName);
@@ -102,65 +111,46 @@ export async function fetchStationId(stationName: string): Promise<string> {
     return cached;
   }
 
-  try {
-    const data = await OdsayAdapter.fetchSearchStation(cleanName, '2');
-    const stations = data?.result?.station;
-
-    let stationId = '';
-    if (Array.isArray(stations) && stations.length > 0) {
-      const matched =
-        stations.find(
-          (s: any) =>
-            normalizeStationName(s.stationName) === cleanName
-        ) ?? stations[0];
-      stationId = String(matched.stationID);
-    }
-
-    if (stationId) {
-      stationIdCache.set(cleanName, stationId);
-      return stationId;
-    }
-
-    throw new Error(`ODsay 역 ID를 찾을 수 없습니다: ${cleanName}`);
-  } catch (err) {
-    console.warn(`[subwayService] ${cleanName} ODsay 역 ID 조회 실패:`, err);
-    throw err;
-  }
+  // ODsay 일일 30회 쿼터 보호를 위해 외부 searchStation 호출 차단
+  return '';
 }
 
 /**
- * 현재 역과 목적 역의 ODsay 시간표를 조회하여 동적 이동 시간(초)을 계산합니다.
+ * 현재 역과 목적 역의 시간표를 조회하여 동적 이동 시간(초)을 계산합니다.
  */
 export async function fetchDynamicTravelTimeSec(
   currentStation: string,
   targetStation: string,
   trainNo: string,
-  updnLine: string
+  updnLine: string,
+  lineId?: string | number
 ): Promise<number | null> {
   try {
-    const [currentSchedule, targetSchedule] = await Promise.all([
-      fetchAndCacheTimetable(currentStation, updnLine),
-      fetchAndCacheTimetable(targetStation, updnLine),
-    ]);
+    const curData = loadStationTimetable(currentStation);
+    const tarData = loadStationTimetable(targetStation);
 
-    if (!currentSchedule.length || !targetSchedule.length) return null;
+    if (curData && tarData) {
+      const weekTag = resolveWeekTag();
+      const lineNum = normalizeLineNumber(lineId) || '1';
+      const inoutTag = resolveInOutTag(lineNum, updnLine);
+      const key = `${lineNum}_${weekTag}_${inoutTag}`;
 
-    const currentTrain = currentSchedule.find(
-      (it) => String(it.trainNo).trim() === String(trainNo).trim()
-    );
-    const targetTrain = targetSchedule.find(
-      (it) => String(it.trainNo).trim() === String(trainNo).trim()
-    );
+      const curTrains = curData[key] || [];
+      const tarTrains = tarData[key] || [];
 
-    if (!currentTrain?.depTime || !targetTrain?.arrTime) return null;
+      const curTrain = curTrains.find((t) => t.no === String(trainNo).trim());
+      const tarTrain = tarTrains.find((t) => t.no === String(trainNo).trim());
 
-    const depSec = timeToSeconds(String(currentTrain.depTime));
-    const arrSec = timeToSeconds(String(targetTrain.arrTime));
-    let diffSec = arrSec - depSec;
-
-    if (diffSec < 0) diffSec += MIDNIGHT_SECONDS;
-
-    return diffSec;
+      if (curTrain && tarTrain) {
+        const depMin = toOperationalMinutes(curTrain.t);
+        const arrMin = toOperationalMinutes(tarTrain.t);
+        const diffMin = arrMin - depMin;
+        if (diffMin > 0 && diffMin < 180) {
+          return diffMin * 60;
+        }
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -168,6 +158,7 @@ export async function fetchDynamicTravelTimeSec(
 
 /**
  * ODsay (신) 지하철역 전체 시간표 API(#12 searchSubwaySchedule)를 조회하고 3시간 캐시합니다.
+ * [ODsay 30회 쿼터 보호] 외부 시간표 호출을 전면 차단하여 쿼터를 보존합니다.
  */
 export async function fetchAndCacheTimetable(
   stationName: string,
@@ -182,70 +173,31 @@ export async function fetchAndCacheTimetable(
     return cached;
   }
 
-  try {
-    const stationId = await fetchStationId(cleanName);
-    const scheduleData = await OdsayAdapter.fetchSubwaySchedule(stationId, upDownTypeCode);
-    const result = scheduleData?.result;
-
-    if (!result) {
-      timetableCache.set(cacheKey, [], TIMETABLE_ERROR_CACHE_TTL_MS);
-      return [];
-    }
-
-    const day = new Date().getDay();
-    let dayListObj = result.WeekList;
-    if (day === 0) dayListObj = result.SunList || result.WeekList;
-    else if (day === 6) dayListObj = result.SatList || result.WeekList;
-
-    const dirNode = upDownTypeCode === '1' ? dayListObj?.up : dayListObj?.down;
-    const timeNodes = dirNode?.time ?? [];
-
-    const schedule = parseOdsaySubwayTimeList(timeNodes);
-
-    // 성공 시 기본 3시간 TTL로 캐싱
-    timetableCache.set(cacheKey, schedule, TIMETABLE_CACHE_TTL_MS);
-    return schedule;
-  } catch (e) {
-    console.warn(`[subwayService] ODsay 시간표 조회 실패 (${cleanName}):`, e);
-    // 에러 시 5분 TTL로 빈 배열 캐싱
-    timetableCache.set(cacheKey, [], TIMETABLE_ERROR_CACHE_TTL_MS);
-    return [];
-  }
+  // ODsay 일일 30회 쿼터 제한으로 인해 외부 시간표 API 호출을 차단하고 빈 배열 반환
+  timetableCache.set(cacheKey, [], TIMETABLE_CACHE_TTL_MS);
+  return [];
 }
 
 /**
- * 정적 시간표 캐시에서 다음 열차 도착 정보를 계산합니다.
+ * 시간표 API 부재 시 배차간격(Headway) 기반 지하철 가상 예상 도착 정보를 계산합니다.
  */
-export async function calculateNextTrainFromTimetable(
+function calculateHeadwayFallback(
   stationName: string,
   updnLine: string
-): Promise<{
+): {
   trainNo: string;
   endSubwayStationNm: string;
   minutesLeft: number;
   arrivalTime: string;
   statusText: string;
   isApproaching: boolean;
-} | null> {
-  const schedule = await fetchAndCacheTimetable(stationName, updnLine);
-  if (!schedule || schedule.length === 0) return null;
-
+} {
   const now = new Date();
-  const currentTotalSec = now.getHours() * 3_600 + now.getMinutes() * 60 + now.getSeconds();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
 
-  const upcoming = schedule
-    .filter((it) => {
-      if (!it.arrTime && !it.depTime) return false;
-      const sec = timeToSeconds(String(it.arrTime || it.depTime));
-      return sec >= currentTotalSec;
-    })
-    .sort(
-      (a, b) =>
-        timeToSeconds(String(a.arrTime || a.depTime)) -
-        timeToSeconds(String(b.arrTime || b.depTime))
-    );
-
-  if (upcoming.length === 0) {
+  // 심야/새벽 운행 종료 판별 (00:30 ~ 05:30)
+  if (currentHour >= 1 && currentHour < 5) {
     return {
       trainNo: 'LAST_TRAIN_ENDED',
       endSubwayStationNm: '운행 종료',
@@ -255,22 +207,129 @@ export async function calculateNextTrainFromTimetable(
       isApproaching: false,
     };
   }
+  if (currentHour === 0 && currentMinute >= 30) {
+    return {
+      trainNo: 'LAST_TRAIN_ENDED',
+      endSubwayStationNm: '운행 종료',
+      minutesLeft: 999,
+      arrivalTime: '--:--',
+      statusText: '[시간표] 금일 운행 종료',
+      isApproaching: false,
+    };
+  }
+  if (currentHour === 5 && currentMinute < 30) {
+    return {
+      trainNo: 'FIRST_TRAIN_WAITING',
+      endSubwayStationNm: '첫차 대기',
+      minutesLeft: 30 - currentMinute,
+      arrivalTime: '05:30',
+      statusText: '[시간표] 첫차 05:30 대기',
+      isApproaching: false,
+    };
+  }
 
-  const next = upcoming[0];
-  const targetSec = timeToSeconds(String(next.arrTime || next.depTime));
-  const diffSec = targetSec - currentTotalSec;
-  const minutesLeft = Math.ceil(diffSec / 60);
+  // 시간대별 표준 배차간격 (출퇴근 4분, 심야 12분, 평시 7분)
+  let headwayMin = 7;
+  if ((currentHour >= 7 && currentHour < 9) || (currentHour >= 18 && currentHour < 20)) {
+    headwayMin = 4;
+  } else if (currentHour >= 22 || currentHour === 0) {
+    headwayMin = 12;
+  }
 
-  const h = Math.floor(targetSec / 3_600);
-  const m = Math.floor((targetSec % 3_600) / 60);
-  const arrivalTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  const offset = headwayMin - (currentMinute % headwayMin);
+  const minutesLeft = offset === 0 ? headwayMin : offset;
+
+  const arrDate = new Date(now.getTime() + minutesLeft * 60 * 1000);
+  const arrivalTime = `${String(arrDate.getHours()).padStart(2, '0')}:${String(arrDate.getMinutes()).padStart(2, '0')}`;
+  const dirLabel = updnLine === '1' || updnLine === '상행' ? '상행' : '하행';
 
   return {
-    trainNo: String(next.trainNo),
-    endSubwayStationNm: String(next.endSubwayStationNm || ''),
+    trainNo: 'ESTIMATED',
+    endSubwayStationNm: `${dirLabel} 방면`,
     minutesLeft,
     arrivalTime,
-    statusText: `[시간표] ${String(next.endSubwayStationNm || '')} (${arrivalTime})`,
-    isApproaching: false,
+    statusText: `[예상] 약 ${minutesLeft}분 후 (${arrivalTime})`,
+    isApproaching: minutesLeft <= 2,
   };
+}
+
+/**
+ * 정적 시간표 캐시에서 다음 열차 도착 정보를 계산합니다.
+ * 1. 서울교통공사 공식 시간표 (1~9호선 405개 역) 우선 조회
+ * 2. 해당 역 데이터가 없거나 비어있으면 배차간격(Headway) 기반 Fallback 반환
+ */
+export async function calculateNextTrainFromTimetable(
+  stationName: string,
+  updnLine: string,
+  lineId?: string | number
+): Promise<{
+  trainNo: string;
+  endSubwayStationNm: string;
+  minutesLeft: number;
+  arrivalTime: string;
+  statusText: string;
+  isApproaching: boolean;
+  isExpress?: boolean;
+  canBoard?: boolean;
+} | null> {
+  const schedule = await fetchAndCacheTimetable(stationName, updnLine);
+
+  if (schedule && schedule.length > 0) {
+    const now = new Date();
+    const currentTotalSec = now.getHours() * 3_600 + now.getMinutes() * 60 + now.getSeconds();
+
+    const upcoming = schedule
+      .filter((it) => {
+        if (!it.arrTime && !it.depTime) return false;
+        const sec = timeToSeconds(String(it.arrTime || it.depTime));
+        return sec >= currentTotalSec;
+      })
+      .sort(
+        (a, b) =>
+          timeToSeconds(String(a.arrTime || a.depTime)) -
+          timeToSeconds(String(b.arrTime || b.depTime))
+      );
+
+    if (upcoming.length === 0) {
+      return {
+        trainNo: 'LAST_TRAIN_ENDED',
+        endSubwayStationNm: '운행 종료',
+        minutesLeft: 999,
+        arrivalTime: '--:--',
+        statusText: '[시간표] 금일 운행 종료',
+        isApproaching: false,
+      };
+    }
+
+    const next = upcoming[0];
+    const targetSec = timeToSeconds(String(next.arrTime || next.depTime));
+    const diffSec = targetSec - currentTotalSec;
+    const minutesLeft = Math.ceil(diffSec / 60);
+
+    const h = Math.floor(targetSec / 3_600);
+    const m = Math.floor((targetSec % 3_600) / 60);
+    const arrivalTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+    return {
+      trainNo: String(next.trainNo),
+      endSubwayStationNm: String(next.endSubwayStationNm || ''),
+      minutesLeft,
+      arrivalTime,
+      statusText: `[시간표] ${String(next.endSubwayStationNm || '')} (${arrivalTime})`,
+      isApproaching: false,
+    };
+  }
+
+  // 1. 서울교통공사 공식 시간표 우선 조회 (1~9호선 405개 역)
+  const seoulTrain = getNextTrainFromSeoulTimetable({
+    stationName,
+    updnLine,
+    lineId,
+  });
+  if (seoulTrain) {
+    return seoulTrain;
+  }
+
+  // 2. 서울 공식 시간표에 없는 역(코레일 전용 역, 지방 도시철도 등)의 경우 배차간격 기반 가상 도착 정보 반환
+  return calculateHeadwayFallback(stationName, updnLine);
 }

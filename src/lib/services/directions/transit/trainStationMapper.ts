@@ -107,23 +107,8 @@ export async function resolveTrainStationId(
     return staticId;
   }
 
-  // 3차: ODsay 동적 검색 (trimmedName이 2글자 이상인 경우만 실행)
-  if (trimmedName.length >= 2) {
-    try {
-      const searchRes = await OdsayAdapter.fetchSearchStation(trimmedName, '1', apiKey);
-      const stationList = searchRes?.result?.station;
-      if (Array.isArray(stationList) && stationList.length > 0) {
-        const trainStation = stationList.find(
-          (st: any) => st.stationClass === 1 || st.stationName?.includes('역')
-        );
-        if (trainStation && trainStation.stationID) {
-          return String(trainStation.stationID);
-        }
-      }
-    } catch (err) {
-      console.warn(`[trainStationMapper] 동적 역 ID 검색 실패 (${stationName}):`, err);
-    }
-  }
+  // 3차: ODsay 동적 검색 (ODsay 30회 쿼터 보호를 위해 외부 API 호출 차단 및 Fallback 사용)
+  // if (trimmedName.length >= 2) { ... }
 
   // 최후 Fallback: 안전 기차역 ID (기본 서울역 또는 부산역)
   return rawId && rawId !== '0' ? rawId : '3300128';

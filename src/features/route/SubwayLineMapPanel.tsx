@@ -11,6 +11,8 @@ import { SubwayPosition, SubwayLineStation, SubwayLineMapTarget } from '@/types/
 import { getBranchDataById, isTrainMatchingBranch } from '@/lib/data/subwayBranches';
 import { getSubwayLineTheme } from '@/lib/constants/subwayThemes';
 import { calculateTrainDeadReckoning } from '@/lib/services/subwayDeadReckoningEngine';
+import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
+import { parseSnapVal } from '@/lib/utils/snapUtils';
 
 export interface SubwayLineMapPanelProps {
   isOpen: boolean;
@@ -82,6 +84,56 @@ function calculateDynamicETA(
   };
 }
 
+interface SubwayMobileSheetBodyProps {
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  viewMode: 'timetable' | 'map';
+  timetableScrollRef: React.RefObject<HTMLDivElement | null>;
+  snap: string | number;
+  setSnap: (snap: string | number) => void;
+  minSheetHeight: number;
+  defaultSheetHeight: number;
+  mainBodyContent: React.ReactNode;
+  footerContent: React.ReactNode;
+}
+
+const SubwayMobileSheetBody: React.FC<SubwayMobileSheetBodyProps> = ({
+  scrollContainerRef,
+  viewMode,
+  timetableScrollRef,
+  snap,
+  setSnap,
+  minSheetHeight,
+  defaultSheetHeight,
+  mainBodyContent,
+  footerContent,
+}) => {
+  const activeScrollRef = viewMode === 'timetable' ? timetableScrollRef : scrollContainerRef;
+  const { handlePointerDown, handleTouchStart, handleTouchMove, handleTouchEnd, handleWheel } =
+    useSnapScrollBridge({
+      scrollRef: activeScrollRef,
+      snap,
+      setSnap,
+      minSnap: minSheetHeight,
+      defaultSnap: defaultSheetHeight,
+      maxSnap: 1,
+      disableBottomOverscroll: true, // 종점(최하단)에서 추가 스크롤 시 스냅 전환 및 순환 버그 원천 차단
+    });
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+      className="flex flex-col relative w-full h-full min-h-0 bg-white pb-6 overscroll-none"
+    >
+      {mainBodyContent}
+      {footerContent}
+    </div>
+  );
+};
+
 export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   isOpen,
   target,
@@ -147,6 +199,21 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const targetStationNodeRef = useRef<HTMLDivElement>(null);
+  const timetableScrollRef = useRef<HTMLDivElement>(null);
+  const hasInitialScrolledRef = useRef(false);
+
+  const [snap, setSnap] = useState<string | number>(() => {
+    const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    return Math.round(windowHeight * 0.65);
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+      setSnap(Math.round(windowHeight * 0.65));
+      hasInitialScrolledRef.current = false;
+    }
+  }, [isOpen]);
 
   // 방향별 라벨 산출 (2호선은 내선/외선, 대전은 판암/반석, 기타는 상행/하행)
   const isLine2 = lineTarget === '1002' || lineTarget === '2' || lineTarget.includes('2호선');
@@ -358,13 +425,13 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     };
   }, [primaryTrainNo, trainObjectMap, trainAwayMap, targetMinutesLeft]);
 
-  // 탑승역으로 자동 센터 스크롤 (상위 창/지도 스크롤 없이 내부 컨테이너만 안전하게 스크롤)
+  // 탑승역으로 자동 센터 스크롤 (상위 창/지도 스크롤 없이 내부 컨테이너만 안전하게 스크롤, 패널 열림 시 1회만 실행)
   useEffect(() => {
-    if (isOpen && targetStationNodeRef.current && scrollContainerRef.current) {
+    if (isOpen && !hasInitialScrolledRef.current && targetStationNodeRef.current && scrollContainerRef.current) {
       const timer = setTimeout(() => {
         const container = scrollContainerRef.current;
         const target = targetStationNodeRef.current;
-        if (!container || !target) return;
+        if (!container || !target || hasInitialScrolledRef.current) return;
 
         const containerRect = container.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
@@ -375,6 +442,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
           top: Math.max(0, centerScrollTop),
           behavior: 'smooth',
         });
+        hasInitialScrolledRef.current = true;
       }, 350);
       return () => clearTimeout(timer);
     }
@@ -431,7 +499,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
 
   // ─── 패널 헤더 ─────────────────────────────────────────────────────────
   const headerContent = (
-    <div className="flex flex-col border-b border-zinc-100 shrink-0 bg-white select-none">
+    <div className="flex flex-col border-b border-zinc-100 shrink-0 bg-white select-none cursor-grab active:cursor-grabbing touch-none">
       {/* 1층: 뒤로가기 + 호선 뱃지 + 역명 + 새로고침/닫기 */}
       <div className="flex items-center justify-between px-3 pt-2.5 pb-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -523,6 +591,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('timetable')}
+              onPointerDown={(e) => e.stopPropagation()}
               className={clsx(
                 'flex-1 py-1 rounded-lg transition-all text-center cursor-pointer',
                 viewMode === 'timetable'
@@ -535,6 +604,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('map')}
+              onPointerDown={(e) => e.stopPropagation()}
               className={clsx(
                 'flex-1 py-1 rounded-lg transition-all text-center cursor-pointer',
                 viewMode === 'map'
@@ -592,7 +662,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   const listContent = (
     <div
       ref={scrollContainerRef}
-      className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0 relative bg-white scrollbar-thin select-none"
+      className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0 relative bg-white scrollbar-thin select-none overscroll-none"
     >
       {isLoading && (
         <div className="py-14 flex flex-col items-center justify-center text-center space-y-2.5">
@@ -871,7 +941,10 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
 
   // ─── 2. 시간표(Timetable) 리스트 뷰 바디 ───────────────────────────────────
   const timetableContent = (
-    <div className="flex-1 overflow-y-auto px-3.5 py-3 space-y-3 bg-zinc-50/50 scrollbar-thin select-none">
+    <div
+      ref={timetableScrollRef}
+      className="flex-1 overflow-y-auto px-3.5 py-3 space-y-3 bg-zinc-50/50 scrollbar-thin select-none overscroll-none"
+    >
       {/* 1. 상단 안내 및 다음 열차 하이라이트 배너 */}
       <div className="rounded-2xl p-3.5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-sm flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -1051,27 +1124,54 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
       ? timetableContent
       : listContent;
 
+
   // 모바일 UI (CustomBottomSheet)
   if (isMobile) {
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const sheetHeight = Math.round(windowHeight * 0.65);
+    const minSheetHeight = Math.max(200, Math.min(240, Math.round(windowHeight * 0.28)));
+    const defaultSheetHeight = Math.round(windowHeight * 0.65);
+    const maxSheetHeight = windowHeight - 16;
+
+    const parsedSnap = parseSnapVal(snap);
+    let currentSnapType: 'min' | 'default' | 'max' = 'default';
+    if (parsedSnap === 1 || snap === '1' || parsedSnap >= maxSheetHeight - 5) {
+      currentSnapType = 'max';
+    } else if (
+      parsedSnap === minSheetHeight ||
+      (typeof parsedSnap === 'number' && Math.abs(parsedSnap - minSheetHeight) < 5)
+    ) {
+      currentSnapType = 'min';
+    }
 
     return (
       <CustomBottomSheet
         isOpen={isOpen}
-        minHeight={sheetHeight}
-        defaultHeight={sheetHeight}
-        maxHeight={windowHeight - 16}
+        minHeight={minSheetHeight}
+        defaultHeight={defaultSheetHeight}
+        maxHeight={maxSheetHeight}
+        initialSnap={currentSnapType}
+        headerContent={headerContent}
         zIndex={120}
+        onSnap={(snapName) => {
+          if (snapName === 'min') setSnap(minSheetHeight);
+          else if (snapName === 'default') setSnap(defaultSheetHeight);
+          else if (snapName === 'max') setSnap(1);
+        }}
         onClose={onClose}
         onExited={onExited}
       >
         <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-line" />
-        <div className="flex flex-col relative w-full h-full min-h-0 bg-white pb-6">
-          {headerContent}
-          {mainBodyContent}
-          {footerContent}
-        </div>
+        <SubwayMobileSheetBody
+          scrollContainerRef={scrollContainerRef}
+          viewMode={viewMode}
+          timetableScrollRef={timetableScrollRef}
+          snap={snap}
+          setSnap={setSnap}
+          minSheetHeight={minSheetHeight}
+          defaultSheetHeight={defaultSheetHeight}
+          mainBodyContent={mainBodyContent}
+          footerContent={footerContent}
+        />
       </CustomBottomSheet>
     );
   }

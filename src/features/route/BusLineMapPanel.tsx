@@ -10,6 +10,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useJourneyStore } from '@/stores/journey-store';
 import { BusPosition, BusLineStation, BusLineMapTarget } from '@/types/journey';
 import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
+import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
+import { parseSnapVal } from '@/lib/utils/snapUtils';
 
 export interface BusLineMapPanelProps {
   isOpen: boolean;
@@ -253,6 +255,51 @@ function findBestMatchingStationIndex(
   return -1;
 }
 
+interface BusMobileSheetBodyProps {
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  snap: string | number;
+  setSnap: (snap: string | number) => void;
+  minSheetHeight: number;
+  defaultSheetHeight: number;
+  listContent: React.ReactNode;
+  footerContent: React.ReactNode;
+}
+
+const BusMobileSheetBody: React.FC<BusMobileSheetBodyProps> = ({
+  scrollContainerRef,
+  snap,
+  setSnap,
+  minSheetHeight,
+  defaultSheetHeight,
+  listContent,
+  footerContent,
+}) => {
+  const { handlePointerDown, handleTouchStart, handleTouchMove, handleTouchEnd, handleWheel } =
+    useSnapScrollBridge({
+      scrollRef: scrollContainerRef,
+      snap,
+      setSnap,
+      minSnap: minSheetHeight,
+      defaultSnap: defaultSheetHeight,
+      maxSnap: 1,
+      disableBottomOverscroll: true, // 종점(최하단)에서 추가 스크롤 시 스냅 전환 및 순환 버그 원천 차단
+    });
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+      className="flex flex-col relative w-full h-full min-h-0 bg-white pb-6 overscroll-none"
+    >
+      {listContent}
+      {footerContent}
+    </div>
+  );
+};
+
 export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
   isOpen,
   target,
@@ -319,6 +366,18 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
   const targetStationNodeRef = useRef<HTMLDivElement>(null);
   const turningStationNodeRef = useRef<HTMLDivElement>(null);
   const hasInitialScrolled = useRef(false);
+
+  const [snap, setSnap] = useState<string | number>(() => {
+    const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    return Math.round(windowHeight * 0.65);
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+      setSnap(Math.round(windowHeight * 0.65));
+    }
+  }, [isOpen]);
 
   // 💡 [단일 통합 노선도] 기점 ➔ 회차점 ➔ 종점 전체 정류소 목록 단일 연속 렌더링
   const orderedStations = useMemo(() => {
@@ -656,7 +715,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
 
   // ─── 1. 패널 헤더 ────────────────────────────────────────────────────────
   const headerContent = (
-    <div className="flex flex-col border-b border-zinc-100 shrink-0 bg-white select-none">
+    <div className="flex flex-col border-b border-zinc-100 shrink-0 bg-white select-none cursor-grab active:cursor-grabbing touch-none">
       {/* 1층: 뒤로가기 + 버스 번호 뱃지 + 정류소명 + 새로고침/닫기 */}
       <div className="flex items-center justify-between px-3 pt-2.5 pb-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -750,7 +809,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
     <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0 relative bg-white scrollbar-thin select-none"
+      className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0 relative bg-white scrollbar-thin select-none overscroll-none"
     >
       {isLoading && (
         <div className="py-14 flex flex-col items-center justify-center text-center space-y-2.5">
@@ -1048,27 +1107,52 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
     </div>
   );
 
+
   // 모바일 UI (CustomBottomSheet)
   if (isMobile) {
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const sheetHeight = Math.round(windowHeight * 0.65);
+    const minSheetHeight = Math.max(200, Math.min(240, Math.round(windowHeight * 0.28)));
+    const defaultSheetHeight = Math.round(windowHeight * 0.65);
+    const maxSheetHeight = windowHeight - 16;
+
+    const parsedSnap = parseSnapVal(snap);
+    let currentSnapType: 'min' | 'default' | 'max' = 'default';
+    if (parsedSnap === 1 || snap === '1' || parsedSnap >= maxSheetHeight - 5) {
+      currentSnapType = 'max';
+    } else if (
+      parsedSnap === minSheetHeight ||
+      (typeof parsedSnap === 'number' && Math.abs(parsedSnap - minSheetHeight) < 5)
+    ) {
+      currentSnapType = 'min';
+    }
 
     return (
       <CustomBottomSheet
         isOpen={isOpen}
-        minHeight={sheetHeight}
-        defaultHeight={sheetHeight}
-        maxHeight={windowHeight - 16}
+        minHeight={minSheetHeight}
+        defaultHeight={defaultSheetHeight}
+        maxHeight={maxSheetHeight}
+        initialSnap={currentSnapType}
+        headerContent={headerContent}
         zIndex={120}
+        onSnap={(snapName) => {
+          if (snapName === 'min') setSnap(minSheetHeight);
+          else if (snapName === 'default') setSnap(defaultSheetHeight);
+          else if (snapName === 'max') setSnap(1);
+        }}
         onClose={onClose}
         onExited={onExited}
       >
         <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-line" />
-        <div className="flex flex-col relative w-full h-full min-h-0 bg-white pb-6">
-          {headerContent}
-          {listContent}
-          {footerContent}
-        </div>
+        <BusMobileSheetBody
+          scrollContainerRef={scrollContainerRef}
+          snap={snap}
+          setSnap={setSnap}
+          minSheetHeight={minSheetHeight}
+          defaultSheetHeight={defaultSheetHeight}
+          listContent={listContent}
+          footerContent={footerContent}
+        />
       </CustomBottomSheet>
     );
   }

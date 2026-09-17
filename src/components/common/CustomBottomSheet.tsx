@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { motion, useDragControls, useMotionValue, animate, useTransform } from 'framer-motion';
+import { resolveNextSnapPoint } from '@/lib/utils/snapUtils';
 
 const SPRING_SNAP = {
   type: 'spring' as const,
@@ -191,57 +192,25 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const handleDragEnd = (event: any, info: any) => {
     if (disableSnap) return;
 
-    const currentY = y.get(); // Current dynamic translation value (negative)
-    const velocityY = info.velocity.y; // Swipe velocity (positive down, negative up)
+    const currentY = y.get();
+    const velocityY = info.velocity.y;
 
-    const snapPoints = [
-      { y: -maxHeight, name: 'max' as const },
-      { y: -defaultHeight, name: 'default' as const },
-      { y: -minHeight, name: 'min' as const }
-    ];
-
-    const VELOCITY_THRESHOLD = 500;
-    // 임계값(80px) 미달 시 제자리로 복귀하도록 현재 활성화된 스냅 포인트(activeSnapY)로 초기화
-    let targetSnap = snapPoints.find(p => p.y === activeSnapY) || snapPoints[1];
-
-    if (velocityY > VELOCITY_THRESHOLD) {
-      // Swiping down -> Snap to a lower (less pulled up, larger value) snap point
-      const belowPoints = snapPoints.filter(p => p.y > currentY);
-      targetSnap = belowPoints.length > 0 ? belowPoints[0] : snapPoints[0];
-    } else if (velocityY < -VELOCITY_THRESHOLD) {
-      // Swiping up -> Snap to a higher (more pulled up, smaller value) snap point
-      const abovePoints = snapPoints.filter(p => p.y < currentY);
-      targetSnap = abovePoints.length > 0 ? abovePoints[abovePoints.length - 1] : snapPoints[snapPoints.length - 1];
-    } else {
-      // Slow drag -> Snap to next point if user dragged at least 20px
-      const deltaY = currentY - activeSnapY;
-      const PIXEL_THRESHOLD = 20;
-      if (deltaY > PIXEL_THRESHOLD) {
-        // Dragging DOWN -> Find below points (y > activeSnapY)
-        const belowPoints = snapPoints.filter(p => p.y > activeSnapY);
-        if (belowPoints.length > 0) {
-          targetSnap = belowPoints.reduce((prev, curr) =>
-            Math.abs(curr.y - currentY) < Math.abs(prev.y - currentY) ? curr : prev
-          );
-        }
-      } else if (deltaY < -PIXEL_THRESHOLD) {
-        // Dragging UP -> Find above points (y < activeSnapY)
-        const abovePoints = snapPoints.filter(p => p.y < activeSnapY);
-        if (abovePoints.length > 0) {
-          targetSnap = abovePoints.reduce((prev, curr) =>
-            Math.abs(curr.y - currentY) < Math.abs(prev.y - currentY) ? curr : prev
-          );
-        }
-      }
-    }
+    const targetSnap = resolveNextSnapPoint({
+      currentY,
+      activeSnapY,
+      velocityY,
+      maxHeight,
+      defaultHeight,
+      minHeight,
+    });
 
     const springConfig = getSpringConfig(targetSnap.y, velocityY);
 
-    if (activeSnapY === targetSnap.y) {
+    if (Math.abs(activeSnapY - targetSnap.y) < 1) {
       // 동일한 스냅 포인트 구역 내에서 미세 조작 후 놓았을 때 제자리로 복귀하도록 명시적 애니메이션 수행
       animate(y, targetSnap.y, {
         ...springConfig,
-        velocity: velocityY
+        velocity: velocityY,
       });
     } else {
       // 스냅 포인트 구역이 달라진 경우 상태를 변경하여 useEffect를 통한 애니메이션 유발

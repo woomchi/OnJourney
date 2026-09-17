@@ -17,6 +17,7 @@ export interface UseSnapScrollBridgeOptions {
   minSnap?: number;
   defaultSnap?: number;
   maxSnap?: number;
+  disableBottomOverscroll?: boolean;
 }
 
 export function useSnapScrollBridge({
@@ -31,6 +32,7 @@ export function useSnapScrollBridge({
   minSnap: minSnapOpt,
   defaultSnap: defaultSnapOpt,
   maxSnap: maxSnapOpt = 1,
+  disableBottomOverscroll = false,
 }: UseSnapScrollBridgeOptions) {
   const bottomSheet = useOptionalBottomSheet();
   const isMobile = useMediaQuery('(max-width: 767px)');
@@ -104,7 +106,8 @@ export function useSnapScrollBridge({
 
       // 1. 오버스크롤 상태 진입 감지: 최상단에서 아래로 당기거나 최하단에서 위로 당길 때
       if (!state.isOverscrolling) {
-        if ((isAtTop && deltaY > 5) || (isAtBottom && deltaY < -5)) {
+        const allowBottom = !disableBottomOverscroll;
+        if ((isAtTop && deltaY > 5) || (allowBottom && isAtBottom && deltaY < -5)) {
           state.isOverscrolling = true;
         }
       }
@@ -173,7 +176,7 @@ export function useSnapScrollBridge({
           handleSetSnap(minSnap);
           snapChanged = true;
         }
-      } else if (isAtBottomAtStart && deltaY < -THRESHOLD) {
+      } else if (!disableBottomOverscroll && isAtBottomAtStart && deltaY < -THRESHOLD) {
         if (currentSnap === 'min') {
           handleSetSnap(defaultSnap);
           snapChanged = true;
@@ -232,7 +235,7 @@ export function useSnapScrollBridge({
         // 아래로 스와이프 (축소 방향)
         handleSetSnap(minSnap);
       }
-      else if (isAtBottomAtStart && deltaY < -20) {
+      else if (!disableBottomOverscroll && isAtBottomAtStart && deltaY < -20) {
         // 위로 스와이프 (확대 방향)
         handleSetSnap(maxSnapOpt);
       }
@@ -310,7 +313,7 @@ export function useSnapScrollBridge({
         wheelAccumulator.current.delta = 0;
       }
     }
-    else if (isAtBottom && e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
+    else if (!disableBottomOverscroll && isAtBottom && e.deltaY > 0 && wheelAccumulator.current.startedAtBottom) {
       wheelAccumulator.current.delta += e.deltaY;
       if (wheelAccumulator.current.delta > 70) {
         handleSetSnap(maxSnapOpt);

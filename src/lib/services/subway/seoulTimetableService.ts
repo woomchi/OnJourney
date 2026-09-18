@@ -95,12 +95,32 @@ export function toOperationalMinutes(timeStr: string): number {
 }
 
 /**
- * 오늘 요일 태그 계산 (DAY: 평일, SAT: 토요일, END: 일요일/공휴일)
+ * 주어진 Date 객체에서 KST(Asia/Seoul, UTC+9) 기준 시, 분, 초, 요일을 추출합니다.
+ * 서버/클라이언트 환경의 로컬 시스템 타임존(UTC 등)과 무관하게 항상 일관된 한국 표준시를 보장합니다.
+ */
+export function getKstComponents(date: Date = new Date()): {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  dayOfWeek: number; // 0: 일요일, 1: 월요일, ..., 6: 토요일
+} {
+  const kstMs = date.getTime() + 9 * 60 * 60 * 1000;
+  const kstDate = new Date(kstMs);
+  return {
+    hours: kstDate.getUTCHours(),
+    minutes: kstDate.getUTCMinutes(),
+    seconds: kstDate.getUTCSeconds(),
+    dayOfWeek: kstDate.getUTCDay(),
+  };
+}
+
+/**
+ * 오늘 요일 태그 계산 (DAY: 평일, SAT: 토요일, END: 일요일/공휴일) - KST 기준
  */
 export function resolveWeekTag(date: Date = new Date()): 'DAY' | 'SAT' | 'END' {
-  const day = date.getDay();
-  if (day === 0) return 'END'; // 일요일
-  if (day === 6) return 'SAT'; // 토요일
+  const { dayOfWeek } = getKstComponents(date);
+  if (dayOfWeek === 0) return 'END'; // 일요일
+  if (dayOfWeek === 6) return 'SAT'; // 토요일
   return 'DAY';                // 평일
 }
 
@@ -222,9 +242,8 @@ export function getNextTrainFromSeoulTimetable(
 
   if (!trains || trains.length === 0) return null;
 
-  // 현재 시각의 운행 분 계산
-  const currentHour = referenceDate.getHours();
-  const currentMinute = referenceDate.getMinutes();
+  // 현재 시각의 운행 분 계산 (KST 기준)
+  const { hours: currentHour, minutes: currentMinute } = getKstComponents(referenceDate);
   const currentOpMin = toOperationalMinutes(
     `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`
   );
@@ -289,8 +308,8 @@ export function getSeoulTimetableList(
   const trains = timetableData[targetKey] || [];
   if (trains.length === 0) return [];
 
-  const currentHour = referenceDate.getHours();
-  const currentMinute = referenceDate.getMinutes();
+  // 현재 시각의 운행 분 계산 (KST 기준)
+  const { hours: currentHour, minutes: currentMinute } = getKstComponents(referenceDate);
   const currentOpMin = toOperationalMinutes(
     `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`
   );

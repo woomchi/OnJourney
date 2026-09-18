@@ -90,11 +90,11 @@ class SharedTransitRefreshStore {
         this.updateButtonTexts(session);
         this.notify(key);
       } else {
-        // 타이머 만료 -> 갱신 트리거
+        // 타이머 만료 -> 갱신 트리거 (자동 갱신이므로 카운트 유지)
         if (session.state.refreshCount < session.maxRefreshCount - 1) {
           session.state.refreshCount += 1;
           session.state.countdown = session.intervalSeconds;
-          this.triggerRefresh(key);
+          this.triggerRefresh(key, { resetCount: false });
         } else {
           // 최대 갱신 횟수 도달 시 일시정지
           session.state.status = 'paused';
@@ -120,8 +120,14 @@ class SharedTransitRefreshStore {
     key: string,
     onRefresh: () => void | Promise<unknown>,
     callback: (state: SharedRefreshState) => void,
-    options?: { intervalSeconds?: number; maxRefreshCount?: number; minLoadingDurationMs?: number }
+    options?: {
+      intervalSeconds?: number;
+      maxRefreshCount?: number;
+      minLoadingDurationMs?: number;
+      autoStart?: boolean;
+    }
   ): () => void {
+    const isNewSession = !this.sessions.has(key);
     const session = this.getOrCreateSession(
       key,
       options?.intervalSeconds ?? 15,
@@ -134,6 +140,16 @@ class SharedTransitRefreshStore {
 
     // 즉시 현재 상태 통보
     callback({ ...session.state });
+
+    // 신규 세션이거나 세션이 paused 상태였는데 autoStart 요청으로 진입한 경우:
+    // 즉시 최초 1회 실시간 데이터를 동기화하도록 triggerRefresh 실행
+    if (options?.autoStart && (isNewSession || session.state.status === 'paused')) {
+      queueMicrotask(() => {
+        if (this.sessions.has(key)) {
+          this.triggerRefresh(key, { resetCount: true });
+        }
+      });
+    }
 
     // 구독 해제 반환 함수
     return () => {
@@ -204,11 +220,15 @@ class SharedTransitRefreshStore {
     }
   }
 
-  public triggerRefresh(key: string) {
+  public triggerRefresh(key: string, options?: { resetCount?: boolean }) {
     const session = this.sessions.get(key);
     if (!session) return;
 
+    if (options?.resetCount ?? true) {
+      session.state.refreshCount = 0;
+    }
     session.state.status = 'active';
+    session.state.countdown = session.intervalSeconds;
     session.fetchStartTime = Date.now();
     session.state.isDisplayLoading = true;
     if (session.finishTimer) {

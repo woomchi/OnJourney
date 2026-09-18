@@ -62,13 +62,13 @@ export function useAutoRefresh({
       (nextState) => {
         setSharedState(nextState);
       },
-      { intervalSeconds, maxRefreshCount, minLoadingDurationMs }
+      { intervalSeconds, maxRefreshCount, minLoadingDurationMs, autoStart }
     );
 
     return () => {
       unsubscribe();
     };
-  }, [sharedKey, intervalSeconds, maxRefreshCount, minLoadingDurationMs]);
+  }, [sharedKey, intervalSeconds, maxRefreshCount, minLoadingDurationMs, autoStart]);
 
   useEffect(() => {
     if (!sharedKey) return;
@@ -231,7 +231,7 @@ export function useAutoRefresh({
 
   const handleStart = useCallback(() => {
     if (sharedKey) {
-      sharedTransitRefreshStore.triggerRefresh(sharedKey);
+      sharedTransitRefreshStore.triggerRefresh(sharedKey, { resetCount: true });
       return;
     }
     start();

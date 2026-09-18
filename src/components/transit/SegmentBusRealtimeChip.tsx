@@ -207,14 +207,8 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   // 정류소 및 버스 번호가 변경되었을 때만 타이머를 리셋 및 자동 시작합니다.
   const prevStationRef = useRef<string | undefined>(stationId);
   const prevBusNoRef = useRef<string | undefined>(cleanBusNo);
-  const isFirstMountRef = useRef<boolean>(true);
 
   useEffect(() => {
-    if (isFirstMountRef.current) {
-      isFirstMountRef.current = false;
-      return;
-    }
-
     if (prevStationRef.current !== stationId || prevBusNoRef.current !== cleanBusNo) {
       prevStationRef.current = stationId;
       prevBusNoRef.current = cleanBusNo;

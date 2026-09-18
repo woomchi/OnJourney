@@ -154,10 +154,28 @@ describe('sharedTransitRefreshStore', () => {
     expect(currentState.buttonText).toBe('재개');
     expect(currentState.buttonTitle).toContain('자동 갱신 일시정지');
 
-    // triggerRefresh 호출 시 다시 active로 재개되는지 확인
+    // triggerRefresh 호출 시 다시 active로 재개되고 refreshCount가 0으로 리셋되는지 확인
     sharedTransitRefreshStore.triggerRefresh('test:paused-state');
     expect(currentState.status).toBe('active');
+    expect(currentState.refreshCount).toBe(0);
     expect(handler).toHaveBeenCalledTimes(3);
+
+    unsub();
+  });
+
+  it('autoStart: true로 신규 세션 등록 시 마운트 즉시 최초 1회 갱신 핸들러가 실행된다', async () => {
+    const handler = vi.fn();
+    const unsub = sharedTransitRefreshStore.subscribe(
+      'test:autostart-immediate',
+      handler,
+      vi.fn(),
+      { autoStart: true }
+    );
+
+    // 마이크로태스크 완료 대기
+    await Promise.resolve();
+
+    expect(handler).toHaveBeenCalledTimes(1);
 
     unsub();
   });

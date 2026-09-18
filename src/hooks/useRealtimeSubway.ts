@@ -83,7 +83,7 @@ export function useRealtimeSubway({
     enabled: Boolean(enabled && cleanStationName),
     refetchInterval,
     refetchIntervalInBackground: false,
-    staleTime: 5000, // 5초 이내 중복 호출 방지 및 신선한 실시간성 유지 (버스와 일관성 확보)
+    staleTime: 0, // 실시간 도착 정보의 즉각적인 갱신 반영 보장 (버스와 일관성 확보)
     placeholderData: (previousData) => previousData,
     retry: 2,
     retryDelay: 1000,

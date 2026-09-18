@@ -112,4 +112,21 @@ describe('busanTimetableService (로컬 DB 기반 부산 자체 시간표)', () 
     const line4 = getBusanLineStations('4호선');
     expect(line4.length).toBe(14);
   });
+
+  it('서버가 UTC 환경일 때도 한국 시각(KST) 낮 11:45 기준으로 다음 열차를 정확히 계산해야 한다 (186분 후 첫차 버그 방지)', () => {
+    // UTC 02:45:00Z -> 한국 표준시(KST) 11:45:00
+    const mockUtcDate = new Date('2026-09-18T02:45:00Z');
+    const result = getBusanNextTrain({
+      stationName: '부산역',
+      updnLine: 'DOWN',
+      lineId: '1',
+      referenceDate: mockUtcDate,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.canBoard).toBe(true);
+    // 11시 45분 기준 다음 열차는 11:46(1분 후) 또는 근접 열차여야 하며, 익일 첫차(186분 후)가 아니어야 함
+    expect(result?.minutesLeft).toBeLessThan(15);
+    expect(result?.arrivalTime).toBe('11:46');
+  });
 });

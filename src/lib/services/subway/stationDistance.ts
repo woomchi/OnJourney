@@ -17,7 +17,7 @@ import { getLineBranchesAndStations } from '@/lib/data/subwayBranches';
 import { getBusanLineStations } from '@/lib/services/busanSubwayStations';
 import { getDaejeonLineStations } from '@/lib/services/daejeonSubwayService';
 import { getDaeguLineStations } from '@/lib/services/daeguSubwayStations';
-import { getDonghaeLineStations } from '@/lib/services/subway/donghaeTimetableService';
+import { getDonghaeLineStations } from '@/lib/services/donghaeSubwayStations';
 import {
   resolveCandidateLineCodes as resolveCandidateCodesFromMap,
   resolveWayCode,

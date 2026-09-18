@@ -214,24 +214,26 @@ export async function fetchBusanSubwayArrivals(
         const directionName = `${dest}행`;
         const minutesLeft = tr.minutesLeft;
         const arrivalTime = tr.depTime;
-        const isApproaching = minutesLeft <= 1;
-        const statusText =
-          minutesLeft === 0 ? '곧 도착' : `${minutesLeft}분 후 (${arrivalTime})`;
+        const isEnded = tr.minutesLeft >= 120 || tr.minutesLeft >= 999 || (tr.statusText && tr.statusText.includes('운행종료'));
+        const isApproaching = !isEnded && minutesLeft <= 1;
+        const statusText = isEnded
+          ? (tr.statusText && tr.statusText.includes('운행종료') ? tr.statusText : `운행종료 (첫차 ${arrivalTime})`)
+          : (minutesLeft === 0 ? '곧 도착' : `${minutesLeft}분 후 (${arrivalTime})`);
 
         return {
           subwayId: lineName,
           updnLine: directionName,
-          trainNo: tr.trainNo || '부산열차',
+          trainNo: tr.trainNo || (isEnded ? 'FIRST_TRAIN_WAITING' : '부산열차'),
           statnNm: meta?.name || cleanStation,
           arvlMsg2: statusText,
           recptnDt: '',
           statusText,
-          minutesLeft,
+          minutesLeft: isEnded ? 999 : minutesLeft,
           arrivalTime,
           isApproaching,
           isRealtime: false,
           destinationStationNm: dest,
-          canBoard: true,
+          canBoard: !isEnded,
         };
       });
     }
@@ -273,7 +275,8 @@ export async function fetchBusanSubwayArrivals(
     .sort((a, b) => a.seconds - b.seconds);
 
   let upcoming = sorted.filter((it) => it.seconds >= currentSec - 20);
-  if (upcoming.length === 0 && sorted.length > 0) {
+  const isRollover = upcoming.length === 0 && sorted.length > 0;
+  if (isRollover) {
     upcoming = sorted.slice(0, 2);
   }
 
@@ -284,15 +287,16 @@ export async function fetchBusanSubwayArrivals(
     seenKeys.add(key);
 
     let diffSec = train.seconds - currentSec;
-    if (diffSec < -20 && upcoming.length > 0) {
+    if (diffSec < -20 && upcoming.length > 0 && !isRollover) {
       diffSec = 0;
     }
 
-    const minutesLeft = diffSec <= 45 ? 0 : Math.round(diffSec / 60);
     const arrivalTime = formatSecondsToTime(train.seconds);
-    const isApproaching = minutesLeft <= 1;
-    const statusText =
-      minutesLeft === 0 ? '곧 도착' : `${minutesLeft}분 후 (${arrivalTime})`;
+    const minutesLeft = isRollover ? 999 : (diffSec <= 45 ? 0 : Math.round(diffSec / 60));
+    const isApproaching = !isRollover && minutesLeft <= 1;
+    const statusText = isRollover
+      ? `운행종료 (첫차 ${arrivalTime})`
+      : (minutesLeft === 0 ? '곧 도착' : `${minutesLeft}분 후 (${arrivalTime})`);
 
     const dest = train.destStation || (train.updown === '0' ? '종점' : '기점');
     const lineName = train.line ? `부산 ${train.line}호선` : '부산도시철도';
@@ -301,7 +305,7 @@ export async function fetchBusanSubwayArrivals(
     arrivals.push({
       subwayId: lineName,
       updnLine: directionName,
-      trainNo: train.trainno || '부산열차',
+      trainNo: train.trainno || (isRollover ? 'FIRST_TRAIN_WAITING' : '부산열차'),
       statnNm: meta?.name || cleanStation,
       arvlMsg2: statusText,
       recptnDt: '',
@@ -311,7 +315,7 @@ export async function fetchBusanSubwayArrivals(
       isApproaching,
       isRealtime: false,
       destinationStationNm: dest,
-      canBoard: true,
+      canBoard: !isRollover,
     });
 
     if (arrivals.length >= 2) break;

@@ -317,7 +317,39 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   const item1 = data[0];
   const item2 = data[1];
 
+  const isItemEndedOrFirstTrain = (item: typeof item1) => {
+    return (
+      item.trainNo === 'LAST_TRAIN_ENDED' ||
+      item.trainNo === 'FIRST_TRAIN_WAITING' ||
+      (item.minutesLeft !== undefined && item.minutesLeft >= 120) ||
+      (item.statusText && (item.statusText.includes('운행종료') || item.statusText.includes('운행 종료') || item.statusText.includes('첫차')))
+    );
+  };
+
   const formatItemTime = (item: typeof item1) => {
+    // 1. 시간표 기반 운행 정보인 경우 (isRealtime === false)
+    if (item.isRealtime === false) {
+      // 심야 운행 종료 또는 첫차 대기
+      if (isItemEndedOrFirstTrain(item)) {
+        if (item.arrivalTime && item.arrivalTime !== '--:--' && /^\d{1,2}:\d{2}/.test(item.arrivalTime)) {
+          return item.arrivalTime; // "05:30" 등 첫차 시각 표시
+        }
+        return '운행종료';
+      }
+
+      // 일반 시간표 운행 상태: 도착 예정 시각(HH:mm) 최우선 반환
+      if (item.arrivalTime && item.arrivalTime !== '--:--' && /^\d{1,2}:\d{2}/.test(item.arrivalTime)) {
+        return item.arrivalTime;
+      }
+
+      if (item.minutesLeft !== undefined && item.minutesLeft >= 0 && item.minutesLeft < 999) {
+        return item.minutesLeft === 0 ? '곧 도착' : `${item.minutesLeft}분 후`;
+      }
+
+      return '시간표';
+    }
+
+    // 2. 실시간 정보인 경우 (isRealtime !== false)
     if (item.arvlCd === '1' || item.statusText?.startsWith('도착') || item.statusText === '도착') {
       return '도착';
     }
@@ -337,13 +369,27 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
       }
       if (clean) return clean;
     }
-    return item.isRealtime !== false ? '곧 도착' : '운행 중';
+    return '곧 도착';
   };
 
   const getLocationText = (item: typeof item1) => {
     if (item.isRealtime === false) {
-      return item.statusText ? item.statusText.replace(/\[.*?\]/g, '').replace(/\s*\([^)]*\)/g, '').trim() : `${item.updnLine || ''} 시간표`;
+      if (isItemEndedOrFirstTrain(item)) {
+        if (item.arrivalTime && item.arrivalTime !== '--:--' && /^\d{1,2}:\d{2}/.test(item.arrivalTime)) {
+          return '첫차 대기';
+        }
+        return '운행 종료';
+      }
+      // 일반 시간표인 경우: 행선지 또는 방면명 우선
+      if (item.destinationStationNm) {
+        return `${item.destinationStationNm.replace(/역$/, '')}행`;
+      }
+      if (item.updnLine) {
+        return item.updnLine.includes('행') || item.updnLine.includes('선') ? item.updnLine : `${item.updnLine} 방면`;
+      }
+      return '시간표';
     }
+
     const rawMsg = item.arvlMsg2 || item.statusText || '';
     if (!rawMsg) return '';
     let cleanMsg = rawMsg.replace(/\s*\([^)]*\)/g, '').trim();
@@ -360,8 +406,10 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   const locText2 = item2 ? getLocationText(item2) : null;
 
   const isRealtime = item1.isRealtime !== false;
-  const isCanBoard1 = item1.canBoard !== false;
-  const isCanBoard2 = item2 ? item2.canBoard !== false : true;
+  const isEnded1 = !isRealtime && isItemEndedOrFirstTrain(item1);
+  const isEnded2 = item2 ? (!isRealtime && isItemEndedOrFirstTrain(item2)) : false;
+  const isCanBoard1 = item1.canBoard !== false && !isEnded1;
+  const isCanBoard2 = item2 ? (item2.canBoard !== false && !isEnded2) : true;
   const isExpress1 = Boolean(item1.isExpress);
   const isExpress2 = Boolean(item2?.isExpress);
 
@@ -381,7 +429,9 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
         title={
           isRealtime
             ? '클릭하여 지하철 실시간 노선도 및 열차 위치 확인'
-            : '시간표 기준 운행 정보 - 클릭하여 지하철 노선도 보기'
+            : isEnded1
+            ? `운행종료 안내 (첫차: ${timeText1}) - 클릭하여 노선도 보기`
+            : `시간표 기준 운행 정보 (${timeText1}) - 클릭하여 지하철 노선도 보기`
         }
         className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group select-none"
       >
@@ -391,7 +441,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
             style={isRealtime && isCanBoard1 && subwayColor ? { color: subwayColor } : undefined}
             className={clsx(
               'text-sm sm:text-base font-black tabular-nums tracking-tight transition-colors',
-              !isCanBoard1
+              !isCanBoard1 && !isEnded1
                 ? 'text-amber-600'
                 : isRealtime
                 ? (!subwayColor ? 'text-emerald-600 group-hover:text-emerald-700' : '')
@@ -407,12 +457,12 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
             {locText1 && locText1 !== timeText1 && (
               <span className="text-zinc-300">·</span>
             )}
-            {!isCanBoard1 ? (
+            {!isCanBoard1 && !isEnded1 ? (
               <span className="text-amber-600 font-bold">당역종착</span>
             ) : isExpress1 ? (
               <span className="text-rose-600 font-bold">급행</span>
             ) : !isRealtime ? (
-              <span className="text-zinc-600 font-semibold">시간표</span>
+              <span className="text-zinc-600 font-semibold">{isEnded1 ? '첫차' : '시간표'}</span>
             ) : (
               <span className="text-zinc-500 font-medium">일반</span>
             )}
@@ -421,10 +471,14 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
 
         {/* 2번째 열차 도착 보조 정보 or 노선도 힌트 */}
         <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-medium mt-1 leading-none">
-          {timeText2 ? (
+          {timeText2 && !isEnded1 ? (
             <span className="tabular-nums">
               다음 <strong className="font-semibold text-zinc-600">{timeText2}</strong>
               {locText2 && locText2 !== timeText2 && ` (${locText2})`}
+            </span>
+          ) : !isRealtime && item1.minutesLeft !== undefined && item1.minutesLeft > 0 && item1.minutesLeft < 999 ? (
+            <span className="tabular-nums text-zinc-500">
+              약 <strong className="font-semibold text-zinc-700">{item1.minutesLeft}분 후</strong> 도착 예정
             </span>
           ) : (
             <span className="group-hover:text-emerald-600 transition-colors">
@@ -458,47 +512,49 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
               )
             }
             className={clsx(
-              'inline-flex items-center justify-between w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all cursor-pointer hover:border-blue-400 hover:shadow-xs active:scale-98',
-              !isCanBoard1
+              'inline-flex items-center justify-between w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2 py-0.5 rounded-full bg-white border shadow-2xs text-[10px] whitespace-nowrap transition-all cursor-pointer hover:border-blue-400 hover:shadow-xs active:scale-98',
+              !isCanBoard1 && !isEnded1
                 ? 'border-amber-300 text-amber-700 bg-amber-50/30'
                 : isRealtime
                 ? 'border-blue-200 text-blue-600'
                 : 'border-zinc-200 text-slate-700 bg-zinc-50/50'
             )}
             title={
-              !isCanBoard1
+              !isCanBoard1 && !isEnded1
                 ? '목적지 미도달 (중간종착 열차) - 클릭하여 노선도 보기'
                 : isRealtime
                 ? '클릭하여 실시간 노선도 및 열차 위치 확인'
-                : '시간표 기준 운행 정보 - 클릭하여 지하철 노선도 보기'
+                : isEnded1
+                ? `운행종료 안내 (첫차: ${timeText1}) - 클릭하여 노선도 보기`
+                : `시간표 기준 운행 정보 (${timeText1}) - 클릭하여 지하철 노선도 보기`
             }
           >
             <span
               className={clsx(
-                'w-[36px] shrink-0 tabular-nums font-semibold text-left',
+                'w-[40px] min-w-[40px] shrink-0 tabular-nums font-semibold text-left',
                 isRealtime ? 'text-blue-600' : 'text-zinc-700'
               )}
             >
               {timeText1}
             </span>
-            <span className="w-[50px] shrink-0 tabular-nums font-medium text-zinc-600 text-center truncate">
+            <span className="flex-1 min-w-0 tabular-nums font-medium text-zinc-600 text-center truncate px-0.5">
               {locText1 && locText1 !== timeText1 ? locText1 : ''}
             </span>
-            <span className="w-[28px] shrink-0 text-center">
-              {!isCanBoard1 ? (
+            <span className="w-[30px] min-w-[30px] shrink-0 text-right">
+              {!isCanBoard1 && !isEnded1 ? (
                 <span className="text-amber-600 font-bold text-[9px]">종착</span>
               ) : isExpress1 ? (
                 <span className="text-rose-600 font-bold text-[9px]">급행</span>
               ) : !isRealtime ? (
-                <span className="text-zinc-600 font-bold text-[9px]">시간표</span>
+                <span className="text-zinc-600 font-bold text-[9px]">{isEnded1 ? '첫차' : '시간표'}</span>
               ) : (
                 <span className="text-zinc-500 font-medium text-[9px]">일반</span>
               )}
             </span>
           </div>
 
-          {/* 2번째 열차 (실제 다음 열차가 있을 때만 노출) */}
-          {timeText2 && item2 && (
+          {/* 2번째 열차 (실제 다음 열차가 있고 운행종료가 아닐 때만 노출) */}
+          {timeText2 && item2 && !isEnded1 && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) =>
@@ -511,25 +567,25 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
                 )
               }
               className={clsx(
-                'inline-flex items-center justify-between w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2.5 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all cursor-pointer hover:border-blue-400 hover:shadow-xs active:scale-98',
-                !isCanBoard2 && 'border-amber-200 text-amber-700 bg-amber-50/20'
+                'inline-flex items-center justify-between w-[148px] min-w-[148px] h-[20px] min-h-[20px] max-h-[20px] px-2 py-0.5 rounded-full bg-zinc-50/80 border border-zinc-200/90 shadow-2xs text-[10px] text-zinc-600 whitespace-nowrap transition-all cursor-pointer hover:border-blue-400 hover:shadow-xs active:scale-98',
+                !isCanBoard2 && !isEnded2 && 'border-amber-200 text-amber-700 bg-amber-50/20'
               )}
               title={
-                !isCanBoard2
+                !isCanBoard2 && !isEnded2
                   ? '목적지 미도달 (중간종착 열차) - 클릭하여 노선도 보기'
                   : isRealtime
                   ? '클릭하여 실시간 노선도 및 열차 위치 확인'
-                  : '시간표 기준 운행 정보 - 클릭하여 지하철 노선도 보기'
+                  : `시간표 기준 운행 정보 (${timeText2}) - 클릭하여 지하철 노선도 보기`
               }
             >
-              <span className="w-[36px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left">
+              <span className="w-[40px] min-w-[40px] shrink-0 tabular-nums font-semibold text-zinc-700 text-left">
                 {timeText2}
               </span>
-              <span className="w-[50px] shrink-0 tabular-nums font-normal text-zinc-500 text-center truncate">
+              <span className="flex-1 min-w-0 tabular-nums font-normal text-zinc-500 text-center truncate px-0.5">
                 {locText2 && locText2 !== timeText2 ? locText2 : ''}
               </span>
-              <span className="w-[28px] shrink-0 text-center">
-                {!isCanBoard2 ? (
+              <span className="w-[30px] min-w-[30px] shrink-0 text-right">
+                {!isCanBoard2 && !isEnded2 ? (
                   <span className="text-amber-600 font-semibold text-[9px]">종착</span>
                 ) : isExpress2 ? (
                   <span className="text-rose-500 font-bold text-[9px]">급행</span>

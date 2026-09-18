@@ -252,15 +252,16 @@ export function getNextTrainFromSeoulTimetable(
   const upcoming = trains.filter((tr) => toOperationalMinutes(tr.t) >= currentOpMin);
 
   if (upcoming.length === 0) {
-    // 당일 운행 종료
+    // 당일 운행 종료 -> 익일 첫차 정보 제공
+    const firstTrain = trains[0];
     return {
       trainNo: 'LAST_TRAIN_ENDED',
-      endSubwayStationNm: '운행 종료',
+      endSubwayStationNm: firstTrain ? firstTrain.d : '운행 종료',
       minutesLeft: 999,
-      arrivalTime: '--:--',
-      statusText: '[시간표] 금일 운행 종료',
+      arrivalTime: firstTrain ? firstTrain.t : '--:--',
+      statusText: firstTrain ? `[시간표] 운행 종료 (첫차 ${firstTrain.t})` : '[시간표] 금일 운행 종료',
       isApproaching: false,
-      isExpress: false,
+      isExpress: firstTrain ? firstTrain.e === 1 : false,
       canBoard: false,
     };
   }

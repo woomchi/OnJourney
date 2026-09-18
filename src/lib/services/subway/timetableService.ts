@@ -199,21 +199,21 @@ function calculateHeadwayFallback(
   // 심야/새벽 운행 종료 판별 (00:30 ~ 05:30)
   if (currentHour >= 1 && currentHour < 5) {
     return {
-      trainNo: 'LAST_TRAIN_ENDED',
+      trainNo: 'FIRST_TRAIN_WAITING',
       endSubwayStationNm: '운행 종료',
       minutesLeft: 999,
-      arrivalTime: '--:--',
-      statusText: '[시간표] 금일 운행 종료',
+      arrivalTime: '05:30',
+      statusText: '[시간표] 첫차 05:30 대기',
       isApproaching: false,
     };
   }
   if (currentHour === 0 && currentMinute >= 30) {
     return {
-      trainNo: 'LAST_TRAIN_ENDED',
+      trainNo: 'FIRST_TRAIN_WAITING',
       endSubwayStationNm: '운행 종료',
       minutesLeft: 999,
-      arrivalTime: '--:--',
-      statusText: '[시간표] 금일 운행 종료',
+      arrivalTime: '05:30',
+      statusText: '[시간표] 첫차 05:30 대기',
       isApproaching: false,
     };
   }
@@ -291,12 +291,14 @@ export async function calculateNextTrainFromTimetable(
       );
 
     if (upcoming.length === 0) {
+      const first = schedule[0];
+      const firstTime = first ? String(first.arrTime || first.depTime || '05:30') : '05:30';
       return {
-        trainNo: 'LAST_TRAIN_ENDED',
-        endSubwayStationNm: '운행 종료',
+        trainNo: first ? String(first.trainNo) : 'FIRST_TRAIN_WAITING',
+        endSubwayStationNm: first?.endSubwayStationNm || '운행 종료',
         minutesLeft: 999,
-        arrivalTime: '--:--',
-        statusText: '[시간표] 금일 운행 종료',
+        arrivalTime: firstTime,
+        statusText: `[시간표] 첫차 ${firstTime} 대기`,
         isApproaching: false,
       };
     }

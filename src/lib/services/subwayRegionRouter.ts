@@ -7,8 +7,8 @@
 
 import { isDaejeonSubwayStation } from './daejeonSubwayService';
 import { isBusanSubwayStation } from './busanSubwayStations';
-import { resolveOfficialDaeguStationName } from './subway/daeguTimetableService';
-import { isDonghaeSubwayStation, DONGHAE_UNIQUE_STATIONS } from './subway/donghaeTimetableService';
+import { resolveOfficialDaeguStationName } from './daeguSubwayStations';
+import { isDonghaeSubwayStation, DONGHAE_UNIQUE_STATIONS } from './donghaeSubwayStations';
 
 export type SubwayRegion = 'daejeon' | 'seoul' | 'busan' | 'daegu' | 'gwangju' | 'unknown';
 

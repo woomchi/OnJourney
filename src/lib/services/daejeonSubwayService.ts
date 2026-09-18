@@ -459,12 +459,10 @@ export async function fetchDaejeonSubwayArrivals(
     // 현재 시각 이후 열차 찾기
     let upcoming = sorted.filter((it) => it.sec >= currentSeconds);
 
+    const isRollover = upcoming.length === 0;
     // 심야 막차 이후인 경우 다음날 첫차 제공 (롤오버)
-    if (upcoming.length === 0) {
-      upcoming = sorted.slice(0, 2).map((it) => ({
-        ...it,
-        sec: it.sec + 86400, // 24시간 추가
-      }));
+    if (isRollover) {
+      upcoming = sorted.slice(0, 2);
     }
 
     // drctType '1': 상행(판암방면), drctType '2': 하행(반석방면)
@@ -474,19 +472,21 @@ export async function fetchDaejeonSubwayArrivals(
 
     // 가장 빠른 열차 최대 2대 추출
     for (const train of upcoming.slice(0, 2)) {
-      const diffSec = train.sec - currentSeconds;
-      const minutesLeft = Math.max(0, Math.floor(diffSec / 60));
       const arrivalTime = formatSecondsToTime(train.sec);
-      const isApproaching = minutesLeft <= 1;
-      const statusText =
-        minutesLeft === 0 ? '곧 도착' : `${minutesLeft}분 후 (${arrivalTime})`;
+      const diffSec = train.sec - currentSeconds;
+      const isLateNightFirstTrain = isRollover || diffSec >= 120 * 60;
+      const minutesLeft = isLateNightFirstTrain ? 999 : Math.max(0, Math.floor(diffSec / 60));
+      const isApproaching = !isLateNightFirstTrain && minutesLeft <= 1;
+      const statusText = isLateNightFirstTrain
+        ? `운행종료 (첫차 ${arrivalTime})`
+        : (minutesLeft === 0 ? '곧 도착' : `${minutesLeft}분 후 (${arrivalTime})`);
 
       const destStation = train.destStation || defaultDest;
 
       results.push({
         subwayId: '대전1호선',
         updnLine: directionName,
-        trainNo: train.trainNo || '시간표열차',
+        trainNo: train.trainNo || (isLateNightFirstTrain ? 'FIRST_TRAIN_WAITING' : '시간표열차'),
         statnNm: DAEJEON_STATION_NAMES_BY_NUM[stNum] || cleanStation,
         arvlMsg2: statusText,
         recptnDt: '',
@@ -496,7 +496,7 @@ export async function fetchDaejeonSubwayArrivals(
         isApproaching,
         isRealtime: false,
         destinationStationNm: destStation,
-        canBoard: true,
+        canBoard: !isLateNightFirstTrain,
       });
     }
   }

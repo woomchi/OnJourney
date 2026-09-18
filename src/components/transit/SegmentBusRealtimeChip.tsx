@@ -226,7 +226,6 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   const handleManualRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRefreshLoading || isFetching) return;
-    refetch();
     start();
   };
 

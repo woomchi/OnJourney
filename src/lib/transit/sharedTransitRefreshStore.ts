@@ -169,7 +169,7 @@ class SharedTransitRefreshStore {
       this.updateButtonTexts(session);
       this.notify(key);
 
-      // 💡 안전장치: 어떤 이유로든 isFetching이 3초 이상 false로 전환되지 않을 경우 강제 해제
+      // 💡 안전장치: 어떤 이유로든 isFetching이 10초 이상 false로 전환되지 않을 경우 강제 해제
       session.finishTimer = setTimeout(() => {
         if (session.state.isDisplayLoading) {
           session.state.isDisplayLoading = false;
@@ -179,7 +179,7 @@ class SharedTransitRefreshStore {
           this.notify(key);
           session.finishTimer = null;
         }
-      }, 3000);
+      }, 10000);
     } else {
       const elapsed = Date.now() - session.fetchStartTime;
       const remainingTime = Math.max(0, session.minLoadingDurationMs - elapsed);
@@ -218,7 +218,7 @@ class SharedTransitRefreshStore {
     this.updateButtonTexts(session);
     this.notify(key);
 
-    // 💡 안전장치: fetch 이벤트가 트리거되지 않더라도 최대 2초 후 로딩 강제 해제
+    // 💡 안전장치: fetch 이벤트가 트리거되지 않더라도 최대 5초 후 로딩 강제 해제
     session.finishTimer = setTimeout(() => {
       if (session.state.isDisplayLoading && !session.state.isFetching) {
         session.state.isDisplayLoading = false;
@@ -227,7 +227,7 @@ class SharedTransitRefreshStore {
         this.notify(key);
         session.finishTimer = null;
       }
-    }, 2000);
+    }, 5000);
 
     // 등록된 모든 리프레시 핸들러 안전 병렬 실행 (예외 격리)
     const handlers = Array.from(session.onRefreshHandlers);

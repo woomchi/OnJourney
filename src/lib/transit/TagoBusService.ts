@@ -34,6 +34,9 @@ const ROUTE_ID_CACHE = new LruTtlCache<string, { routeId: string; routeIds?: str
   defaultTtlMs: 24 * 60 * 60 * 1000,
 });
 
+// 좌표 기반 정류소 역조회 인플라이트 중복 방지 맵 (동시 진입 시 동일 좌표 단일 호출 보장)
+const IN_FLIGHT_COORDS_LOOKUPS = new Map<string, Promise<{ nodeId: string; cityCode?: string } | null>>();
+
 export class TagoBusService {
   // 국토교통부 정류소별 도착예정정보 목록조회 서비스 공식 엔드포인트
   private static readonly API_URL =
@@ -109,7 +112,7 @@ export class TagoBusService {
         try {
           const res = await fetch(searchUrl, {
             headers: { Accept: 'application/json, text/xml, */*' },
-            signal: AbortSignal.timeout(1500),
+            signal: AbortSignal.timeout(3500),
             next: { revalidate: 86400 },
           });
           if (!res.ok) return null;
@@ -331,50 +334,59 @@ export class TagoBusService {
       return { nodeId: cached.nodeId, cityCode: cached.cityCode };
     }
 
-    try {
-      const encodedKey = getEncodedServiceKey('tago');
-      const requestUrl = `${this.SEARCH_CRDNT_PRXMT_STTN_LIST_URL}?serviceKey=${encodedKey}&gpsLati=${lat}&gpsLong=${lng}&pageNo=1&numOfRows=10&_type=json`;
-
-      const res = await fetch(requestUrl, {
-        headers: { Accept: 'application/json, text/xml, */*' },
-        signal: AbortSignal.timeout(1500),
-        next: { revalidate: 86400 },
-      });
-
-      if (!res.ok) return null;
-      const text = await res.text();
-      const { items } = parseXmlOrJsonItems<Record<string, unknown>>(text);
-
-      let targetItem: Record<string, unknown> | null = null;
-      const cleanStationName = stationName && stationName !== '정류소'
-        ? (stationName.includes('.') ? stationName.split('.').pop() || stationName : stationName).trim()
-        : undefined;
-
-      if (items.length > 0) {
-        if (cleanStationName) {
-          targetItem = items.find((it) => {
-            const nName = safeString(it.nodenm);
-            return nName.includes(cleanStationName) || cleanStationName.includes(nName);
-          }) || items[0];
-        } else {
-          targetItem = items[0];
-        }
-      }
-
-      if (targetItem?.nodeid) {
-        const foundNodeId = safeString(targetItem.nodeid);
-        const foundCityCode = targetItem.citycode ? safeString(targetItem.citycode) : undefined;
-        NODE_ID_CACHE.set(cacheKey, {
-          nodeId: foundNodeId,
-          cityCode: foundCityCode,
-        });
-        return { nodeId: foundNodeId, cityCode: foundCityCode };
-      }
-    } catch (err: unknown) {
-      console.warn('[TagoBusService] nodeId 좌표 역조회 실패:', err);
+    const inFlight = IN_FLIGHT_COORDS_LOOKUPS.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
     }
 
-    return null;
+    const lookupPromise = (async () => {
+      try {
+        const encodedKey = getEncodedServiceKey('tago');
+        const requestUrl = `${this.SEARCH_CRDNT_PRXMT_STTN_LIST_URL}?serviceKey=${encodedKey}&gpsLati=${lat}&gpsLong=${lng}&pageNo=1&numOfRows=10&_type=json`;
+
+        const res = await fetch(requestUrl, {
+          headers: { Accept: 'application/json, text/xml, */*' },
+          signal: AbortSignal.timeout(3500),
+          next: { revalidate: 86400 },
+        });
+
+        if (!res.ok) return null;
+        const text = await res.text();
+        const { items } = parseXmlOrJsonItems<Record<string, unknown>>(text);
+
+        let targetItem: Record<string, unknown> | null = null;
+        const cleanStationName = stationName && stationName !== '정류소'
+          ? (stationName.includes('.') ? stationName.split('.').pop() || stationName : stationName).trim()
+          : undefined;
+
+        if (items.length > 0) {
+          if (cleanStationName) {
+            targetItem = items.find((it) => {
+              const nName = safeString(it.nodenm);
+              return nName.includes(cleanStationName) || cleanStationName.includes(nName);
+            }) || items[0];
+          } else {
+            targetItem = items[0];
+          }
+        }
+
+        if (targetItem?.nodeid) {
+          const foundNodeId = safeString(targetItem.nodeid);
+          const foundCityCode = targetItem.citycode ? safeString(targetItem.citycode) : undefined;
+          const result = { nodeId: foundNodeId, cityCode: foundCityCode };
+          NODE_ID_CACHE.set(cacheKey, result);
+          return result;
+        }
+      } catch (err: unknown) {
+        console.warn('[TagoBusService] nodeId 좌표 역조회 실패:', err);
+      } finally {
+        IN_FLIGHT_COORDS_LOOKUPS.delete(cacheKey);
+      }
+      return null;
+    })();
+
+    IN_FLIGHT_COORDS_LOOKUPS.set(cacheKey, lookupPromise);
+    return lookupPromise;
   }
 
   /**
@@ -405,7 +417,7 @@ export class TagoBusService {
         const res = await fetch(requestUrl, {
           method: 'GET',
           headers: { Accept: 'application/json, text/xml, */*' },
-          signal: AbortSignal.timeout(1500),
+          signal: AbortSignal.timeout(3500),
           cache: 'no-store',
         }).catch(() => null);
 

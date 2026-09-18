@@ -70,7 +70,7 @@ export function useRealtimeTransit({
     enabled: Boolean(enabled && stationId),
     refetchInterval,
     refetchIntervalInBackground: false, // 탭 비활성화 시 자동 갱신 일시정지
-    staleTime: 5000, // 5초 이내 중복 호출 방지 및 신선한 실시간성 유지
+    staleTime: 0, // 실시간 도착 정보의 즉각적인 갱신 반영 보장
     placeholderData: (previousData) => previousData,
     retry: 1, // 1회만 재시도
     retryDelay: 500, // 0.5초 간격

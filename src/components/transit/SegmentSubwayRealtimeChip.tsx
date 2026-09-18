@@ -88,7 +88,6 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   const handleManualRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRefreshLoading || isFetching) return;
-    refetch();
     start();
   };
 

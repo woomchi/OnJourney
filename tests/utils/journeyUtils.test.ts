@@ -5,6 +5,8 @@ import {
   formatJourneyDate,
   formatShortDate,
   inferRegionFromPlace,
+  isJourneyTitleDuplicate,
+  generateUniqueJourneyTitle,
 } from '@/lib/utils/journeyUtils';
 
 describe('journeyUtils', () => {
@@ -94,6 +96,69 @@ describe('journeyUtils', () => {
     it('기본값은 "seoul"을 반환해야 한다', () => {
       expect(inferRegionFromPlace({ address: '서울특별시 중구 태평로' })).toBe('seoul');
       expect(inferRegionFromPlace(null)).toBe('seoul');
+    });
+  });
+
+  describe('isJourneyTitleDuplicate', () => {
+    const mockJourneys: any[] = [
+      { id: 'j-1', title: '서울 나들이' },
+      { id: 'j-2', title: '부산 여행 (1)' },
+      { id: 'j-3', title: '제주도 힐링' },
+    ];
+
+    it('동일한 이름이 존재하면 true를 반환해야 한다', () => {
+      expect(isJourneyTitleDuplicate('서울 나들이', mockJourneys)).toBe(true);
+    });
+
+    it('대소문자 및 앞뒤 공백을 무시하고 중복을 판별해야 한다', () => {
+      expect(isJourneyTitleDuplicate('  서울 나들이  ', mockJourneys)).toBe(true);
+    });
+
+    it('중복되지 않은 이름은 false를 반환해야 한다', () => {
+      expect(isJourneyTitleDuplicate('강릉 바다 여행', mockJourneys)).toBe(false);
+      expect(isJourneyTitleDuplicate('', mockJourneys)).toBe(false);
+      expect(isJourneyTitleDuplicate('   ', mockJourneys)).toBe(false);
+    });
+
+    it('excludeJourneyId가 일치하는 여정은 중복 검사에서 제외해야 한다', () => {
+      // 본인 여정(j-1)의 이름을 그대로 유지하는 경우 중복이 아님
+      expect(isJourneyTitleDuplicate('서울 나들이', mockJourneys, 'j-1')).toBe(false);
+      // 다른 여정(j-2)의 이름과 겹치는 경우 중복
+      expect(isJourneyTitleDuplicate('부산 여행 (1)', mockJourneys, 'j-1')).toBe(true);
+    });
+  });
+
+  describe('generateUniqueJourneyTitle', () => {
+    it('기존 목록에 중복되지 않는 이름이면 원본 이름을 반환해야 한다', () => {
+      expect(generateUniqueJourneyTitle('새로운 여정', ['서울 나들이'])).toBe('새로운 여정');
+    });
+
+    it('중복되는 이름이 있으면 (1)을 붙여 반환해야 한다', () => {
+      expect(generateUniqueJourneyTitle('서울 나들이', ['서울 나들이'])).toBe('서울 나들이 (1)');
+    });
+
+    it('(1)도 이미 존재하면 (2)를 반환해야 한다', () => {
+      expect(
+        generateUniqueJourneyTitle('서울 나들이', ['서울 나들이', '서울 나들이 (1)'])
+      ).toBe('서울 나들이 (2)');
+    });
+
+    it('사용자가 이미 "이름 (1)"을 입력한 상태에서 중복되면 "이름 (2)"를 반환해야 한다', () => {
+      expect(
+        generateUniqueJourneyTitle('서울 나들이 (1)', ['서울 나들이', '서울 나들이 (1)'])
+      ).toBe('서울 나들이 (2)');
+    });
+
+    it('비어있는 순번이 있으면 최소 번호를 찾아 반환해야 한다', () => {
+      // (1)이 비어있고 (2)만 있는 경우 (1)을 채움
+      expect(
+        generateUniqueJourneyTitle('서울 나들이', ['서울 나들이', '서울 나들이 (2)'])
+      ).toBe('서울 나들이 (1)');
+    });
+
+    it('공백만 있거나 빈 문자열일 경우 그대로 반환해야 한다', () => {
+      expect(generateUniqueJourneyTitle('', ['서울 나들이'])).toBe('');
+      expect(generateUniqueJourneyTitle('   ', ['서울 나들이'])).toBe('');
     });
   });
 });

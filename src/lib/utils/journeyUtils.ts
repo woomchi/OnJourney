@@ -307,3 +307,69 @@ export function inferRegionFromPlace(place?: any): string {
 
   return 'seoul';
 }
+
+// ─── 여정명 중복 검사 및 자동 넘버링 ──────────────────────────────────────────────
+
+/**
+ * 주어진 여정명이 기존 여정 목록에 이미 존재하는지 여부를 판별합니다.
+ *
+ * - 공백 제거(trim) 및 대소문자 무시(case-insensitive) 비교
+ * - 여정 수정 시 본인(`excludeJourneyId`)은 비교 대상에서 제외
+ *
+ * @param title 확인할 여정명
+ * @param journeys 전체 여정 목록
+ * @param excludeJourneyId 제외할 여정 ID (여정 정보 수정 시 사용)
+ */
+export function isJourneyTitleDuplicate(
+  title: string,
+  journeys: Journey[],
+  excludeJourneyId?: string
+): boolean {
+  const normalizedTitle = title.trim().toLowerCase();
+  if (!normalizedTitle) return false;
+
+  return journeys.some((j) => {
+    if (excludeJourneyId && j.id === excludeJourneyId) return false;
+    return (j.title || '').trim().toLowerCase() === normalizedTitle;
+  });
+}
+
+/**
+ * 중복되지 않는 고유한 여정명을 생성합니다.
+ *
+ * 기존에 동일한 이름이 이미 존재할 경우 "여정명 (1)", "여정명 (2)" 와 같이
+ * 비어 있는 최소 순번을 찾아 반환합니다.
+ *
+ * @example
+ * generateUniqueJourneyTitle('서울 여행', ['서울 여행']) // '서울 여행 (1)'
+ * generateUniqueJourneyTitle('서울 여행 (1)', ['서울 여행 (1)']) // '서울 여행 (2)'
+ * generateUniqueJourneyTitle('서울 여행', ['서울 여행', '서울 여행 (1)']) // '서울 여행 (2)'
+ *
+ * @param baseTitle 사용자가 입력한 기본 여정명
+ * @param existingTitles 기존 여정명 목록
+ */
+export function generateUniqueJourneyTitle(
+  baseTitle: string,
+  existingTitles: string[]
+): string {
+  const trimmed = baseTitle.trim();
+  if (!trimmed) return trimmed;
+
+  const existingSet = new Set(existingTitles.map((t) => t.trim().toLowerCase()));
+  if (!existingSet.has(trimmed.toLowerCase())) {
+    return trimmed;
+  }
+
+  // baseTitle이 이미 "이름 (숫자)" 형태인지 파악
+  const match = trimmed.match(/^(.*?)(?:\s*\((\d+)\))?$/);
+  const rootName = match && match[1] && match[2] !== undefined ? match[1].trim() : trimmed;
+
+  let counter = 1;
+  while (true) {
+    const candidate = `${rootName} (${counter})`;
+    if (!existingSet.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+    counter++;
+  }
+}

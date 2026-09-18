@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from 'react';
+import { useState, useMemo, type FormEvent } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useShallow } from 'zustand/react/shallow';
 import type { TransportType } from '@/types/journey';
@@ -12,6 +12,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useQueryClient } from '@tanstack/react-query';
+import { AlertCircle } from 'lucide-react';
+import { useDialog } from '@/providers/DialogProvider';
+import {
+  isJourneyTitleDuplicate,
+  generateUniqueJourneyTitle,
+} from '@/lib/utils/journeyUtils';
 
 const TRANSPORT_OPTIONS = [
   { value: 'public' as const, label: '대중교통', icon: '🚌' },
@@ -21,13 +27,15 @@ const TRANSPORT_OPTIONS = [
 
 export default function CreateJourneyModal() {
   const queryClient = useQueryClient();
-  const { isCreateFormOpen, closeCreateForm, createJourney, isLoading } =
+  const { confirm } = useDialog();
+  const { isCreateFormOpen, closeCreateForm, createJourney, isLoading, journeys } =
     useJourneyStore(
       useShallow((s) => ({
         isCreateFormOpen: s.isCreateFormOpen,
         closeCreateForm: s.closeCreateForm,
         createJourney: s.createJourney,
         isLoading: s.isLoading,
+        journeys: s.journeys,
       }))
     );
 
@@ -37,6 +45,22 @@ export default function CreateJourneyModal() {
     () => new Date().toISOString().slice(0, 10),
   );
   const [error, setError] = useState('');
+
+  const isDuplicate = useMemo(
+    () => isJourneyTitleDuplicate(title, journeys),
+    [title, journeys]
+  );
+
+  const suggestedTitle = useMemo(
+    () =>
+      isDuplicate
+        ? generateUniqueJourneyTitle(
+            title,
+            journeys.map((j) => j.title)
+          )
+        : '',
+    [isDuplicate, title, journeys]
+  );
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -48,6 +72,19 @@ export default function CreateJourneyModal() {
     if (!journeyDate) {
       setError('여정 날짜를 선택해주세요.');
       return;
+    }
+
+    if (isDuplicate) {
+      const confirmed = await confirm({
+        title: '동일한 여정명이 존재합니다',
+        message: `'${title.trim()}' 여정이 이미 목록에 있습니다. 그래도 동일한 이름으로 생성하시겠습니까?`,
+        confirmLabel: '그대로 생성',
+        cancelLabel: '이름 수정',
+        icon: 'warning',
+      });
+      if (!confirmed) {
+        return;
+      }
     }
 
     setError('');
@@ -87,18 +124,48 @@ export default function CreateJourneyModal() {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-4 w-full min-w-0">
-          <label className="block mb-6">
-            <span className="text-sm font-bold text-zinc-700 mb-2 block">여정명</span>
+          <div className="mb-6">
+            <label htmlFor="create-journey-title" className="text-sm font-bold text-zinc-700 mb-2 block">
+              여정명
+            </label>
             <input
+              id="create-journey-title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 주말 서울 나들이"
               disabled={isLoading}
-              className="w-full px-4 py-3 rounded-xl border border-zinc-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-[15px] text-zinc-900 disabled:opacity-50"
+              className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 transition-all text-[15px] text-zinc-900 disabled:opacity-50 ${
+                isDuplicate
+                  ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500/20'
+                  : 'border-zinc-200 focus:border-blue-500 focus:ring-blue-500/20'
+              }`}
               autoFocus
             />
-          </label>
+            {isDuplicate && (
+              <div className="mt-2.5 p-3 bg-amber-50/90 border border-amber-200 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-amber-900">
+                    동일한 이름의 여정이 이미 존재합니다.
+                  </p>
+                  {suggestedTitle && (
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-amber-800 text-[11px]">추천:</span>
+                      <button
+                        type="button"
+                        onClick={() => setTitle(suggestedTitle)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-200/70 hover:bg-amber-200 text-amber-950 font-bold rounded-lg border border-amber-300 transition-colors cursor-pointer text-xs"
+                      >
+                        <span>{suggestedTitle}</span>
+                        <span className="text-[10px] text-amber-800 font-normal">로 변경</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="mb-6">
             <span className="text-sm font-bold text-zinc-700 mb-2 block">

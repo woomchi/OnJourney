@@ -1,5 +1,6 @@
 import { BusanBusService } from './BusanBusService';
 import { DaejeonBusService } from './DaejeonBusService';
+import { DaeguBusService } from './DaeguBusService';
 import { GyeonggiBusService } from './GyeonggiBusService';
 import { IncheonBusService } from './IncheonBusService';
 import { MergeService } from './MergeService';
@@ -38,6 +39,9 @@ const REGION_NORMALIZE_MAP: Record<string, string> = {
   '대전': 'daejeon',
   '대전광역시': 'daejeon',
   'daejeon': 'daejeon',
+  '대구': 'daegu',
+  '대구광역시': 'daegu',
+  'daegu': 'daegu',
   'tago': 'seoul', // tago는 수도권 복합 처리 기준
 };
 
@@ -114,6 +118,9 @@ export class RealtimeTransitService {
     } else if (upperStationId.startsWith('ICB') || upperStationId.startsWith('INB')) {
       normalizedRegion = 'incheon';
       resolvedCityCode = '23';
+    } else if (upperStationId.startsWith('DGB')) {
+      normalizedRegion = 'daegu';
+      resolvedCityCode = '22';
     } else if (cityCode) {
       // 공공데이터포털(TAGO) 및 지자체 도시코드 매핑을 통한 보조 권역 교정
       resolvedCityCode = resolveTagoCode(cityCode);
@@ -202,6 +209,35 @@ export class RealtimeTransitService {
         lat,
         lng
       );
+    }
+
+    // 4-1단계: 대구 권역 (Primary: 대구 버스정보 API -> Fallback: TAGO)
+    if (normalizedRegion === 'daegu') {
+      try {
+        const daeguResult = await DaeguBusService.getArrivalInfo(
+          effectiveStationId,
+          stationName,
+          destination,
+          headsign,
+          lat,
+          lng
+        );
+        if (daeguResult && daeguResult.nextArrivals.length > 0) {
+          return daeguResult;
+        }
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+        console.warn(`[RealtimeTransitService] 대구 1순위 API 호출 실패, TAGO 폴백 진행: ${errMsg}`);
+      }
+
+      return TagoBusService.getArrivalInfoSmartNodeTrigger({
+        cityCode: resolvedCityCode || '22',
+        region: normalizedRegion,
+        nodeId: effectiveStationId,
+        stationName,
+        lat,
+        lng,
+      });
     }
 
     // 5단계: 서울 및 수도권 권역 (TAGO 서울/전국 버스 + 경기도 광역버스 머지)

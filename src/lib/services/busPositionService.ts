@@ -10,6 +10,7 @@
 import { OdsayAdapter } from '@/lib/infrastructure/odsayAdapter';
 import { TagoBusService } from '@/lib/transit/TagoBusService';
 import { BusanBusService } from '@/lib/transit/BusanBusService';
+import { DaeguBusService } from '@/lib/transit/DaeguBusService';
 import { GyeonggiBusService } from '@/lib/transit/GyeonggiBusService';
 import { RealtimeTransitService } from '@/lib/transit/RealtimeTransitService';
 import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
@@ -145,6 +146,37 @@ export class BusPositionService {
       } catch (busanErr: unknown) {
         const errMsg = busanErr instanceof Error ? busanErr.message : String(busanErr);
         console.warn('[BusPositionService] 부산 전용 노선도 조회 실패, TAGO/ODsay 폴백 진행:', errMsg);
+      }
+    }
+
+    // 💡 [대구 권역 전용 파이프라인 최우선 실행]
+    const isDaegu =
+      resolvedRegion === 'daegu' ||
+      coordRegion === 'daegu' ||
+      params.cityCode === '22' ||
+      params.cityCode === '4000' ||
+      params.region === 'daegu' ||
+      params.region === '대구' ||
+      (params.stationId && String(params.stationId).toUpperCase().startsWith('DGB'));
+
+    if (isDaegu) {
+      try {
+        const daeguData = await DaeguBusService.getBusLinePositions({
+          busNo: cleanNo,
+          routeId: effectiveTagoRouteId || params.routeId,
+          busId: params.busId,
+          stationId: params.stationId,
+          stationName: params.stationName,
+          lat: params.lat,
+          lng: params.lng,
+        });
+
+        if (daeguData && daeguData.stations.length > 0) {
+          return daeguData;
+        }
+      } catch (daeguErr: unknown) {
+        const errMsg = daeguErr instanceof Error ? daeguErr.message : String(daeguErr);
+        console.warn('[BusPositionService] 대구 전용 노선도 조회 실패, TAGO/ODsay 폴백 진행:', errMsg);
       }
     }
 

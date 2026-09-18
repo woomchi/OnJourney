@@ -2,7 +2,7 @@
  * 실시간 대중교통 정보 정규화 타입 정의
  */
 
-export type DataSourceType = 'tago' | 'gyeonggi' | 'busan' | 'incheon' | 'daejeon' | 'odsay';
+export type DataSourceType = 'tago' | 'gyeonggi' | 'busan' | 'incheon' | 'daejeon' | 'daegu' | 'odsay';
 
 export type BusType = 'normal' | 'express' | 'limited' | 'circulation';
 

@@ -52,6 +52,7 @@ export const RELIABILITY_SCORES = {
   busan: 0.85,
   incheon: 0.85,
   daejeon: 0.85,
+  daegu: 0.85,
   odsay: 0.50,
   staleCache: 0.50,
 };
@@ -63,6 +64,7 @@ export const CACHE_TTL_SECONDS = {
   busan: 15,
   incheon: 15,
   daejeon: 15,
+  daegu: 15,
   default: 20,
 };
 

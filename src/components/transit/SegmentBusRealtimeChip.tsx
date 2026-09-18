@@ -167,8 +167,20 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
 
   const effectiveRegion = useMemo(() => {
     if (stationId && String(stationId).toUpperCase().startsWith('GGB')) return 'gyeonggi';
+    if (stationId && String(stationId).toUpperCase().startsWith('DGB')) return 'daegu';
+    if (stationId && String(stationId).toUpperCase().startsWith('BSB')) return 'busan';
+    if (stationId && String(stationId).toUpperCase().startsWith('DJB')) return 'daejeon';
+    if (stationId && String(stationId).toUpperCase().startsWith('ICB')) return 'incheon';
     if (cityCode === '31' || (cityCode && String(cityCode).startsWith('31'))) return 'gyeonggi';
+    if (cityCode === '22' || cityCode === '4000') return 'daegu';
+    if (cityCode === '21' || cityCode === '7000') return 'busan';
+    if (cityCode === '25') return 'daejeon';
+    if (cityCode === '23') return 'incheon';
     if (inferredCoordRegion === 'gyeonggi') return 'gyeonggi';
+    if (inferredCoordRegion === 'daegu') return 'daegu';
+    if (inferredCoordRegion === 'busan') return 'busan';
+    if (inferredCoordRegion === 'daejeon') return 'daejeon';
+    if (inferredCoordRegion === 'incheon') return 'incheon';
     if (region && region !== 'tago' && region !== 'seoul') return region;
     if (inferredCoordRegion) return inferredCoordRegion;
     return region || 'tago';

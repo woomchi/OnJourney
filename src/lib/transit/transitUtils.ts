@@ -48,6 +48,15 @@ export function getTransitApiKey(region?: string): string {
         process.env.DATA_GO_KR_API_KEY;
       break;
 
+    case 'daegu':
+      candidate =
+        process.env.REAL_TIME_BUS_DAEGU_API_KEY ||
+        process.env.DAEGU_BUS_API_KEY ||
+        process.env.REAL_TIME_BUS_TAGO_API_KEY ||
+        process.env.TAGO_API_KEY ||
+        process.env.DATA_GO_KR_API_KEY;
+      break;
+
     case 'gyeonggi':
       candidate =
         process.env.REAL_TIME_BUS_GYEONGGI_API_KEY ||

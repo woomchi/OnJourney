@@ -448,4 +448,44 @@
 
 ---
 
-*최종 업데이트: 2026-09-18 | **프로젝트 개발 종료 (Archived)** — 회고록: `docs/history/retrospective.md`*
+## Phase 12 — 대구 도시철도 & 대경선 도착정보시스템 구축 (2026-09-19)
+
+### 배경 및 목표
+- 대구교통공사 공식 열차시각표 원천 데이터(1·2·3호선 상/하선 CSV 6종 + 대경선 XLSX 1종)를 확보하여, 수도권/부산/대전에 이은 **대구 전역 103개 역의 실시간/시간표 초고속 O(1) 도착 정보 시스템**을 완비.
+
+### 1단계 — 데이터 컴파일 & 백엔드 코어 파이프라인
+1. **통합 컴파일러 개발 (`scripts/build-daegu-timetable.mjs`)**:
+   - 1호선(35개 역, 안심~하양 연장선 반영), 2호선(29개 역), 3호선(30개 역), 대경선(14개 역) 등 81,844건 스케줄 파싱
+   - 2호선 하선 공공데이터의 오타 라벨(`휴일(상)`) 방어 및 대경선 엑셀 실수 시각 정밀 변환
+   - `src/data/subway/timetables/daegu_subway_timetables.json.gz` (333.4 KB) 단일 Gzip 압축 DB 생성
+   - `package.json`에 `build:daegu-timetable` 스크립트 추가
+2. **인메모리 코어 시간표 엔진 (`daeguTimetableService.ts`)**:
+   - O(1) (0.001ms 미만) 해시태이블 룩업, 평일/토요일/휴일 분기, 심야(00~04시) 익일 운행 시각 자동 보정
+   - 도착 잔여 분(`minutesLeft`), 진입(`isApproaching`), 상태 텍스트(`statusText`) 산출
+3. **대구 전용 도착 정보 서비스 (`daeguSubwayService.ts`)**:
+   - 목적지/방면 키워드 및 `wayCode`로부터 상/하행 자동 추론 및 표준 `SubwayArrival[]` 응답 서빙
+4. **권역 라우터 및 디스패처 연동**:
+   - `subwayRegionRouter.ts`: 대구 103개 역 감지 및 `중앙로`, `신천`, `교대` 등 동명역 충돌 방지 가드 적용
+   - `subwayRealtimeService.ts`: `region === 'daegu'` 감지 시 대구 전용 도착 서비스 1순위 디스패치
+
+### 2단계 — 프론트엔드 UI 노선 브랜딩 & 선도 연동
+1. **노선 브랜드 테마 & 색상 세분화 (`subwayThemes.ts`, `colors.ts`)**:
+   - 대구 1호선: `#D93F30` (진빨강)
+   - 대구 2호선: `#00AA80` (에메랄드 청록)
+   - 대구 3호선: `#FFB100` (노랑, 지상 모노레일)
+   - 대경선: `#0054A6` (코레일 광역전철 블루)
+2. **단일 진실 공급원 매핑 확장 (`subwayLineMap.ts`)**:
+   - `SUBWAY_LINE_MAP`, `resolveSubwayNameForApi`, `resolveCandidateLineCodes`에 대구 1~3호선 및 대경선 등록
+3. **도착 칩 컴포넌트 연동 (`SegmentSubwayRealtimeChip.tsx`)**:
+   - 대구 권역 상/하행 자동 추론 키워드 보강 및 노선 테마 색상 자동 채색 연동
+4. **대구 노선도(Line Map) 정거장 추출 (`daeguTimetableService.ts`, `stationDistance.ts`)**:
+   - `getDaeguLineStations` 구현으로 `SubwayLineMapPanel`에서 대구 1~3호선 및 대경선 전체 정거장 선도 즉시 렌더링 지원
+
+### 테스트 및 검증
+- `tests/services/subway/daeguTimetable.test.ts` (10개 테스트 전원 통과)
+- `tests/transit/daeguSubwayUI.test.ts` (13개 테스트 전원 통과)
+- 전체 테스트 스위트 회귀 검증: **47개 파일, 322개 테스트 100% 통과 (Pass 100%)**
+
+---
+
+*최종 업데이트: 2026-09-19*

@@ -16,6 +16,7 @@ import { normalizeStationName, parseMinSecToSeconds, extractTrainMetadata } from
 import { getLineBranchesAndStations } from '@/lib/data/subwayBranches';
 import { getBusanLineStations } from '@/lib/services/busanSubwayStations';
 import { getDaejeonLineStations } from '@/lib/services/daejeonSubwayService';
+import { getDaeguLineStations } from '@/lib/services/subway/daeguTimetableService';
 import {
   resolveCandidateLineCodes as resolveCandidateCodesFromMap,
   resolveWayCode,
@@ -217,7 +218,25 @@ export function getLineStationListWithBranches(
     }
   }
 
-  // 4. 단일 계통 노선은 기존 역간거리 DB 인덱스 맵 활용
+  // 4. 대구 도시철도 (1~3호선) 및 대경선 정차역 지원
+  if (subwayIdOrName.includes('대구') || subwayIdOrName.includes('대경')) {
+    const daeguStations = getDaeguLineStations(subwayIdOrName);
+    if (daeguStations.length > 0) {
+      return {
+        branches: [],
+        selectedBranchId: '',
+        stations: daeguStations.map((st) => ({
+          index: st.index,
+          stationName: st.stationName,
+          hmSeconds: 120,
+          cumulativeSeconds: (st.index + 1) * 120,
+          distKm: 1.2,
+        })),
+      };
+    }
+  }
+
+  // 5. 단일 계통 노선은 기존 역간거리 DB 인덱스 맵 활용
   const defaultStations = getLineStationList(subwayIdOrName);
   return {
     branches: [],

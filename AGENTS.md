@@ -79,6 +79,7 @@ export async function GET(req: Request) {
   - **수도권**: 서울시 실시간 지하철 API(`REAL_TIME_SUBWAY_API_KEY`) + 서울교통공사 공식 압축 시각표 DB(`seoulTimetableService.ts`)
   - **부산**: 부산교통공사 GW API(`SUBWAY_DATA_API_KEY`, `busanSubwayService.ts`)
   - **대전**: 대전교통공사 API(`SUBWAY_DATA_API_KEY`, `daejeonSubwayService.ts`)
+  - **대구**: 대구교통공사 공식 압축 시각표 DB(1~3호선 + 대경선 103개 역, `daeguTimetableService.ts`, `daeguSubwayService.ts`)
   - **전국 버스**: 공공데이터포털 통합 버스 API(`BUS_DATA_API_KEY`)
   - **공통 캐싱**: Upstash Redis 분산 캐시 + In-Memory 캐시(24시간 `revalidate: 86400`)
 

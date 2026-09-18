@@ -47,17 +47,75 @@ export function getSubwayLineTheme(subwayNmOrId: string): SubwayColorTheme {
       border: 'border-[#0075C4]',
     };
   }
+  // 1-1. 대경선 (광역철도)
+  if (clean.includes('대경') || clean === 'K17') {
+    return {
+      primary: '#0054A6',
+      badgeBg: 'bg-[#0054A6]',
+      badgeText: 'text-white',
+      line: 'bg-[#0054A6]',
+      dot: 'border-[#0054A6]',
+      activeTabBg: 'bg-[#0054A6] text-white',
+      lightBg: 'bg-[#0054A6]/10',
+      text: 'text-[#0054A6]',
+      border: 'border-[#0054A6]',
+    };
+  }
+
+  // 1-2. 대구 도시철도 1, 2, 3호선 세분화
+  if (clean === '대구1호선' || clean.includes('대구1') || (clean.includes('대구') && clean.includes('1'))) {
+    return {
+      primary: '#D93F30',
+      badgeBg: 'bg-[#D93F30]',
+      badgeText: 'text-white',
+      line: 'bg-[#D93F30]',
+      dot: 'border-[#D93F30]',
+      activeTabBg: 'bg-[#D93F30] text-white',
+      lightBg: 'bg-[#D93F30]/10',
+      text: 'text-[#D93F30]',
+      border: 'border-[#D93F30]',
+    };
+  }
+
+  if (clean === '대구2호선' || clean.includes('대구2') || (clean.includes('대구') && clean.includes('2'))) {
+    return {
+      primary: '#00AA80',
+      badgeBg: 'bg-[#00AA80]',
+      badgeText: 'text-white',
+      line: 'bg-[#00AA80]',
+      dot: 'border-[#00AA80]',
+      activeTabBg: 'bg-[#00AA80] text-white',
+      lightBg: 'bg-[#00AA80]/10',
+      text: 'text-[#00AA80]',
+      border: 'border-[#00AA80]',
+    };
+  }
+
+  if (clean === '대구3호선' || clean.includes('대구3') || (clean.includes('대구') && clean.includes('3'))) {
+    return {
+      primary: '#FFB100',
+      badgeBg: 'bg-[#FFB100]',
+      badgeText: 'text-zinc-900',
+      line: 'bg-[#FFB100]',
+      dot: 'border-[#FFB100]',
+      activeTabBg: 'bg-[#FFB100] text-zinc-900',
+      lightBg: 'bg-[#FFB100]/10',
+      text: 'text-[#D49300]',
+      border: 'border-[#FFB100]',
+    };
+  }
+
   if (clean.includes('대구')) {
     return {
-      primary: '#D9381E',
-      badgeBg: 'bg-[#D9381E]',
+      primary: '#D93F30',
+      badgeBg: 'bg-[#D93F30]',
       badgeText: 'text-white',
-      line: 'bg-[#D9381E]',
-      dot: 'border-[#D9381E]',
-      activeTabBg: 'bg-[#D9381E] text-white',
-      lightBg: 'bg-[#D9381E]/10',
-      text: 'text-[#D9381E]',
-      border: 'border-[#D9381E]',
+      line: 'bg-[#D93F30]',
+      dot: 'border-[#D93F30]',
+      activeTabBg: 'bg-[#D93F30] text-white',
+      lightBg: 'bg-[#D93F30]/10',
+      text: 'text-[#D93F30]',
+      border: 'border-[#D93F30]',
     };
   }
   if (clean.includes('광주')) {

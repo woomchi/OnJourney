@@ -36,6 +36,10 @@ export const SUBWAY_LINE_MAP: Record<string, string> = {
   '1093': '서해선',
   '1094': 'GTX-A',
   '1095': '신림선',
+  '대구1호선': '대구 1호선',
+  '대구2호선': '대구 2호선',
+  '대구3호선': '대구 3호선',
+  '대경선': '대경선',
 };
 
 // ─── 2. 위치 API 전용 노선명 해석 ─────────────────────────────────────────
@@ -56,8 +60,11 @@ export function resolveSubwayNameForApi(subwayIdOrName: string): string {
     const m = clean.match(/\d/);
     return m ? `부산${m[0]}호선` : '부산1호선';
   }
+  if (clean.includes('대경')) {
+    return '대경선';
+  }
   if (clean.includes('대구')) {
-    const m = clean.match(/\d/);
+    const m = clean.match(/[1-3]/);
     return m ? `대구${m[0]}호선` : '대구1호선';
   }
   if (clean.includes('광주')) {
@@ -115,8 +122,11 @@ export function resolveCandidateLineCodes(subwayId: string): string[] {
     const m = cleanId.match(/\d/);
     return m ? [`부산${m[0]}호선`] : ['부산1호선'];
   }
+  if (cleanId.includes('대경')) {
+    return ['대경선'];
+  }
   if (cleanId.includes('대구')) {
-    const m = cleanId.match(/\d/);
+    const m = cleanId.match(/[1-3]/);
     return m ? [`대구${m[0]}호선`] : ['대구1호선'];
   }
   if (cleanId.includes('광주')) {

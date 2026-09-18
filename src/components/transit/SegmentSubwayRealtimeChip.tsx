@@ -10,6 +10,8 @@ import { resolveSubwayNameForApi } from '@/lib/constants/subwayLineMap';
 import { getSubwayRefreshSharedKey } from '@/lib/transit/transitSharedKey';
 import { detectSubwayRegion } from '@/lib/services/subwayRegionRouter';
 import { inferBusanDirection } from '@/lib/services/busanSubwayStations';
+import { inferDaeguDirection } from '@/lib/services/daeguSubwayService';
+import { getSubwayLineTheme } from '@/lib/constants/subwayThemes';
 
 export interface SegmentSubwayRealtimeChipProps {
   stationName?: string;
@@ -123,6 +125,13 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
       targetSubwayIdentifier = numMatch ? `부산${numMatch[0]}호선` : '부산1호선';
     } else if (region === 'daejeon') {
       targetSubwayIdentifier = '대전1호선';
+    } else if (region === 'daegu') {
+      if (baseIdentifier?.includes('대경')) {
+        targetSubwayIdentifier = '대경선';
+      } else {
+        const numMatch = (baseIdentifier || '').match(/[1-3]/);
+        targetSubwayIdentifier = numMatch ? `대구${numMatch[0]}호선` : '대구1호선';
+      }
     }
 
     // 4. 방향(wayCode) 자동 산출 ('1': 상행/내선, '2': 하행/외선)
@@ -165,12 +174,22 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
       }
     }
 
-    // 4-4. 수도권 및 전국 키워드 기반 Fallback
+    // 4-4. 대구 도시철도 및 대경선 목적지/방면 기반 정밀 판별
+    if (!effectiveWayCode && region === 'daegu') {
+      const numMatch = (baseIdentifier || '').match(/[1-3]/);
+      const lNum = baseIdentifier?.includes('대경') ? '대경선' : (numMatch ? numMatch[0] : '1');
+      const dDir = inferDaeguDirection(lNum, cleanDest || parsedHeadDest, cleanHead);
+      if (dDir) {
+        effectiveWayCode = dDir === 'UP' ? '1' : '2';
+      }
+    }
+
+    // 4-5. 수도권 및 전국 키워드 기반 Fallback
     if (!effectiveWayCode) {
       const hint = `${destination || ''} ${headsign || ''}`;
-      if (/다대포|하행|외선|신평|양산|대저|안평|반석|인천|신창|수원|오이도/.test(hint)) {
+      if (/다대포|하행|외선|신평|양산|대저|안평|반석|설화명곡|문양|칠곡경대병원|경산|인천|신창|수원|오이도/.test(hint)) {
         effectiveWayCode = '2';
-      } else if (/노포|상행|내선|장산|수영|미남|판암|소요산|청량리|의정부|왕십리/.test(hint)) {
+      } else if (/노포|상행|내선|장산|수영|미남|판암|하양|안심|영남대|용지|구미|소요산|청량리|의정부|왕십리/.test(hint)) {
         effectiveWayCode = '1';
       }
     }

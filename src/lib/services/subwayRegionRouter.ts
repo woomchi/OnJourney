@@ -7,6 +7,7 @@
 
 import { isDaejeonSubwayStation } from './daejeonSubwayService';
 import { isBusanSubwayStation } from './busanSubwayStations';
+import { resolveOfficialDaeguStationName } from './subway/daeguTimetableService';
 
 export type SubwayRegion = 'daejeon' | 'seoul' | 'busan' | 'daegu' | 'gwangju' | 'unknown';
 
@@ -23,10 +24,18 @@ const AMBIGUOUS_DAEJEON_STATIONS = new Set(['시청', '용문', '신흥', '중�
 /**
  * 부산 도시철도 역 중 수도권/타지역과 이름이 겹칠 수 있는 동명역 목록
  * - 시청: 서울 1/2호선, 대전 1호선, 부산 1호선
- * - 교대: 서울 2/3호선, 부산 1호선
+ * - 교대: 서울 2/3호선, 부산 1호선, 대구 1호선
  * - 중앙: 수도권 4호선, 부산 1호선
  */
 const AMBIGUOUS_BUSAN_STATIONS = new Set(['시청', '교대', '중앙']);
+
+/**
+ * 대구 도시철도 및 대경선 역 중 수도권/타지역과 이름이 겹칠 수 있는 동명역 목록
+ * - 중앙로: 대전 1호선, 대구 1호선
+ * - 신천: 수도권 서해선, 대구 1호선
+ * - 교대: 서울 2/3호선, 부산 1호선, 대구 1호선
+ */
+const AMBIGUOUS_DAEGU_STATIONS = new Set(['중앙로', '신천', '교대']);
 
 /**
  * 역명과 노선 식별자 및 방면/목적지를 바탕으로 지하철 서비스 지역을 감지합니다.
@@ -50,7 +59,7 @@ export function detectSubwayRegion(params: {
   if (cleanSubwayId.includes('부산')) {
     return 'busan';
   }
-  if (cleanSubwayId.includes('대구')) {
+  if (cleanSubwayId.includes('대구') || cleanSubwayId.includes('대경')) {
     return 'daegu';
   }
   if (cleanSubwayId.includes('광주')) {
@@ -80,7 +89,26 @@ export function detectSubwayRegion(params: {
     return 'seoul';
   }
 
-  // 3. 목적지(destination) 또는 방면(headsign)이 부산 고유역인 경우
+  // 3. 대구 고유 판별
+  const isDaeguStation = Boolean(resolveOfficialDaeguStationName(cleanStation));
+  const isDestDaegu = Boolean(cleanDest && resolveOfficialDaeguStationName(cleanDest));
+  const isHeadDaegu = Boolean(cleanHeadsign && resolveOfficialDaeguStationName(cleanHeadsign));
+
+  // 목적지나 방면이 대구 고유역인 경우
+  const isDestUniqueDaegu =
+    (isDestDaegu && !AMBIGUOUS_DAEGU_STATIONS.has(cleanDest)) ||
+    (isHeadDaegu && !AMBIGUOUS_DAEGU_STATIONS.has(cleanHeadsign));
+
+  if (isDestUniqueDaegu && isDaeguStation) {
+    return 'daegu';
+  }
+
+  // 대구 고유역 (동명역 제외: 반월당, 청라언덕, 명덕, 동대구, 하양, 문양, 영남대, 칠곡경대병원, 구미 등)
+  if (isDaeguStation && !AMBIGUOUS_DAEGU_STATIONS.has(cleanStation)) {
+    return 'daegu';
+  }
+
+  // 4. 부산 도시철도 판별
   const isDestUniqueBusan =
     (cleanDest && isBusanSubwayStation(cleanDest) && !AMBIGUOUS_BUSAN_STATIONS.has(cleanDest)) ||
     (cleanHeadsign && isBusanSubwayStation(cleanHeadsign) && !AMBIGUOUS_BUSAN_STATIONS.has(cleanHeadsign));
@@ -89,12 +117,12 @@ export function detectSubwayRegion(params: {
     return 'busan';
   }
 
-  // 4. 부산 도시철도 고유역 (동명역 제외) 판별 (서면, 해운대, 광안, 자갈치, 남포, 사상, 노포 등)
+  // 부산 고유역 (동명역 제외) 판별 (서면, 해운대, 광안, 자갈치, 남포, 사상, 노포 등)
   if (isBusanSubwayStation(cleanStation) && !AMBIGUOUS_BUSAN_STATIONS.has(cleanStation)) {
     return 'busan';
   }
 
-  // 5. 목적지(destination) 또는 방면(headsign)이 대전 고유역인 경우
+  // 5. 대전 1호선 판별
   const isDestUniqueDaejeon =
     (cleanDest && isDaejeonSubwayStation(cleanDest) && !AMBIGUOUS_DAEJEON_STATIONS.has(cleanDest)) ||
     (cleanHeadsign && isDaejeonSubwayStation(cleanHeadsign) && !AMBIGUOUS_DAEJEON_STATIONS.has(cleanHeadsign));
@@ -103,12 +131,12 @@ export function detectSubwayRegion(params: {
     return 'daejeon';
   }
 
-  // 6. 대전 1호선 고유역 (동명역 제외) 판별 (판암, 대전역, 서대전네거리, 유성온천, 반석, 정부청사, 노은 등)
+  // 대전 1호선 고유역 (동명역 제외) 판별 (판암, 대전역, 서대전네거리, 유성온천, 반석, 정부청사, 노은 등)
   if (isDaejeonSubwayStation(cleanStation) && !AMBIGUOUS_DAEJEON_STATIONS.has(cleanStation)) {
     return 'daejeon';
   }
 
-  // 7. 기본값: 수도권 실시간 API 대상 (1~9호선 및 동명역인 시청, 용문, 신흥, 중앙로, 대동 포함)
+  // 6. 기본값: 수도권 실시간 API 대상 (1~9호선 및 동명역인 시청, 용문, 신흥, 중앙로, 대동, 신천 포함)
   if (cleanStation) {
     return 'seoul';
   }

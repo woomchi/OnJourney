@@ -208,6 +208,53 @@ function isTargetStationMatch(
   return false;
 }
 
+/** 정류소 목록에서 탑승 정류소의 최적 인덱스 탐색 */
+function findBestMatchingStationIndex(
+  stations: BusLineStation[],
+  targetStationId?: string,
+  rawTargetName?: string,
+  lat?: number,
+  lng?: number
+): number {
+  if (!stations || stations.length === 0) return -1;
+
+  // 1순위: ID/ARS 완전 일치 (단, 'auto' 및 비숫자 가상 ID 제외)
+  if (targetStationId && targetStationId !== 'auto' && /[0-9]/.test(targetStationId)) {
+    const idIdx = stations.findIndex((st) => isTargetStationMatch(st, targetStationId, undefined));
+    if (idIdx !== -1) return idIdx;
+  }
+
+  // 2순위: 정규화 명칭 완전 일치
+  const normTarget = normalizeStationName(rawTargetName);
+  if (normTarget) {
+    const exactIdx = stations.findIndex((st) => normalizeStationName(st.stationName) === normTarget);
+    if (exactIdx !== -1) return exactIdx;
+  }
+
+  // 3순위: 접두사 또는 포함 매칭
+  const matchIdx = stations.findIndex((st) => isTargetStationMatch(st, targetStationId, rawTargetName));
+  if (matchIdx !== -1) return matchIdx;
+
+  // 4순위: 사용자 좌표(lat, lng) 기반 최단 거리 정류소 근접 매칭 (최대 2km 이내)
+  if (lat && lng) {
+    let bestIdx = -1;
+    let minDistance = Infinity;
+    for (let i = 0; i < stations.length; i++) {
+      const st = stations[i];
+      if (st.lat && st.lng) {
+        const d = calculateHaversineDistanceMeter(lat, lng, st.lat, st.lng);
+        if (d < minDistance && d <= 2000) {
+          minDistance = d;
+          bestIdx = i;
+        }
+      }
+    }
+    if (bestIdx !== -1) return bestIdx;
+  }
+
+  return -1;
+}
+
 export interface ResolveBoardingParams {
   stations?: BusLineStation[];
   turningStationSeq?: number;

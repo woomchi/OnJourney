@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveActualBoardingInfo } from '@/features/route/BusLineMapPanel';
-import type { BusLineStation } from '@/types/bus';
+import type { BusLineStation } from '@/types/journey';
 
 describe('Bus Station Topology Sequence & Pass-stop Reverse Mapping (Option A)', () => {
   // Mock Bus 307 dataset (Busan BIMS pattern)
@@ -10,17 +10,17 @@ describe('Bus Station Topology Sequence & Pass-stop Reverse Mapping (Option A)',
   // Seq 115 (idx 114): 장산역 (arsNo: '09338', next: '벽산아파트') -> Heading to Songjeong
   // Seq 118 (idx 117): 송정1단지주공 (arsNo: '09011')
   const mockBus307Stations: BusLineStation[] = [
-    { stationSeq: 1, stationName: '송정종점', stationId: '1001', arsNo: '09001' },
-    { stationSeq: 4, stationName: '해운대센트럴픽', stationId: '1004', arsNo: '09059' },
-    { stationSeq: 5, stationName: '장산역', stationId: '1005', arsNo: '09060' },
-    { stationSeq: 6, stationName: '동일아파트', stationId: '1006', arsNo: '09082' },
-    { stationSeq: 58, stationName: '김해공항', stationId: '1058', arsNo: '12001' },
-    { stationSeq: 114, stationName: '부흥고해운대백병원', stationId: '1114', arsNo: '09337' },
-    { stationSeq: 115, stationName: '장산역', stationId: '1115', arsNo: '09338' },
-    { stationSeq: 116, stationName: '벽산아파트', stationId: '1116', arsNo: '09256' },
-    { stationSeq: 117, stationName: '송정해수욕장입구', stationId: '1117', arsNo: '09010' },
-    { stationSeq: 118, stationName: '송정1단지주공', stationId: '1118', arsNo: '09011' },
-    { stationSeq: 119, stationName: '송정종점', stationId: '1119', arsNo: '09002' },
+    { stationSeq: 1, stationName: '송정종점', stationId: '1001', arsNo: '09001', lat: 35.178, lng: 129.201 },
+    { stationSeq: 4, stationName: '해운대센트럴픽', stationId: '1004', arsNo: '09059', lat: 35.168, lng: 129.176 },
+    { stationSeq: 5, stationName: '장산역', stationId: '1005', arsNo: '09060', lat: 35.169, lng: 129.177 },
+    { stationSeq: 6, stationName: '동일아파트', stationId: '1006', arsNo: '09082', lat: 35.170, lng: 129.178 },
+    { stationSeq: 58, stationName: '김해공항', stationId: '1058', arsNo: '12001', lat: 35.173, lng: 128.946 },
+    { stationSeq: 114, stationName: '부흥고해운대백병원', stationId: '1114', arsNo: '09337', lat: 35.171, lng: 129.178 },
+    { stationSeq: 115, stationName: '장산역', stationId: '1115', arsNo: '09338', lat: 35.169, lng: 129.177 },
+    { stationSeq: 116, stationName: '벽산아파트', stationId: '1116', arsNo: '09256', lat: 35.172, lng: 129.179 },
+    { stationSeq: 117, stationName: '송정해수욕장입구', stationId: '1117', arsNo: '09010', lat: 35.179, lng: 129.199 },
+    { stationSeq: 118, stationName: '송정1단지주공', stationId: '1118', arsNo: '09011', lat: 35.180, lng: 129.200 },
+    { stationSeq: 119, stationName: '송정종점', stationId: '1119', arsNo: '09002', lat: 35.178, lng: 129.201 },
   ];
 
   const turningStationSeq = 58;

@@ -23,10 +23,17 @@ import {
   getBusanStationCode,
   getBusanDayType,
   inferBusanDirection,
+  isBusanSubwayStation,
   type BusanTimetableItem,
   type BusanStationMeta,
 } from './busanSubwayStations';
+import {
+  fetchDonghaeSubwayArrivals,
+  fetchDonghaeStationUpcomingTimetable,
+} from './donghaeSubwayService';
+import { isDonghaeSubwayStation } from './subway/donghaeTimetableService';
 export * from './busanSubwayStations';
+export * from './donghaeSubwayService';
 
 /**
  * 시간 문자열("HH:mm:ss" 또는 "HH:mm")을 초로 변환
@@ -104,6 +111,16 @@ export async function fetchBusanSubwayArrivals(
   headsign?: string
 ): Promise<SubwayArrival[]> {
   const cleanStation = stationName.replace(/역$/, '').trim();
+
+  // 0. 동해선 전용 노선 또는 동해선 고유역 분기
+  const isDonghaeExplicit = Boolean(subwayId && subwayId.includes('동해'));
+  const isDonghaeStn = isDonghaeSubwayStation(cleanStation);
+  const isBusanMetro = isBusanSubwayStation(cleanStation);
+
+  if (isDonghaeExplicit || (isDonghaeStn && !isBusanMetro)) {
+    return fetchDonghaeSubwayArrivals(stationName, wayCode, subwayId, destination, headsign);
+  }
+
   const scode = getBusanStationCode(cleanStation, subwayId);
   const meta = scode
     ? Object.values(BUSAN_SUBWAY_STATIONS).find((m) => m.scode === scode)
@@ -312,6 +329,16 @@ export async function fetchBusanStationUpcomingTimetable(
   count: number = 60
 ): Promise<SubwayTimetableEntry[]> {
   const cleanStation = stationName.replace(/역$/, '').trim();
+
+  // 0. 동해선 전용 노선 또는 동해선 고유역 분기
+  const isDonghaeExplicit = Boolean(subwayId && subwayId.includes('동해'));
+  const isDonghaeStn = isDonghaeSubwayStation(cleanStation);
+  const isBusanMetro = isBusanSubwayStation(cleanStation);
+
+  if (isDonghaeExplicit || (isDonghaeStn && !isBusanMetro)) {
+    return fetchDonghaeStationUpcomingTimetable(cleanStation, subwayId, count);
+  }
+
   const now = new Date(timeOffsetManager.getSynchronizedNow());
 
   const list = getBusanTimetableList(cleanStation, undefined, subwayId, now, count);

@@ -41,8 +41,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   // 지역에 맞는 노선 식별자 보정 (부산/대전에서 서울 2호선 Fallback 방지)
   let subwayTarget = inputSubway;
   if (detectedRegion === 'busan') {
-    const numMatch = inputSubway.match(/\d/);
-    subwayTarget = numMatch ? `부산${numMatch[0]}호선` : '부산1호선';
+    if (inputSubway.includes('동해')) {
+      subwayTarget = '동해선';
+    } else {
+      const numMatch = inputSubway.match(/\d/);
+      subwayTarget = numMatch ? `부산${numMatch[0]}호선` : '부산1호선';
+    }
   } else if (detectedRegion === 'daejeon') {
     subwayTarget = '대전1호선';
   } else if (!subwayTarget) {
@@ -54,7 +58,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   // 1. 실시간 열차 위치 목록 조회 (15초 인메모리 캐시, 수도권 전용)
   const positions = await fetchSubwayPositionsByLine(subwayTarget);
 
-  // 2. 해당 노선의 운행 계통 목록 및 선택된 계통의 정차역 목록 조회 (부산/대전 포함)
+  // 2. 해당 노선의 운행 계통 목록 및 선택된 계통의 정차역 목록 조회 (부산/대전/동해선 포함)
   const { branches, selectedBranchId, stations } = getLineStationListWithBranches(
     subwayTarget,
     validatedParams.branchId,
@@ -71,7 +75,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       console.warn('[api/subway/positions] 대전 시간표 조회 실패:', e);
     }
   } else if (detectedRegion === 'busan') {
-    const targetStation = stationName || '부산역';
+    const defaultStn = subwayTarget.includes('동해') ? '부전' : '부산역';
+    const targetStation = stationName || defaultStn;
     try {
       timetable = await fetchBusanStationUpcomingTimetable(targetStation, subwayTarget, 120);
     } catch (e) {

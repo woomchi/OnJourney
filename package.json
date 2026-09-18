@@ -14,6 +14,7 @@
     "build:timetables": "node scripts/build-seoul-subway-timetables.mjs",
     "build:busan-timetable": "python scripts/build-busan-timetable.py",
     "build:daegu-timetable": "node scripts/build-daegu-timetable.mjs",
+    "build:donghae-timetable": "python scripts/build-donghae-timetable.py",
     "clean": "npx rimraf .next"
   },
   "dependencies": {

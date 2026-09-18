@@ -17,6 +17,7 @@ import { getLineBranchesAndStations } from '@/lib/data/subwayBranches';
 import { getBusanLineStations } from '@/lib/services/busanSubwayStations';
 import { getDaejeonLineStations } from '@/lib/services/daejeonSubwayService';
 import { getDaeguLineStations } from '@/lib/services/daeguSubwayStations';
+import { getDonghaeLineStations } from '@/lib/services/subway/donghaeTimetableService';
 import {
   resolveCandidateLineCodes as resolveCandidateCodesFromMap,
   resolveWayCode,
@@ -231,6 +232,24 @@ export function getLineStationListWithBranches(
           hmSeconds: 120,
           cumulativeSeconds: (st.index + 1) * 120,
           distKm: 1.2,
+        })),
+      };
+    }
+  }
+
+  // 4-1. 동해선 (광역철도) 정차역 지원
+  if (subwayIdOrName.includes('동해')) {
+    const donghaeStations = getDonghaeLineStations();
+    if (donghaeStations.length > 0) {
+      return {
+        branches: [],
+        selectedBranchId: '',
+        stations: donghaeStations.map((st) => ({
+          index: st.index,
+          stationName: st.stationName,
+          hmSeconds: 150,
+          cumulativeSeconds: (st.index + 1) * 150,
+          distKm: 2.8,
         })),
       };
     }

@@ -34,6 +34,21 @@ export function getSubwayLineTheme(subwayNmOrId: string): SubwayColorTheme {
       border: 'border-[#007448]',
     };
   }
+  // 1-0. 동해선 (광역철도, 코레일 블루 #003DA5)
+  if (clean.includes('동해')) {
+    return {
+      primary: '#003DA5',
+      badgeBg: 'bg-[#003DA5]',
+      badgeText: 'text-white',
+      line: 'bg-[#003DA5]',
+      dot: 'border-[#003DA5]',
+      activeTabBg: 'bg-[#003DA5] text-white',
+      lightBg: 'bg-[#003DA5]/10',
+      text: 'text-[#003DA5]',
+      border: 'border-[#003DA5]',
+    };
+  }
+
   if (clean.includes('부산')) {
     return {
       primary: '#0075C4',

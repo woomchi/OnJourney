@@ -7,7 +7,8 @@
 
 import { isDaejeonSubwayStation } from './daejeonSubwayService';
 import { isBusanSubwayStation } from './busanSubwayStations';
-import { resolveOfficialDaeguStationName } from './daeguSubwayStations';
+import { resolveOfficialDaeguStationName } from './subway/daeguTimetableService';
+import { isDonghaeSubwayStation, DONGHAE_UNIQUE_STATIONS } from './subway/donghaeTimetableService';
 
 export type SubwayRegion = 'daejeon' | 'seoul' | 'busan' | 'daegu' | 'gwangju' | 'unknown';
 
@@ -56,7 +57,7 @@ export function detectSubwayRegion(params: {
   if (cleanSubwayId.includes('대전')) {
     return 'daejeon';
   }
-  if (cleanSubwayId.includes('부산')) {
+  if (cleanSubwayId.includes('부산') || cleanSubwayId.includes('동해')) {
     return 'busan';
   }
   if (cleanSubwayId.includes('대구') || cleanSubwayId.includes('대경')) {
@@ -108,7 +109,24 @@ export function detectSubwayRegion(params: {
     return 'daegu';
   }
 
-  // 4. 부산 도시철도 판별
+  // 4. 부산 도시철도 및 동해선 광역전철 판별
+  const isDonghaeStn = isDonghaeSubwayStation(cleanStation);
+  const isDestDonghae = Boolean(cleanDest && isDonghaeSubwayStation(cleanDest));
+  const isHeadDonghae = Boolean(cleanHeadsign && isDonghaeSubwayStation(cleanHeadsign));
+
+  // 목적지나 방면이 동해선 고유역인 경우
+  if ((isDestDonghae && DONGHAE_UNIQUE_STATIONS.has(cleanDest)) ||
+      (isHeadDonghae && DONGHAE_UNIQUE_STATIONS.has(cleanHeadsign))) {
+    if (isDonghaeStn || isBusanSubwayStation(cleanStation)) {
+      return 'busan';
+    }
+  }
+
+  // 동해선 고유역 판별 (태화강, 기장, 일광, 오시리아, 송정, 신해운대 등)
+  if (DONGHAE_UNIQUE_STATIONS.has(cleanStation)) {
+    return 'busan';
+  }
+
   const isDestUniqueBusan =
     (cleanDest && isBusanSubwayStation(cleanDest) && !AMBIGUOUS_BUSAN_STATIONS.has(cleanDest)) ||
     (cleanHeadsign && isBusanSubwayStation(cleanHeadsign) && !AMBIGUOUS_BUSAN_STATIONS.has(cleanHeadsign));

@@ -40,6 +40,7 @@ export const SUBWAY_LINE_MAP: Record<string, string> = {
   '대구2호선': '대구 2호선',
   '대구3호선': '대구 3호선',
   '대경선': '대경선',
+  '동해선': '동해선',
 };
 
 // ─── 2. 위치 API 전용 노선명 해석 ─────────────────────────────────────────
@@ -52,7 +53,10 @@ export function resolveSubwayNameForApi(subwayIdOrName: string): string {
   const clean = String(subwayIdOrName || '').trim();
   if (!clean) return '';
 
-  // 1. 지방 도시철도 우선 검사 (수도권 단순 호선과의 혼선 방지)
+  // 1. 지방 도시철도 및 광역철도 우선 검사 (수도권 단순 호선과의 혼선 방지)
+  if (clean.includes('동해')) {
+    return '동해선';
+  }
   if (clean.includes('대전')) {
     return '대전1호선';
   }
@@ -115,6 +119,9 @@ export function resolveCandidateLineCodes(subwayId: string): string[] {
   const cleanId = String(subwayId || '').trim();
 
   // 1. 지방 도시철도 우선
+  if (cleanId.includes('동해')) {
+    return ['동해선'];
+  }
   if (cleanId.includes('대전')) {
     return ['대전1호선'];
   }

@@ -73,7 +73,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   } else if (detectedRegion === 'busan') {
     const targetStation = stationName || '부산역';
     try {
-      timetable = await fetchBusanStationUpcomingTimetable(targetStation, subwayTarget);
+      timetable = await fetchBusanStationUpcomingTimetable(targetStation, subwayTarget, 120);
     } catch (e) {
       console.warn('[api/subway/positions] 부산 시간표 조회 실패:', e);
     }

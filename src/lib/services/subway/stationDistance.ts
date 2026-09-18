@@ -14,7 +14,7 @@ import type {
 import type { SubwayLineBranch } from '@/types/journey';
 import { normalizeStationName, parseMinSecToSeconds, extractTrainMetadata } from './trainMetadata';
 import { getLineBranchesAndStations } from '@/lib/data/subwayBranches';
-import { getBusanLineStations } from '@/lib/services/busanSubwayService';
+import { getBusanLineStations } from '@/lib/services/busanSubwayStations';
 import { getDaejeonLineStations } from '@/lib/services/daejeonSubwayService';
 import {
   resolveCandidateLineCodes as resolveCandidateCodesFromMap,

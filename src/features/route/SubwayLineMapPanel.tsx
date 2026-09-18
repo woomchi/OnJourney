@@ -163,6 +163,9 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   const initialDirection = wayCode === '2' ? '1' : '0';
   const [selectedDirection, setSelectedDirection] = useState<'0' | '1'>(initialDirection);
 
+  // 시간표 리스트 노출 개수 (기본 6대, '더보기' 클릭 시 +10대씩 점진적 확장)
+  const [visibleCount, setVisibleCount] = useState<number>(6);
+
   const lineTarget = subwayNm || subwayId || '2호선';
   const isBusan = lineTarget.includes('부산');
   const isDaejeon = lineTarget.includes('대전') || cleanTargetStation === '대전역' || cleanTargetStation === '대전';
@@ -175,6 +178,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     if (isOpen) {
       setSelectedDirection(wayCode === '2' ? '1' : '0');
       setUserSelectedTrainNo(null);
+      setVisibleCount(6);
       if (isRegional) {
         setViewMode('timetable');
       }
@@ -191,6 +195,17 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     enabled: isOpen,
     refetchInterval: 15000,
   });
+
+  // 클릭하여 열람한 targetTrainNo가 있을 때, 해당 열차가 속한 방향(상행/하행) 탭으로 자동 전환
+  useEffect(() => {
+    if (isOpen && targetTrainNo && data?.timetable && data.timetable.length > 0) {
+      const match = data.timetable.find((t) => String(t.trainNo) === String(targetTrainNo));
+      if (match) {
+        const trainDir = match.drctType === '2' || match.directionName?.includes('하행') ? '1' : '0';
+        setSelectedDirection(trainDir);
+      }
+    }
+  }, [isOpen, targetTrainNo, data?.timetable]);
 
   // 서버에서 기본 추천된 branchId가 오면 동기화 (초기 1회)
   useEffect(() => {
@@ -262,11 +277,36 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     return shouldReverse ? stationsCopy.reverse() : stationsCopy;
   }, [data?.stations, selectedDirection, isSeoulLine2]);
 
-  // 대전 시간표 필터링 (선택된 방향에 맞는 현재 시각 이후 열차 목록)
+  // 시간표 필터링 (선택된 방향에 맞는 현재 시각 이후 열차 목록)
+  // selectedDirection: '0' (상행/내선), '1' (하행/외선)
+  // drctType: '1' (상행/내선), '2' (하행/외선)
   const filteredTimetable = useMemo(() => {
     if (!data?.timetable) return [];
-    return data.timetable.filter((t) => t.drctType === selectedDirection);
+    return data.timetable.filter((t) => {
+      if (selectedDirection === '0') {
+        return (
+          t.drctType === '1' ||
+          t.drctType === '0' ||
+          t.directionName?.includes('상행') ||
+          t.directionName?.includes('내선')
+        );
+      } else {
+        return (
+          t.drctType === '2' ||
+          t.directionName?.includes('하행') ||
+          t.directionName?.includes('외선')
+        );
+      }
+    });
   }, [data?.timetable, selectedDirection]);
+
+  // 화면에 표시할 시간표 (더보기 기능 지원)
+  const displayedTimetable = useMemo(() => {
+    return filteredTimetable.slice(0, visibleCount);
+  }, [filteredTimetable, visibleCount]);
+
+  const hasMoreTimetable = filteredTimetable.length > visibleCount;
+  const remainingTimetableCount = filteredTimetable.length - visibleCount;
 
   // 현재 가장 빠른 다음 열차 (시간표 기준)
   const upcomingTimetableTrain = filteredTimetable.length > 0 ? filteredTimetable[0] : null;
@@ -645,7 +685,10 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
       <div className="flex px-3 pb-2.5 gap-1.5">
         <button
           type="button"
-          onClick={() => setSelectedDirection('0')}
+          onClick={() => {
+            setSelectedDirection('0');
+            setVisibleCount(6);
+          }}
           className={clsx(
             'flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer select-none',
             selectedDirection === '0'
@@ -661,7 +704,10 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => setSelectedDirection('1')}
+          onClick={() => {
+            setSelectedDirection('1');
+            setVisibleCount(6);
+          }}
           className={clsx(
             'flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer select-none',
             selectedDirection === '1'
@@ -1016,7 +1062,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
           <h3 className="text-xs font-extrabold text-zinc-700 flex items-center gap-1.5">
             <span>이후 출발 시간표</span>
             <span className="text-[10px] font-medium text-zinc-400">
-              (현재 시각 이후 {filteredTimetable.length}대)
+              (현재 시각 이후 {filteredTimetable.length}대 중 {displayedTimetable.length}대)
             </span>
           </h3>
           <span className="text-[10px] text-zinc-400">출발 시각순</span>
@@ -1028,7 +1074,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
           </div>
         ) : (
           <div className="space-y-1.5">
-            {filteredTimetable.map((item, idx) => {
+            {displayedTimetable.map((item, idx) => {
               const isFirst = idx === 0;
               return (
                 <div
@@ -1084,6 +1130,25 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
                 </div>
               );
             })}
+
+            {/* 시간표 더보기 버튼 */}
+            {hasMoreTimetable && (
+              <div className="pt-2 pb-1 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleCount((prev) => Math.min(prev + 10, filteredTimetable.length))
+                  }
+                  className="w-full py-2.5 px-4 rounded-xl bg-white border border-zinc-200 hover:border-emerald-400 hover:bg-emerald-50/40 text-xs font-bold text-zinc-700 hover:text-emerald-700 shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 select-none"
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <span>시간표 더보기</span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200/60 tabular-nums">
+                    +{Math.min(10, remainingTimetableCount)}대 ({displayedTimetable.length}/{filteredTimetable.length})
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { getSubwayColor, cleanSubwayName, getKakaoBusColor } from './transitColo
 import { haversineDistance } from '../common/distanceUtils';
 import { inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 import { TAGO_CITY_CODES } from '@/constants/transit';
+import { inferBusanDirection } from '@/lib/services/busanSubwayStations';
 
 export { getKakaoBusColor } from './transitColorUtils';
 
@@ -105,6 +106,15 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
     const cleanName = cleanSubwayName(vehicleName);
     const subwayColor = getSubwayColor(cleanName);
 
+    // 부산 및 전국 지하철 방향(wayCode: 1 상행, 2 하행) 자동 추론
+    let inferredWayCode: number | undefined = undefined;
+    const lineMatch = cleanName.match(/([1-4])호선?/);
+    const lineNum = lineMatch ? lineMatch[1] : '1';
+    const busanDir = inferBusanDirection(lineNum, startName, endName);
+    if (busanDir) {
+      inferredWayCode = busanDir === 'UP' ? 1 : 2;
+    }
+
     return {
       type: 'subway',
       name: cleanName,
@@ -125,6 +135,7 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
       stationCount: stops.length,
       passStopList,
       headsign: properties.guidance,
+      wayCode: inferredWayCode,
     };
   }
 

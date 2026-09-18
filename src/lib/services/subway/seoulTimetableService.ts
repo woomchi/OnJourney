@@ -269,7 +269,8 @@ export function getSeoulTimetableList(
   stationName: string,
   updnLine: string,
   lineId?: string | number,
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  limit: number = 30
 ): SubwayTimetableEntry[] {
   const timetableData = loadStationTimetable(stationName);
   if (!timetableData) return [];
@@ -301,7 +302,7 @@ export function getSeoulTimetableList(
     ? inoutTag === 'IN' ? '내선순환' : '외선순환'
     : inoutTag === 'UP' ? '상행 방면' : '하행 방면';
 
-  return upcomingTrains.slice(0, 30).map((tr, index) => {
+  return upcomingTrains.slice(0, limit).map((tr, index) => {
     const diff = Math.max(0, toOperationalMinutes(tr.t) - currentOpMin);
     return {
       trainNo: tr.no,

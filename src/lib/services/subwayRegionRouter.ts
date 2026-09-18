@@ -6,7 +6,7 @@
  */
 
 import { isDaejeonSubwayStation } from './daejeonSubwayService';
-import { isBusanSubwayStation } from './busanSubwayService';
+import { isBusanSubwayStation } from './busanSubwayStations';
 
 export type SubwayRegion = 'daejeon' | 'seoul' | 'busan' | 'daegu' | 'gwangju' | 'unknown';
 

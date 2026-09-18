@@ -256,7 +256,13 @@ export async function fetchSubwayRealtime(
   // 1-1. 대전 도시철도 전용 분기
   if (region === 'daejeon') {
     try {
-      const daejeonArrivals = await fetchDaejeonSubwayArrivals(cleanStation, wayCode);
+      const daejeonArrivals = await fetchDaejeonSubwayArrivals(
+        cleanStation,
+        wayCode,
+        subwayId,
+        destination,
+        headsign
+      );
       if (daejeonArrivals && daejeonArrivals.length > 0) {
         return daejeonArrivals;
       }
@@ -269,7 +275,13 @@ export async function fetchSubwayRealtime(
   // 1-2. 부산 도시철도 전용 분기 (공공데이터포털 GW 열차시각표 기반)
   if (region === 'busan') {
     try {
-      const busanArrivals = await fetchBusanSubwayArrivals(cleanStation, wayCode, subwayId);
+      const busanArrivals = await fetchBusanSubwayArrivals(
+        cleanStation,
+        wayCode,
+        subwayId,
+        destination,
+        headsign
+      );
       if (busanArrivals && busanArrivals.length > 0) {
         return busanArrivals;
       }
@@ -334,12 +346,16 @@ export async function fetchSubwayRealtime(
 
     // 3. 하차역(destination) 지정 시 도달 가능 여부(canBoard) 사전 판별
     const reachableMap = new Map<SubwayRawRow, boolean>();
-    if (destination) {
+    const effectiveDest =
+      destination ||
+      (headsign ? headsign.match(/>\s*([가-힣0-9a-zA-Z]+)/)?.[1]?.replace(/역$/, '').trim() : undefined);
+
+    if (effectiveDest) {
       for (const row of rows) {
         const canReach = isStationReachableOnLine(
           String(row.subwayId || subwayId || ''),
           cleanStation,
-          destination,
+          effectiveDest,
           row.trainLineNm,
           row.updnLine
         );
@@ -354,9 +370,15 @@ export async function fetchSubwayRealtime(
     }
 
     // 4. 요청된 wayCode 방향과 일치하는 열차 필터링 ('1': 상행/내선, '2': 하행/외선)
-    // wayCode 매핑 불일치(순환선/방면 표기 차이 등)로 0건이 되는 것을 방지하기 위해 일치 항목이 있을 때만 적용
-    if (wayCode) {
-      const wayFilteredRows = rows.filter((row) => resolveWayCode(row.updnLine) === wayCode);
+    // wayCode가 없을 때 headsign 키워드로 보조 판별
+    let effectiveWay = wayCode;
+    if (!effectiveWay && headsign) {
+      if (/하행|외선|인천|신창|수원|오이도/.test(headsign)) effectiveWay = '2';
+      else if (/상행|내선|소요산|청량리|의정부|왕십리/.test(headsign)) effectiveWay = '1';
+    }
+
+    if (effectiveWay) {
+      const wayFilteredRows = rows.filter((row) => resolveWayCode(row.updnLine) === effectiveWay);
       if (wayFilteredRows.length > 0) {
         rows = wayFilteredRows;
       }

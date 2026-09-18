@@ -9,6 +9,7 @@ import { useJourneyStore } from '@/stores/journey-store';
 import { resolveSubwayNameForApi } from '@/lib/constants/subwayLineMap';
 import { getSubwayRefreshSharedKey } from '@/lib/transit/transitSharedKey';
 import { detectSubwayRegion } from '@/lib/services/subwayRegionRouter';
+import { inferBusanDirection } from '@/lib/services/busanSubwayStations';
 
 export interface SegmentSubwayRealtimeChipProps {
   stationName?: string;
@@ -95,7 +96,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     e: React.MouseEvent,
     trainNo?: string,
     minutesLeft?: number,
-    statusText?: string
+    statusText?: string,
+    itemUpdnLine?: string
   ) => {
     e.stopPropagation();
     e.preventDefault();
@@ -124,11 +126,61 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
       targetSubwayIdentifier = '대전1호선';
     }
 
+    // 4. 방향(wayCode) 자동 산출 ('1': 상행/내선, '2': 하행/외선)
+    let effectiveWayCode = wayCode;
+    const cleanDest = destination ? destination.replace(/역$/, '').trim() : '';
+    const cleanHead = headsign ? headsign.replace(/역$/, '').replace(/방면$/, '').trim() : '';
+    let parsedHeadDest = cleanHead;
+    const arrowMatch = cleanHead.match(/>\s*([가-힣0-9a-zA-Z]+)/);
+    if (arrowMatch) {
+      parsedHeadDest = arrowMatch[1].replace(/역$/, '').trim();
+    }
+
+    // 4-1. 클릭된 열차의 updnLine 명시 정보 우선 (수도권 내선/외선/상행/하행 및 지역 노선 완벽 지원)
+    if (!effectiveWayCode && itemUpdnLine) {
+      if (/다대포|하행|외선|신평|양산|대저|안평|반석|인천|신창|수원|오이도/.test(itemUpdnLine)) {
+        effectiveWayCode = '2';
+      } else if (/노포|상행|내선|장산|수영|미남|판암|소요산|청량리|의정부|왕십리/.test(itemUpdnLine)) {
+        effectiveWayCode = '1';
+      }
+    }
+
+    // 4-2. 실시간 응답 첫 번째 열차 기준
+    if (!effectiveWayCode && data && data[0]?.updnLine) {
+      const firstLine = data[0].updnLine;
+      if (/다대포|하행|외선|신평|양산|대저|안평|반석|인천|신창|수원|오이도/.test(firstLine)) {
+        effectiveWayCode = '2';
+      } else if (/노포|상행|내선|장산|수영|미남|판암|소요산|청량리|의정부|왕십리/.test(firstLine)) {
+        effectiveWayCode = '1';
+      }
+    }
+
+    // 4-3. 부산 도시철도 목적지/방면 기반 정밀 판별
+    if (!effectiveWayCode && region === 'busan') {
+      const numMatch = (baseIdentifier || '').match(/\d/);
+      const lNum = numMatch ? numMatch[0] : '1';
+      const bDir = (cleanDest && inferBusanDirection(lNum, cleanStationName, cleanDest)) ||
+                   (parsedHeadDest && inferBusanDirection(lNum, cleanStationName, parsedHeadDest));
+      if (bDir) {
+        effectiveWayCode = bDir === 'UP' ? '1' : '2';
+      }
+    }
+
+    // 4-4. 수도권 및 전국 키워드 기반 Fallback
+    if (!effectiveWayCode) {
+      const hint = `${destination || ''} ${headsign || ''}`;
+      if (/다대포|하행|외선|신평|양산|대저|안평|반석|인천|신창|수원|오이도/.test(hint)) {
+        effectiveWayCode = '2';
+      } else if (/노포|상행|내선|장산|수영|미남|판암|소요산|청량리|의정부|왕십리/.test(hint)) {
+        effectiveWayCode = '1';
+      }
+    }
+
     setSubwayLineMapTarget({
       stationName: cleanStationName,
       subwayId: targetSubwayIdentifier || baseIdentifier,
       subwayNm: targetSubwayIdentifier || baseIdentifier,
-      wayCode,
+      wayCode: effectiveWayCode,
       targetTrainNo: trainNo,
       targetMinutesLeft: minutesLeft,
       targetStatusText: statusText,
@@ -304,7 +356,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
             e,
             item1.trainNo ? String(item1.trainNo) : undefined,
             item1.minutesLeft,
-            timeText1
+            timeText1,
+            item1.updnLine
           )
         }
         title={
@@ -382,7 +435,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
                 e,
                 item1.trainNo ? String(item1.trainNo) : undefined,
                 item1.minutesLeft,
-                timeText1
+                timeText1,
+                item1.updnLine
               )
             }
             className={clsx(
@@ -434,7 +488,8 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
                   e,
                   item2.trainNo ? String(item2.trainNo) : undefined,
                   item2.minutesLeft,
-                  timeText2
+                  timeText2,
+                  item2.updnLine
                 )
               }
               className={clsx(

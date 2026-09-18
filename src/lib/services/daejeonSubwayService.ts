@@ -108,6 +108,23 @@ export function getDaejeonStationNum(stationName: string): string | null {
 }
 
 /**
+ * 대전 1호선 출발역과 목적역(하차역)으로 운행 방향(1: 판암방면/상행, 2: 반석방면/하행)을 판별합니다.
+ */
+export function inferDaejeonDirection(startStation?: string, destStation?: string): '1' | '2' | null {
+  if (!startStation || !destStation) return null;
+  const startNum = getDaejeonStationNum(startStation);
+  const destNum = getDaejeonStationNum(destStation);
+  if (!startNum || !destNum || startNum === destNum) return null;
+
+  const s = parseInt(startNum, 10);
+  const d = parseInt(destNum, 10);
+  if (isNaN(s) || isNaN(d)) return null;
+
+  // 101(판암) -> 122(반석): 번호 증가가 반석 방면(하행: '2'), 감소가 판암 방면(상행: '1')
+  return d > s ? '2' : '1';
+}
+
+/**
  * 공공데이터포털 지하철 API 통합 인증키 획득 (대전/부산 공통)
  * 1순위: SUBWAY_DATA_API_KEY
  * 2순위: BUS_DATA_API_KEY (공공데이터포털 공통 키 Fallback)
@@ -348,7 +365,10 @@ export async function fetchStationTimeTable(
  */
 export async function fetchDaejeonSubwayArrivals(
   stationName: string,
-  wayCode?: string
+  wayCode?: string,
+  subwayId?: string,
+  destination?: string,
+  headsign?: string
 ): Promise<SubwayArrival[]> {
   const cleanStation = stationName.replace(/역$/, '').trim();
   const stNum = getDaejeonStationNum(cleanStation);
@@ -358,16 +378,38 @@ export async function fetchDaejeonSubwayArrivals(
   const nowDate = new Date(nowMs);
   const { dayType } = getTodayDayType(nowDate);
 
+  // 1. 방향 자동 판별 (wayCode -> destination/headsign 정밀 추론 -> 키워드)
+  let effectiveWayCode = wayCode;
+  const cleanDest = destination ? destination.replace(/역$/, '').trim() : '';
+  const cleanHead = headsign ? headsign.replace(/역$/, '').replace(/방면$/, '').trim() : '';
+  let parsedHeadDest = cleanHead;
+  const arrowMatch = cleanHead.match(/>\s*([가-힣0-9a-zA-Z]+)/);
+  if (arrowMatch) {
+    parsedHeadDest = arrowMatch[1].replace(/역$/, '').trim();
+  }
+
+  if (!effectiveWayCode && cleanDest) {
+    effectiveWayCode = inferDaejeonDirection(cleanStation, cleanDest) || undefined;
+  }
+  if (!effectiveWayCode && parsedHeadDest) {
+    effectiveWayCode = inferDaejeonDirection(cleanStation, parsedHeadDest) || undefined;
+  }
+  if (!effectiveWayCode) {
+    const hint = `${destination || ''} ${headsign || ''}`;
+    if (/반석|하행/.test(hint)) effectiveWayCode = '2';
+    else if (/판암|상행/.test(hint)) effectiveWayCode = '1';
+  }
+
   // 현재 초 계산 (KST 기준)
   const kstHours = (nowDate.getUTCHours() + 9) % 24;
   const kstMinutes = nowDate.getUTCMinutes();
   const kstSeconds = nowDate.getUTCSeconds();
   const currentSeconds = kstHours * 3600 + kstMinutes * 60 + kstSeconds;
 
-  // 1. 전체 시간표 캐시 조회
+  // 2. 전체 시간표 캐시 조회
   let allItems = await fetchAllDaejeonTimeTable();
 
-  // 2. 전체 시간표가 비어있는 경우 개별 역 시간표 폴백 시도
+  // 3. 전체 시간표가 비어있는 경우 개별 역 시간표 폴백 시도
   // API 스펙: drctType '1'=상행(판암), '2'=하행(반석)
   if (allItems.length === 0) {
     const directions = ['1', '2'];
@@ -377,7 +419,7 @@ export async function fetchDaejeonSubwayArrivals(
     }
   }
 
-  // 3. 해당 역, 요일(또는 전체)에 맞는 스케줄 필터링
+  // 4. 해당 역, 요일(또는 전체)에 맞는 스케줄 필터링
   let stationSchedules = allItems.filter((item) => item.stNum === stNum);
 
   // 요일 필터 (정확 매칭 우선, 없을 경우 전체)
@@ -386,9 +428,9 @@ export async function fetchDaejeonSubwayArrivals(
     stationSchedules = dayMatched;
   }
 
-  // wayCode 필터링 (wayCode '1': 상행/drctType '1'/판암방면, wayCode '2': 하행/drctType '2'/반석방면)
-  if (wayCode) {
-    const targetDrct = String(wayCode) === '2' ? '2' : '1';
+  // 방향 필터링 (지정된 경우 해당 방향 열차만 필터링하여 상/하행 혼입 방지)
+  if (effectiveWayCode) {
+    const targetDrct = String(effectiveWayCode) === '2' ? '2' : '1';
     const filtered = stationSchedules.filter((item) => item.drctType === targetDrct);
     if (filtered.length > 0) {
       stationSchedules = filtered;

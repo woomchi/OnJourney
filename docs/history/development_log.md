@@ -1,4 +1,4 @@
-﻿# OnJourney 개발 흐름 로그
+# OnJourney 개발 흐름 로그
 
 > Git 커밋 이력을 기반으로 정리한 프로젝트 개발 흐름 요약입니다.  
 > 세부 변경 사항보다는 **어떤 기능이 어떤 순서로 추가·개선·제거되었는지**의 흐름에 집중합니다.
@@ -348,6 +348,10 @@
 | 지하철 분기선 관리 | Phase 10 | 분기 노선 ETA 정확도 개선 |
 | `useUrlState` | Phase 10 | URL 기반 UI 상태 관리 (딥링크 + 뒤로가기) |
 | 여정 공유 (`is_public` + `/share/`) | Phase 10 | 비교근 여정 공유 기능 |
+| `resolveActualBoardingInfo` 다차원 스코어링 | Phase 11 | 왕복·순환 노선 상행/하행 승차 정류소 정합성 |
+| `findBestMatchingStationIndex` | Phase 11 | 4단계 우선순위 정류소 폴백 매칭 |
+| `busStationTopologyMatching` 테스트 | Phase 11 | 버스 위상 매칭 회귀 방지 테스트 |
+
 
 ---
 
@@ -402,4 +406,46 @@
 
 ---
 
-*최종 업데이트: 2026-08-28 | **프로젝트 개발 종료 (Archived)** — 회고록: `docs/history/retrospective.md`*
+---
+
+## Phase 11 — 버스 노선 위상 매칭 정교화 (2026-09-18)
+
+### 307번 버스 오류 분석 및 수정
+
+**배경:** 부산 307번(왕복 순환 노선, 총 119 정류소)처럼 **동일 역명이 상행·하행에 각각 독립 정류소(arsNo)로 존재하는 노선**에서, 카카오 Transit API가 반환하는 `stationId: 'auto'`(가상 ID) 상황에서 승차 정류소를 잘못 판정하는 문제 발견.
+
+#### 근본 원인
+- `resolveActualBoardingInfo` 내 복수 후보 스코어링 로직이 상행(seq 5, arsNo `09060`)과 하행(seq 115, arsNo `09338`)을 구분하지 못함
+- `findBestMatchingStationIndex` 폴백 함수 미존재로 fallback 경로에서 인덱스 −1 반환
+
+#### 수정 내역 (`BusLineMapPanel.tsx`)
+
+1. **`findBestMatchingStationIndex` 함수 신설** (4단계 우선순위 매칭)
+   - 1순위: ID/ARS 완전 일치 (`'auto'` 및 비숫자 가상 ID 제외)
+   - 2순위: 정규화 명칭 완전 일치
+   - 3순위: 접두사·포함 퍼지 매칭
+   - 4순위: `lat/lng` 기반 Haversine 최단 거리 근접 매칭 (2km 이내)
+
+2. **`resolveActualBoardingInfo` 다차원 스코어링 보강**
+   - 1순위 단서: `nextStationName` 다음 정류소 일치 (+1000/+800점)
+   - 2순위 단서: `destination` 하차역 도달 가능성 + `stationCount` 경유수 일치도 (+500/+200점, 미도달 시 −300점)
+   - 3순위 단서: 기점/종점/회차지 방면 텍스트 대조 (+200점)
+   - 4순위 단서: GPS 좌표 최근접 보너스 (+100/+50/+20점, 각 50m·200m·500m 이내)
+
+3. **`BusLineStation` 타입 필드 확인**
+   - `lat`, `lng` 필드가 이미 필수 필드로 정의되어 있음 (타입 변경 불필요)
+
+### 테스트 인프라 보강
+
+- **`tests/transit/busStationTopologyMatching.test.ts` 작성** (총 4개 테스트 케이스)
+  - `stationId: 'auto'` 환경에서 `nextStationName` + `destination` 기반 하행 판별 (09338 선택)
+  - `nextStationName` + `destination` 기반 상행 판별 (09060 선택)
+  - `nextStationName` 없이 `destination` 만으로 올바른 방향 판별
+  - `stationId` 직접 일치 시 우선 반환
+  - 타입 임포트 경로 수정: `@/types/bus` → `@/types/journey`
+  - 모의 데이터에 `lat/lng` 좌표 필드 추가
+  - **4개 테스트 전원 통과 (npx tsc --noEmit 오류 0)**
+
+---
+
+*최종 업데이트: 2026-09-18 | **프로젝트 개발 종료 (Archived)** — 회고록: `docs/history/retrospective.md`*

@@ -82,6 +82,11 @@ export async function GET(req: Request) {
   - **전국 버스**: 공공데이터포털 통합 버스 API(`BUS_DATA_API_KEY`)
   - **공통 캐싱**: Upstash Redis 분산 캐시 + In-Memory 캐시(24시간 `revalidate: 86400`)
 
+### 버스 노선 위상 매칭 패턴 (`BusLineMapPanel.tsx`)
+- **왕복·순환 노선 상행/하행 구분**: 동일 역명이 상행·하행에 각각 별도 정류소(`arsNo`)로 존재하는 경우(예: 부산 307번), Kakao Transit `stationId: 'auto'` 가상 ID 상황에서도 올바른 승차 정류소를 판정해야 함
+- **`resolveActualBoardingInfo` 다차원 스코어링**: `nextStationName`(+1000) → `destination` 도달 가능성(+500) → 방면 텍스트(+200) → GPS 근접(+100) 순 가중치 채점
+- **`findBestMatchingStationIndex` 폴백 4단계**: ID/ARS 완전 일치 → 정규화 명칭 → 퍼지 매칭 → Haversine 2km 근접 매칭 순으로 폴백
+
 ---
 
 ## 외부 API 환경 변수 (`.env.local` 필수)

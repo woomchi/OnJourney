@@ -10,7 +10,7 @@ import { resolveSubwayNameForApi } from '@/lib/constants/subwayLineMap';
 import { getSubwayRefreshSharedKey } from '@/lib/transit/transitSharedKey';
 import { detectSubwayRegion } from '@/lib/services/subwayRegionRouter';
 import { inferBusanDirection } from '@/lib/services/busanSubwayStations';
-import { inferDaeguDirection } from '@/lib/services/daeguSubwayService';
+import { inferDaeguDirection } from '@/lib/services/daeguSubwayStations';
 import { getSubwayLineTheme } from '@/lib/constants/subwayThemes';
 
 export interface SegmentSubwayRealtimeChipProps {

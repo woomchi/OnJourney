@@ -11,53 +11,19 @@ import {
   getNextTrainsFromDaeguTimetable,
   normalizeDaeguLineNumber,
   resolveDaeguDirection,
-  resolveOfficialDaeguStationName,
   getDaeguLinesForStation,
 } from './subway/daeguTimetableService';
+import {
+  inferDaeguDirection,
+  resolveOfficialDaeguStationName,
+  getDaeguLineStations,
+} from './daeguSubwayStations';
 
-/**
- * 목적지/방면 키워드로 대구 노선의 방향(UP/DOWN)을 추론합니다.
- */
-export function inferDaeguDirection(
-  lineNum: string,
-  destination?: string,
-  headsign?: string
-): 'UP' | 'DOWN' | null {
-  const text = `${destination || ''} ${headsign || ''}`.trim();
-  if (!text) return null;
-
-  if (lineNum === '1') {
-    if (/하양|안심|각산|반야월|신기|율하|용계|방촌|해안|동촌|아양교|동구청|동대구/.test(text)) {
-      return 'UP';
-    }
-    if (/설화명곡|화원|대곡|진천|월배|상인|월촌|송현|서부정류장|대명|안지랑|현충로|영대병원|교대/.test(text)) {
-      return 'DOWN';
-    }
-  } else if (lineNum === '2') {
-    if (/영남대|임당|정평|사월|신매|고산|수성알파시티|연호|담티|만촌|수성구청|범어/.test(text)) {
-      return 'UP';
-    }
-    if (/문양|다사|대실|강창|계명대|성서산업단지|이곡|용산|죽전|감삼|두류|내당|반고개/.test(text)) {
-      return 'DOWN';
-    }
-  } else if (lineNum === '3') {
-    if (/용지|범물|지산|수성못|황금|어린이세상|수성구민운동장|수성시장|대봉교|건들바위/.test(text)) {
-      return 'UP';
-    }
-    if (/칠곡경대병원|학정|팔거|동천|칠곡운암|구암|태전|매천|매천시장|팔달|공단|만평/.test(text)) {
-      return 'DOWN';
-    }
-  } else if (lineNum === '대경선') {
-    if (/구미|사곡|북삼|약목|왜관|연화|신동|지천/.test(text)) {
-      return 'UP';
-    }
-    if (/경산|가천|고모|동대구|대구|서대구/.test(text)) {
-      return 'DOWN';
-    }
-  }
-
-  return null;
-}
+export {
+  inferDaeguDirection,
+  resolveOfficialDaeguStationName,
+  getDaeguLineStations,
+};
 
 /**
  * 대구 지하철 및 대경선 역의 도착 정보 조회 (SubwayArrival[] 반환)

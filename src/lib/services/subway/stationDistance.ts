@@ -16,7 +16,7 @@ import { normalizeStationName, parseMinSecToSeconds, extractTrainMetadata } from
 import { getLineBranchesAndStations } from '@/lib/data/subwayBranches';
 import { getBusanLineStations } from '@/lib/services/busanSubwayStations';
 import { getDaejeonLineStations } from '@/lib/services/daejeonSubwayService';
-import { getDaeguLineStations } from '@/lib/services/subway/daeguTimetableService';
+import { getDaeguLineStations } from '@/lib/services/daeguSubwayStations';
 import {
   resolveCandidateLineCodes as resolveCandidateCodesFromMap,
   resolveWayCode,

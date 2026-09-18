@@ -11,6 +11,27 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import type { SubwayLineStation } from '@/types/journey';
+import {
+  DAEGU_LINE_1_STATIONS,
+  DAEGU_LINE_2_STATIONS,
+  DAEGU_LINE_3_STATIONS,
+  DAEGYEONG_LINE_STATIONS,
+  DAEGU_STATION_NAME_MAP,
+  resolveOfficialDaeguStationName,
+  isDaeguSubwayStation,
+  getDaeguLineStations,
+} from '../daeguSubwayStations';
+
+export {
+  DAEGU_LINE_1_STATIONS,
+  DAEGU_LINE_2_STATIONS,
+  DAEGU_LINE_3_STATIONS,
+  DAEGYEONG_LINE_STATIONS,
+  DAEGU_STATION_NAME_MAP,
+  resolveOfficialDaeguStationName,
+  isDaeguSubwayStation,
+  getDaeguLineStations,
+};
 
 // ─── 타입 정의 ────────────────────────────────────────────────────────────────
 
@@ -120,56 +141,7 @@ export function resolveDaeguDayType(date: Date = new Date()): 'WEEKDAY' | 'SATUR
   return 'WEEKDAY';                  // 월~금 평일
 }
 
-/**
- * 대구 주요 역명 동의어/별칭 매핑 맵
- */
-export const DAEGU_STATION_NAME_MAP: Record<string, string> = {
-  '하양(대구가톨릭대)': '하양',
-  '대구가톨릭대': '하양',
-  '청라언덕(신남)': '청라언덕',
-  '신남': '청라언덕',
-  '청라언덕2': '청라언덕',
-  '반월당1': '반월당',
-  '반월당2': '반월당',
-  '명덕1': '명덕',
-  '명덕3': '명덕',
-  '동대구역': '동대구',
-  '서대구역': '서대구',
-  '대구한의대병원': '대구한의대병원',
-  '수성알파시티(고산)': '수성알파시티',
-  '어린이세상(어린이회관)': '어린이세상',
-  '어린이회관': '어린이세상',
-};
-
-/**
- * 역명을 정규화하여 DB 내의 공식 역명 키(해시테이블 Key)를 찾습니다.
- */
-export function resolveOfficialDaeguStationName(rawStationName: string): string | null {
-  const db = getDaeguTimetableDatabase();
-  if (!db?.data) return null;
-
-  const trimmed = rawStationName.trim();
-  if (DAEGU_STATION_NAME_MAP[trimmed] && db.data[DAEGU_STATION_NAME_MAP[trimmed]]) {
-    return DAEGU_STATION_NAME_MAP[trimmed];
-  }
-
-  if (db.data[trimmed]) return trimmed;
-
-  const clean = trimmed.replace(/역$/, '').trim();
-  if (DAEGU_STATION_NAME_MAP[clean] && db.data[DAEGU_STATION_NAME_MAP[clean]]) {
-    return DAEGU_STATION_NAME_MAP[clean];
-  }
-  if (db.data[clean]) return clean;
-
-  const withSuffix = `${clean}역`;
-  if (db.data[withSuffix]) return withSuffix;
-
-  // 괄호 포함 역명 대응 (예: "하양(대구가톨릭대)" -> "하양")
-  const baseName = clean.split(/[(·.]/)[0].trim();
-  if (db.data[baseName]) return baseName;
-
-  return null;
-}
+// DAEGU_STATION_NAME_MAP & resolveOfficialDaeguStationName은 ../daeguSubwayStations에서 re-export됨
 
 /**
  * 특정 역의 시간표 해시 항목을 O(1)로 조회합니다.
@@ -375,51 +347,4 @@ export function getNextTrainsFromDaeguTimetable(
   return results;
 }
 
-// ─── 노선별 정차역 순서 정의 (SubwayLineMapPanel 및 거리 계산용) ─────────────
-
-export const DAEGU_LINE_1_STATIONS: readonly string[] = [
-  '설화명곡', '화원', '대곡', '진천', '월배', '상인', '월촌', '송현', '서부정류장', '대명',
-  '안지랑', '현충로', '영대병원', '교대', '명덕', '반월당', '중앙로', '대구역', '칠성시장', '신천',
-  '동대구', '동구청', '아양교', '동촌', '해안', '방촌', '용계', '율하', '신기', '반야월',
-  '각산', '안심', '대구한의대병원', '부호', '하양',
-];
-
-export const DAEGU_LINE_2_STATIONS: readonly string[] = [
-  '문양', '다사', '대실', '강창', '계명대', '성서산업단지', '이곡', '용산', '죽전', '감삼',
-  '두류', '내당', '반고개', '청라언덕', '반월당', '경대병원', '대구은행', '범어', '수성구청', '만촌',
-  '담티', '연호', '수성알파시티', '고산', '신매', '사월', '정평', '임당', '영남대',
-];
-
-export const DAEGU_LINE_3_STATIONS: readonly string[] = [
-  '칠곡경대병원', '학정', '팔거', '동천', '칠곡운암', '구암', '태전', '매천', '매천시장', '팔달',
-  '공단', '만평', '팔달시장', '원대', '북구청', '달성공원', '서문시장', '청라언덕', '남산', '명덕',
-  '건들바위', '대봉교', '수성시장', '수성구민운동장', '어린이세상', '황금', '수성못', '지산', '범물', '용지',
-];
-
-export const DAEGYEONG_LINE_STATIONS: readonly string[] = [
-  '구미', '사곡', '북삼', '약목', '왜관', '연화', '신동', '지천', '서대구',
-  '대구', '동대구', '고모', '가천', '경산',
-];
-
-/**
- * 대구 도시철도 및 대경선의 전체 정차역 순서 목록을 반환합니다 (노선도 뷰용).
- */
-export function getDaeguLineStations(lineOrSubwayId: string): SubwayLineStation[] {
-  const clean = String(lineOrSubwayId || '').trim();
-  let list: readonly string[] = DAEGU_LINE_1_STATIONS;
-
-  if (clean.includes('대경')) {
-    list = DAEGYEONG_LINE_STATIONS;
-  } else if (clean.includes('3')) {
-    list = DAEGU_LINE_3_STATIONS;
-  } else if (clean.includes('2')) {
-    list = DAEGU_LINE_2_STATIONS;
-  } else {
-    list = DAEGU_LINE_1_STATIONS;
-  }
-
-  return list.map((name, idx) => ({
-    index: idx,
-    stationName: name.endsWith('역') ? name : `${name}역`,
-  }));
-}
+// 정차역 정의 및 getDaeguLineStations는 ../daeguSubwayStations에서 re-export됨

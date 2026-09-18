@@ -86,6 +86,8 @@ export function AlternativeRouteCard({
               cityCode={busCityCode}
               lat={busLat ? Number(busLat) : undefined}
               lng={busLng ? Number(busLng) : undefined}
+              nextStationName={firstBusStep.nextStationName || firstBusStep.passStopList?.stationList?.[1]?.stationName}
+              stationCount={firstBusStep.stationCount}
               variant="compact"
               onlyRefreshButton
             />
@@ -193,6 +195,8 @@ export function AlternativeRouteCard({
               cityCode={busCityCode}
               lat={busLat ? Number(busLat) : undefined}
               lng={busLng ? Number(busLng) : undefined}
+              nextStationName={firstBusStep.nextStationName || firstBusStep.passStopList?.stationList?.[1]?.stationName}
+              stationCount={firstBusStep.stationCount}
               variant="compact"
               hideRefreshButton
             />

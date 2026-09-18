@@ -190,6 +190,8 @@ export function extractTransitParams(
     normalizedSubwayId,
     busLat,
     busLng,
+    nextStationName: step.nextStationName || step.passStopList?.stationList?.[1]?.stationName,
+    stationCount: step.stationCount,
     transitColor: getTransitColor(step),
   };
 }
@@ -465,6 +467,8 @@ function TopBarRefreshButton({
         busColor={p.transitColor}
         lat={p.busLat ? Number(p.busLat) : undefined}
         lng={p.busLng ? Number(p.busLng) : undefined}
+        nextStationName={p.nextStationName}
+        stationCount={p.stationCount}
         onlyRefreshButton={true}
       />
     );
@@ -564,6 +568,8 @@ function SingleTransitCardContent({
             busColor={p.transitColor}
             lat={p.busLat ? Number(p.busLat) : undefined}
             lng={p.busLng ? Number(p.busLng) : undefined}
+            nextStationName={p.nextStationName}
+            stationCount={p.stationCount}
             variant="hero"
             hideRefreshButton={true}
           />

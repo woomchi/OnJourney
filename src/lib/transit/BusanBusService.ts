@@ -247,15 +247,14 @@ export class BusanBusService {
     const rawRouteId = String(params.routeId || '').trim();
     const rawBusId = String(params.busId || '').trim();
 
+    const meta = await this.getRouteInfoByBusNo(cleanNo);
+
     if (/^52[0-9A-Za-z]{8}$/.test(rawRouteId) || (rawRouteId.startsWith('52') && rawRouteId.length >= 9)) {
       lineId = rawRouteId;
     } else if (/^52[0-9A-Za-z]{8}$/.test(rawBusId) || (rawBusId.startsWith('52') && rawBusId.length >= 9)) {
       lineId = rawBusId;
-    } else {
-      const meta = await this.getRouteInfoByBusNo(cleanNo);
-      if (meta?.lineId) {
-        lineId = meta.lineId;
-      }
+    } else if (meta?.lineId) {
+      lineId = meta.lineId;
     }
 
     if (!lineId) {
@@ -313,8 +312,30 @@ export class BusanBusService {
         });
       }
 
-      const effectiveTurningSeq = turningSeq !== -1 ? turningSeq : Math.ceil(stations.length / 2);
-      const effectiveTurningName = turningName || stations[effectiveTurningSeq - 1]?.stationName;
+      let effectiveTurningSeq = turningSeq !== -1 ? turningSeq : Math.ceil(stations.length / 2);
+      let effectiveTurningName = turningName || stations[effectiveTurningSeq - 1]?.stationName;
+
+      // 💡 [BIMS 원본 데이터 오류 보정]
+      // 부산 307번 등에서 rpoint가 공항 순환 구간(예: 상방마을)에 잘못 찍혀 공식 종점(김해공항)과 불일치하는 경우
+      if (meta?.endPoint) {
+        const normEndPoint = meta.endPoint.replace(/[\s\(\)\-_]/g, '');
+        if (
+          normEndPoint &&
+          effectiveTurningName &&
+          !effectiveTurningName.includes(normEndPoint) &&
+          !normEndPoint.includes(effectiveTurningName)
+        ) {
+          const endPointMatchIdx = stations.findIndex(
+            (st) => st.stationName.includes(normEndPoint) || normEndPoint.includes(st.stationName)
+          );
+          if (endPointMatchIdx !== -1) {
+            effectiveTurningSeq = stations[endPointMatchIdx].stationSeq;
+            effectiveTurningName = stations[endPointMatchIdx].stationName;
+          } else {
+            effectiveTurningName = meta.endPoint;
+          }
+        }
+      }
 
       // 3. 실시간 운행 버스 위치 추출
       const positions: BusPosition[] = [];

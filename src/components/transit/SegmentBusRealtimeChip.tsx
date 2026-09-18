@@ -33,6 +33,8 @@ export interface SegmentBusRealtimeChipProps {
   variant?: 'card' | 'sidebar' | 'compact' | 'hero';
   hideRefreshButton?: boolean;
   onlyRefreshButton?: boolean;
+  nextStationName?: string;
+  stationCount?: number;
 }
 
 function formatBusItemTime(seconds: number): string {
@@ -131,6 +133,8 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
   variant = 'sidebar',
   hideRefreshButton = false,
   onlyRefreshButton = false,
+  nextStationName,
+  stationCount,
 }) => {
   const cleanBusNo = useMemo(() => cleanBusNumber(busNo), [busNo]);
   const busLiveStationsAwayMap = useJourneyStore((state) => state.busLiveStationsAwayMap);
@@ -331,6 +335,8 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
       targetMinutesLeft: matchedBus ? Math.max(1, Math.round(matchedBus.arrivedInSeconds / 60)) : undefined,
       targetStationsLeft: matchedBus?.currentStationSequence,
       targetStatusText: matchedBus ? formatBusItemTime(matchedBus.arrivedInSeconds) : undefined,
+      nextStationName,
+      stationCount,
     });
   };
 

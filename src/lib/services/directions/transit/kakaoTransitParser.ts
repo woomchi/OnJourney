@@ -93,6 +93,7 @@ function parseStepToDirectionStep(step: KakaoStep, index: number): DirectionStep
       busType,
       busLaneColor: getKakaoBusColor(busType, vehicleName),
       passStopList,
+      nextStationName: stops.length > 1 ? stops[1].name : undefined,
       subPathOptions,
       headsign: properties.guidance,
       realtimeStationId: 'auto',

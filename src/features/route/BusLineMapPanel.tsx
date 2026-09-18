@@ -208,51 +208,247 @@ function isTargetStationMatch(
   return false;
 }
 
-/** 정류소 목록에서 탑승 정류소의 최적 인덱스 탐색 */
-function findBestMatchingStationIndex(
-  stations: BusLineStation[],
-  targetStationId?: string,
-  rawTargetName?: string,
-  lat?: number,
-  lng?: number
-): number {
-  if (!stations || stations.length === 0) return -1;
+export interface ResolveBoardingParams {
+  stations?: BusLineStation[];
+  turningStationSeq?: number;
+  startStationName?: string;
+  endStationName?: string;
+  turningStationName?: string;
+  stationId?: string;
+  stationName?: string;
+  destination?: string;
+  headsign?: string;
+  nextStationName?: string;
+  stationCount?: number;
+  lat?: number;
+  lng?: number;
+}
 
-  // 1순위: ID/ARS 완전 일치 (단, 'auto' 및 비숫자 가상 ID 제외)
-  if (targetStationId && targetStationId !== 'auto' && /[0-9]/.test(targetStationId)) {
-    const idIdx = stations.findIndex((st) => isTargetStationMatch(st, targetStationId, undefined));
-    if (idIdx !== -1) return idIdx;
+export interface ResolvedBoardingResult {
+  index: number;
+  seq: number;
+  direction: '0' | '1';
+}
+
+/** 💡 [핵심 UX 정합성] 이동 정보(Journey)에 따른 단일 고유 실제 승차 정류소 및 방향 확정 (위상 및 경유지 역매핑) */
+export function resolveActualBoardingInfo(params: ResolveBoardingParams): ResolvedBoardingResult {
+  const {
+    stations,
+    turningStationSeq,
+    startStationName,
+    endStationName,
+    turningStationName,
+    stationId,
+    stationName,
+    destination,
+    headsign,
+    nextStationName,
+    stationCount,
+    lat,
+    lng,
+  } = params;
+
+  if (!stations || stations.length === 0) {
+    return { index: -1, seq: -1, direction: '0' };
   }
 
-  // 2순위: 정규화 명칭 완전 일치
-  const normTarget = normalizeStationName(rawTargetName);
-  if (normTarget) {
-    const exactIdx = stations.findIndex((st) => normalizeStationName(st.stationName) === normTarget);
-    if (exactIdx !== -1) return exactIdx;
+  // 회차지 정류소의 실제 배열 인덱스(turningIdx) 탐색
+  let turningIdx = -1;
+  if (turningStationSeq !== undefined) {
+    turningIdx = stations.findIndex((s) => s.stationSeq === turningStationSeq);
+  }
+  if (turningIdx === -1) {
+    turningIdx = stations.findIndex((s) => s.isTurningPoint);
+  }
+  if (turningIdx === -1 && turningStationName) {
+    const normTurn = normalizeStationName(turningStationName);
+    turningIdx = stations.findIndex((s) => normalizeStationName(s.stationName) === normTurn);
+  }
+  if (turningIdx === -1) {
+    turningIdx = Math.floor(stations.length / 2);
   }
 
-  // 3순위: 접두사 또는 포함 매칭
-  const matchIdx = stations.findIndex((st) => isTargetStationMatch(st, targetStationId, rawTargetName));
-  if (matchIdx !== -1) return matchIdx;
+  // 1단계: stationId / ARS 번호 기반 완전 일치 탐색 (상행/하행 정류소는 고유 ID/ARS가 다름, auto 가상 ID 제외)
+  if (stationId && stationId !== 'auto' && /[0-9]/.test(stationId)) {
+    const pureTarget = String(stationId).replace(/[^0-9]/g, '').trim();
+    const rawTarget = String(stationId).trim();
 
-  // 4순위: 사용자 좌표(lat, lng) 기반 최단 거리 정류소 근접 매칭 (최대 2km 이내)
-  if (lat && lng) {
-    let bestIdx = -1;
-    let minDistance = Infinity;
-    for (let i = 0; i < stations.length; i++) {
-      const st = stations[i];
-      if (st.lat && st.lng) {
-        const d = calculateHaversineDistanceMeter(lat, lng, st.lat, st.lng);
-        if (d < minDistance && d <= 2000) {
-          minDistance = d;
-          bestIdx = i;
+    const foundIdx = stations.findIndex((st) => {
+      const pureStId = String(st.stationId || '').replace(/[^0-9]/g, '').trim();
+      const pureArs = String(st.arsNo || '').replace(/[^0-9]/g, '').trim();
+      const rawStId = String(st.stationId || '').trim();
+      const rawArs = String(st.arsNo || '').trim();
+
+      if (rawStId && (rawStId === rawTarget || (pureTarget && pureStId === pureTarget))) return true;
+      if (rawArs && (rawArs === rawTarget || (pureTarget && pureArs === pureTarget))) return true;
+      return false;
+    });
+
+    if (foundIdx !== -1) {
+      const finalDirection: '0' | '1' = foundIdx >= turningIdx ? '1' : '0';
+      return {
+        index: foundIdx,
+        seq: stations[foundIdx].stationSeq,
+        direction: finalDirection,
+      };
+    }
+  }
+
+  // 2단계: 다차원 가중치 채점 (Composite Topology Scorer)
+  // 노선 전체에서 stationName과 일치하거나 유사한 모든 후보 인덱스 수집
+  const normTargetStation = normalizeStationName(stationName);
+  const candidateIndices: number[] = [];
+
+  for (let i = 0; i < stations.length; i++) {
+    const st = stations[i];
+    const normSt = normalizeStationName(st.stationName);
+    if (!normSt || !normTargetStation) continue;
+
+    if (normSt === normTargetStation) {
+      candidateIndices.push(i);
+    } else if (normSt.startsWith(normTargetStation) || normTargetStation.startsWith(normSt)) {
+      candidateIndices.push(i);
+    } else if (
+      normTargetStation.length >= 3 &&
+      normSt.length >= 3 &&
+      (normSt.includes(normTargetStation) || normTargetStation.includes(normSt))
+    ) {
+      candidateIndices.push(i);
+    }
+  }
+
+  // 후보가 1개뿐이면 즉시 반환
+  if (candidateIndices.length === 1) {
+    const idx = candidateIndices[0];
+    const finalDirection: '0' | '1' = idx >= turningIdx ? '1' : '0';
+    return {
+      index: idx,
+      seq: stations[idx].stationSeq,
+      direction: finalDirection,
+    };
+  }
+
+  // 후보가 없으면 기본 findBestMatchingStationIndex 폴백
+  if (candidateIndices.length === 0) {
+    const fallbackIdx = findBestMatchingStationIndex(stations, stationId, stationName, lat, lng);
+    if (fallbackIdx !== -1) {
+      const finalDirection: '0' | '1' = fallbackIdx >= turningIdx ? '1' : '0';
+      return {
+        index: fallbackIdx,
+        seq: stations[fallbackIdx].stationSeq,
+        direction: finalDirection,
+      };
+    }
+    return { index: -1, seq: -1, direction: '0' };
+  }
+
+  // 복수 후보가 존재할 때 (예: 상행 5번 장산역 09060 vs 하행 115번 장산역 09338)
+  const normNextStation = normalizeStationName(nextStationName);
+  const normDestination = normalizeStationName(destination);
+  const targetDirText = (destination || headsign || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+
+  let bestCandidateIdx = candidateIndices[0];
+  let maxScore = -Infinity;
+
+  for (const cIdx of candidateIndices) {
+    let score = 0;
+    const candidateDirection: '0' | '1' = cIdx >= turningIdx ? '1' : '0';
+
+    // 1순위 단서: 다음 경유 정류장(nextStationName) 일치 (+1000점)
+    if (normNextStation && cIdx + 1 < stations.length) {
+      const nextStNorm = normalizeStationName(stations[cIdx + 1].stationName);
+      if (nextStNorm === normNextStation) {
+        score += 1000;
+      } else if (nextStNorm.includes(normNextStation) || normNextStation.includes(nextStNorm)) {
+        score += 800;
+      }
+    }
+
+    // 2순위 단서: 하차역(destination) 도달 가능성 및 위상 거리 (+500점)
+    if (normDestination) {
+      let foundDestDist = -1;
+      for (let j = cIdx + 1; j < stations.length; j++) {
+        const stNorm = normalizeStationName(stations[j].stationName);
+        if (
+          stNorm === normDestination ||
+          (normDestination.length >= 2 && (stNorm.includes(normDestination) || normDestination.includes(stNorm)))
+        ) {
+          foundDestDist = j - cIdx;
+          break;
+        }
+      }
+
+      if (foundDestDist > 0) {
+        score += 500;
+        // 길찾기 stationCount(경유 정류장 수)와 유사할수록 보너스 (최대 +200점)
+        if (stationCount && stationCount > 0) {
+          const diff = Math.abs(foundDestDist - stationCount);
+          score += Math.max(0, 200 - diff * 20);
+        } else if (foundDestDist <= 30) {
+          score += 100;
+        }
+      } else {
+        // 후보 정류장 뒤에 하차역이 없으면 (이미 지나쳐 갈 수 없는 역방향) 감점
+        score -= 300;
+      }
+    }
+
+    // 3순위 단서: 기점/종점/회차지 방면 텍스트 대조 (+200점)
+    if (targetDirText) {
+      const startName = (startStationName || stations[0]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+      const endName = (endStationName || stations[stations.length - 1]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+      const turningName = (turningStationName || stations[turningIdx]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
+
+      const checkPrefixMatch = (nameA: string, nameB: string) => {
+        if (!nameA || !nameB) return false;
+        if (nameA.includes(nameB) || nameB.includes(nameA)) return true;
+        const prefixA = nameA.slice(0, 2);
+        const prefixB = nameB.slice(0, 2);
+        return prefixA.length >= 2 && prefixA === prefixB;
+      };
+
+      const isHeadingToStart = checkPrefixMatch(targetDirText, startName);
+      const isHeadingToTurning = checkPrefixMatch(targetDirText, turningName);
+      const isHeadingToEnd = checkPrefixMatch(targetDirText, endName);
+
+      if (isHeadingToStart && candidateDirection === '1') {
+        score += 200;
+      } else if (isHeadingToTurning && candidateDirection === '0') {
+        score += 200;
+      } else if (isHeadingToEnd) {
+        if (turningStationName && candidateDirection === '1') {
+          score += 200;
+        } else if (!turningStationName && candidateDirection === '0') {
+          score += 200;
         }
       }
     }
-    if (bestIdx !== -1) return bestIdx;
+
+    // 4순위 단서: 유효한 GPS 좌표가 있는 경우 최근접 거리 보너스 (최대 +100점)
+    const st = stations[cIdx];
+    if (lat && lng && st.lat && st.lng && st.lat > 0 && st.lng > 0) {
+      const d = calculateHaversineDistanceMeter(lat, lng, st.lat, st.lng);
+      if (d <= 50) {
+        score += 100;
+      } else if (d <= 200) {
+        score += 50;
+      } else if (d <= 500) {
+        score += 20;
+      }
+    }
+
+    if (score > maxScore) {
+      maxScore = score;
+      bestCandidateIdx = cIdx;
+    }
   }
 
-  return -1;
+  const finalDirection: '0' | '1' = bestCandidateIdx >= turningIdx ? '1' : '0';
+  return {
+    index: bestCandidateIdx,
+    seq: stations[bestCandidateIdx].stationSeq,
+    direction: finalDirection,
+  };
 }
 
 interface BusMobileSheetBodyProps {
@@ -385,86 +581,38 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
     return data.stations;
   }, [data?.stations]);
 
-  // 💡 [핵심 UX 정합성] 이동 정보(Journey)에 따른 단일 고유 실제 승차 정류소 및 방향 확정
+  // 💡 [핵심 UX 정합성] 이동 정보(Journey)에 따른 단일 고유 실제 승차 정류소 및 방향 확정 (위상 및 경유지 역매핑)
   const actualBoardingInfo = useMemo(() => {
-    if (!data?.stations || data.stations.length === 0) {
-      return { index: -1, seq: -1, direction: '0' as '0' | '1' };
-    }
-    const stations = data.stations;
-    const turningSeq = data.turningStationSeq || Math.ceil(stations.length / 2);
-
-    let finalIndex = -1;
-
-    // 1단계: stationId / ARS 번호 기반 완전 일치 탐색 (상행/하행 정류소는 고유 ID/ARS가 다름, auto 가상 ID 제외)
-    if (stationId && stationId !== 'auto' && /[0-9]/.test(stationId)) {
-      const pureTarget = String(stationId).replace(/[^0-9]/g, '').trim();
-      const rawTarget = String(stationId).trim();
-
-      finalIndex = stations.findIndex((st) => {
-        const pureStId = String(st.stationId || '').replace(/[^0-9]/g, '').trim();
-        const pureArs = String(st.arsNo || '').replace(/[^0-9]/g, '').trim();
-        const rawStId = String(st.stationId || '').trim();
-        const rawArs = String(st.arsNo || '').trim();
-
-        if (rawStId && (rawStId === rawTarget || (pureTarget && pureStId === pureTarget))) return true;
-        if (rawArs && (rawArs === rawTarget || (pureTarget && pureArs === pureTarget))) return true;
-        return false;
-      });
-    }
-
-    // 2단계: stationId로 못 찾았거나 이름으로 매칭해야 하는 경우 (동일 명칭 다중 후보 처리)
-    if (finalIndex === -1) {
-      const dir0Stations = stations.slice(0, turningSeq);
-      const dir1Stations = stations.slice(turningSeq - 1);
-
-      const match0 = findBestMatchingStationIndex(dir0Stations, stationId, stationName, target.lat, target.lng);
-      const match1 = findBestMatchingStationIndex(dir1Stations, stationId, stationName, target.lat, target.lng);
-
-      // destination / headsign 기반 방향 힌트 검증
-      const targetDirText = (destination || headsign || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
-      let preferDir1 = false;
-
-      if (targetDirText) {
-        const startName = (data.startStationName || stations[0]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
-        const endName = (data.endStationName || stations[stations.length - 1]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
-        const turningName = (data.turningStationName || stations[turningSeq - 1]?.stationName || '').replace(/[\s\(\)\-_]/g, '').toLowerCase();
-
-        // 기점(startName) 방면으로 가는 경우 -> 회차 후 하행('1')
-        if (startName && (targetDirText.includes(startName) || startName.includes(targetDirText))) {
-          preferDir1 = true;
-        } else if (turningName && (targetDirText.includes(turningName) || turningName.includes(targetDirText))) {
-          preferDir1 = false; // 회차지 방면 -> 상행('0')
-        } else if (endName && (targetDirText.includes(endName) || endName.includes(targetDirText))) {
-          // 회차지가 별도로 있는 노선의 endName은 상행 종점 또는 하행 종점
-          preferDir1 = Boolean(data.turningStationName);
-        }
-      }
-
-      if (match0 !== -1 && match1 === -1) {
-        finalIndex = match0;
-      } else if (match1 !== -1 && match0 === -1) {
-        finalIndex = (turningSeq - 1) + match1;
-      } else if (match0 !== -1 && match1 !== -1) {
-        finalIndex = preferDir1 ? (turningSeq - 1) + match1 : match0;
-      } else {
-        finalIndex = findBestMatchingStationIndex(stations, stationId, stationName, target.lat, target.lng);
-      }
-    }
-
-    if (finalIndex === -1) {
-      return { index: -1, seq: -1, direction: '0' as '0' | '1' };
-    }
-
-    // 💡 최종 인덱스로부터 해당 정류소가 상행 구간(0 ~ turningSeq-1)인지 하행 구간(turningSeq-1 ~ N)인지 결정
-    const finalDirection: '0' | '1' = finalIndex >= (turningSeq - 1) ? '1' : '0';
-    const finalSeq = stations[finalIndex].stationSeq;
-
-    return {
-      index: finalIndex,
-      seq: finalSeq,
-      direction: finalDirection,
-    };
-  }, [data?.stations, data?.turningStationSeq, data?.startStationName, data?.endStationName, data?.turningStationName, stationId, stationName, destination, headsign]);
+    return resolveActualBoardingInfo({
+      stations: data?.stations,
+      turningStationSeq: data?.turningStationSeq,
+      startStationName: data?.startStationName,
+      endStationName: data?.endStationName,
+      turningStationName: data?.turningStationName,
+      stationId,
+      stationName,
+      destination,
+      headsign,
+      nextStationName: target.nextStationName,
+      stationCount: target.stationCount,
+      lat: target.lat,
+      lng: target.lng,
+    });
+  }, [
+    data?.stations,
+    data?.turningStationSeq,
+    data?.startStationName,
+    data?.endStationName,
+    data?.turningStationName,
+    stationId,
+    stationName,
+    destination,
+    headsign,
+    target.nextStationName,
+    target.stationCount,
+    target.lat,
+    target.lng,
+  ]);
 
   // 💡 패널이 열렸을 때 실제 승차 방향으로 탭 기본 선택
   useEffect(() => {

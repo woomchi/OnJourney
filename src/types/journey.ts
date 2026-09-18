@@ -154,6 +154,7 @@ export interface DirectionStep {
       lng?: number;
     }[];
   };
+  nextStationName?: string;  // 다음 정류소 명칭 (방향 판별용)
   // maasRP / 대중교통 전용 추가 필드
   startDateTime?: string;    // "202608101407" (yyyyMMddHHmm)
   endDateTime?: string;      // "202608101435"
@@ -435,6 +436,8 @@ export interface BusLineMapTarget {
   targetMinutesLeft?: number;
   targetStationsLeft?: number;
   targetStatusText?: string;
+  nextStationName?: string;
+  stationCount?: number;
 }
 
 /** 버스 실시간 도착 정보 */

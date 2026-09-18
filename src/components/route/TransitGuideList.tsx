@@ -102,6 +102,8 @@ export default function TransitGuideList({
             busColor={busColor}
             lat={lat ? Number(lat) : undefined}
             lng={lng ? Number(lng) : undefined}
+            nextStationName={step.nextStationName || step.passStopList?.stationList?.[1]?.stationName}
+            stationCount={step.stationCount}
             variant="sidebar"
           />
         </div>

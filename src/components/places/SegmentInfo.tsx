@@ -496,6 +496,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                       busColor={targetBusStep?.color}
                       lat={targetBusLat ? Number(targetBusLat) : undefined}
                       lng={targetBusLng ? Number(targetBusLng) : undefined}
+                      nextStationName={targetBusStep?.nextStationName || targetBusStep?.passStopList?.stationList?.[1]?.stationName}
+                      stationCount={targetBusStep?.stationCount}
                       variant="sidebar"
                     />
                   </div>
@@ -845,6 +847,8 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                   busColor={targetBusStep?.color}
                   lat={targetBusLat ? Number(targetBusLat) : undefined}
                   lng={targetBusLng ? Number(targetBusLng) : undefined}
+                  nextStationName={targetBusStep?.nextStationName || targetBusStep?.passStopList?.stationList?.[1]?.stationName}
+                  stationCount={targetBusStep?.stationCount}
                   variant="sidebar"
                 />
               </div>

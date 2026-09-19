@@ -92,6 +92,20 @@ export {
   GYEONGUI_UNIQUE_STATIONS,
 } from './subway/gyeonguiTimetableService';
 
+// ─── 경춘선 공식 시간표 Re-export ───────────────────────────────────────────
+export {
+  getNextTrainFromGyeongchunTimetable,
+  getGyeongchunTimetableList,
+  loadGyeongchunStationTimetable,
+  isGyeongchunStation,
+  isGyeongchunLine,
+  resolveOfficialGyeongchunStationName,
+  resolveGyeongchunDirection,
+  GYEONGCHUN_STATIONS,
+  GYEONGCHUN_UNIQUE_STATIONS,
+} from './subway/gyeongchunTimetableService';
+
+
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {
   calculateSubwayETADynamic,

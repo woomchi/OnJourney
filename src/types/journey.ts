@@ -298,6 +298,7 @@ export interface SubwayTimetableEntry {
   minutesLeft: number;      // 현재 시각 기준 잔여 분
   statusText: string;       // "5분 후" 또는 "곧 도착"
   isUpcoming: boolean;      // 가장 빠른 다음 열차 여부
+  isExpress?: boolean;      // 급행 열차 여부
 }
 
 /** 노선도 뷰 전체 응답 데이터 구조 */

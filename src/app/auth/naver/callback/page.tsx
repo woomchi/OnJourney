@@ -126,7 +126,7 @@ function LogoGearToPlayAnimation({ status }: { status: 'loading' | 'success' | '
                 </defs>
 
                 {/* TRANSFORMED SOLID PLAY PLAYER TRIANGLE ICON (▶) UPON SUCCESS */}
-                <g transform="translate(50 50) scale(0.65) translate(-50 -50)">
+                <g transform="translate(50 50) scale(0.82) translate(-50 -50)">
                   <motion.path
                     d="M 28 20 L 76 50 L 28 80 Z"
                     fill="#FFFFFF"

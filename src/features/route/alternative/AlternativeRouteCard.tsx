@@ -257,56 +257,56 @@ export function AlternativeRouteCard({
         }
       `}
     >
-      {/* Top Section: Duration, Fare, Icon, Tags, Realtime */}
-      <div className="flex items-center justify-between w-full min-w-0">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {/* 좌: 이동수단 아이콘 + 시간 + 요금 및 아래 갱신 버튼 */}
-          <div className={`flex flex-col min-w-0 justify-center shrink-0 pr-3 border-r ${isSelected ? 'border-blue-200' : 'border-zinc-200/80'}`}>
-            <div className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-base flex-shrink-0 transition-colors ${isSelected ? 'bg-white shadow-sm' : 'bg-zinc-50 group-hover:bg-white group-hover:shadow-sm'}`}>
-                {emoji}
-              </div>
-              <div className="flex flex-col">
-                <span className={`text-sm font-black tracking-tight leading-tight ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
-                  {formatDurationMinutes(route.duration)}
-                </span>
-                <div className="flex items-center mt-0.5">
-                  {activeTab === 'car' ? (
-                    <span className="text-[10px] text-zinc-500 font-semibold whitespace-nowrap">
-                      택시 {route.taxiFare?.toLocaleString()}원
-                    </span>
-                  ) : activeTab === 'walk' ? (
-                    <span className="text-[10px] text-zinc-500 font-semibold whitespace-nowrap">
-                      무료
-                    </span>
-                  ) : (route.isIntercity || route.steps?.some((s) => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? (
-                    <span className="text-[10px] text-zinc-500 font-semibold whitespace-nowrap">
-                      예매처 확인
-                    </span>
-                  ) : route.fare > 0 ? (
-                    <span className="text-[10px] text-zinc-500 font-semibold flex items-center gap-0.5 whitespace-nowrap">
-                      <span>{route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}</span>
-                      <FareBreakdownTooltip fareBreakdown={route.fareBreakdown} />
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-zinc-500 font-semibold whitespace-nowrap">
-                      요금 정보 없음
-                    </span>
-                  )}
-                </div>
-              </div>
+      {/* Top Section: Fixed-width Left (Icon, Duration, Fare, Refresh) + Right 2-Row (Row 1: Tags & Selection, Row 2: Realtime) */}
+      <div className="flex items-center w-full min-w-0">
+        {/* 좌: 1시간 이상 텍스트도 안정적으로 수용하는 고정 너비 컨테이너 (정렬 일관성 보장) */}
+        <div className={`flex flex-col justify-between w-[116px] min-w-[116px] max-w-[116px] pr-2.5 border-r shrink-0 ${isSelected ? 'border-blue-200' : 'border-zinc-200/80'}`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-base shrink-0 transition-colors ${isSelected ? 'bg-white shadow-sm' : 'bg-zinc-50 group-hover:bg-white group-hover:shadow-sm'}`}>
+              {emoji}
             </div>
-
-            {/* 이동 수단 정보 바로 아래에 갱신 버튼 배치 */}
-            <div className="mt-1 flex items-center">
-              {renderRealtimeRefreshButton()}
+            <div className="flex flex-col min-w-0">
+              <span className={`text-[13px] font-black tracking-tight leading-tight truncate ${isSelected ? 'text-blue-600' : 'text-zinc-900'}`}>
+                {formatDurationMinutes(route.duration)}
+              </span>
+              <div className="flex items-center mt-0.5 min-w-0">
+                {activeTab === 'car' ? (
+                  <span className="text-[10px] text-zinc-500 font-semibold truncate">
+                    택시 {route.taxiFare?.toLocaleString()}원
+                  </span>
+                ) : activeTab === 'walk' ? (
+                  <span className="text-[10px] text-zinc-500 font-semibold truncate">
+                    무료
+                  </span>
+                ) : (route.isIntercity || route.steps?.some((s) => s.type === 'train' || s.type === 'expressbus')) && route.fare === 0 ? (
+                  <span className="text-[10px] text-zinc-500 font-semibold truncate">
+                    예매처 확인
+                  </span>
+                ) : route.fare > 0 ? (
+                  <span className="text-[10px] text-zinc-500 font-semibold flex items-center gap-0.5 truncate">
+                    <span>{route.isFareEstimated ? `약 ${route.fare.toLocaleString()}원` : `${route.fare.toLocaleString()}원`}</span>
+                    <FareBreakdownTooltip fareBreakdown={route.fareBreakdown} />
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-zinc-500 font-semibold truncate">
+                    요금 정보 없음
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 우: 태그 & 실시간 정보 (독립 수직 컨테이너) 영역 */}
-          <div className="flex flex-col min-w-0 justify-center flex-1 pl-1">
-            {/* Row 1: 태그 전용 수직 컨테이너 */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none min-w-0 w-full min-h-[20px]">
+          {/* 이동 수단 정보 바로 아래에 갱신 버튼 배치 */}
+          <div className="mt-1 flex items-center">
+            {renderRealtimeRefreshButton()}
+          </div>
+        </div>
+
+        {/* 우: 2단 행 구조 (Row 1: 태그 ↔ 체크표시 / Row 2: 방해 없이 넓어진 실시간 도착 정보 칩) */}
+        <div className="flex flex-col justify-between flex-1 min-w-0 pl-2.5">
+          {/* Row 1: 태그 목록 (좌) ↔ 체크/화살표 선택 인디케이터 (우) */}
+          <div className="flex items-center justify-between min-w-0 w-full min-h-[22px]">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none min-w-0 flex-1 pr-1">
               {tags.map((tag) => {
                 let colorClass = 'bg-blue-50 text-blue-600 border border-blue-100';
                 if (tag === '최단시간' || tag === '추천' || tag === '최단 시간') {
@@ -324,30 +324,30 @@ export function AlternativeRouteCard({
               })}
             </div>
 
-            {/* Row 2: 실시간 도착 정보 칩 단독 배치 */}
-            <div className="flex items-center justify-start min-w-0 w-full min-h-[24px] mt-1">
-              {renderRealtimeArrivalChip()}
+            {/* 선택 인디케이터 (체크 / 스피너 / 화살표) 를 태그와 같은 상단 행 우측 끝에 배치 */}
+            <div className="shrink-0 ml-1.5">
+              {isDetailLoading ? (
+                <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin block" />
+              ) : isSelected ? (
+                <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white">
+                    <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-zinc-50 flex items-center justify-center border border-zinc-150 text-zinc-400 group-hover:border-zinc-300 group-hover:text-zinc-600 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                    <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Right side check mark or arrow */}
-        <div className="flex-shrink-0 ml-2">
-          {isDetailLoading ? (
-            <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin block" />
-          ) : isSelected ? (
-            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white">
-                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
-              </svg>
-            </div>
-          ) : (
-            <div className="w-5 h-5 rounded-full bg-zinc-50 flex items-center justify-center border border-zinc-150 text-zinc-400 group-hover:border-zinc-300 group-hover:text-zinc-600 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-              </svg>
-            </div>
-          )}
+          {/* Row 2: 실시간 도착 정보 칩 (체크 표시의 간섭 없이 카드 우측 끝까지 온전한 폭 활용) */}
+          <div className="flex items-center justify-start min-w-0 w-full min-h-[24px] mt-1 overflow-hidden">
+            {renderRealtimeArrivalChip()}
+          </div>
         </div>
       </div>
 

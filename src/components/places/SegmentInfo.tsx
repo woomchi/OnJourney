@@ -302,11 +302,11 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
   const arrStr = getArrivalTimeStr();
 
-  // 1시간 이상 시 "1시간", "37분" 수직 2줄 분할 렌더링 헬퍼
-  const durationMatch = duration ? duration.match(/^(\d+시간)\s*(\d+분)$/) : null;
-  const isMultiLineDuration = Boolean(durationMatch);
+  // 1시간 이상 시 "1시간", "37분" 수직 2줄 분할 렌더링 헬퍼 (정각 "1시간"도 안전하게 대응)
+  const durationMatch = duration ? duration.match(/^(\d+시간)(?:\s*(\d+분))?$/) : null;
   const hourPart = durationMatch ? durationMatch[1] : '';
-  const minPart = durationMatch ? durationMatch[2] : '';
+  const minPart = durationMatch && durationMatch[2] ? durationMatch[2] : '';
+  const isMultiLineDuration = Boolean(hourPart && minPart);
 
   const fareVal = data.fare || data.taxiFare;
   const formattedFare = fareVal
@@ -423,19 +423,19 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
 
             {/* 소요 시간(좌: 시간/도착예정) & 상세 정보(우: 수단·거리 뱃지/요금) Split 구조 */}
             <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-              {/* 좌: 분 단위 기준 너비 고정(w-[58px]) & 1시간 이상 시 수직 2줄 분할 렌더링 */}
-              <div className="flex flex-col justify-center w-[58px] min-w-[58px] max-w-[58px] pr-2.5 border-r border-zinc-100 shrink-0">
+              {/* 좌: 분 단위 및 1시간 이상 기준 고정 너비(w-[62px]) & 1시간 이상 시 수직 2줄 분할 렌더링 */}
+              <div className="flex flex-col justify-center w-[62px] min-w-[62px] max-w-[62px] pr-2.5 border-r border-zinc-100 shrink-0">
                 {isMultiLineDuration ? (
                   <div className="flex flex-col leading-none gap-0.5">
-                    <span className="font-black text-[15px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
+                    <span className="font-black text-[14px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
                       {hourPart}
                     </span>
-                    <span className="font-black text-[15px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
+                    <span className="font-black text-[14px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
                       {minPart}
                     </span>
                   </div>
                 ) : (
-                  <span className="font-extrabold text-[20px] text-zinc-800 leading-none whitespace-nowrap text-left tracking-tight">
+                  <span className={clsx("font-extrabold text-zinc-800 leading-none whitespace-nowrap text-left tracking-tight", duration && duration.includes('시간') ? "text-[16px]" : "text-[19px]")}>
                     {duration || '이동'}
                   </span>
                 )}
@@ -475,7 +475,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                 {/* 타깃 이동 수단 실시간 수직 독립 레이아웃 */}
                 {targetBusStep && targetBusName && targetBusStationId ? (
                   <div
-                    className="flex items-center pt-0.5"
+                    className="flex items-center pt-0.5 min-w-0 max-w-full overflow-hidden"
                     onClick={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
@@ -503,7 +503,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
                   </div>
                 ) : targetSubwayStep && targetSubwayStationName ? (
                   <div
-                    className="flex items-center pt-0.5"
+                    className="flex items-center pt-0.5 min-w-0 max-w-full overflow-hidden"
                     onClick={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
@@ -771,19 +771,19 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
     >
       {/* 대안 2: 좌/우 Split 구조 (좌: 시간 & 도착예정 수직배치 / 우: 수단·거리 뱃지/요금) */}
       <div className="flex items-center justify-between gap-3 mb-1.5">
-        {/* 좌측 영역: 소요시간(분 단위 기준 너비 고정 & 1시간 이상 시 수직 2줄 분할) + 아래 도착예정시간 */}
-        <div className="flex flex-col justify-center w-[58px] min-w-[58px] max-w-[58px] pr-2.5 border-r border-zinc-100 shrink-0">
+        {/* 좌측 영역: 소요시간(분 단위 및 1시간 이상 기준 고정 너비 w-[62px] & 1시간 이상 시 수직 2줄 분할) + 아래 도착예정시간 */}
+        <div className="flex flex-col justify-center w-[62px] min-w-[62px] max-w-[62px] pr-2.5 border-r border-zinc-100 shrink-0">
           {isMultiLineDuration ? (
             <div className="flex flex-col leading-none gap-0.5">
-              <span className="font-black text-[15px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
+              <span className="font-black text-[14px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
                 {hourPart}
               </span>
-              <span className="font-black text-[15px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
+              <span className="font-black text-[14px] text-zinc-900 tracking-tight leading-tight whitespace-nowrap text-left">
                 {minPart}
               </span>
             </div>
           ) : (
-            <span className="font-extrabold text-[18px] text-zinc-900 leading-none whitespace-nowrap text-left tracking-tight">
+            <span className={clsx("font-extrabold text-zinc-900 leading-none whitespace-nowrap text-left tracking-tight", duration && duration.includes('시간') ? "text-[15px]" : "text-[18px]")}>
               {duration || '이동'}
             </span>
           )}
@@ -826,7 +826,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
             {/* 타깃 이동 수단 실시간 수직 독립 레이아웃 */}
             {targetBusStep && targetBusName && targetBusStationId ? (
               <div
-                className="flex items-center pt-0.5"
+                className="flex items-center pt-0.5 min-w-0 max-w-full overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
               >
@@ -854,7 +854,7 @@ export default function SegmentInfo({ data, loading, index, placeId, destId, onR
               </div>
             ) : targetSubwayStep && targetSubwayStationName ? (
               <div
-                className="flex items-center pt-0.5"
+                className="flex items-center pt-0.5 min-w-0 max-w-full overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
               >

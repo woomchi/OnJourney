@@ -50,6 +50,12 @@ import {
   isShinbundangStation,
   isShinbundangLine,
 } from './shinbundangTimetableService';
+import {
+  getNextTrainFromArexTimetable,
+  isArexStation,
+  isArexLine,
+  isArexExclusiveStation,
+} from './arexTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -458,7 +464,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 8. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 8. 공항철도 노선이 명시적으로 요청되었거나 공항철도 전용 고유역인 경우 공항철도 시간표 최우선 조회
+  if (isArexLine(lineId) || (isArexExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
+    const arexTrain = getNextTrainFromArexTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (arexTrain) {
+      return arexTrain;
+    }
+  }
+
+  // 9. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -566,6 +586,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 13. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 13. 공항철도 환승역(서울, 공덕, 홍대입구, 디지털미디어시티, 마곡나루, 김포공항, 계양, 검암) 공항철도 시간표 조회
+  if (isArexStation(stationName)) {
+    const arexTrain = getNextTrainFromArexTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (arexTrain) {
+      return arexTrain;
+    }
+  }
+
+  // 14. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

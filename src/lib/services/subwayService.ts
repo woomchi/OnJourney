@@ -144,6 +144,21 @@ export {
   SHINBUNDANG_UNIQUE_STATIONS,
 } from './subway/shinbundangTimetableService';
 
+// ─── 공항철도(AREX) 공식 시간표 Re-export ─────────────────────────────────────
+export {
+  getArexNextTrain,
+  getNextTrainFromArexTimetable,
+  getArexTimetableList,
+  loadArexStationTimetable,
+  isArexStation,
+  isArexLine,
+  isArexExclusiveStation,
+  resolveOfficialArexStationName,
+  resolveArexDirection,
+  AREX_STATIONS,
+  AREX_UNIQUE_STATIONS,
+} from './subway/arexTimetableService';
+
 
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {

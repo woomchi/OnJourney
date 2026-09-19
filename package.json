@@ -22,6 +22,7 @@
     "build:daegu-timetable": "node scripts/build-daegu-timetable.mjs",
     "build:donghae-timetable": "python scripts/build-donghae-timetable.py",
     "build:everline-timetable": "python scripts/build-everline-timetable.py",
+    "build:gimpo-gold-timetable": "python scripts/build-gimpo-gold-timetable.py",
     "build:gyeonggang-timetable": "python scripts/build-gyeonggang-timetable.py",
     "build:gyeongchun-timetable": "python scripts/build-gyeongchun-timetable.py",
     "build:gyeongui-timetable": "python scripts/build-gyeongui-timetable.py",

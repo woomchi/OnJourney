@@ -36,6 +36,8 @@ export const SUBWAY_LINE_MAP: Record<string, string> = {
   '1093': '서해선',
   '1094': 'GTX-A',
   '1095': '신림선',
+  '1096': '김포골드라인',
+  '1017': '김포골드라인',
   '대구1호선': '대구 1호선',
   '대구2호선': '대구 2호선',
   '대구3호선': '대구 3호선',
@@ -87,6 +89,7 @@ export function resolveSubwayNameForApi(subwayIdOrName: string): string {
   if (clean === '1092' || clean.includes('우이신설') || clean.includes('우이')) return '우이신설선';
   if (clean === '1093' || clean.includes('서해')) return '서해선';
   if (clean.includes('신림') || clean === '1095') return '신림선';
+  if (clean.includes('김포골드') || clean.includes('골드라인') || clean === '1096' || clean === '1017') return '김포골드라인';
   if (clean === '1079' || clean.includes('에버') || clean.includes('용인')) return '에버라인';
   if (clean.includes('의정부')) return '의정부경전철';
   if (clean.includes('GTX-A') || clean.includes('gtx-a') || clean === '1094') return 'GTX-A';

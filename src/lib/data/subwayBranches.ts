@@ -583,6 +583,25 @@ const LINE_SILLIM_BRANCHES: BranchStationData[] = [
   },
 ];
 
+// ─── 김포골드라인 운행 계통 ───────────────────────────────────────────────────
+
+const LINE_GIMPO_GOLD_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'gimpo-gold-main',
+      name: '본선 (양촌 - 김포공항)',
+      startStation: '양촌',
+      endStation: '김포공항',
+      stationCount: 10,
+    },
+    stationNames: [
+      '양촌', '구래', '마산', '장기', '운양', '걸포북변', '사우', '풍무', '고촌', '김포공항'
+    ],
+    downDestinations: ['구래', '양촌'],
+    upDestinations: ['김포공항'],
+  },
+];
+
 // ─── 인천 1호선 운행 계통 ───────────────────────────────────────────────────
 
 const LINE_INCHEON_1_BRANCHES: BranchStationData[] = [
@@ -696,6 +715,9 @@ export const LINE_BRANCHES_MAP: Record<string, BranchStationData[]> = {
   '1092': LINE_UI_BRANCHES,
   '신림선': LINE_SILLIM_BRANCHES,
   '1095': LINE_SILLIM_BRANCHES,
+  '김포골드라인': LINE_GIMPO_GOLD_BRANCHES,
+  '1096': LINE_GIMPO_GOLD_BRANCHES,
+  '1017': LINE_GIMPO_GOLD_BRANCHES,
   '인천1호선': LINE_INCHEON_1_BRANCHES,
   '1069': LINE_INCHEON_1_BRANCHES,
   '인천2호선': LINE_INCHEON_2_BRANCHES,
@@ -732,6 +754,7 @@ export function normalizeLineKey(subwayIdOrNm: string): string {
   if (clean.includes('서해') || clean === '1093') return '서해선';
   if (clean.includes('경강') || clean === '1081') return '경강선';
   if (clean.includes('신림') || clean === '1095') return '신림선';
+  if (clean.includes('김포골드') || clean.includes('골드라인') || clean === '1096' || clean === '1017') return '김포골드라인';
   if (clean.includes('인천1') || clean.includes('인천 1') || clean === '1069') return '인천1호선';
   if (clean.includes('인천2') || clean.includes('인천 2') || clean === '1070') return '인천2호선';
   if (clean.includes('GTX-A') || clean.includes('gtx-a') || clean === '1094') return 'GTX-A';

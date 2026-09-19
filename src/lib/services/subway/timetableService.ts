@@ -44,11 +44,13 @@ import {
   getNextTrainFromSeohaeTimetable,
   isSeohaeStation,
   isSeohaeLine,
+  isSeohaeExclusiveStation,
 } from './seohaeTimetableService';
 import {
   getNextTrainFromShinbundangTimetable,
   isShinbundangStation,
   isShinbundangLine,
+  isShinbundangExclusiveStation,
 } from './shinbundangTimetableService';
 import {
   getNextTrainFromArexTimetable,
@@ -62,6 +64,12 @@ import {
   isSillimLine,
   isSillimExclusiveStation,
 } from './sillimTimetableService';
+import {
+  getNextTrainFromGimpoGoldTimetable,
+  isGimpoGoldStation,
+  isGimpoGoldLine,
+  isGimpoGoldExclusiveStation,
+} from './gimpoGoldTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -442,8 +450,8 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 6. 서해선 노선이 명시적으로 요청되었거나 서해선 전용 역인 경우 서해선 시간표 최우선 조회
-  if (isSeohaeLine(lineId) || (isSeohaeStation(stationName) && !normalizeLineNumber(lineId) && !isSuinbundangLine(lineId) && !isGyeonggangLine(lineId) && !isGyeonguiLine(lineId) && !isGyeongchunLine(lineId) && !isEverlineLine(lineId))) {
+  // 6. 서해선 노선이 명시적으로 요청되었거나 서해선 전용 고유역인 경우 서해선 시간표 최우선 조회
+  if (isSeohaeLine(lineId) || (isSeohaeExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
     const shTrain = getNextTrainFromSeohaeTimetable({
       stationName,
       updnLine,
@@ -456,8 +464,8 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 7. 신분당선 노선이 명시적으로 요청되었거나 신분당선 전용 역인 경우 신분당선 시간표 최우선 조회
-  if (isShinbundangLine(lineId) || (isShinbundangStation(stationName) && !normalizeLineNumber(lineId) && !isSuinbundangLine(lineId) && !isGyeonggangLine(lineId) && !isGyeonguiLine(lineId) && !isGyeongchunLine(lineId) && !isEverlineLine(lineId) && !isSeohaeLine(lineId))) {
+  // 7. 신분당선 노선이 명시적으로 요청되었거나 신분당선 전용 고유역인 경우 신분당선 시간표 최우선 조회
+  if (isShinbundangLine(lineId) || (isShinbundangExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
     const sbdTrain = getNextTrainFromShinbundangTimetable({
       stationName,
       updnLine,
@@ -498,7 +506,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 10. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 10. 김포골드라인 노선이 명시적으로 요청되었거나 김포골드라인 전용 고유역인 경우 김포골드라인 시간표 최우선 조회
+  if (isGimpoGoldLine(lineId) || (isGimpoGoldExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
+    const gimpoTrain = getNextTrainFromGimpoGoldTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (gimpoTrain) {
+      return gimpoTrain;
+    }
+  }
+
+  // 11. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -634,6 +656,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 15. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 15. 김포골드라인 환승역(김포공항) 김포골드라인 시간표 조회
+  if (isGimpoGoldStation(stationName)) {
+    const gimpoTrain = getNextTrainFromGimpoGoldTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (gimpoTrain) {
+      return gimpoTrain;
+    }
+  }
+
+  // 16. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

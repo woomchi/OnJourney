@@ -179,6 +179,14 @@ export function isSeohaeStation(stationName: string): boolean {
 }
 
 /**
+ * 서해선 전용 고유역(환승역 제외 11개 역)인지 확인합니다.
+ */
+export function isSeohaeExclusiveStation(stationName: string): boolean {
+  const official = resolveOfficialSeohaeStationName(stationName);
+  return official !== null && SEOHAE_UNIQUE_STATIONS.has(official);
+}
+
+/**
  * 입력된 노선 식별자가 서해선인지 확인합니다.
  */
 export function isSeohaeLine(lineOrId?: string | number): boolean {

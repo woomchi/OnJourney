@@ -164,6 +164,14 @@ export function isShinbundangStation(stationName: string): boolean {
 }
 
 /**
+ * 신분당선 전용 고유역(환승역 제외 8개 역)인지 확인합니다.
+ */
+export function isShinbundangExclusiveStation(stationName: string): boolean {
+  const official = resolveOfficialShinbundangStationName(stationName);
+  return official !== null && SHINBUNDANG_UNIQUE_STATIONS.has(official);
+}
+
+/**
  * 입력된 노선 식별자가 신분당선인지 확인합니다.
  */
 export function isShinbundangLine(lineOrId?: string | number): boolean {

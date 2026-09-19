@@ -175,6 +175,21 @@ export {
 } from './subway/sillimTimetableService';
 
 
+// ─── 김포골드라인 공식 시간표 Re-export ─────────────────────────────────────────
+export {
+  getGimpoGoldNextTrain,
+  getNextTrainFromGimpoGoldTimetable,
+  getGimpoGoldTimetableList,
+  loadGimpoGoldStationTimetable,
+  isGimpoGoldStation,
+  isGimpoGoldLine,
+  isGimpoGoldExclusiveStation,
+  resolveOfficialGimpoGoldStationName,
+  resolveGimpoGoldDirection,
+  GIMPO_GOLD_STATIONS,
+  GIMPO_GOLD_UNIQUE_STATIONS,
+} from './subway/gimpoGoldTimetableService';
+
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {
   calculateSubwayETADynamic,

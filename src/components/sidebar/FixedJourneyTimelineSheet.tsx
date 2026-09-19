@@ -414,25 +414,25 @@ export default function FixedJourneyTimelineSheet({
         });
       } else {
         setFocusBounds({
-          sw: { lat: st.lat - 0.004, lng: st.lng - 0.004 },
-          ne: { lat: st.lat + 0.004, lng: st.lng + 0.004 },
+          sw: { lat: st.lat - 0.0003, lng: st.lng - 0.0003 },
+          ne: { lat: st.lat + 0.0003, lng: st.lng + 0.0003 },
         });
       }
     } else if (st.type === 'dest') {
       setFocusBounds({
-        sw: { lat: st.lat - 0.004, lng: st.lng - 0.004 },
-        ne: { lat: st.lat + 0.004, lng: st.lng + 0.004 },
+        sw: { lat: st.lat - 0.0003, lng: st.lng - 0.0003 },
+        ne: { lat: st.lat + 0.0003, lng: st.lng + 0.0003 },
       });
     } else if (st.step) {
       const isTransit = st.step.type === 'bus' || st.step.type === 'expressbus' || st.step.type === 'subway' || st.step.type === 'train';
 
       if (isTransit) {
-        // 대중교통 단계: 탑승/환승 정류소 마커를 중심으로 적당한 도보/정류장 시야 확보
+        // 대중교통 단계: 탑승/환승 정류소 마커를 중심으로 상세 시야 확보
         const centerLat = st.step.startLat || st.lat;
         const centerLng = st.step.startLng || st.lng;
         setFocusBounds({
-          sw: { lat: centerLat - 0.004, lng: centerLng - 0.004 },
-          ne: { lat: centerLat + 0.004, lng: centerLng + 0.004 },
+          sw: { lat: centerLat - 0.0003, lng: centerLng - 0.0003 },
+          ne: { lat: centerLat + 0.0003, lng: centerLng + 0.0003 },
         });
       } else if (st.step.pathPoints && st.step.pathPoints.length > 0) {
         let minLat = st.step.pathPoints[0].lat;
@@ -446,13 +446,13 @@ export default function FixedJourneyTimelineSheet({
           maxLng = Math.max(maxLng, p.lng);
         });
         setFocusBounds({
-          sw: { lat: minLat - 0.003, lng: minLng - 0.003 },
-          ne: { lat: maxLat + 0.003, lng: maxLng + 0.003 },
+          sw: { lat: minLat - 0.0002, lng: minLng - 0.0002 },
+          ne: { lat: maxLat + 0.0002, lng: maxLng + 0.0002 },
         });
       } else if (st.step.startLat && st.step.startLng) {
         setFocusBounds({
-          sw: { lat: st.step.startLat - 0.004, lng: st.step.startLng - 0.004 },
-          ne: { lat: st.step.startLat + 0.004, lng: st.step.startLng + 0.004 },
+          sw: { lat: st.step.startLat - 0.0003, lng: st.step.startLng - 0.0003 },
+          ne: { lat: st.step.startLat + 0.0003, lng: st.step.startLng + 0.0003 },
         });
       }
     }

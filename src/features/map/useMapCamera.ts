@@ -431,7 +431,8 @@ export function useMapCamera({
       return;
     }
 
-    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${windowWidth}-${windowHeight}-${JSON.stringify(padding)}`;
+    const stepKey = focusedStep ? `${focusedStep.originId}-${focusedStep.destId}-${focusedStep.stepIndex}-${focusedStep.subType || ''}` : 'none';
+    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${windowWidth}-${windowHeight}-${JSON.stringify(padding)}-${stepKey}`;
     if (lastFittedFocusBoundsRef.current === currentFocusString) return;
 
     map.setOptions({ padding });
@@ -442,14 +443,14 @@ export function useMapCamera({
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    // 여정 재생 및 단계별 경로 추적(focusedStep) 시 polyline이 마커에 가려지지 않고 도보 구간이 적당히 보이도록 maxZoom을 15로 제한
-    const maxZoom = focusedStep ? 15 : 16;
+    // 여정 재생 및 단계별 경로 추적(focusedStep) 시 polyline 및 보행 경로가 상세하게 확대되어 보이도록 maxZoom을 19로 적용 (Web 및 PWA 공통 적용)
+    const maxZoom = focusedStep ? 19 : 16;
     map.fitBounds(bounds, { maxZoom });
 
     lastFittedFocusBoundsRef.current = currentFocusString;
     lastFittedWidthRef.current = windowWidth;
     lastFittedHeightRef.current = windowHeight;
-  }, [focusBounds, map, isDrawerMaximized, isMobile, windowWidth, windowHeight, validateBounds, currentMapPadding]);
+  }, [focusBounds, map, isDrawerMaximized, isMobile, windowWidth, windowHeight, validateBounds, currentMapPadding, focusedStep]);
 
   // 5. 장소 검색 카드 클릭 시 해당 장소로 줌 인
   useEffect(() => {

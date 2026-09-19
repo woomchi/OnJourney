@@ -213,7 +213,7 @@ export function RoutePanels() {
                 stepIndex: lastIdx,
                 subType
               });
-              const offset = 0.0035;
+              const offset = 0.0003;
               setFocusBounds({
                 sw: { lat: nextDestPlace.lat - offset, lng: nextDestPlace.lng - offset },
                 ne: { lat: nextDestPlace.lat + offset, lng: nextDestPlace.lng + offset }
@@ -252,7 +252,7 @@ export function RoutePanels() {
                 stepIndex: lastIdx,
                 subType
               });
-              const offset = 0.0035;
+              const offset = 0.0003;
               setFocusBounds({
                 sw: { lat: prevDestPlace.lat - offset, lng: prevDestPlace.lng - offset },
                 ne: { lat: prevDestPlace.lat + offset, lng: prevDestPlace.lng + offset }

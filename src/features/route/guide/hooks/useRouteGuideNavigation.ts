@@ -275,7 +275,7 @@ export function useRouteGuideNavigation({
       }
 
       if (lat !== undefined && lng !== undefined) {
-        const offset = 0.0035;
+        const offset = 0.0003;
         setFocusBounds({
           sw: { lat: lat - offset, lng: lng - offset },
           ne: { lat: lat + offset, lng: lng + offset },

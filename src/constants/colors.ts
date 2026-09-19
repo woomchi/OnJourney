@@ -195,6 +195,7 @@ export const SUBWAY_COLORS: Record<string, string> = {
   '경춘': '#178C72',
   '경강': '#003DA5',
   '서해': '#81A914',
+  '우이신설선': '#B0CE18',
   '우이신설': '#B0CE18',
   '신림': '#6789CA',
   '김포골드라인': '#AD8605',

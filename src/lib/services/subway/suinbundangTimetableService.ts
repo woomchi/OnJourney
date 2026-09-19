@@ -197,8 +197,7 @@ export function resolveOfficialSuinbundangStationName(rawStationName: string): s
   const exact = SUINBUNDANG_STATIONS.find((s) => s === clean);
   if (exact) return exact;
 
-  const partial = SUINBUNDANG_STATIONS.find((s) => clean === s || clean.includes(s) || s.includes(clean));
-  return partial || null;
+  return null;
 }
 
 /**
@@ -206,6 +205,14 @@ export function resolveOfficialSuinbundangStationName(rawStationName: string): s
  */
 export function isSuinbundangStation(rawStationName: string): boolean {
   return Boolean(resolveOfficialSuinbundangStationName(rawStationName));
+}
+
+/**
+ * 수인분당선 전용 고유역(환승역 제외 36개 역)인지 확인합니다.
+ */
+export function isSuinbundangExclusiveStation(rawStationName: string): boolean {
+  const official = resolveOfficialSuinbundangStationName(rawStationName);
+  return official !== null && SUINBUNDANG_UNIQUE_STATIONS.has(official);
 }
 
 /**

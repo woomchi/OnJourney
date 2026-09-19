@@ -19,6 +19,7 @@ import {
   getNextTrainFromSuinbundangTimetable,
   isSuinbundangStation,
   isSuinbundangLine,
+  isSuinbundangExclusiveStation,
 } from './suinbundangTimetableService';
 import {
   getNextTrainFromGyeonggangTimetable,
@@ -70,6 +71,12 @@ import {
   isGimpoGoldLine,
   isGimpoGoldExclusiveStation,
 } from './gimpoGoldTimetableService';
+import {
+  getNextTrainFromUiLineTimetable,
+  isUiLineStation,
+  isUiLineLine,
+  isUiLineExclusiveStation,
+} from './uiLineTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -380,8 +387,8 @@ export async function calculateNextTrainFromTimetable(
     };
   }
 
-  // 1. 수인분당선 노선이 명시적으로 요청되었거나 수인분당선 전용 역인 경우 수인분당선 시간표 최우선 조회
-  if (isSuinbundangLine(lineId) || (isSuinbundangStation(stationName) && !normalizeLineNumber(lineId) && !isGyeonggangLine(lineId))) {
+  // 1. 수인분당선 노선이 명시적으로 요청되었거나 수인분당선 전용 고유역인 경우 수인분당선 시간표 최우선 조회
+  if (isSuinbundangLine(lineId) || (isSuinbundangExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
     const suinTrain = getNextTrainFromSuinbundangTimetable({
       stationName,
       updnLine,
@@ -520,7 +527,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 11. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 11. 우이신설선 노선이 명시적으로 요청되었거나 우이신설선 전용 고유역인 경우 우이신설선 시간표 최우선 조회
+  if (isUiLineLine(lineId) || (isUiLineExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
+    const uiTrain = getNextTrainFromUiLineTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (uiTrain) {
+      return uiTrain;
+    }
+  }
+
+  // 12. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -670,6 +691,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 16. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 16. 우이신설선 환승역(성신여대입구, 보문, 신설동) 우이신설선 시간표 조회
+  if (isUiLineStation(stationName)) {
+    const uiTrain = getNextTrainFromUiLineTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (uiTrain) {
+      return uiTrain;
+    }
+  }
+
+  // 17. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

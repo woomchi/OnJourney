@@ -190,6 +190,21 @@ export {
   GIMPO_GOLD_UNIQUE_STATIONS,
 } from './subway/gimpoGoldTimetableService';
 
+// ─── 우이신설선 공식 시간표 Re-export ─────────────────────────────────────────
+export {
+  getUiLineNextTrain,
+  getNextTrainFromUiLineTimetable,
+  getUiLineTimetableList,
+  loadUiLineStationTimetable,
+  isUiLineStation,
+  isUiLineLine,
+  isUiLineExclusiveStation,
+  resolveOfficialUiLineStationName,
+  resolveUiLineDirection,
+  UI_LINE_STATIONS,
+  UI_LINE_UNIQUE_STATIONS,
+} from './subway/uiLineTimetableService';
+
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {
   calculateSubwayETADynamic,

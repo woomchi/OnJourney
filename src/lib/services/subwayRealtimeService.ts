@@ -25,6 +25,7 @@ import { fetchSubwayPositionsByLine } from './subwayPositionService';
 import { fetchDaejeonSubwayArrivals } from './daejeonSubwayService';
 import { fetchBusanSubwayArrivals } from './busanSubwayService';
 import { fetchDaeguSubwayArrivals } from './daeguSubwayService';
+import { fetchGwangjuSubwayArrivals } from './gwangjuSubwayService';
 import { detectSubwayRegion } from './subwayRegionRouter';
 import { timeOffsetManager } from '@/lib/utils/timeOffsetManager';
 import { isMatchingSubwayId, resolveWayCode, resolvePositionDirection } from '@/lib/constants/subwayLineMap';
@@ -311,8 +312,22 @@ export async function fetchSubwayRealtime(
     return buildTimetableFallback(cleanStation, wayCode, subwayId);
   }
 
-  // 1-4. 광주 등 기타 지방 도시철도 (배차간격 Fallback)
+  // 1-4. 광주 도시철도 (1호선) 전용 분기 (로컬 압축 DB 기반)
   if (region === 'gwangju') {
+    try {
+      const gwangjuArrivals = await fetchGwangjuSubwayArrivals(
+        cleanStation,
+        wayCode,
+        subwayId,
+        destination,
+        headsign
+      );
+      if (gwangjuArrivals && gwangjuArrivals.length > 0) {
+        return gwangjuArrivals;
+      }
+    } catch (e) {
+      console.warn(`[subwayRealtimeService] 광주 시각표 조회 실패 (${cleanStation}):`, e);
+    }
     return buildTimetableFallback(cleanStation, wayCode, subwayId);
   }
 

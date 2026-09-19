@@ -15,6 +15,7 @@ import {
   isBusanSubwayStation,
 } from '@/lib/services/busanSubwayService';
 import { getSeoulTimetableList } from '@/lib/services/subway/seoulTimetableService';
+import { getGwangjuTimetableList } from '@/lib/services/subway/gwangjuTimetableService';
 import { detectSubwayRegion } from '@/lib/services/subwayRegionRouter';
 import { SubwayLinePositionsData } from '@/types/journey';
 
@@ -49,6 +50,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     }
   } else if (detectedRegion === 'daejeon') {
     subwayTarget = '대전1호선';
+  } else if (detectedRegion === 'gwangju') {
+    subwayTarget = '광주1호선';
   } else if (!subwayTarget) {
     subwayTarget = '1002'; // 수도권 기본값
   }
@@ -81,6 +84,17 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       timetable = await fetchBusanStationUpcomingTimetable(targetStation, subwayTarget, 120);
     } catch (e) {
       console.warn('[api/subway/positions] 부산 시간표 조회 실패:', e);
+    }
+  } else if (detectedRegion === 'gwangju') {
+    const targetStation = stationName || '광주송정';
+    try {
+      const wayCode = typeof rawParams.wayCode === 'string' ? rawParams.wayCode : '1';
+      const gwangjuTimetable = getGwangjuTimetableList(targetStation, wayCode);
+      if (gwangjuTimetable && gwangjuTimetable.length > 0) {
+        timetable = gwangjuTimetable;
+      }
+    } catch (e) {
+      console.warn('[api/subway/positions] 광주 시간표 조회 실패:', e);
     }
   } else if (stationName) {
     try {

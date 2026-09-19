@@ -18,6 +18,7 @@ import { getBusanLineStations } from '@/lib/services/busanSubwayStations';
 import { getDaejeonLineStations } from '@/lib/services/daejeonSubwayService';
 import { getDaeguLineStations } from '@/lib/services/daeguSubwayStations';
 import { getDonghaeLineStations } from '@/lib/services/donghaeSubwayStations';
+import { getGwangjuLineStations } from '@/lib/services/gwangjuSubwayStations';
 import {
   resolveCandidateLineCodes as resolveCandidateCodesFromMap,
   resolveWayCode,
@@ -250,6 +251,24 @@ export function getLineStationListWithBranches(
           hmSeconds: 150,
           cumulativeSeconds: (st.index + 1) * 150,
           distKm: 2.8,
+        })),
+      };
+    }
+  }
+
+  // 4-2. 광주 도시철도 (1호선) 정차역 지원
+  if (subwayIdOrName.includes('광주')) {
+    const gwangjuStations = getGwangjuLineStations();
+    if (gwangjuStations.length > 0) {
+      return {
+        branches: [],
+        selectedBranchId: '',
+        stations: gwangjuStations.map((st) => ({
+          index: st.index,
+          stationName: st.stationName,
+          hmSeconds: 120,
+          cumulativeSeconds: (st.index + 1) * 120,
+          distKm: 1.05,
         })),
       };
     }

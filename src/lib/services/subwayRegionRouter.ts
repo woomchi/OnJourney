@@ -9,6 +9,7 @@ import { isDaejeonSubwayStation } from './daejeonSubwayService';
 import { isBusanSubwayStation } from './busanSubwayStations';
 import { resolveOfficialDaeguStationName } from './daeguSubwayStations';
 import { isDonghaeSubwayStation, DONGHAE_UNIQUE_STATIONS } from './donghaeSubwayStations';
+import { isGwangjuSubwayStation, resolveOfficialGwangjuStationName } from './gwangjuSubwayStations';
 
 export type SubwayRegion = 'daejeon' | 'seoul' | 'busan' | 'daegu' | 'gwangju' | 'unknown';
 
@@ -37,6 +38,13 @@ const AMBIGUOUS_BUSAN_STATIONS = new Set(['시청', '교대', '중앙']);
  * - 교대: 서울 2/3호선, 부산 1호선, 대구 1호선
  */
 const AMBIGUOUS_DAEGU_STATIONS = new Set(['중앙로', '신천', '교대']);
+
+/**
+ * 광주 1호선 역 중 수도권/타지역과 이름이 겹칠 수 있는 동명역 목록
+ * - 화정: 수도권 3호선(일산선), 광주 1호선
+ * - 공항: 부산-김해경전철(공항역), 광주 1호선
+ */
+const AMBIGUOUS_GWANGJU_STATIONS = new Set(['화정', '공항']);
 
 /**
  * 역명과 노선 식별자 및 방면/목적지를 바탕으로 지하철 서비스 지역을 감지합니다.
@@ -154,7 +162,26 @@ export function detectSubwayRegion(params: {
     return 'daejeon';
   }
 
-  // 6. 기본값: 수도권 실시간 API 대상 (1~9호선 및 동명역인 시청, 용문, 신흥, 중앙로, 대동, 신천 포함)
+  // 6. 광주 1호선 판별
+  const isGwangjuStation = Boolean(resolveOfficialGwangjuStationName(cleanStation));
+  const isDestGwangju = Boolean(cleanDest && resolveOfficialGwangjuStationName(cleanDest));
+  const isHeadGwangju = Boolean(cleanHeadsign && resolveOfficialGwangjuStationName(cleanHeadsign));
+
+  // 목적지나 방면이 광주 고유역인 경우
+  const isDestUniqueGwangju =
+    (isDestGwangju && !AMBIGUOUS_GWANGJU_STATIONS.has(cleanDest)) ||
+    (isHeadGwangju && !AMBIGUOUS_GWANGJU_STATIONS.has(cleanHeadsign));
+
+  if (isDestUniqueGwangju && isGwangjuStation) {
+    return 'gwangju';
+  }
+
+  // 광주 고유역 (동명역 제외: 녹동, 소태, 학동증심사입구, 남광주, 문화전당, 금남로, 양동시장, 돌고개, 농성, 쌍촌, 운천, 상무, 김대중컨벤션센터, 송정공원, 광주송정, 도산, 평동 등)
+  if (isGwangjuStation && !AMBIGUOUS_GWANGJU_STATIONS.has(cleanStation)) {
+    return 'gwangju';
+  }
+
+  // 7. 기본값: 수도권 실시간 API 대상 (1~9호선 및 동명역인 시청, 용문, 신흥, 중앙로, 대동, 신천 포함)
   if (cleanStation) {
     return 'seoul';
   }

@@ -118,6 +118,19 @@ export {
   EVERLINE_UNIQUE_STATIONS,
 } from './subway/everlineTimetableService';
 
+// ─── 서해선 공식 시간표 Re-export ─────────────────────────────────────────────
+export {
+  getNextTrainFromSeohaeTimetable,
+  getSeohaeTimetableList,
+  loadSeohaeStationTimetable,
+  isSeohaeStation,
+  isSeohaeLine,
+  resolveOfficialSeohaeStationName,
+  resolveSeohaeDirection,
+  SEOHAE_STATIONS,
+  SEOHAE_UNIQUE_STATIONS,
+} from './subway/seohaeTimetableService';
+
 
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {

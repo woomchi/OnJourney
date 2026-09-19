@@ -40,6 +40,11 @@ import {
   isEverlineStation,
   isEverlineLine,
 } from './everlineTimetableService';
+import {
+  getNextTrainFromSeohaeTimetable,
+  isSeohaeStation,
+  isSeohaeLine,
+} from './seohaeTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -420,7 +425,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 6. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 6. 서해선 노선이 명시적으로 요청되었거나 서해선 전용 역인 경우 서해선 시간표 최우선 조회
+  if (isSeohaeLine(lineId) || (isSeohaeStation(stationName) && !normalizeLineNumber(lineId) && !isSuinbundangLine(lineId) && !isGyeonggangLine(lineId) && !isGyeonguiLine(lineId) && !isGyeongchunLine(lineId) && !isEverlineLine(lineId))) {
+    const shTrain = getNextTrainFromSeohaeTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (shTrain) {
+      return shTrain;
+    }
+  }
+
+  // 7. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -500,6 +519,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 11. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 11. 서해선 환승/공용역(소사, 부천종합운동장, 김포공항, 능곡, 대곡, 곡산, 백마, 풍산, 일산, 초지 등) 서해선 시간표 조회
+  if (isSeohaeStation(stationName)) {
+    const shTrain = getNextTrainFromSeohaeTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (shTrain) {
+      return shTrain;
+    }
+  }
+
+  // 12. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

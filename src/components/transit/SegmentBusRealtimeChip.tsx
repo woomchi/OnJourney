@@ -409,7 +409,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
 
     if (isAnyLoading && !hasData && (!data || isQueryLoading || isFetching)) {
       return (
-        <div className="flex flex-col items-end justify-center min-w-0 shrink-0 animate-pulse">
+        <div className="flex flex-col items-end justify-center w-full min-w-0 shrink-0 animate-pulse">
           <div className="h-5 w-18 bg-zinc-200/90 rounded-md" />
           <div className="h-3 w-12 bg-zinc-100 rounded mt-1" />
         </div>
@@ -421,7 +421,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
         <div
           onClick={(e) => handleOpenBusLineMap(e)}
           title="버스 실시간 노선도 보기"
-          className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group"
+          className="flex flex-col items-end justify-center w-full min-w-0 shrink-0 cursor-pointer group"
         >
           <span className="text-xs font-bold text-zinc-500 group-hover:text-blue-600 transition-colors">
             도착 정보 없음
@@ -449,7 +449,6 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     }
 
     const stationText1 = getBusStationCountText(bus1, liveStationCount);
-    const statusBadge1 = renderSeatOrCrowdedBadge(bus1, true);
 
     const stationText2 = bus2 ? getBusStationCountText(bus2) : null;
     const mins2 = bus2 ? Math.floor(bus2.arrivedInSeconds / 60) : 0;
@@ -458,9 +457,9 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
       <div
         onClick={(e) => handleOpenBusLineMap(e, bus1)}
         title="클릭하여 버스 실시간 노선도 및 위치 확인"
-        className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group select-none"
+        className="flex flex-col items-end justify-center w-full min-w-0 shrink-0 cursor-pointer group select-none"
       >
-        {/* 메인 카운트다운 타이머 & 상태 */}
+        {/* 메인 카운트다운 타이머 & 상태 (남은 시간 + 남은 정거장 수만 표시) */}
         <div className="flex items-center gap-1.5 leading-none">
           <span
             style={!isUrgent1 && busColor ? { color: busColor } : undefined}
@@ -471,11 +470,11 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
           >
             {timeDisplay1}
           </span>
-          <div className="flex items-center gap-1 text-[11px] font-semibold text-zinc-600 bg-zinc-100/90 px-1.5 py-0.5 rounded-md border border-zinc-200/60">
-            {stationText1 && <span className="tabular-nums">{stationText1}</span>}
-            {stationText1 && statusBadge1 && <span className="text-zinc-300">·</span>}
-            {statusBadge1}
-          </div>
+          {stationText1 && (
+            <div className="flex items-center text-[11px] font-semibold text-zinc-600 bg-zinc-100/90 px-1.5 py-0.5 rounded-md border border-zinc-200/60">
+              <span className="tabular-nums">{stationText1}</span>
+            </div>
+          )}
         </div>
 
         {/* 2번째 버스 도착 보조 정보 or 노선도 힌트 */}

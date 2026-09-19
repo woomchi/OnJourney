@@ -521,17 +521,12 @@ function SingleTransitCardContent({
         </span>
 
         <div className="flex flex-col min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center min-w-0">
             <span className="text-[13px] font-black text-zinc-900 truncate tracking-tight">
               {p.isBus
                 ? formatBusName(p.step.name || p.busName)
                 : formatSubwayLineName(p.step)}
             </span>
-            {p.busDestination && (
-              <span className="text-[11px] font-medium text-zinc-400 truncate">
-                ({p.busDestination} 방면)
-              </span>
-            )}
           </div>
 
           <div className="flex items-center gap-1 text-[11px] text-zinc-500 font-medium truncate mt-0.5">
@@ -544,9 +539,9 @@ function SingleTransitCardContent({
         </div>
       </div>
 
-      {/* 우측 열: 실시간 도착 카운트다운 타이머 & 상태 정보 */}
+      {/* 우측 열: 실시간 도착 카운트다운 타이머 & 상태 정보 (고정 컨테이너 너비 부여) */}
       <div
-        className="shrink-0 flex items-center justify-end"
+        className="shrink-0 flex items-center justify-end w-[118px] min-w-[118px]"
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -585,7 +580,9 @@ function SingleTransitCardContent({
             hideRefreshButton={true}
           />
         ) : (
-          <span className="text-xs text-zinc-400 font-medium">도착 정보 없음</span>
+          <div className="flex flex-col items-end justify-center w-full min-w-0 shrink-0">
+            <span className="text-xs text-zinc-400 font-medium">도착 정보 없음</span>
+          </div>
         )}
       </div>
     </div>

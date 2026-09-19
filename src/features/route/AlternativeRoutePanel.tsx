@@ -248,6 +248,7 @@ export default function AlternativeRoutePanel({
           defaultHeight={altHeight}
           maxHeight={windowHeight - 16}
           initialSnap={currentSnapType}
+          headerContent={headerContent}
           zIndex={45}
           onSnap={(snapName) => {
             if (snapName === 'min' || snapName === 'default') setSnap('46vh');
@@ -260,7 +261,6 @@ export default function AlternativeRoutePanel({
         >
           <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-route" />
           <div className="flex flex-col relative w-full h-full min-h-0 pb-[60px] bg-white">
-            {headerContent}
             {listContent}
           </div>
         </CustomBottomSheet>

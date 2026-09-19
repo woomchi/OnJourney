@@ -261,7 +261,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
   if (isAnyLoading && !hasData) {
     if (variant === 'hero') {
       return (
-        <div className="flex flex-col items-end justify-center min-w-0 shrink-0 animate-pulse">
+        <div className="flex flex-col items-end justify-center w-full min-w-0 shrink-0 animate-pulse">
           <div className="h-5 w-18 bg-zinc-200/90 rounded-md" />
           <div className="h-3 w-12 bg-zinc-100 rounded mt-1" />
         </div>
@@ -286,7 +286,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => handleOpenLineMap(e)}
           title={isError ? "실시간 정보 조회 실패 (클릭하여 노선도 확인)" : "지하철 실시간 노선도 보기"}
-          className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group"
+          className="flex flex-col items-end justify-center w-full min-w-0 shrink-0 cursor-pointer group"
         >
           <span className="text-xs font-bold text-zinc-500 group-hover:text-emerald-600 transition-colors">
             {isError ? '정보 확인 실패' : '운행 정보 없음'}
@@ -400,10 +400,32 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
     return cleanMsg;
   };
 
+  const getSubwayStationCountText = (item: typeof item1) => {
+    if (item.isRealtime === false) {
+      if (isItemEndedOrFirstTrain(item)) {
+        return '운행종료';
+      }
+      return '시간표';
+    }
+
+    const rawMsg = item.arvlMsg2 || item.statusText || '';
+    if (!rawMsg) return '';
+    let cleanMsg = rawMsg.replace(/\s*\([^)]*\)/g, '').trim();
+    cleanMsg = cleanMsg.replace(/\[?(\d+)\]?번째\s*전역/g, '$1전역');
+    cleanMsg = cleanMsg.replace(/\[(.*?)\]/g, '$1');
+    cleanMsg = cleanMsg.replace(/^\d+분\s*/g, '').trim();
+    cleanMsg = cleanMsg.replace(/\[?급행\]?/g, '').trim();
+    // 방면 및 행선지 문구 제거
+    cleanMsg = cleanMsg.replace(/[가-힣0-9a-zA-Z]+(방면|행)\s*/g, '').trim();
+    return cleanMsg;
+  };
+
   const timeText1 = formatItemTime(item1);
   const locText1 = getLocationText(item1);
+  const subwayStationText1 = getSubwayStationCountText(item1);
   const timeText2 = item2 ? formatItemTime(item2) : null;
   const locText2 = item2 ? getLocationText(item2) : null;
+  const subwayStationText2 = item2 ? getSubwayStationCountText(item2) : null;
 
   const isRealtime = item1.isRealtime !== false;
   const isEnded1 = !isRealtime && isItemEndedOrFirstTrain(item1);
@@ -433,9 +455,9 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
             ? `운행종료 안내 (첫차: ${timeText1}) - 클릭하여 노선도 보기`
             : `시간표 기준 운행 정보 (${timeText1}) - 클릭하여 지하철 노선도 보기`
         }
-        className="flex flex-col items-end justify-center min-w-0 shrink-0 cursor-pointer group select-none"
+        className="flex flex-col items-end justify-center w-full min-w-0 shrink-0 cursor-pointer group select-none"
       >
-        {/* 메인 카운트다운 타이머 & 상태 */}
+        {/* 메인 카운트다운 타이머 & 상태 (남은 시간 + 남은 정거장 수만 표시) */}
         <div className="flex items-center gap-1.5 leading-none">
           <span
             style={isRealtime && isCanBoard1 && subwayColor ? { color: subwayColor } : undefined}
@@ -450,23 +472,11 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
           >
             {timeText1}
           </span>
-          <div className="flex items-center gap-1 text-[11px] font-semibold text-zinc-600 bg-zinc-100/90 px-1.5 py-0.5 rounded-md border border-zinc-200/60">
-            {locText1 && locText1 !== timeText1 && (
-              <span className="tabular-nums">{locText1}</span>
-            )}
-            {locText1 && locText1 !== timeText1 && (
-              <span className="text-zinc-300">·</span>
-            )}
-            {!isCanBoard1 && !isEnded1 ? (
-              <span className="text-amber-600 font-bold">당역종착</span>
-            ) : isExpress1 ? (
-              <span className="text-rose-600 font-bold">급행</span>
-            ) : !isRealtime ? (
-              <span className="text-zinc-600 font-semibold">{isEnded1 ? '첫차' : '시간표'}</span>
-            ) : (
-              <span className="text-zinc-500 font-medium">일반</span>
-            )}
-          </div>
+          {subwayStationText1 && subwayStationText1 !== timeText1 && (
+            <div className="flex items-center text-[11px] font-semibold text-zinc-600 bg-zinc-100/90 px-1.5 py-0.5 rounded-md border border-zinc-200/60">
+              <span className="tabular-nums">{subwayStationText1}</span>
+            </div>
+          )}
         </div>
 
         {/* 2번째 열차 도착 보조 정보 or 노선도 힌트 */}
@@ -474,7 +484,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
           {timeText2 && !isEnded1 ? (
             <span className="tabular-nums">
               다음 <strong className="font-semibold text-zinc-600">{timeText2}</strong>
-              {locText2 && locText2 !== timeText2 && ` (${locText2})`}
+              {subwayStationText2 && subwayStationText2 !== timeText2 && ` (${subwayStationText2})`}
             </span>
           ) : !isRealtime && item1.minutesLeft !== undefined && item1.minutesLeft > 0 && item1.minutesLeft < 999 ? (
             <span className="tabular-nums text-zinc-500">

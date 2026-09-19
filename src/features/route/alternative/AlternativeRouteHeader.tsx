@@ -82,6 +82,7 @@ export function AlternativeRouteHeader({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="absolute z-[1000] left-0 top-full mt-2 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
                 >
                   <p className="font-bold text-[13px] mb-1">{originPlace.place_name}</p>
@@ -134,6 +135,7 @@ export function AlternativeRouteHeader({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="absolute z-[1000] right-0 top-full mt-2 w-60 p-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white text-[12px] font-medium rounded-xl shadow-xl backdrop-blur-sm tooltip-content text-left border border-white/15 pointer-events-auto"
                 >
                   <p className="font-bold text-[13px] mb-1">{destPlace.place_name}</p>

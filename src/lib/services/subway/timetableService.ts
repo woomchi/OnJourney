@@ -20,6 +20,11 @@ import {
   isSuinbundangStation,
   isSuinbundangLine,
 } from './suinbundangTimetableService';
+import {
+  getNextTrainFromGyeonggangTimetable,
+  isGyeonggangStation,
+  isGyeonggangLine,
+} from './gyeonggangTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -331,7 +336,7 @@ export async function calculateNextTrainFromTimetable(
   }
 
   // 1. 수인분당선 노선이 명시적으로 요청되었거나 수인분당선 전용 역인 경우 수인분당선 시간표 최우선 조회
-  if (isSuinbundangLine(lineId) || (isSuinbundangStation(stationName) && !normalizeLineNumber(lineId))) {
+  if (isSuinbundangLine(lineId) || (isSuinbundangStation(stationName) && !normalizeLineNumber(lineId) && !isGyeonggangLine(lineId))) {
     const suinTrain = getNextTrainFromSuinbundangTimetable({
       stationName,
       updnLine,
@@ -344,7 +349,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 2. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 2. 경강선 노선이 명시적으로 요청되었거나 경강선 전용 역인 경우 경강선 시간표 최우선 조회
+  if (isGyeonggangLine(lineId) || (isGyeonggangStation(stationName) && !normalizeLineNumber(lineId) && !isSuinbundangLine(lineId))) {
+    const ggTrain = getNextTrainFromGyeonggangTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (ggTrain) {
+      return ggTrain;
+    }
+  }
+
+  // 3. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -354,7 +373,7 @@ export async function calculateNextTrainFromTimetable(
     return seoulTrain;
   }
 
-  // 3. 서울 1~9호선에 없는 환승/공유역(왕십리, 선릉, 수서 등) 수인분당선 시간표 2차 조회
+  // 4. 서울 1~9호선에 없는 환승/공유역(왕십리, 선릉, 수서 등) 수인분당선 시간표 조회
   if (isSuinbundangStation(stationName)) {
     const suinTrain = getNextTrainFromSuinbundangTimetable({
       stationName,
@@ -368,6 +387,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 4. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 5. 경강선 환승역(판교, 성남, 이매 등) 경강선 시간표 조회
+  if (isGyeonggangStation(stationName)) {
+    const ggTrain = getNextTrainFromGyeonggangTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (ggTrain) {
+      return ggTrain;
+    }
+  }
+
+  // 6. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

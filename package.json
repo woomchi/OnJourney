@@ -20,6 +20,7 @@
     "build:busan-timetable": "python scripts/build-busan-timetable.py",
     "build:daegu-timetable": "node scripts/build-daegu-timetable.mjs",
     "build:donghae-timetable": "python scripts/build-donghae-timetable.py",
+    "build:gyeonggang-timetable": "python scripts/build-gyeonggang-timetable.py",
     "build:suinbundang-timetable": "python scripts/build-suinbundang-timetable.py",
     "clean": "npx rimraf .next"
   },

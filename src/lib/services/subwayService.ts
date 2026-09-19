@@ -66,6 +66,19 @@ export {
   SUINBUNDANG_UNIQUE_STATIONS,
 } from './subway/suinbundangTimetableService';
 
+// ─── 경강선 공식 시간표 Re-export ─────────────────────────────────────────────
+export {
+  getNextTrainFromGyeonggangTimetable,
+  getGyeonggangTimetableList,
+  loadGyeonggangStationTimetable,
+  isGyeonggangStation,
+  isGyeonggangLine,
+  resolveOfficialGyeonggangStationName,
+  resolveGyeonggangDirection,
+  GYEONGGANG_STATIONS,
+  GYEONGGANG_UNIQUE_STATIONS,
+} from './subway/gyeonggangTimetableService';
+
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {
   calculateSubwayETADynamic,

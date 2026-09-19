@@ -56,6 +56,12 @@ import {
   isArexLine,
   isArexExclusiveStation,
 } from './arexTimetableService';
+import {
+  getNextTrainFromSillimTimetable,
+  isSillimStation,
+  isSillimLine,
+  isSillimExclusiveStation,
+} from './sillimTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -478,7 +484,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 9. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 9. 신림선 노선이 명시적으로 요청되었거나 신림선 전용 고유역인 경우 신림선 시간표 최우선 조회
+  if (isSillimLine(lineId) || (isSillimExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
+    const sillimTrain = getNextTrainFromSillimTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (sillimTrain) {
+      return sillimTrain;
+    }
+  }
+
+  // 10. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -600,6 +620,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 14. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 14. 신림선 환승역(샛강, 대방, 보라매, 신림) 신림선 시간표 조회
+  if (isSillimStation(stationName)) {
+    const sillimTrain = getNextTrainFromSillimTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (sillimTrain) {
+      return sillimTrain;
+    }
+  }
+
+  // 15. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

@@ -159,6 +159,21 @@ export {
   AREX_UNIQUE_STATIONS,
 } from './subway/arexTimetableService';
 
+// ─── 신림선 공식 시간표 Re-export ─────────────────────────────────────────────
+export {
+  getSillimNextTrain,
+  getNextTrainFromSillimTimetable,
+  getSillimTimetableList,
+  loadSillimStationTimetable,
+  isSillimStation,
+  isSillimLine,
+  isSillimExclusiveStation,
+  resolveOfficialSillimStationName,
+  resolveSillimDirection,
+  SILLIM_STATIONS,
+  SILLIM_UNIQUE_STATIONS,
+} from './subway/sillimTimetableService';
+
 
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {

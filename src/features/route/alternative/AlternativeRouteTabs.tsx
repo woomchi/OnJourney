@@ -2,6 +2,7 @@
 
 import React, { useRef, useCallback } from 'react';
 import ScrollContainer from 'react-indiana-drag-scroll';
+import { motion } from 'framer-motion';
 
 interface AlternativeRouteTabsProps {
   activeTab: 'public' | 'car' | 'walk';
@@ -39,39 +40,46 @@ export function AlternativeRouteTabs({
 
   return (
     <>
-
-
       <div className={`px-5 ${isMobile ? 'pt-1.5 pb-1' : 'pt-4 pb-2'} flex-shrink-0 flex flex-col gap-1.5`}>
-        {/* 데스크톱 전용 탭 바 */}
-        {!isMobile && (
-          <div className="flex bg-zinc-50 p-1 rounded-xl border border-zinc-100">
-            {(['public', 'car', 'walk'] as const).map((tab) => {
-              const label = tab === 'public' ? '대중교통' : tab === 'car' ? '차량' : '도보';
-              const isActive = activeTab === tab;
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(tab);
-                    setActiveSubTab('추천');
-                    setDisplayLimit(3);
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className={`
-                    flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer
-                    ${isActive
-                      ? 'bg-white text-blue-600 shadow-sm border border-zinc-200'
-                      : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100/50 border border-transparent'
-                    }
-                  `}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {/* 이동 수단 탭 바 (대안 카드 스크롤 영역 위 상단 배치) */}
+        <div
+          className="flex bg-zinc-100/90 p-1 rounded-xl border border-zinc-200/60 relative"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {(['public', 'car', 'walk'] as const).map((tab) => {
+            const label = tab === 'public' ? '대중교통' : tab === 'car' ? '차량' : '도보';
+            const icon = tab === 'public' ? '🚌' : tab === 'car' ? '🚗' : '🚶';
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab);
+                  setActiveSubTab('추천');
+                  setDisplayLimit(3);
+                }}
+                className={`
+                  relative flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-colors duration-200 cursor-pointer select-none flex items-center justify-center gap-1.5
+                  ${isActive
+                    ? 'text-blue-600'
+                    : 'text-zinc-500 hover:text-zinc-800 active:bg-zinc-200/50'
+                  }
+                `}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeAlternativeTab"
+                    className="absolute inset-0 bg-white rounded-lg shadow-xs border border-zinc-200/80 z-0"
+                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                  />
+                )}
+                <span className="relative z-10 text-[13px] leading-none">{icon}</span>
+                <span className="relative z-10">{label}</span>
+              </button>
+            );
+          })}
+        </div>
 
         {/* 대중교통 카테고리 서브탭 칩 목록 */}
         {activeTab === 'public' && subTabs.length > 1 && (

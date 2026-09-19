@@ -15,7 +15,6 @@ import { useAlternativeRoutes, isRouteMatch } from './alternative/hooks/useAlter
 import { AlternativeRouteHeader } from './alternative/AlternativeRouteHeader';
 import { AlternativeRouteTabs } from './alternative/AlternativeRouteTabs';
 import { AlternativeRouteCard } from './alternative/AlternativeRouteCard';
-import { FloatingTabButtons } from './alternative/FloatingTabButtons';
 
 import type { Place } from '@/types/journey';
 
@@ -96,7 +95,7 @@ export default function AlternativeRoutePanel({
     : (typeof snap === 'string' && snap.endsWith('vh') ? windowHeight * (parseFloat(snap) / 100) + 20 : parsedSnap);
 
   const contentMaxHeight = isMobile && snapPx > 0
-    ? `${snapPx - 120}px`
+    ? `${Math.max(0, snapPx - 150)}px`
     : '100%';
 
   useEffect(() => {
@@ -156,7 +155,7 @@ export default function AlternativeRoutePanel({
     <div
       ref={scrollContainerRef}
       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative bg-white px-5 pt-1"
-      style={{ paddingBottom: isMobile ? '7.5rem' : '2.5rem', maxHeight: contentMaxHeight }}
+      style={{ paddingBottom: isMobile ? '2rem' : '2.5rem', maxHeight: contentMaxHeight }}
       onPointerDown={isMobile ? handlePointerDown : undefined}
       onTouchStart={isMobile ? handleTouchStart : undefined}
       onTouchMove={isMobile ? handleTouchMove : undefined}
@@ -260,19 +259,10 @@ export default function AlternativeRoutePanel({
           onExited={onExited}
         >
           <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-route" />
-          <div className="flex flex-col relative w-full h-full min-h-0 pb-[60px] bg-white">
+          <div className="flex flex-col relative w-full h-full min-h-0 bg-white">
             {listContent}
           </div>
         </CustomBottomSheet>
-
-        {isOpen && (
-          <FloatingTabButtons
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            setActiveSubTab={setActiveSubTab}
-            setDisplayLimit={setDisplayLimit}
-          />
-        )}
       </>
     );
   }

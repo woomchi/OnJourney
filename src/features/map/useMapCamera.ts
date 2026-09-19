@@ -67,6 +67,12 @@ export function useMapCamera({
   const lastFittedHeightRef = useRef<number | undefined>(undefined);
   const lastFittedPlacesWidthRef = useRef<number | undefined>(undefined);
   const lastFittedPlacesHeightRef = useRef<number | undefined>(undefined);
+  const lastFittedFocusBoundsRef = useRef<string>('');
+  const lastFittedDataStringRef = useRef<string>('');
+  const lastFocusStateRef = useRef<boolean>(false);
+  const isInitialFitRef = useRef<boolean>(true);
+  const prevFocusedSegmentRef = useRef<string | null>(null);
+  const fitTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 1. Offset을 고려하여 좌표로 이동 (panTo)
   const panToWithOffset = useCallback((naverMap: naver.maps.Map, coord: { lat: number; lng: number }) => {
@@ -99,7 +105,7 @@ export function useMapCamera({
     }
   }, [windowHeight]);
 
-  const lastFittedFocusBoundsRef = useRef<string>('');
+
 
   // Helper function to validate that bounds are reasonable and not too extreme
   const validateBounds = useCallback((bounds: LatLngBoundsLiteral): boolean => {
@@ -244,11 +250,7 @@ export function useMapCamera({
     performFullJourneyFit();
   }, [focusedSegment, alternativeSegment, performFullJourneyFit, places, directionsCache, activeJourney?.transport_type, hoveredAlternativeRoute, setFocusBounds, setFocusedStep, map]);
 
-  const lastFittedDataStringRef = useRef<string>('');
-  const lastFocusStateRef = useRef<boolean>(false);
-  const isInitialFitRef = useRef<boolean>(true);
-  const prevFocusedSegmentRef = useRef<string | null>(null);
-  const fitTimerRef = useRef<NodeJS.Timeout | null>(null);
+
 
   // focusedSegment가 변경되거나 해제(null)될 때마다 fitBounds 캐시 및 전체 여정 핏팅 캐시를 무효화
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState } from 'react';
 import type { DirectionStep } from '@/types/journey';
 import FittedDuration from '@/components/places/FittedDuration';
 
@@ -17,7 +17,6 @@ export default function RouteTimelineGaugeBar({ steps, className = '' }: RouteTi
   const [hasMoved, setHasMoved] = useState(false);
 
   const validSteps = (steps || []).filter((s) => s.duration > 0);
-  if (validSteps.length === 0) return null;
 
   // 비율 계산 (Power Curve 기법)
   const COMPRESS_POWER = 0.3;
@@ -83,6 +82,8 @@ export default function RouteTimelineGaugeBar({ steps, className = '' }: RouteTi
   const handleMouseUpOrLeave = () => {
     isDragging.current = false;
   };
+
+  if (validSteps.length === 0) return null;
 
   return (
     <div

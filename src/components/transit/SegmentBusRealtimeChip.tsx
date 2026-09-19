@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useRealtimeTransit } from '@/hooks/useRealtimeTransit';
@@ -143,19 +143,25 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     [stationName]
   );
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(timer);
+  }, []);
+
   const liveStationCount = useMemo(() => {
     if (!cleanBusNo || !busLiveStationsAwayMap) return undefined;
     const cleanNo = cleanBusNo.toUpperCase();
     if (stationId) {
       const byId = busLiveStationsAwayMap[`bus:${cleanNo}:${stationId}`];
-      if (byId && Date.now() - byId.updatedAt < BUS_LIVE_STATIONS_TTL_MS) return byId.stationsAway;
+      if (byId && now - byId.updatedAt < BUS_LIVE_STATIONS_TTL_MS) return byId.stationsAway;
     }
     if (cleanTargetStation) {
       const byName = busLiveStationsAwayMap[`bus:${cleanNo}:${cleanTargetStation}`];
-      if (byName && Date.now() - byName.updatedAt < BUS_LIVE_STATIONS_TTL_MS) return byName.stationsAway;
+      if (byName && now - byName.updatedAt < BUS_LIVE_STATIONS_TTL_MS) return byName.stationsAway;
     }
     return undefined;
-  }, [busLiveStationsAwayMap, cleanBusNo, stationId, cleanTargetStation]);
+  }, [busLiveStationsAwayMap, cleanBusNo, stationId, cleanTargetStation, now]);
   const setBusLineMapTarget = useJourneyStore((state) => state.setBusLineMapTarget);
 
   const inferredCoordRegion = useMemo(() => {

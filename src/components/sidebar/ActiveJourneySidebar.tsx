@@ -92,7 +92,7 @@ export default function ActiveJourneySidebar({ activeJourney, scrollProgress }: 
     if (prevJourneyIdRef.current !== activeJourney?.id) {
       prevJourneyIdRef.current = activeJourney?.id;
       setEditMode(false);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setSelectedPlaceIds([]);
     }
   }, [activeJourney?.id, setEditMode]);

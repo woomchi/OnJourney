@@ -252,7 +252,7 @@ export function calculateJourneyBounds(
     const activeRoute = getDefaultRoute(
       origin,
       dest,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       segmentData as any,
       transportType as 'public' | 'car' | 'walk'
     );

@@ -273,7 +273,7 @@ export function getNextTrainsFromDaeguTimetable(
   const dayType = resolveDaeguDayType(now);
 
   // 키 조회 (예: "1_UP_WEEKDAY", "대경선_DOWN_HOLIDAY")
-  let scheduleKey = `${lineNum}_${direction}_${dayType}`;
+  const scheduleKey = `${lineNum}_${direction}_${dayType}`;
   let items = timetableData[scheduleKey] || [];
 
   // 대경선 토요일의 경우 HOLIDAY 키로 매핑 시도

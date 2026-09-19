@@ -73,7 +73,7 @@ export function parseOdsaySubwayTimeList(timeNodes: any[]): ScheduleItem[] {
       const parenMatch = cleanEntry.match(/\((.*?)\)/);
       const isExpress = cleanEntry.includes('[') || cleanEntry.includes('급행');
 
-      let trainNo = '';
+      const trainNo = '';
       let endSubwayStationNm = '';
 
       if (parenMatch) {

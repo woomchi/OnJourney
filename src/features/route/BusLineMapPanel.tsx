@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Bus, ArrowDown, ArrowUp, Navigation, Info } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Bus, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBusLinePositions } from '@/hooks/useBusLinePositions';
 import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
@@ -12,6 +12,8 @@ import { BusPosition, BusLineStation, BusLineMapTarget } from '@/types/journey';
 import { calculateHaversineDistanceMeter } from '@/lib/utils/geoUtils';
 import { useSnapScrollBridge } from '@/hooks/ui/useSnapScrollBridge';
 import { parseSnapVal } from '@/lib/utils/snapUtils';
+
+const ROW_HEIGHT_PX = 48;
 
 export interface BusLineMapPanelProps {
   isOpen: boolean;
@@ -998,7 +1000,6 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
   );
 
   // ─── 2. 단일 통합 노선도 & 비율적 Absolute Overlay 타임라인 ───────────────
-  const ROW_HEIGHT_PX = 48;
 
   const listContent = (
     <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useReducer } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -25,27 +25,32 @@ export function useMapPadding(isMobile: boolean) {
     }))
   );
 
-  const windowWidthRef = useRef<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
-  const windowHeightRef = useRef<number>(typeof window !== 'undefined' ? window.innerHeight : 800);
-  const [paddingVersion, forceUpdatePadding] = useReducer((x) => x + 1, 0);
+  const [windowDimensions, setWindowDimensions] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }));
 
-  const lastNonMaximizedSnapPointRef = useRef<string | number | null>('294px');
+  const [lastNonMaximizedSnapPoint, setLastNonMaximizedSnapPoint] = useState<string | number>('294px');
+  const [prevSnapPoint, setPrevSnapPoint] = useState<string | number | null>(drawerSnapPoint);
 
-  useEffect(() => {
+  // Sync last non-maximized snap point during render without useEffect
+  if (drawerSnapPoint !== prevSnapPoint) {
+    setPrevSnapPoint(drawerSnapPoint);
     if (!isDrawerMaximized && drawerSnapPoint !== 1 && drawerSnapPoint !== null) {
-      lastNonMaximizedSnapPointRef.current = drawerSnapPoint;
+      setLastNonMaximizedSnapPoint(drawerSnapPoint);
     }
-  }, [isDrawerMaximized, drawerSnapPoint]);
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     let resizeTimer: NodeJS.Timeout;
     const handleResize = () => {
-      windowWidthRef.current = window.innerWidth;
-      windowHeightRef.current = window.innerHeight;
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        forceUpdatePadding();
+        setWindowDimensions({
+          width: window.innerWidth,
+          height: window.innerHeight,
+        });
       }, 100);
     };
     window.addEventListener('resize', handleResize);
@@ -56,8 +61,8 @@ export function useMapPadding(isMobile: boolean) {
   }, []);
 
   const currentMapPadding = useMemo(() => {
-    const windowWidth = windowWidthRef.current;
-    const windowHeight = windowHeightRef.current;
+    const windowWidth = windowDimensions.width;
+    const windowHeight = windowDimensions.height;
 
     const sidebarWidth = Math.max(380, Math.min(480, windowWidth * 0.35));
     const mapWidth = windowWidth - sidebarWidth;
@@ -80,7 +85,7 @@ export function useMapPadding(isMobile: boolean) {
     let bottomPadding = isMobile ? (mapWidth < 600 ? 30 : 45) : 32;
 
     const effectiveSnapPoint = isDrawerMaximized
-      ? lastNonMaximizedSnapPointRef.current || (activeJourney ? '370px' : '360px')
+      ? lastNonMaximizedSnapPoint || (activeJourney ? '370px' : '360px')
       : drawerSnapPoint;
 
     if (isMobile) {
@@ -128,11 +133,11 @@ export function useMapPadding(isMobile: boolean) {
       bottom: bottomPadding,
       left: leftPadding,
     };
-  }, [focusedSegment, alternativeSegment, paddingVersion, isMobile, drawerSnapPoint, isDrawerMaximized, guidePanelState, activeJourney, isSearchMode]);
+  }, [focusedSegment, alternativeSegment, isMobile, drawerSnapPoint, isDrawerMaximized, guidePanelState, activeJourney, isSearchMode, windowDimensions, lastNonMaximizedSnapPoint]);
 
   return {
     currentMapPadding,
-    windowWidth: windowWidthRef.current,
-    windowHeight: windowHeightRef.current,
+    windowWidth: windowDimensions.width,
+    windowHeight: windowDimensions.height,
   };
 }

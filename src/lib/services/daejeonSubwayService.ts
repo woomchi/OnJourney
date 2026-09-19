@@ -407,7 +407,7 @@ export async function fetchDaejeonSubwayArrivals(
   const currentSeconds = kstHours * 3600 + kstMinutes * 60 + kstSeconds;
 
   // 2. 전체 시간표 캐시 조회
-  let allItems = await fetchAllDaejeonTimeTable();
+  const allItems = await fetchAllDaejeonTimeTable();
 
   // 3. 전체 시간표가 비어있는 경우 개별 역 시간표 폴백 시도
   // API 스펙: drctType '1'=상행(판암), '2'=하행(반석)
@@ -531,7 +531,7 @@ export async function fetchDaejeonStationUpcomingTimetable(
   const currentSeconds = kstHours * 3600 + kstMinutes * 60 + kstSeconds;
 
   // 1. 전체 시간표 캐시 조회
-  let allItems = await fetchAllDaejeonTimeTable();
+  const allItems = await fetchAllDaejeonTimeTable();
 
   // 2. 캐시 부재 시 역별 조회 폴백
   // API 스펙: drctType '1'=상행(판암), '2'=하행(반석)

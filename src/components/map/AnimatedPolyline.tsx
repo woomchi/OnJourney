@@ -74,8 +74,6 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
 
     hasAnimatedRef.current = true;
 
-    let timeoutId: NodeJS.Timeout;
-
     // Reset animation path imperative and update React state for initial position
     const startPath = [fullPath[0]];
     setCurrentPath(startPath);
@@ -166,7 +164,7 @@ export default function AnimatedPolyline({ path, delay = 0, duration = 800, skip
       requestRef.current = requestAnimationFrame(animate);
     };
 
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
        requestRef.current = requestAnimationFrame(animate);
     }, delay);
 

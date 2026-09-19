@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useMapUIStore } from '@/stores/map-store';
@@ -96,13 +96,21 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
 
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
-  const [recentQueries, setRecentQueries] = useState<string[]>([]);
+  const addedIds = useMemo(() => new Set((activeJourney?.places || []).map(p => p.id)), [activeJourney?.places]);
+  const [recentQueries, setRecentQueries] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('onjourney_recent_queries');
+        if (saved) return JSON.parse(saved);
+      } catch { }
+    }
+    return [];
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const recentTagsRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchHeaderRef = useRef<HTMLDivElement>(null);
-  const [windowHeight, setWindowHeight] = useState(0);
+  const [windowHeight, setWindowHeight] = useState<number>(() => typeof window !== 'undefined' ? window.innerHeight : 0);
 
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -110,7 +118,6 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
   const [hasDragged, setHasDragged] = useState(false);
 
   useEffect(() => {
-    setWindowHeight(window.innerHeight);
     const handleResize = () => setWindowHeight(window.innerHeight);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -171,16 +178,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     }
   };
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('onjourney_recent_queries');
-      if (saved) {
-        try {
-          setRecentQueries(JSON.parse(saved));
-        } catch (e) { }
-      }
-    }
-  }, []);
+
 
   useEffect(() => {
     if (activeSearchPlace && typeof window !== 'undefined') {
@@ -199,12 +197,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     }
   }, [activeSearchPlace]);
 
-  // 외부(MapArea)에서 지도 영역 내 재검색 요청 시 처리
-  useEffect(() => {
-    if (searchTriggerCount > 0 && searchQuery.trim().length > 0) {
-      runSearch(searchQuery, true);
-    }
-  }, [searchTriggerCount]);
+
 
   const saveRecentQuery = useCallback((q: string) => {
     if (!q || q.trim().length === 0) return;
@@ -274,10 +267,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     }
   }, [isSearchMode, clearRecommendedPlaces, setActiveSearchPlace, setSearchQuery, setSearchResults]);
 
-  // 이미 여정에 추가된 장소 ID 동기화
-  useEffect(() => {
-    setAddedIds(new Set((activeJourney?.places || []).map(p => p.id)));
-  }, [activeJourney?.places]);
+
 
   // 1. 입력 중 추천 검색어(자동완성) 드롭다운용 API 조회
   const fetchSuggestions = useCallback(async (q: string) => {
@@ -313,11 +303,11 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         return;
       }
 
-      let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`, {
+      const res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`, {
         signal: controller.signal,
       });
       if (currentSuggestionId !== activeSuggestionId.current) return;
-      let payload = await res.json();
+      const payload = await res.json();
       let items: PlaceResult[] = payload.data?.items || [];
 
       if (items.length < 3) {
@@ -415,7 +405,7 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         return;
       }
 
-      let res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`);
+      const res = await fetch(`/api/places?query=${encodeURIComponent(q)}${boundsParam}${coordParam}${transportParam}`);
       if (currentSearchId !== activeSearchId.current) return;
       let payload: any = null;
       try {
@@ -499,7 +489,14 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
         setIsSearchLoading(false);
       }
     }
-  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, activeJourney?.transport_type, setDrawerSnapPoint, debouncedFetchSuggestions, setCacheItem]);
+  }, [clearRecommendedPlaces, setRecommendedPlaces, setActiveSearchPlace, setFocusBounds, mapCenterCoord, activeJourney?.transport_type, setDrawerSnapPoint, debouncedFetchSuggestions, setCacheItem, setIsSearchLoading]);
+
+  // 외부(MapArea)에서 지도 영역 내 재검색 요청 시 처리
+  useEffect(() => {
+    if (searchTriggerCount > 0 && searchQuery.trim().length > 0) {
+      runSearch(searchQuery, true);
+    }
+  }, [searchTriggerCount, searchQuery, runSearch]);
 
   const dismissKeyboard = useCallback(() => {
     if (searchInputRef.current) {
@@ -633,21 +630,11 @@ export default function SearchOverlay({ activeJourney }: SearchOverlayProps) {
     }
 
     if (addedIds.has(item.id)) {
-      setAddedIds(prev => { const n = new Set(prev); n.delete(item.id); return n; });
-      try {
-        await removePlace(item.id);
-      } catch {
-        setAddedIds(prev => new Set([...prev, item.id]));
-      }
+      await removePlace(item.id);
       return;
     }
 
-    setAddedIds(prev => new Set([...prev, item.id]));
-    try {
-      await addPlace(place);
-    } catch {
-      setAddedIds(prev => { const n = new Set(prev); n.delete(item.id); return n; });
-    }
+    await addPlace(place);
   };
 
   const isMaxPlacesReached = (activeJourney?.places?.length ?? 0) >= MAX_JOURNEY_PLACES;

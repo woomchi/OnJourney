@@ -363,7 +363,7 @@ export const SegmentSubwayRealtimeChip: React.FC<SegmentSubwayRealtimeChipProps>
       return `${item.minutesLeft}분 후`;
     }
     if (item.statusText) {
-      let clean = item.statusText.replace(/\[.*?\]/g, '').trim();
+      const clean = item.statusText.replace(/\[.*?\]/g, '').trim();
       if (/^\d+분$/.test(clean)) {
         return `${clean} 후`;
       }

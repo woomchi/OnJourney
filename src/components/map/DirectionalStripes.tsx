@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { Polyline } from 'react-naver-maps';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
-import { calculateHaversineDistance } from '@/lib/services/naverMapRouteService';
 
 // 두 위경도 좌표 간 방위각(Bearing)을 0~360도 각도로 구하는 함수 (Great Circle)
 export function getBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -158,14 +157,9 @@ export default function DirectionalStripes({
     return points;
   }, [places, directionsCache, transportType, focusedSegment, focusedStep, navermaps, alternativeSegment, hoveredAlternativeRoute]);
 
-  const lastVisiblePointsRef = useRef<ArrowAnchor[]>([]);
-
   // 2. Viewport-based culling with LOD stride
   const visiblePoints = useMemo(() => {
     if (arrowAnchors.length === 0) return [];
-    if (isMapDragging && lastVisiblePointsRef.current.length > 0) {
-      return lastVisiblePointsRef.current;
-    }
 
     let stride = 1;
     if (zoomLevel >= 15) stride = 2;
@@ -177,25 +171,18 @@ export default function DirectionalStripes({
     const sampledAnchors = arrowAnchors.filter((_, idx) => idx % stride === 0);
 
     if (!mapBounds || !navermaps) {
-      const res = sampledAnchors.slice(0, 80);
-      lastVisiblePointsRef.current = res;
-      return res;
+      return sampledAnchors.slice(0, 80);
     }
     try {
       const filtered = sampledAnchors.filter(pt =>
         isPositionInBounds(pt.position, mapBounds, 0.05)
       );
-
-      const res = filtered.slice(0, 50);
-      lastVisiblePointsRef.current = res;
-      return res;
+      return filtered.slice(0, 50);
     } catch (e) {
       console.warn('[DirectionalStripes] Failed to filter points by bounds:', e);
-      const res = sampledAnchors.slice(0, 50);
-      lastVisiblePointsRef.current = res;
-      return res;
+      return sampledAnchors.slice(0, 50);
     }
-  }, [arrowAnchors, mapBounds, navermaps, zoomLevel, isMapDragging]);
+  }, [arrowAnchors, mapBounds, navermaps, zoomLevel]);
 
   // 3. Batch chevron geometries by transportType & zIndex to reduce Polyline React nodes from 80+ to 1~3
   const batchedChevrons = useMemo(() => {

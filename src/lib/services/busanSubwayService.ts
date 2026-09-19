@@ -379,7 +379,7 @@ export async function fetchBusanStationUpcomingTimetable(
   }
 
   return upcoming.slice(0, count).map((train, idx) => {
-    let diffSec = train.seconds - currentSec;
+    const diffSec = train.seconds - currentSec;
     const minutesLeft = diffSec <= 45 ? 0 : Math.round(diffSec / 60);
     const depTimeStr = formatSecondsToTime(train.seconds);
     const dest = train.destStation || '종착';

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -172,31 +173,29 @@ function LogoGearToPlayAnimation({ status }: { status: 'loading' | 'success' | '
 
 function NaverCallbackContent() {
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const errorParam = searchParams.get('error');
+  const codeParam = searchParams.get('code');
+  const stateParam = searchParams.get('state');
+
+  const initialError = errorParam
+    ? '네이버 로그인 요청이 취소되었거나 거절되었습니다.'
+    : !codeParam
+      ? '네이버 인증 코드가 유효하지 않습니다.'
+      : '';
+
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() => (initialError ? 'error' : 'loading'));
+  const [errorMessage, setErrorMessage] = useState<string>(() => initialError);
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
-    const error = searchParams.get('error');
-
-    if (error) {
-      setStatus('error');
-      setErrorMessage('네이버 로그인 요청이 취소되었거나 거절되었습니다.');
-      return;
-    }
-
-    if (!code) {
-      setStatus('error');
-      setErrorMessage('네이버 인증 코드가 유효하지 않습니다.');
+    if (initialError || !codeParam) {
       return;
     }
 
     const processAuth = async () => {
       try {
         const res = await fetch(
-          `/api/auth/naver/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(
-            state || '',
+          `/api/auth/naver/callback?code=${encodeURIComponent(codeParam)}&state=${encodeURIComponent(
+            stateParam || '',
           )}&format=json`,
           {
             headers: {
@@ -320,13 +319,13 @@ function NaverCallbackContent() {
                     {errorMessage}
                   </p>
                 </div>
-                <a
+                <Link
                   href="/"
                   className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-sm transition-all shadow-lg cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4 text-white" />
                   <span>메인 화면으로 돌아가기</span>
-                </a>
+                </Link>
               </motion.div>
             )}
           </AnimatePresence>

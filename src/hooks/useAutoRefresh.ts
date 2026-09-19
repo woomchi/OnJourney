@@ -75,14 +75,22 @@ export function useAutoRefresh({
     sharedTransitRefreshStore.updateFetching(sharedKey, isFetching);
   }, [sharedKey, isFetching]);
 
-  const [state, setState] = useState<AutoRefreshState>({
+  const [state, setState] = useState<AutoRefreshState>(() => ({
     status: autoStart ? 'active' : 'idle',
     refreshCount: 0,
     countdown: intervalSeconds,
     sessionId: Date.now(),
-  });
+  }));
 
   const [isDisplayLoading, setIsDisplayLoading] = useState<boolean>(isFetching);
+  const [prevFetching, setPrevFetching] = useState<boolean>(isFetching);
+  if (isFetching !== prevFetching) {
+    setPrevFetching(isFetching);
+    if (isFetching) {
+      setIsDisplayLoading(true);
+    }
+  }
+
   const fetchStartTimeRef = useRef<number>(0);
   const finishTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -147,7 +155,6 @@ export function useAutoRefresh({
     if (isFetching) {
       clearFinishTimer();
       fetchStartTimeRef.current = Date.now();
-      setIsDisplayLoading(true);
     } else {
       // isFetching이 false가 되었을 때 경과 시간 계산
       const elapsed = Date.now() - fetchStartTimeRef.current;

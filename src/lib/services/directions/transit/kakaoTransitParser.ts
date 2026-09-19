@@ -209,7 +209,7 @@ export function parseKakaoTransitResponse(
     const rawSteps = route.steps || [];
 
     // 1. 카카오 세부 스텝 변환
-    let steps: DirectionStep[] = rawSteps.map((s, sIdx) => parseStepToDirectionStep(s, sIdx));
+    const steps: DirectionStep[] = rawSteps.map((s, sIdx) => parseStepToDirectionStep(s, sIdx));
 
     // 2. 출발지 문전 도보 보정 (Door-to-First-Stop)
     const firstStep = steps[0];

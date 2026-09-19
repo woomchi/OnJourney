@@ -357,7 +357,7 @@ export function calculateTimeBetweenStations(
           forwardSec = (totalSec - curInfo.cumulativeSeconds) + tgtInfo.cumulativeSeconds;
         }
 
-        let backwardSec = totalSec - forwardSec;
+        const backwardSec = totalSec - forwardSec;
 
         if (wayCode === '1') {
           return Math.max(60, forwardSec);

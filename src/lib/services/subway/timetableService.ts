@@ -35,6 +35,11 @@ import {
   isGyeongchunStation,
   isGyeongchunLine,
 } from './gyeongchunTimetableService';
+import {
+  getNextTrainFromEverlineTimetable,
+  isEverlineStation,
+  isEverlineLine,
+} from './everlineTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -401,7 +406,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 5. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 5. 에버라인 노선이 명시적으로 요청되었거나 에버라인 전용 역인 경우 에버라인 시간표 최우선 조회
+  if (isEverlineLine(lineId) || (isEverlineStation(stationName) && !normalizeLineNumber(lineId) && !isSuinbundangLine(lineId) && !isGyeonggangLine(lineId) && !isGyeonguiLine(lineId) && !isGyeongchunLine(lineId))) {
+    const evTrain = getNextTrainFromEverlineTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (evTrain) {
+      return evTrain;
+    }
+  }
+
+  // 6. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -467,6 +486,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 10. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 10. 에버라인 환승역(기흥) 에버라인 시간표 조회
+  if (isEverlineStation(stationName)) {
+    const evTrain = getNextTrainFromEverlineTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (evTrain) {
+      return evTrain;
+    }
+  }
+
+  // 11. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

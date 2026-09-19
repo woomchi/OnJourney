@@ -87,7 +87,7 @@ export function resolveSubwayNameForApi(subwayIdOrName: string): string {
   if (clean === '1092' || clean.includes('우이신설') || clean.includes('우이')) return '우이신설선';
   if (clean === '1093' || clean.includes('서해')) return '서해선';
   if (clean.includes('신림') || clean === '1095') return '신림선';
-  if (clean.includes('에버') || clean.includes('용인')) return '에버라인';
+  if (clean === '1079' || clean.includes('에버') || clean.includes('용인')) return '에버라인';
   if (clean.includes('의정부')) return '의정부경전철';
   if (clean.includes('GTX-A') || clean.includes('gtx-a') || clean === '1094') return 'GTX-A';
 
@@ -171,8 +171,8 @@ export function resolveCandidateLineCodes(subwayId: string): string[] {
   if (cleanId === '1070' || cleanId.includes('인천2') || cleanId.includes('인천 2')) {
     return ['1070', '인천2호선', '인천 2호선'];
   }
-  if (cleanId.includes('에버') || cleanId.includes('용인')) {
-    return ['에버라인', '용인경전철'];
+  if (cleanId === '1079' || cleanId.includes('에버') || cleanId.includes('용인')) {
+    return ['1079', '에버라인', '용인경전철'];
   }
   if (cleanId.includes('의정부')) {
     return ['의정부경전철'];

@@ -105,6 +105,19 @@ export {
   GYEONGCHUN_UNIQUE_STATIONS,
 } from './subway/gyeongchunTimetableService';
 
+// ─── 에버라인 공식 시간표 Re-export ───────────────────────────────────────────
+export {
+  getNextTrainFromEverlineTimetable,
+  getEverlineTimetableList,
+  loadEverlineStationTimetable,
+  isEverlineStation,
+  isEverlineLine,
+  resolveOfficialEverlineStationName,
+  resolveEverlineDirection,
+  EVERLINE_STATIONS,
+  EVERLINE_UNIQUE_STATIONS,
+} from './subway/everlineTimetableService';
+
 
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {

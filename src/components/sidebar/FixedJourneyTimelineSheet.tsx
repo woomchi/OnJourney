@@ -400,24 +400,11 @@ export default function FixedJourneyTimelineSheet({
     });
 
     if (st.type === 'origin') {
-      // 출발 단계: 출발 위치와 첫 번째 이동수단 경로를 함께 조망 (도보 경로 가시거리 확보)
-      if (st.step?.pathPoints && st.step.pathPoints.length > 0) {
-        const allLats = [st.lat, ...st.step.pathPoints.map((p: { lat: number }) => p.lat)];
-        const allLngs = [st.lng, ...st.step.pathPoints.map((p: { lng: number }) => p.lng)];
-        const minLat = Math.min(...allLats);
-        const maxLat = Math.max(...allLats);
-        const minLng = Math.min(...allLngs);
-        const maxLng = Math.max(...allLngs);
-        setFocusBounds({
-          sw: { lat: minLat - 0.003, lng: minLng - 0.003 },
-          ne: { lat: maxLat + 0.003, lng: maxLng + 0.003 },
-        });
-      } else {
-        setFocusBounds({
-          sw: { lat: st.lat - 0.0003, lng: st.lng - 0.0003 },
-          ne: { lat: st.lat + 0.0003, lng: st.lng + 0.0003 },
-        });
-      }
+      // 출발 단계: 출발 장소 마커를 중심으로 상세 시야(줌 19) 확보
+      setFocusBounds({
+        sw: { lat: st.lat - 0.0003, lng: st.lng - 0.0003 },
+        ne: { lat: st.lat + 0.0003, lng: st.lng + 0.0003 },
+      });
     } else if (st.type === 'dest') {
       setFocusBounds({
         sw: { lat: st.lat - 0.0003, lng: st.lng - 0.0003 },

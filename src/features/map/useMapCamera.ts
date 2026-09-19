@@ -407,7 +407,8 @@ export function useMapCamera({
   // 4. focusBounds 상태 변화 감지 시 지도의 뷰포트를 해당 범위로 핏팅
   useEffect(() => {
     if (!map || !focusBounds) return;
-    if (isDrawerMaximized) return;
+    // 여정 재생 및 단계별 추적(focusedStep) 중일 때는 바텀시트 최대화 잔류 상태와 무관하게 뷰포트 추적을 허용
+    if (isDrawerMaximized && !focusedStep) return;
 
     const navermaps = typeof window !== 'undefined' && window.naver?.maps;
     if (!navermaps) return;
@@ -419,33 +420,50 @@ export function useMapCamera({
     }
 
     const padding = currentMapPaddingRef.current;
-    
+    const stepKey = focusedStep ? `${focusedStep.originId}-${focusedStep.destId}-${focusedStep.stepIndex}-${focusedStep.subType || ''}` : 'none';
+    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${windowWidth}-${windowHeight}-${JSON.stringify(padding)}-${stepKey}`;
+    if (lastFittedFocusBoundsRef.current === currentFocusString) return;
+
     // 미세한 브라우저 주소창 토글에 의한 높이 변화(10% 미만)는 fitBounds 재계산을 무시하여 줌 레벨이 튀는 것을 방지
+    // 단, bounds나 stepKey가 달라졌을 때는 화면 크기 변화와 상관없이 항상 카메라 이동을 수행해야 함
     const lastWidth = lastFittedWidthRef.current;
     const lastHeight = lastFittedHeightRef.current;
     const widthChangedSignificantly = lastWidth === undefined || Math.abs(windowWidth - lastWidth) / lastWidth > 0.1;
     const heightChangedSignificantly = lastHeight === undefined || Math.abs(windowHeight - lastHeight) / lastHeight > 0.1;
     const isDimensionChange = lastWidth !== undefined && lastHeight !== undefined && (windowWidth !== lastWidth || windowHeight !== lastHeight);
 
-    if (isDimensionChange && !widthChangedSignificantly && !heightChangedSignificantly) {
+    const lastBoundsKey = lastFittedFocusBoundsRef.current ? lastFittedFocusBoundsRef.current.split('-')[0] : '';
+    const isSameBounds = lastBoundsKey === JSON.stringify(focusBounds);
+    if (isSameBounds && isDimensionChange && !widthChangedSignificantly && !heightChangedSignificantly) {
       return;
     }
 
-    const stepKey = focusedStep ? `${focusedStep.originId}-${focusedStep.destId}-${focusedStep.stepIndex}-${focusedStep.subType || ''}` : 'none';
-    const currentFocusString = JSON.stringify(focusBounds) + `-${isMobile}-${windowWidth}-${windowHeight}-${JSON.stringify(padding)}-${stepKey}`;
-    if (lastFittedFocusBoundsRef.current === currentFocusString) return;
-
     map.setOptions({ padding });
 
-    const expanded = expandBounds(focusBounds, 0.01);
-    const bounds = new navermaps.LatLngBounds(
-      new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
-      new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
-    );
+    const latDiff = Math.abs(focusBounds.ne.lat - focusBounds.sw.lat);
+    const lngDiff = Math.abs(focusBounds.ne.lng - focusBounds.sw.lng);
+    const isSinglePoint = !!focusedStep && latDiff <= 0.001 && lngDiff <= 0.001;
 
-    // 여정 재생 및 단계별 경로 추적(focusedStep) 시 polyline 및 보행 경로가 상세하게 확대되어 보이도록 maxZoom을 19로 적용 (Web 및 PWA 공통 적용)
-    const maxZoom = focusedStep ? 19 : 16;
-    map.fitBounds(bounds, { maxZoom });
+    if (isSinglePoint) {
+      // 단일 지점(승차/하차/도보 시작점 등) 추적 시:
+      // expandBounds(0.01)의 최소 크기 보장(180m)과 PWA/모바일 좁은 화면 패딩으로 인해 fitBounds가 줌 레벨을 16~17로 축소하는 것을 방지
+      // 패딩이 적용된 지도 중심에 타겟을 맞추고 정확히 줌 19로 상세 표시 (Web 및 PWA 공통 보장)
+      const centerLat = (focusBounds.sw.lat + focusBounds.ne.lat) / 2;
+      const centerLng = (focusBounds.sw.lng + focusBounds.ne.lng) / 2;
+      const targetLatLng = new navermaps.LatLng(centerLat, centerLng);
+      map.setCenter(targetLatLng);
+      map.setZoom(19);
+    } else {
+      const expanded = expandBounds(focusBounds, 0.01);
+      const bounds = new navermaps.LatLngBounds(
+        new navermaps.LatLng(expanded.sw.lat, expanded.sw.lng),
+        new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
+      );
+
+      // 다중 경로(도보 전체 구간 등) 또는 구간 전체일 때의 fitBounds
+      const maxZoom = focusedStep ? 19 : 16;
+      map.fitBounds(bounds, { maxZoom });
+    }
 
     lastFittedFocusBoundsRef.current = currentFocusString;
     lastFittedWidthRef.current = windowWidth;

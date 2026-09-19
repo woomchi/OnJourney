@@ -54,7 +54,20 @@ export {
   calculateNextTrainFromTimetable,
 } from './subway/timetableService';
 
+// ─── 수인분당선 공식 시간표 Re-export ─────────────────────────────────────────
+export {
+  getNextTrainFromSuinbundangTimetable,
+  getSuinbundangTimetableList,
+  loadSuinbundangStationTimetable,
+  isSuinbundangStation,
+  isSuinbundangLine,
+  resolveOfficialSuinbundangStationName,
+  SUINBUNDANG_STATIONS,
+  SUINBUNDANG_UNIQUE_STATIONS,
+} from './subway/suinbundangTimetableService';
+
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {
   calculateSubwayETADynamic,
 } from './subway/etaCalculator';
+

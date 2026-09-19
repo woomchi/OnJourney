@@ -70,12 +70,14 @@ export interface SubwayRawRow {
 // ─── 내부 헬퍼 ────────────────────────────────────────────────────────────────
 
 /**
- * 2차 Fallback(일괄 API 캐시) ➡️ 3차 Fallback(서울 공식 시간표 / 배차간격)을 순차적으로 시도합니다.
+ * 2차 Fallback(일괄 API 캐시) ➡️ 3차 Fallback(서울 공식 시간표 / 수인분당선 / 배차간격)을 순차적으로 시도합니다.
  */
 async function fallbackToTotalOrTimetable(
   cleanStation: string,
   wayCode?: string,
-  subwayId?: string
+  subwayId?: string,
+  destination?: string,
+  headsign?: string
 ): Promise<SubwayArrival[]> {
   try {
     const secondaryArrivals = await getStationArrivalsFromTotalCache(cleanStation, wayCode);
@@ -85,7 +87,7 @@ async function fallbackToTotalOrTimetable(
   } catch (e) {
     console.warn(`[subwayRealtimeService] 2차 일괄 API 캐시 조회 실패 (${cleanStation}):`, e);
   }
-  return buildTimetableFallback(cleanStation, wayCode, subwayId);
+  return buildTimetableFallback(cleanStation, wayCode, subwayId, destination, headsign);
 }
 
 /**
@@ -94,7 +96,9 @@ async function fallbackToTotalOrTimetable(
 async function buildTimetableFallback(
   cleanStation: string,
   wayCode?: string,
-  subwayId?: string
+  subwayId?: string,
+  destination?: string,
+  headsign?: string
 ): Promise<SubwayArrival[]> {
   const isLine2 = subwayId === '1002' || subwayId === '2';
   const directions = wayCode
@@ -104,7 +108,13 @@ async function buildTimetableFallback(
   const results: SubwayArrival[] = [];
 
   for (const updnLine of directions) {
-    const nextTrain = await calculateNextTrainFromTimetable(cleanStation, updnLine, subwayId);
+    const nextTrain = await calculateNextTrainFromTimetable(
+      cleanStation,
+      updnLine,
+      subwayId,
+      destination,
+      headsign
+    );
     if (nextTrain) {
       results.push({
         subwayId: subwayId || '',
@@ -271,7 +281,7 @@ export async function fetchSubwayRealtime(
     } catch (e) {
       console.warn(`[subwayRealtimeService] 대전 시각표 조회 실패 (${cleanStation}):`, e);
     }
-    return buildTimetableFallback(cleanStation, wayCode, subwayId);
+    return buildTimetableFallback(cleanStation, wayCode, subwayId, destination, headsign);
   }
 
   // 1-2. 부산 도시철도 전용 분기 (공공데이터포털 GW 열차시각표 기반)
@@ -290,7 +300,7 @@ export async function fetchSubwayRealtime(
     } catch (e) {
       console.warn(`[subwayRealtimeService] 부산 시각표 조회 실패 (${cleanStation}):`, e);
     }
-    return buildTimetableFallback(cleanStation, wayCode, subwayId);
+    return buildTimetableFallback(cleanStation, wayCode, subwayId, destination, headsign);
   }
 
   // 1-3. 대구 도시철도 및 대경선 전용 분기 (로컬 압축 DB 기반)
@@ -309,7 +319,7 @@ export async function fetchSubwayRealtime(
     } catch (e) {
       console.warn(`[subwayRealtimeService] 대구 시각표 조회 실패 (${cleanStation}):`, e);
     }
-    return buildTimetableFallback(cleanStation, wayCode, subwayId);
+    return buildTimetableFallback(cleanStation, wayCode, subwayId, destination, headsign);
   }
 
   // 1-4. 광주 도시철도 (1호선) 전용 분기 (로컬 압축 DB 기반)
@@ -328,7 +338,7 @@ export async function fetchSubwayRealtime(
     } catch (e) {
       console.warn(`[subwayRealtimeService] 광주 시각표 조회 실패 (${cleanStation}):`, e);
     }
-    return buildTimetableFallback(cleanStation, wayCode, subwayId);
+    return buildTimetableFallback(cleanStation, wayCode, subwayId, destination, headsign);
   }
 
   // ─ 2. 수도권(seoul / unknown) 실시간 API 조회 ─
@@ -336,7 +346,7 @@ export async function fetchSubwayRealtime(
 
   // API 키 미설정 → 2차/3차 Fallback
   if (!apiKey || apiKey === 'PLACEHOLDER' || apiKey.trim() === '') {
-    return fallbackToTotalOrTimetable(cleanStation, wayCode, subwayId);
+    return fallbackToTotalOrTimetable(cleanStation, wayCode, subwayId, destination, headsign);
   }
 
   const apiStationName = resolveSeoulApiStationName(cleanStation, subwayId);
@@ -448,7 +458,7 @@ export async function fetchSubwayRealtime(
 
     // ─ 유효 결과 없음 → 2차/3차 Fallback ─
     if (rows.length === 0) {
-      return fallbackToTotalOrTimetable(cleanStation, wayCode, subwayId);
+      return fallbackToTotalOrTimetable(cleanStation, wayCode, subwayId, destination, headsign);
     }
 
     // ─ ETA 및 메타데이터 계산 ─
@@ -544,7 +554,7 @@ export async function fetchSubwayRealtime(
 
     // 모든 실시간 열차가 지나쳤으면 Fallback으로 자동 전환
     if (validArrivals.length === 0) {
-      return fallbackToTotalOrTimetable(cleanStation, wayCode, subwayId);
+      return fallbackToTotalOrTimetable(cleanStation, wayCode, subwayId, destination, headsign);
     }
 
     // 1차: canBoard(직통 가능 여부: true 우선), 2차: arrivalPriority, 3차: minutesLeft, 4차: 급행 우선
@@ -578,7 +588,7 @@ export async function fetchSubwayRealtime(
     }
 
     // 오류 발생 시에도 Fallback으로 서비스 연속성 유지
-    return fallbackToTotalOrTimetable(cleanStation, wayCode, subwayId);
+    return fallbackToTotalOrTimetable(cleanStation, wayCode, subwayId, destination, headsign);
   } finally {
     clearTimeout(timeoutId);
   }

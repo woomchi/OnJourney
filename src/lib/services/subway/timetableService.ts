@@ -15,6 +15,11 @@ import {
   resolveInOutTag,
   toOperationalMinutes,
 } from './seoulTimetableService';
+import {
+  getNextTrainFromSuinbundangTimetable,
+  isSuinbundangStation,
+  isSuinbundangLine,
+} from './suinbundangTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -256,12 +261,15 @@ function calculateHeadwayFallback(
 /**
  * 정적 시간표 캐시에서 다음 열차 도착 정보를 계산합니다.
  * 1. 서울교통공사 공식 시간표 (1~9호선 405개 역) 우선 조회
- * 2. 해당 역 데이터가 없거나 비어있으면 배차간격(Headway) 기반 Fallback 반환
+ * 2. 수인분당선 공식 시간표 (63개 역) 조회
+ * 3. 해당 역 데이터가 없거나 비어있으면 배차간격(Headway) 기반 Fallback 반환
  */
 export async function calculateNextTrainFromTimetable(
   stationName: string,
   updnLine: string,
-  lineId?: string | number
+  lineId?: string | number,
+  destination?: string,
+  headsign?: string
 ): Promise<{
   trainNo: string;
   endSubwayStationNm: string;
@@ -322,7 +330,21 @@ export async function calculateNextTrainFromTimetable(
     };
   }
 
-  // 1. 서울교통공사 공식 시간표 우선 조회 (1~9호선 405개 역)
+  // 1. 수인분당선 노선이 명시적으로 요청되었거나 수인분당선 전용 역인 경우 수인분당선 시간표 최우선 조회
+  if (isSuinbundangLine(lineId) || (isSuinbundangStation(stationName) && !normalizeLineNumber(lineId))) {
+    const suinTrain = getNextTrainFromSuinbundangTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (suinTrain) {
+      return suinTrain;
+    }
+  }
+
+  // 2. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -332,6 +354,20 @@ export async function calculateNextTrainFromTimetable(
     return seoulTrain;
   }
 
-  // 2. 서울 공식 시간표에 없는 역(코레일 전용 역, 지방 도시철도 등)의 경우 배차간격 기반 가상 도착 정보 반환
+  // 3. 서울 1~9호선에 없는 환승/공유역(왕십리, 선릉, 수서 등) 수인분당선 시간표 2차 조회
+  if (isSuinbundangStation(stationName)) {
+    const suinTrain = getNextTrainFromSuinbundangTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (suinTrain) {
+      return suinTrain;
+    }
+  }
+
+  // 4. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

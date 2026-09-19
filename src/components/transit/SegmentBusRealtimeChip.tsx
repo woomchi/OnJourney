@@ -199,6 +199,7 @@ export const SegmentBusRealtimeChip: React.FC<SegmentBusRealtimeChipProps> = ({
     region: effectiveRegion,
     stationId: String(effectiveStationId),
     stationName,
+    busNo: cleanBusNo,
     cityCode: effectiveCityCode,
     destination,
     headsign,

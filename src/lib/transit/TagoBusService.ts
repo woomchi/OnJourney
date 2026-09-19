@@ -35,6 +35,12 @@ const ROUTE_ID_CACHE = new LruTtlCache<string, { routeId: string; routeIds?: str
   defaultTtlMs: 24 * 60 * 60 * 1000,
 });
 
+// 정류소별 경유 노선 목록 캐시 (cityCode_nodeId -> routeNo 배열, 24시간 LRU 캐시, 최대 500개)
+const STTN_THRGH_CACHE = new LruTtlCache<string, string[]>({
+  maxSize: 500,
+  defaultTtlMs: 24 * 60 * 60 * 1000,
+});
+
 // 좌표 기반 정류소 역조회 인플라이트 중복 방지 맵 (동시 진입 시 동일 좌표 단일 호출 보장)
 const IN_FLIGHT_COORDS_LOOKUPS = new Map<string, Promise<{ nodeId: string; cityCode?: string; arsNo?: string } | null>>();
 
@@ -53,6 +59,8 @@ export class TagoBusService {
   // 국토교통부 정류소정보조회 서비스 (BusSttnInfoInqireService) 공식 엔드포인트
   private static readonly SEARCH_STTN_NO_LIST_URL =
     'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList';
+  private static readonly STTN_THRGH_ROUTE_URL =
+    'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnThrghRouteList';
   private static readonly SEARCH_CRDNT_PRXMT_STTN_LIST_URL =
     'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList';
 
@@ -728,6 +736,322 @@ export class TagoBusService {
     }
 
     return mergedPositions;
+  }
+
+  /**
+   * 국토교통부(TAGO) getSttnNoList 엔드포인트를 통해 정류소명 기준 정류소 목록 검색
+   */
+  public static async getSttnListByName(
+    cityCode: string,
+    stationName: string
+  ): Promise<Array<{ nodeId: string; stationName: string; arsNo?: string; lat: number; lng: number }>> {
+    const apiKey = getTransitApiKey('tago');
+    if (!apiKey || !stationName) return [];
+
+    let cleanName = stationName.includes('.') ? stationName.split('.').pop() || stationName : stationName;
+    cleanName = cleanName.replace(/\([^)]*\)/g, '').trim();
+    cleanName = cleanName.replace(/\s*\d+번출구$/, '').trim();
+    cleanName = cleanName.replace(/\s*(본원|정문|후문|동문|서문|동광장|서광장|대덕캠퍼스|보운캠퍼스)$/, '').trim();
+    if (cleanName.length < 2) cleanName = stationName.trim();
+
+    const cacheKey = `sttnList_${cityCode}_${cleanName}`;
+    const cached = NODE_ID_CACHE.get(cacheKey);
+    if (cached && (cached as any).sttnList) {
+      return (cached as any).sttnList;
+    }
+
+    try {
+      const encodedKey = getEncodedServiceKey('tago');
+      const searchUrl = `${this.SEARCH_STTN_NO_LIST_URL}?serviceKey=${encodedKey}&cityCode=${encodeURIComponent(cityCode)}&nodeNm=${encodeURIComponent(cleanName)}&pageNo=1&numOfRows=20&_type=json`;
+
+      const res = await fetch(searchUrl, {
+        headers: { Accept: 'application/json, text/xml, */*' },
+        signal: AbortSignal.timeout(3500),
+        next: { revalidate: 86400 },
+      });
+
+      if (!res.ok) return [];
+      const text = await res.text();
+      const { items } = parseXmlOrJsonItems<Record<string, unknown>>(text);
+      if (!items || items.length === 0) return [];
+
+      const list = items
+        .filter((it) => it.nodeid)
+        .map((it) => ({
+          nodeId: safeString(it.nodeid),
+          stationName: safeString(it.nodenm, cleanName),
+          arsNo: it.nodeno ? safeString(it.nodeno) : undefined,
+          lat: safeNumber(it.gpslati, 0) ?? 0,
+          lng: safeNumber(it.gpslong, 0) ?? 0,
+        }));
+
+      if (list.length > 0) {
+        NODE_ID_CACHE.set(cacheKey, { nodeId: list[0].nodeId, cityCode, sttnList: list } as any);
+      }
+      return list;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.warn('[TagoBusService] getSttnListByName 실패:', errMsg);
+      return [];
+    }
+  }
+
+  /**
+   * 국토교통부(TAGO) getSttnThrghRouteList 엔드포인트를 통해 특정 정류소의 경유 노선 번호 목록 조회 (24시간 캐싱)
+   */
+  public static async getSttnThrghRoutes(
+    cityCode: string,
+    nodeId: string
+  ): Promise<string[]> {
+    const apiKey = getTransitApiKey('tago');
+    if (!apiKey || !nodeId) return [];
+
+    const cleanNodeId = nodeId.trim();
+    const cacheKey = `thrgh_${cityCode}_${cleanNodeId}`;
+    const cached = STTN_THRGH_CACHE.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const encodedKey = getEncodedServiceKey('tago');
+      const requestUrl = `${this.STTN_THRGH_ROUTE_URL}?serviceKey=${encodedKey}&cityCode=${encodeURIComponent(cityCode)}&nodeid=${encodeURIComponent(cleanNodeId)}&pageNo=1&numOfRows=100&_type=json`;
+
+      const res = await fetch(requestUrl, {
+        headers: { Accept: 'application/json, text/xml, */*' },
+        signal: AbortSignal.timeout(3500),
+        next: { revalidate: 86400 },
+      });
+
+      if (!res.ok) return [];
+      const text = await res.text();
+      const { items } = parseXmlOrJsonItems<Record<string, unknown>>(text);
+      if (!items || items.length === 0) return [];
+
+      const routeNos: string[] = [];
+      for (const it of items) {
+        const rNo = it.routeno !== undefined && it.routeno !== null ? String(it.routeno).trim() : '';
+        if (rNo && !routeNos.includes(rNo)) {
+          routeNos.push(rNo);
+        }
+      }
+
+      if (routeNos.length > 0) {
+        STTN_THRGH_CACHE.set(cacheKey, routeNos);
+      }
+      return routeNos;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.warn('[TagoBusService] getSttnThrghRoutes 실패:', errMsg);
+      return [];
+    }
+  }
+
+  /**
+   * getSttnNoList 결과 중 타겟 버스(busNo)가 실제로 경유/운행하는 정류소를 탐색
+   * 1순위: getSttnThrghRouteList (공식 인가 경유 노선 목록, 24시간 캐싱, 시간대 무관 100% 정밀 판별)
+   * 2순위: getArrivalInfo (실시간 도착 정보 기반 폴백)
+   */
+  public static async resolveStationWithTargetBus(params: {
+    cityCode: string;
+    stationName: string;
+    busNo?: string;
+    lat?: number;
+    lng?: number;
+  }): Promise<{ nodeId: string; stationName: string; arsNo?: string } | null> {
+    const { cityCode, stationName, busNo, lat, lng } = params;
+    const candidates = await this.getSttnListByName(cityCode, stationName);
+    if (!candidates || candidates.length === 0) return null;
+
+    if (candidates.length === 1) {
+      return {
+        nodeId: candidates[0].nodeId,
+        stationName: candidates[0].stationName,
+        arsNo: candidates[0].arsNo,
+      };
+    }
+
+    let matchingCandidates = candidates;
+
+    if (busNo) {
+      const cleanTargetBusNo = busNo.trim();
+
+      // [1순위] getSttnThrghRouteList를 통해 공식 인가 경유 노선 여부 확인 (24시간 캐싱 적용)
+      const thrghPromises = candidates.map(async (sttn) => {
+        try {
+          const routes = await this.getSttnThrghRoutes(cityCode, sttn.nodeId);
+          const hasBus = routes.some(
+            (r) => r === cleanTargetBusNo || r.replace(/[^0-9가-힣-]/g, '') === cleanTargetBusNo.replace(/[^0-9가-힣-]/g, '')
+          );
+          return { sttn, hasBus };
+        } catch {
+          return { sttn, hasBus: false };
+        }
+      });
+
+      const thrghResults = await Promise.all(thrghPromises);
+      const withThrghBus = thrghResults.filter((r) => r.hasBus).map((r) => r.sttn);
+
+      if (withThrghBus.length > 0) {
+        matchingCandidates = withThrghBus;
+      } else {
+        // [2순위 Fallback] 경유노선 조회 실패 시 실시간 도착 정보(getArrivalInfo)로 보조 판별
+        const arrivalPromises = candidates.map(async (sttn) => {
+          try {
+            const arrData = await this.getArrivalInfo({
+              cityCode,
+              nodeId: sttn.nodeId,
+              stationName: sttn.stationName,
+            });
+            const hasBus = arrData.nextArrivals.some(
+              (b) => b.lineName === cleanTargetBusNo || b.lineName.includes(cleanTargetBusNo)
+            );
+            return { sttn, hasBus };
+          } catch {
+            return { sttn, hasBus: false };
+          }
+        });
+
+        const arrivalResults = await Promise.all(arrivalPromises);
+        const withArrivalBus = arrivalResults.filter((r) => r.hasBus).map((r) => r.sttn);
+        if (withArrivalBus.length > 0) {
+          matchingCandidates = withArrivalBus;
+        }
+      }
+    }
+
+    // 단일 매칭 시 즉시 반환
+    if (matchingCandidates.length === 1) {
+      return {
+        nodeId: matchingCandidates[0].nodeId,
+        stationName: matchingCandidates[0].stationName,
+        arsNo: matchingCandidates[0].arsNo,
+      };
+    }
+
+    // 3. 복수 후보일 경우 좌표(lat, lng)와 가장 가까운 정류소 선택
+    if (matchingCandidates.length > 1 && lat && lng) {
+      let bestStation = matchingCandidates[0];
+      let minDistance = Infinity;
+
+      for (const st of matchingCandidates) {
+        if (st.lat && st.lng) {
+          const dLat = (st.lat - lat) * (Math.PI / 180);
+          const dLng = (st.lng - lng) * (Math.PI / 180);
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat * (Math.PI / 180)) * Math.cos(st.lat * (Math.PI / 180)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const dist = 6371000 * c;
+
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestStation = st;
+          }
+        }
+      }
+
+      return {
+        nodeId: bestStation.nodeId,
+        stationName: bestStation.stationName,
+        arsNo: bestStation.arsNo,
+      };
+    }
+
+    return {
+      nodeId: matchingCandidates[0].nodeId,
+      stationName: matchingCandidates[0].stationName,
+      arsNo: matchingCandidates[0].arsNo,
+    };
+  }
+
+  /**
+   * 노선 번호(busNo)로 TAGO 경유 정류소 목록을 조회하여 일치하는 정류소 탐색
+   */
+  public static async findStationInRoute(
+    cityCode: string,
+    busNo: string,
+    stationName?: string,
+    lat?: number,
+    lng?: number
+  ): Promise<{ nodeId: string; stationName: string; arsNo?: string } | null> {
+    if (!busNo) return null;
+    const cleanNo = busNo.trim();
+    const routeId = await this.lookupTagoRouteId(cityCode, cleanNo);
+    if (!routeId) return null;
+
+    const routeData = await this.getRouteThroughStations(cityCode, routeId);
+    if (!routeData || !routeData.stations || routeData.stations.length === 0) return null;
+
+    const { stations } = routeData;
+    const cleanTargetName = stationName
+      ? stationName.replace(/정류소$|정류장$|역$/, '').replace(/\([^)]*\)/g, '').trim()
+      : '';
+
+    let candidates = stations;
+    if (cleanTargetName) {
+      const exactMatches = stations.filter((st) => {
+        const cleanStName = st.stationName.replace(/정류소$|정류장$|역$/, '').replace(/\([^)]*\)/g, '').trim();
+        return cleanStName === cleanTargetName;
+      });
+      if (exactMatches.length > 0) {
+        candidates = exactMatches;
+      } else {
+        const partialMatches = stations.filter((st) => {
+          const cleanStName = st.stationName.replace(/정류소$|정류장$|역$/, '').replace(/\([^)]*\)/g, '').trim();
+          return cleanStName.includes(cleanTargetName) || cleanTargetName.includes(cleanStName);
+        });
+        if (partialMatches.length > 0) {
+          candidates = partialMatches;
+        }
+      }
+    }
+
+    if (candidates.length === 1) {
+      return {
+        nodeId: candidates[0].stationId,
+        stationName: candidates[0].stationName,
+        arsNo: candidates[0].arsNo,
+      };
+    }
+
+    if (candidates.length > 1 && lat && lng) {
+      let bestStation = candidates[0];
+      let minDistance = Infinity;
+
+      for (const st of candidates) {
+        if (st.lat && st.lng) {
+          const dLat = (st.lat - lat) * (Math.PI / 180);
+          const dLng = (st.lng - lng) * (Math.PI / 180);
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat * (Math.PI / 180)) * Math.cos(st.lat * (Math.PI / 180)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const dist = 6371000 * c;
+
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestStation = st;
+          }
+        }
+      }
+
+      return {
+        nodeId: bestStation.stationId,
+        stationName: bestStation.stationName,
+        arsNo: bestStation.arsNo,
+      };
+    }
+
+    if (candidates.length > 0) {
+      return {
+        nodeId: candidates[0].stationId,
+        stationName: candidates[0].stationName,
+        arsNo: candidates[0].arsNo,
+      };
+    }
+
+    return null;
   }
 
   /**

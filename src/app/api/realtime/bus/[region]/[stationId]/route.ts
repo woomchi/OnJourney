@@ -13,6 +13,7 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const stationName = searchParams.get('stationName') || undefined;
+    const busNo = searchParams.get('busNo') || undefined;
     const cityCode = searchParams.get('cityCode') || undefined;
     const destination = searchParams.get('destination') || undefined;
     const headsign = searchParams.get('headsign') || undefined;
@@ -39,6 +40,7 @@ export async function GET(
       region: region || 'seoul',
       stationId,
       stationName,
+      busNo,
       cityCode,
       destination,
       headsign,

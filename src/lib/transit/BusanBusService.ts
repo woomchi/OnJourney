@@ -291,7 +291,7 @@ export class BusanBusService {
         const it = items[i];
         const stationSeq = safeNumber(it.bstopidx, i + 1) ?? (i + 1);
         const stationName = safeString(it.bstopnm, `정류소 ${i + 1}`);
-        const stationId = safeString(it.nodeid || it.bstopidx || i + 1);
+        const stationId = safeString(it.bstopid || it.nodeid || it.bstopidx || i + 1);
         const arsNo = it.arsno ? safeString(it.arsno) : undefined;
         const isTurning = it.rpoint === 1 || it.rpoint === '1';
 
@@ -422,6 +422,96 @@ export class BusanBusService {
       console.warn('[BusanBusService] getBusLinePositions 실패:', errMsg);
       return null;
     }
+  }
+
+  /**
+   * 부산 버스 노선(busNo)의 경유 정류소 목록에서 정류소명(stationName) 또는 좌표(lat, lng)와 일치하는 정류소 탐색
+   */
+  public static async findStationInRoute(
+    busNo: string,
+    stationName?: string,
+    lat?: number,
+    lng?: number
+  ): Promise<{ stationId: string; stationName: string; arsNo?: string } | null> {
+    if (!busNo) return null;
+    const cleanNo = cleanBusNumber(busNo);
+    const lineData = await this.getBusLinePositions({ busNo: cleanNo });
+    if (!lineData || !lineData.stations || lineData.stations.length === 0) {
+      return null;
+    }
+
+    const { stations } = lineData;
+    const cleanTargetName = stationName
+      ? stationName.replace(/정류소$|정류장$|역$/, '').replace(/\([^)]*\)/g, '').trim()
+      : '';
+
+    // 1. 정류소명 일치 후보군 필터링
+    let candidates = stations;
+    if (cleanTargetName) {
+      const exactMatches = stations.filter((st) => {
+        const cleanStName = st.stationName.replace(/정류소$|정류장$|역$/, '').replace(/\([^)]*\)/g, '').trim();
+        return cleanStName === cleanTargetName;
+      });
+
+      if (exactMatches.length > 0) {
+        candidates = exactMatches;
+      } else {
+        const partialMatches = stations.filter((st) => {
+          const cleanStName = st.stationName.replace(/정류소$|정류장$|역$/, '').replace(/\([^)]*\)/g, '').trim();
+          return cleanStName.includes(cleanTargetName) || cleanTargetName.includes(cleanStName);
+        });
+        if (partialMatches.length > 0) {
+          candidates = partialMatches;
+        }
+      }
+    }
+
+    if (candidates.length === 1) {
+      return {
+        stationId: candidates[0].stationId,
+        stationName: candidates[0].stationName,
+        arsNo: candidates[0].arsNo,
+      };
+    }
+
+    // 2. 후보가 여러 개(상행/하행 등)이고 좌표(lat, lng)가 주어진 경우 가장 가까운 정류소 선택
+    if (candidates.length > 1 && lat && lng) {
+      let bestStation = candidates[0];
+      let minDistance = Infinity;
+
+      for (const st of candidates) {
+        if (st.lat && st.lng) {
+          const dLat = (st.lat - lat) * (Math.PI / 180);
+          const dLng = (st.lng - lng) * (Math.PI / 180);
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat * (Math.PI / 180)) * Math.cos(st.lat * (Math.PI / 180)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const dist = 6371000 * c;
+
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestStation = st;
+          }
+        }
+      }
+
+      return {
+        stationId: bestStation.stationId,
+        stationName: bestStation.stationName,
+        arsNo: bestStation.arsNo,
+      };
+    }
+
+    if (candidates.length > 0) {
+      return {
+        stationId: candidates[0].stationId,
+        stationName: candidates[0].stationName,
+        arsNo: candidates[0].arsNo,
+      };
+    }
+
+    return null;
   }
 
   /**

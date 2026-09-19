@@ -5,6 +5,7 @@ export interface UseRealtimeTransitOptions {
   region: string;
   stationId: string;
   stationName?: string;
+  busNo?: string;
   cityCode?: string;
   destination?: string;
   headsign?: string;
@@ -18,6 +19,7 @@ export function useRealtimeTransit({
   region,
   stationId,
   stationName,
+  busNo,
   cityCode,
   destination,
   headsign,
@@ -33,10 +35,11 @@ export function useRealtimeTransit({
   const normalizedLng = isSpecialId && lng !== undefined ? Number(lng.toFixed(4)) : undefined;
 
   const query = useQuery({
-    queryKey: ['realtimeBus', region, stationId, stationName, cityCode, destination, headsign, normalizedLat, normalizedLng],
+    queryKey: ['realtimeBus', region, stationId, stationName, busNo, cityCode, destination, headsign, normalizedLat, normalizedLng],
     queryFn: async (): Promise<NormalizedRealtimeData> => {
       const params = new URLSearchParams();
       if (stationName) params.append('stationName', stationName);
+      if (busNo) params.append('busNo', busNo);
       if (cityCode) params.append('cityCode', cityCode);
       if (destination) params.append('destination', destination);
       if (headsign) params.append('headsign', headsign);

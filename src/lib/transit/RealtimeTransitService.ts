@@ -7,7 +7,7 @@ import { MergeService } from './MergeService';
 import { TagoBusService } from './TagoBusService';
 import { NormalizedRealtimeData } from '@/types/realtimeTransit';
 import { resolveBusRegion, resolveTagoCode } from '@/lib/utils/busRegionUtils';
-import { GYEONGGI_STATION_ID_PREFIXES } from '@/constants/transit';
+import { GYEONGGI_STATION_ID_PREFIXES, TAGO_CITY_CODES } from '@/constants/transit';
 import { inferRegionFromPlace } from '@/lib/utils/journeyUtils';
 import { getTransitApiKey } from './transitUtils';
 
@@ -15,6 +15,7 @@ export interface GetBusArrivalsParams {
   region: string;
   stationId: string;
   stationName?: string;
+  busNo?: string;
   cityCode?: string;
   lat?: number;
   lng?: number;
@@ -53,6 +54,7 @@ export class RealtimeTransitService {
     region,
     stationId,
     stationName = '정류소',
+    busNo,
     cityCode,
     lat,
     lng,
@@ -76,24 +78,41 @@ export class RealtimeTransitService {
       }
     }
 
-    // 0-0단계: stationId가 비어있거나 가상 ID('auto', 'none', '_')인 경우 좌표/정류소명 기반 공공 정류소 역조회
+    // 0-0단계: stationId가 비어있거나 가상 ID('auto', 'none', '_')인 경우
     const isSpecialId = !stationId || stationId === 'auto' || stationId === 'none' || stationId === '_' || !/[0-9]/.test(stationId);
-    if (isSpecialId && lat && lng) {
-      const apiKey = getTransitApiKey();
+    if (isSpecialId) {
+      const targetCityCode = resolvedCityCode || TAGO_CITY_CODES[normalizedRegion] || (normalizedRegion === 'busan' ? '21' : '11');
+
+      // [간소화 파이프라인] 국토교통부(TAGO) getSttnNoList 기반 타겟 버스 정류소 정밀 탐색
       try {
-        const coordsInfo = await TagoBusService.lookupTagoNodeIdByCoords(lat, lng, stationName, apiKey || undefined);
-        if (coordsInfo?.nodeId) {
-          effectiveStationId = coordsInfo.nodeId;
-          if (coordsInfo.cityCode) {
-            resolvedCityCode = coordsInfo.cityCode;
-            if (String(coordsInfo.cityCode).startsWith('31') || coordsInfo.nodeId.toUpperCase().startsWith('GGB')) {
-              normalizedRegion = 'gyeonggi';
+        const resolvedStop = await TagoBusService.resolveStationWithTargetBus({
+          cityCode: targetCityCode,
+          stationName,
+          busNo,
+          lat,
+          lng,
+        });
+        if (resolvedStop?.nodeId) {
+          effectiveStationId = resolvedStop.nodeId;
+        }
+      } catch (sttnErr: unknown) {
+        console.warn('[RealtimeTransitService] getSttnNoList 기반 정류소 식별 실패, 폴백 진행:', sttnErr);
+      }
+
+      // 폴백: 위에서 식별하지 못했고 좌표가 제공된 경우 기존 좌표 역조회
+      if (!effectiveStationId || effectiveStationId === 'auto') {
+        const apiKey = getTransitApiKey();
+        try {
+          const coordsInfo = await TagoBusService.lookupTagoNodeIdByCoords(lat!, lng!, stationName, apiKey || undefined);
+          if (coordsInfo?.nodeId) {
+            effectiveStationId = coordsInfo.nodeId;
+            if (coordsInfo.cityCode) {
+              resolvedCityCode = coordsInfo.cityCode;
             }
           }
+        } catch (lookupErr: unknown) {
+          console.warn('[RealtimeTransitService] 좌표 기반 정류소 역조회 실패:', lookupErr);
         }
-      } catch (lookupErr: unknown) {
-        const errMsg = lookupErr instanceof Error ? lookupErr.message : '알 수 없는 오류';
-        console.warn('[RealtimeTransitService] 좌표 기반 정류소 역조회 실패:', errMsg);
       }
     }
 

@@ -220,6 +220,21 @@ export {
   UIJEONGBU_UNIQUE_STATIONS,
 } from './subway/uijeongbuTimetableService';
 
+// ─── 인천 1호선 공식 시간표 Re-export ─────────────────────────────────────────
+export {
+  getIncheon1NextTrain,
+  getNextTrainFromIncheon1Timetable,
+  getIncheon1TimetableList,
+  loadIncheon1StationTimetable,
+  isIncheon1Station,
+  isIncheon1Line,
+  isIncheon1ExclusiveStation,
+  resolveOfficialIncheon1StationName,
+  resolveIncheon1Direction,
+  INCHEON_1_STATIONS,
+  INCHEON_1_UNIQUE_STATIONS,
+} from './subway/incheon1TimetableService';
+
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {
   calculateSubwayETADynamic,

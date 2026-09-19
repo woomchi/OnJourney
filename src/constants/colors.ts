@@ -206,7 +206,9 @@ export const SUBWAY_COLORS: Record<string, string> = {
   '의정부': '#FDA600',
   'GTX-A': '#9B51E0',
   // 인천 도시철도
+  '인천1호선': '#7CA8D5',
   '인천1': '#7CA8D5',
+  '인천2호선': '#ED8B00',
   '인천2': '#ED8B00',
   // 지방 도시철도
   '대전1': '#007448',

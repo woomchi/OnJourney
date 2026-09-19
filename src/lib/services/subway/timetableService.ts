@@ -83,6 +83,12 @@ import {
   isUijeongbuLine,
   isUijeongbuExclusiveStation,
 } from './uijeongbuTimetableService';
+import {
+  getNextTrainFromIncheon1Timetable,
+  isIncheon1Station,
+  isIncheon1Line,
+  isIncheon1ExclusiveStation,
+} from './incheon1TimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -561,7 +567,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 13. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 13. 인천 1호선 노선이 명시적으로 요청되었거나 인천 1호선 전용 고유역인 경우 인천 1호선 시간표 최우선 조회
+  if (isIncheon1Line(lineId) || (isIncheon1ExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
+    const incheon1Train = getNextTrainFromIncheon1Timetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (incheon1Train) {
+      return incheon1Train;
+    }
+  }
+
+  // 14. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -739,6 +759,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 18. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 18. 인천 1호선 환승역(계양, 부평구청, 부평, 인천시청, 원인재) 인천 1호선 시간표 조회
+  if (isIncheon1Station(stationName)) {
+    const incheon1Train = getNextTrainFromIncheon1Timetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (incheon1Train) {
+      return incheon1Train;
+    }
+  }
+
+  // 19. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

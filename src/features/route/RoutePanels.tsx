@@ -213,9 +213,10 @@ export function RoutePanels() {
                 stepIndex: lastIdx,
                 subType
               });
+              const offset = 0.0035;
               setFocusBounds({
-                sw: { lat: nextDestPlace.lat, lng: nextDestPlace.lng },
-                ne: { lat: nextDestPlace.lat, lng: nextDestPlace.lng }
+                sw: { lat: nextDestPlace.lat - offset, lng: nextDestPlace.lng - offset },
+                ne: { lat: nextDestPlace.lat + offset, lng: nextDestPlace.lng + offset }
               });
             } else {
               setFocusedStep(null);
@@ -251,9 +252,10 @@ export function RoutePanels() {
                 stepIndex: lastIdx,
                 subType
               });
+              const offset = 0.0035;
               setFocusBounds({
-                sw: { lat: prevDestPlace.lat, lng: prevDestPlace.lng },
-                ne: { lat: prevDestPlace.lat, lng: prevDestPlace.lng }
+                sw: { lat: prevDestPlace.lat - offset, lng: prevDestPlace.lng - offset },
+                ne: { lat: prevDestPlace.lat + offset, lng: prevDestPlace.lng + offset }
               });
             } else {
               setFocusedStep(null);

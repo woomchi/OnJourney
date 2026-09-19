@@ -206,7 +206,7 @@ export function useMapCamera({
             new window.naver.maps.LatLng(expanded.sw.lat, expanded.sw.lng),
             new window.naver.maps.LatLng(expanded.ne.lat, expanded.ne.lng)
           );
-          map.fitBounds(naverBounds, { maxZoom: 18 });
+          map.fitBounds(naverBounds, { maxZoom: 16 });
         }
         return;
       }
@@ -235,7 +235,7 @@ export function useMapCamera({
             new window.naver.maps.LatLng(expanded.sw.lat, expanded.sw.lng),
             new window.naver.maps.LatLng(expanded.ne.lat, expanded.ne.lng)
           );
-          map.fitBounds(naverBounds, { maxZoom: 18 });
+          map.fitBounds(naverBounds, { maxZoom: 16 });
         }
         return;
       }
@@ -442,7 +442,9 @@ export function useMapCamera({
       new navermaps.LatLng(expanded.ne.lat, expanded.ne.lng)
     );
 
-    map.fitBounds(bounds, { maxZoom: 18 });
+    // 여정 재생 및 단계별 경로 추적(focusedStep) 시 polyline이 마커에 가려지지 않고 도보 구간이 적당히 보이도록 maxZoom을 15로 제한
+    const maxZoom = focusedStep ? 15 : 16;
+    map.fitBounds(bounds, { maxZoom });
 
     lastFittedFocusBoundsRef.current = currentFocusString;
     lastFittedWidthRef.current = windowWidth;

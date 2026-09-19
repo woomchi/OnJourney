@@ -275,9 +275,10 @@ export function useRouteGuideNavigation({
       }
 
       if (lat !== undefined && lng !== undefined) {
+        const offset = 0.0035;
         setFocusBounds({
-          sw: { lat, lng },
-          ne: { lat, lng },
+          sw: { lat: lat - offset, lng: lng - offset },
+          ne: { lat: lat + offset, lng: lng + offset },
         });
       } else if (step && !step.isDestinationPage) {
         const bounds = calculateStepBounds(step);

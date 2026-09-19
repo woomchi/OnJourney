@@ -101,24 +101,28 @@ export class RealtimeTransitService {
     const upperStationId = effectiveStationId.toUpperCase();
     const pureId = effectiveStationId.replace(/[^0-9]/g, '');
 
-    if (upperStationId.startsWith('DJB')) {
-      normalizedRegion = 'daejeon';
-      resolvedCityCode = '25';
-    } else if (
-      upperStationId.startsWith('GGB') ||
-      (pureId.length === 9 && GYEONGGI_STATION_ID_PREFIXES.some((prefix) => pureId.startsWith(prefix)))
-    ) {
-      normalizedRegion = 'gyeonggi';
-      resolvedCityCode = '31';
-    } else if (upperStationId.startsWith('BSB')) {
+    if (upperStationId.startsWith('BSB')) {
       normalizedRegion = 'busan';
       resolvedCityCode = '21';
+    } else if (upperStationId.startsWith('DJB')) {
+      normalizedRegion = 'daejeon';
+      resolvedCityCode = '25';
+    } else if (upperStationId.startsWith('GGB')) {
+      normalizedRegion = 'gyeonggi';
+      resolvedCityCode = '31';
     } else if (upperStationId.startsWith('ICB') || upperStationId.startsWith('INB')) {
       normalizedRegion = 'incheon';
       resolvedCityCode = '23';
     } else if (upperStationId.startsWith('DGB')) {
       normalizedRegion = 'daegu';
       resolvedCityCode = '22';
+    } else if (
+      normalizedRegion !== 'busan' &&
+      pureId.length === 9 &&
+      GYEONGGI_STATION_ID_PREFIXES.some((prefix) => pureId.startsWith(prefix))
+    ) {
+      normalizedRegion = 'gyeonggi';
+      resolvedCityCode = '31';
     } else if (cityCode) {
       // 공공데이터포털(TAGO) 및 지자체 도시코드 매핑을 통한 보조 권역 교정
       resolvedCityCode = resolveTagoCode(cityCode);
@@ -153,20 +157,46 @@ export class RealtimeTransitService {
       });
     }
 
-    // 2단계: 부산 권역 (Primary: 부산 버스정보 API -> Fallback: TAGO)
+    // 2단계: 부산 권역 (지능형 병합: 부산 BIMS 마을/특화 + 국토교통부 TAGO 일반/시내버스 병렬 머지)
     if (normalizedRegion === 'busan') {
       try {
-        const busanResult = await BusanBusService.getArrivalInfo(effectiveStationId, stationName);
-        if (busanResult && busanResult.nextArrivals.length > 0) {
+        const [busanSettled, tagoSettled] = await Promise.allSettled([
+          BusanBusService.getArrivalInfo(effectiveStationId, stationName),
+          TagoBusService.getArrivalInfoSmartNodeTrigger({
+            cityCode: resolvedCityCode || '21',
+            region: normalizedRegion,
+            nodeId: effectiveStationId,
+            stationName,
+            lat,
+            lng,
+          }),
+        ]);
+
+        const busanResult = busanSettled.status === 'fulfilled' ? busanSettled.value : null;
+        const tagoResult = tagoSettled.status === 'fulfilled' ? tagoSettled.value : null;
+
+        const hasBusanArrivals = Boolean(busanResult && busanResult.nextArrivals.length > 0);
+        const hasTagoArrivals = Boolean(tagoResult && tagoResult.nextArrivals.length > 0);
+
+        if (hasTagoArrivals && hasBusanArrivals && tagoResult && busanResult) {
+          // 둘 다 도착 정보가 존재하면 지능형 병합 (TAGO 일반버스 + 부산 BIMS 마을버스)
+          return MergeService.mergeArrivalData(tagoResult, busanResult);
+        } else if (hasTagoArrivals && tagoResult) {
+          return tagoResult;
+        } else if (hasBusanArrivals && busanResult) {
+          return busanResult;
+        } else if (tagoResult) {
+          return tagoResult;
+        } else if (busanResult) {
           return busanResult;
         }
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
-        console.warn(`[RealtimeTransitService] 부산 1순위 API 호출 실패, TAGO 폴백 진행: ${errMsg}`);
+        console.warn(`[RealtimeTransitService] 부산 권역 병렬 호출 실패, TAGO 단독 폴백 진행: ${errMsg}`);
       }
 
       return TagoBusService.getArrivalInfoSmartNodeTrigger({
-        cityCode: resolvedCityCode,
+        cityCode: resolvedCityCode || '21',
         region: normalizedRegion,
         nodeId: effectiveStationId,
         stationName,

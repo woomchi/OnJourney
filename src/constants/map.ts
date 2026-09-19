@@ -12,3 +12,6 @@ export const INITIAL_MAP_CENTER: MapCoord = {
 
 /** 지도 기본 줌 레벨 */
 export const DEFAULT_ZOOM_LEVEL = 15 as const;
+
+/** 여정 재생 및 단계별 상세 추적 줌 레벨 */
+export const PLAYBACK_ZOOM_LEVEL = 18 as const;

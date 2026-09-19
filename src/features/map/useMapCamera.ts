@@ -6,6 +6,7 @@ import { useMapUIStore } from '@/stores/map-store';
 import { NaverMapRouteRenderer, calculateSegmentBounds, expandBounds } from '@/lib/services/naverMapRouteService';
 import { getDefaultRoute } from '@/lib/utils/routeUtils';
 import { areBoundsEqual } from '@/stores/slices/mapSlice';
+import { PLAYBACK_ZOOM_LEVEL } from '@/constants/map';
 import type { Place, LatLngBoundsLiteral, DirectionsApiResponse, DirectionsCacheRecord } from '@/types/journey';
 
 interface UseMapCameraProps {
@@ -449,12 +450,12 @@ export function useMapCamera({
     if (isSinglePoint) {
       // 단일 지점(승차/하차/도보 시작점 등) 추적 시:
       // expandBounds(0.01)의 최소 크기 보장(180m)과 PWA/모바일 좁은 화면 패딩으로 인해 fitBounds가 줌 레벨을 16~17로 축소하는 것을 방지
-      // 패딩이 적용된 지도 중심에 타겟을 맞추고 정확히 줌 19로 상세 표시 (Web 및 PWA 공통 보장)
+      // 패딩이 적용된 지도 중심에 타겟을 맞추고 정확히 줌 18로 상세 표시 (Web 및 PWA 공통 보장)
       const centerLat = (focusBounds.sw.lat + focusBounds.ne.lat) / 2;
       const centerLng = (focusBounds.sw.lng + focusBounds.ne.lng) / 2;
       const targetLatLng = new navermaps.LatLng(centerLat, centerLng);
       map.setCenter(targetLatLng);
-      map.setZoom(19);
+      map.setZoom(PLAYBACK_ZOOM_LEVEL);
     } else {
       const expanded = expandBounds(focusBounds, 0.01);
       const bounds = new navermaps.LatLngBounds(
@@ -463,7 +464,7 @@ export function useMapCamera({
       );
 
       // 다중 경로(도보 전체 구간 등) 또는 구간 전체일 때의 fitBounds
-      const maxZoom = focusedStep ? 19 : 16;
+      const maxZoom = focusedStep ? PLAYBACK_ZOOM_LEVEL : 16;
       map.fitBounds(bounds, { maxZoom });
     }
 

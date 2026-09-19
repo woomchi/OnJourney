@@ -205,6 +205,21 @@ export {
   UI_LINE_UNIQUE_STATIONS,
 } from './subway/uiLineTimetableService';
 
+// ─── 의정부경전철 공식 시간표 Re-export ─────────────────────────────────────────
+export {
+  getUijeongbuNextTrain,
+  getNextTrainFromUijeongbuTimetable,
+  getUijeongbuTimetableList,
+  loadUijeongbuStationTimetable,
+  isUijeongbuStation,
+  isUijeongbuLine,
+  isUijeongbuExclusiveStation,
+  resolveOfficialUijeongbuStationName,
+  resolveUijeongbuDirection,
+  UIJEONGBU_STATIONS,
+  UIJEONGBU_UNIQUE_STATIONS,
+} from './subway/uijeongbuTimetableService';
+
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {
   calculateSubwayETADynamic,

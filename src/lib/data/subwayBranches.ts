@@ -602,6 +602,26 @@ const LINE_GIMPO_GOLD_BRANCHES: BranchStationData[] = [
   },
 ];
 
+// ─── 의정부경전철 운행 계통 ─────────────────────────────────────────────────
+
+const LINE_UIJEONGBU_BRANCHES: BranchStationData[] = [
+  {
+    branch: {
+      id: 'uijeongbu-main',
+      name: '본선 (발곡 - 탑석/차량기지)',
+      startStation: '발곡',
+      endStation: '탑석',
+      stationCount: 16,
+    },
+    stationNames: [
+      '발곡', '회룡', '범골', '경전철의정부', '의정부시청', '흥선', '의정부중앙',
+      '동오', '새말', '경기도청북부청사', '효자', '곤제', '어룡', '송산', '탑석', '차량기지임시승강장'
+    ],
+    downDestinations: ['발곡'],
+    upDestinations: ['탑석', '차량기지임시승강장'],
+  },
+];
+
 // ─── 인천 1호선 운행 계통 ───────────────────────────────────────────────────
 
 const LINE_INCHEON_1_BRANCHES: BranchStationData[] = [
@@ -718,6 +738,8 @@ export const LINE_BRANCHES_MAP: Record<string, BranchStationData[]> = {
   '김포골드라인': LINE_GIMPO_GOLD_BRANCHES,
   '1096': LINE_GIMPO_GOLD_BRANCHES,
   '1017': LINE_GIMPO_GOLD_BRANCHES,
+  '의정부경전철': LINE_UIJEONGBU_BRANCHES,
+  '1010': LINE_UIJEONGBU_BRANCHES,
   '인천1호선': LINE_INCHEON_1_BRANCHES,
   '1069': LINE_INCHEON_1_BRANCHES,
   '인천2호선': LINE_INCHEON_2_BRANCHES,
@@ -755,6 +777,7 @@ export function normalizeLineKey(subwayIdOrNm: string): string {
   if (clean.includes('경강') || clean === '1081') return '경강선';
   if (clean.includes('신림') || clean === '1095') return '신림선';
   if (clean.includes('김포골드') || clean.includes('골드라인') || clean === '1096' || clean === '1017') return '김포골드라인';
+  if (clean.includes('의정부') || clean === '1010') return '의정부경전철';
   if (clean.includes('인천1') || clean.includes('인천 1') || clean === '1069') return '인천1호선';
   if (clean.includes('인천2') || clean.includes('인천 2') || clean === '1070') return '인천2호선';
   if (clean.includes('GTX-A') || clean.includes('gtx-a') || clean === '1094') return 'GTX-A';

@@ -31,6 +31,7 @@
     "build:sillim-timetable": "python scripts/build-sillim-timetable.py",
     "build:suinbundang-timetable": "python scripts/build-suinbundang-timetable.py",
     "build:ui-line-timetable": "python scripts/build-ui-line-timetable.py",
+    "build:uijeongbu-timetable": "python scripts/build-uijeongbu-timetable.py",
     "clean": "npx rimraf .next"
   },
   "dependencies": {

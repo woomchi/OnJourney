@@ -202,6 +202,7 @@ export const SUBWAY_COLORS: Record<string, string> = {
   '김포골드': '#AD8605',
   '에버라인': '#509F3D',
   '용인': '#509F3D',
+  '의정부경전철': '#FDA600',
   '의정부': '#FDA600',
   'GTX-A': '#9B51E0',
   // 인천 도시철도

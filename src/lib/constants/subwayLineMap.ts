@@ -38,6 +38,7 @@ export const SUBWAY_LINE_MAP: Record<string, string> = {
   '1095': '신림선',
   '1096': '김포골드라인',
   '1017': '김포골드라인',
+  '1010': '의정부경전철',
   '대구1호선': '대구 1호선',
   '대구2호선': '대구 2호선',
   '대구3호선': '대구 3호선',
@@ -91,7 +92,7 @@ export function resolveSubwayNameForApi(subwayIdOrName: string): string {
   if (clean.includes('신림') || clean === '1095') return '신림선';
   if (clean.includes('김포골드') || clean.includes('골드라인') || clean === '1096' || clean === '1017') return '김포골드라인';
   if (clean === '1079' || clean.includes('에버') || clean.includes('용인')) return '에버라인';
-  if (clean.includes('의정부')) return '의정부경전철';
+  if (clean === '1010' || clean.includes('의정부')) return '의정부경전철';
   if (clean.includes('GTX-A') || clean.includes('gtx-a') || clean === '1094') return 'GTX-A';
 
   // 3. 수도권 1~9호선 (엄격 매칭)
@@ -177,8 +178,8 @@ export function resolveCandidateLineCodes(subwayId: string): string[] {
   if (cleanId === '1079' || cleanId.includes('에버') || cleanId.includes('용인')) {
     return ['1079', '에버라인', '용인경전철'];
   }
-  if (cleanId.includes('의정부')) {
-    return ['의정부경전철'];
+  if (cleanId === '1010' || cleanId.includes('의정부')) {
+    return ['1010', '의정부경전철'];
   }
 
   // 3. 수도권 1~9호선

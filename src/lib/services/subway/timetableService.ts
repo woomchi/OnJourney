@@ -77,6 +77,12 @@ import {
   isUiLineLine,
   isUiLineExclusiveStation,
 } from './uiLineTimetableService';
+import {
+  getNextTrainFromUijeongbuTimetable,
+  isUijeongbuStation,
+  isUijeongbuLine,
+  isUijeongbuExclusiveStation,
+} from './uijeongbuTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -541,7 +547,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 12. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 12. 의정부경전철 노선이 명시적으로 요청되었거나 의정부경전철 전용 고유역인 경우 의정부경전철 시간표 최우선 조회
+  if (isUijeongbuLine(lineId) || (isUijeongbuExclusiveStation(stationName) && !normalizeLineNumber(lineId))) {
+    const uijTrain = getNextTrainFromUijeongbuTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (uijTrain) {
+      return uijTrain;
+    }
+  }
+
+  // 13. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -705,6 +725,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 17. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 17. 의정부경전철 환승역(회룡) 의정부경전철 시간표 조회
+  if (isUijeongbuStation(stationName)) {
+    const uijTrain = getNextTrainFromUijeongbuTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (uijTrain) {
+      return uijTrain;
+    }
+  }
+
+  // 18. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

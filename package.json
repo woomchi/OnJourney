@@ -2,11 +2,15 @@
   "name": "on-journey",
   "version": "0.1.0",
   "private": true,
+  "allowScripts": {
+    "esbuild": true,
+    "unrs-resolver": true
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

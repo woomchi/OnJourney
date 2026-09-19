@@ -79,6 +79,19 @@ export {
   GYEONGGANG_UNIQUE_STATIONS,
 } from './subway/gyeonggangTimetableService';
 
+// ─── 경의중앙선 공식 시간표 Re-export ─────────────────────────────────────────
+export {
+  getNextTrainFromGyeonguiTimetable,
+  getGyeonguiTimetableList,
+  loadGyeonguiStationTimetable,
+  isGyeonguiStation,
+  isGyeonguiLine,
+  resolveOfficialGyeonguiStationName,
+  resolveGyeonguiDirection,
+  GYEONGUI_STATIONS,
+  GYEONGUI_UNIQUE_STATIONS,
+} from './subway/gyeonguiTimetableService';
+
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {
   calculateSubwayETADynamic,

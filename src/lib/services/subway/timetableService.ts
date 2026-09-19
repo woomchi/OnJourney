@@ -25,6 +25,11 @@ import {
   isGyeonggangStation,
   isGyeonggangLine,
 } from './gyeonggangTimetableService';
+import {
+  getNextTrainFromGyeonguiTimetable,
+  isGyeonguiStation,
+  isGyeonguiLine,
+} from './gyeonguiTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -363,7 +368,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 3. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 3. 경의중앙선 노선이 명시적으로 요청되었거나 경의중앙선 전용 역인 경우 경의중앙선 시간표 최우선 조회
+  if (isGyeonguiLine(lineId) || (isGyeonguiStation(stationName) && !normalizeLineNumber(lineId) && !isSuinbundangLine(lineId) && !isGyeonggangLine(lineId))) {
+    const gyTrain = getNextTrainFromGyeonguiTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (gyTrain) {
+      return gyTrain;
+    }
+  }
+
+  // 4. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -373,7 +392,7 @@ export async function calculateNextTrainFromTimetable(
     return seoulTrain;
   }
 
-  // 4. 서울 1~9호선에 없는 환승/공유역(왕십리, 선릉, 수서 등) 수인분당선 시간표 조회
+  // 5. 서울 1~9호선에 없는 환승/공유역(왕십리, 선릉, 수서 등) 수인분당선 시간표 조회
   if (isSuinbundangStation(stationName)) {
     const suinTrain = getNextTrainFromSuinbundangTimetable({
       stationName,
@@ -387,7 +406,7 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 5. 경강선 환승역(판교, 성남, 이매 등) 경강선 시간표 조회
+  // 6. 경강선 환승역(판교, 성남, 이매 등) 경강선 시간표 조회
   if (isGyeonggangStation(stationName)) {
     const ggTrain = getNextTrainFromGyeonggangTimetable({
       stationName,
@@ -401,6 +420,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 6. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 7. 경의중앙선 환승역(용산, 청량리, 왕십리, 옥수, 이촌, 공덕, 홍대입구, 대곡 등) 경의중앙선 시간표 조회
+  if (isGyeonguiStation(stationName)) {
+    const gyTrain = getNextTrainFromGyeonguiTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (gyTrain) {
+      return gyTrain;
+    }
+  }
+
+  // 8. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

@@ -45,6 +45,11 @@ import {
   isSeohaeStation,
   isSeohaeLine,
 } from './seohaeTimetableService';
+import {
+  getNextTrainFromShinbundangTimetable,
+  isShinbundangStation,
+  isShinbundangLine,
+} from './shinbundangTimetableService';
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 const MIDNIGHT_SECONDS = 24 * 3_600;
@@ -439,7 +444,21 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 7. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
+  // 7. 신분당선 노선이 명시적으로 요청되었거나 신분당선 전용 역인 경우 신분당선 시간표 최우선 조회
+  if (isShinbundangLine(lineId) || (isShinbundangStation(stationName) && !normalizeLineNumber(lineId) && !isSuinbundangLine(lineId) && !isGyeonggangLine(lineId) && !isGyeonguiLine(lineId) && !isGyeongchunLine(lineId) && !isEverlineLine(lineId) && !isSeohaeLine(lineId))) {
+    const sbdTrain = getNextTrainFromShinbundangTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (sbdTrain) {
+      return sbdTrain;
+    }
+  }
+
+  // 8. 서울교통공사 공식 시간표 조회 (1~9호선 405개 역)
   const seoulTrain = getNextTrainFromSeoulTimetable({
     stationName,
     updnLine,
@@ -533,6 +552,20 @@ export async function calculateNextTrainFromTimetable(
     }
   }
 
-  // 12. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
+  // 12. 신분당선 환승역(강남, 양재, 판교, 정자, 미금, 신사, 논현, 신논현) 신분당선 시간표 조회
+  if (isShinbundangStation(stationName)) {
+    const sbdTrain = getNextTrainFromShinbundangTimetable({
+      stationName,
+      updnLine,
+      lineId,
+      destination,
+      headsign,
+    });
+    if (sbdTrain) {
+      return sbdTrain;
+    }
+  }
+
+  // 13. 공식 시간표에 없는 역의 경우 배차간격 기반 가상 도착 정보 반환
   return calculateHeadwayFallback(stationName, updnLine);
 }

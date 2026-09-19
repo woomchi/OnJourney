@@ -131,6 +131,19 @@ export {
   SEOHAE_UNIQUE_STATIONS,
 } from './subway/seohaeTimetableService';
 
+// ─── 신분당선 공식 시간표 Re-export ───────────────────────────────────────────
+export {
+  getNextTrainFromShinbundangTimetable,
+  getShinbundangTimetableList,
+  loadShinbundangStationTimetable,
+  isShinbundangStation,
+  isShinbundangLine,
+  resolveOfficialShinbundangStationName,
+  resolveShinbundangDirection,
+  SHINBUNDANG_STATIONS,
+  SHINBUNDANG_UNIQUE_STATIONS,
+} from './subway/shinbundangTimetableService';
+
 
 // ─── 실시간 동적 ETA 계산기 Re-export ─────────────────────────────────────────
 export {

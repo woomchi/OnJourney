@@ -25,6 +25,7 @@
     "build:gyeongchun-timetable": "python scripts/build-gyeongchun-timetable.py",
     "build:gyeongui-timetable": "python scripts/build-gyeongui-timetable.py",
     "build:seohae-timetable": "python scripts/build-seohae-timetable.py",
+    "build:shinbundang-timetable": "python scripts/build-shinbundang-timetable.py",
     "build:suinbundang-timetable": "python scripts/build-suinbundang-timetable.py",
     "clean": "npx rimraf .next"
   },

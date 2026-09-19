@@ -12,6 +12,7 @@ import {
   safeNumber,
   safeString,
 } from './transitUtils';
+import { BusStopRepository } from '@/lib/services/busStopRepository';
 
 export interface FetchTagoParams {
   cityCode?: string;
@@ -23,7 +24,7 @@ export interface FetchTagoParams {
 }
 
 // 정류소 검색 캐시 (stationId/nodeno -> TAGO nodeId & cityCode, 24시간 LRU 캐시, 최대 500개)
-const NODE_ID_CACHE = new LruTtlCache<string, { nodeId: string; cityCode?: string }>({
+const NODE_ID_CACHE = new LruTtlCache<string, { nodeId: string; cityCode?: string; arsNo?: string }>({
   maxSize: 500,
   defaultTtlMs: 24 * 60 * 60 * 1000,
 });
@@ -35,7 +36,7 @@ const ROUTE_ID_CACHE = new LruTtlCache<string, { routeId: string; routeIds?: str
 });
 
 // 좌표 기반 정류소 역조회 인플라이트 중복 방지 맵 (동시 진입 시 동일 좌표 단일 호출 보장)
-const IN_FLIGHT_COORDS_LOOKUPS = new Map<string, Promise<{ nodeId: string; cityCode?: string } | null>>();
+const IN_FLIGHT_COORDS_LOOKUPS = new Map<string, Promise<{ nodeId: string; cityCode?: string; arsNo?: string } | null>>();
 
 export class TagoBusService {
   // 국토교통부 정류소별 도착예정정보 목록조회 서비스 공식 엔드포인트
@@ -83,14 +84,29 @@ export class TagoBusService {
     stationName?: string,
     serviceKey?: string
   ): Promise<string | null> {
-    const effectiveKey = serviceKey || getTransitApiKey('tago');
-    if (!effectiveKey) return null;
-
     const cacheKey = `${cityCode}_${stationId}_${stationName || ''}`;
     const cached = NODE_ID_CACHE.get(cacheKey);
     if (cached) {
       return cached.nodeId;
     }
+
+    // [0순위] 내부 전국 정류소 DB(BusStopRepository) 초고속 조회 (5~15ms, 외부 쿼터 소모 0)
+    try {
+      const localStop = await BusStopRepository.findBusStopByArsOrName(cityCode, stationId, stationName);
+      if (localStop?.nodeId) {
+        NODE_ID_CACHE.set(cacheKey, {
+          nodeId: localStop.nodeId,
+          cityCode: localStop.cityCd,
+          arsNo: localStop.arsNo || undefined,
+        });
+        return localStop.nodeId;
+      }
+    } catch {
+      // 로컬 DB 예외 시 실시간 TAGO API 폴백으로 안전하게 진입
+    }
+
+    const effectiveKey = serviceKey || getTransitApiKey('tago');
+    if (!effectiveKey) return null;
 
     try {
       const pureNo = stationId.replace(/[^0-9]/g, '');
@@ -324,15 +340,39 @@ export class TagoBusService {
     lng: number,
     stationName?: string,
     serviceKey?: string
-  ): Promise<{ nodeId: string; cityCode?: string } | null> {
-    const effectiveKey = serviceKey || getTransitApiKey('tago');
-    if (!effectiveKey || !lat || !lng) return null;
+  ): Promise<{ nodeId: string; cityCode?: string; arsNo?: string } | null> {
+    if (!lat || !lng) return null;
 
     const cacheKey = `coords_${lat.toFixed(4)}_${lng.toFixed(4)}_${stationName || ''}`;
     const cached = NODE_ID_CACHE.get(cacheKey);
     if (cached) {
-      return { nodeId: cached.nodeId, cityCode: cached.cityCode };
+      return cached;
     }
+
+    // [0순위] 내부 전국 정류소 PostGIS 공간 인덱스(BusStopRepository) 초고속 조회 (5~15ms, 외부 쿼터 소모 0)
+    try {
+      const localStop = await BusStopRepository.findNearestBusStop({
+        lat,
+        lng,
+        stationName,
+        radiusMeters: 250.0,
+      });
+      if (localStop?.nodeId) {
+        const result = {
+          nodeId: localStop.nodeId,
+          cityCode: localStop.cityCd,
+          arsNo: localStop.arsNo || undefined,
+        };
+        NODE_ID_CACHE.set(cacheKey, result);
+        return result;
+      }
+    } catch {
+      // 로컬 DB 미배포 또는 예외 시 기존 실시간 TAGO API 폴백으로 안전하게 진입
+    }
+
+    // [1순위 Fallback] 정적 DB에 없거나 신설 정류소인 경우 실시간 외부 TAGO API 호출
+    const effectiveKey = serviceKey || getTransitApiKey('tago');
+    if (!effectiveKey) return null;
 
     const inFlight = IN_FLIGHT_COORDS_LOOKUPS.get(cacheKey);
     if (inFlight) {

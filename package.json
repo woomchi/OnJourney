@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:setup": "node scripts/setup-db.mjs",
+    "db:seed-bus-stops": "node scripts/seed-bus-stops.mjs",
     "build:timetables": "node scripts/build-seoul-subway-timetables.mjs",
     "build:busan-timetable": "python scripts/build-busan-timetable.py",
     "build:daegu-timetable": "node scripts/build-daegu-timetable.mjs",

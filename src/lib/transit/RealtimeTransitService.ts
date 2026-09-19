@@ -80,22 +80,20 @@ export class RealtimeTransitService {
     const isSpecialId = !stationId || stationId === 'auto' || stationId === 'none' || stationId === '_' || !/[0-9]/.test(stationId);
     if (isSpecialId && lat && lng) {
       const apiKey = getTransitApiKey();
-      if (apiKey) {
-        try {
-          const coordsInfo = await TagoBusService.lookupTagoNodeIdByCoords(lat, lng, stationName, apiKey);
-          if (coordsInfo?.nodeId) {
-            effectiveStationId = coordsInfo.nodeId;
-            if (coordsInfo.cityCode) {
-              resolvedCityCode = coordsInfo.cityCode;
-              if (String(coordsInfo.cityCode).startsWith('31') || coordsInfo.nodeId.toUpperCase().startsWith('GGB')) {
-                normalizedRegion = 'gyeonggi';
-              }
+      try {
+        const coordsInfo = await TagoBusService.lookupTagoNodeIdByCoords(lat, lng, stationName, apiKey || undefined);
+        if (coordsInfo?.nodeId) {
+          effectiveStationId = coordsInfo.nodeId;
+          if (coordsInfo.cityCode) {
+            resolvedCityCode = coordsInfo.cityCode;
+            if (String(coordsInfo.cityCode).startsWith('31') || coordsInfo.nodeId.toUpperCase().startsWith('GGB')) {
+              normalizedRegion = 'gyeonggi';
             }
           }
-        } catch (lookupErr: unknown) {
-          const errMsg = lookupErr instanceof Error ? lookupErr.message : '알 수 없는 오류';
-          console.warn('[RealtimeTransitService] 좌표 기반 정류소 역조회 실패:', errMsg);
         }
+      } catch (lookupErr: unknown) {
+        const errMsg = lookupErr instanceof Error ? lookupErr.message : '알 수 없는 오류';
+        console.warn('[RealtimeTransitService] 좌표 기반 정류소 역조회 실패:', errMsg);
       }
     }
 

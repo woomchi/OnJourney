@@ -1,10 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { getNextTrainFromSeoulTimetable } from '@/lib/services/subway/seoulTimetableService';
 import { fetchDaejeonSubwayArrivals } from '@/lib/services/daejeonSubwayService';
 import { fetchBusanSubwayArrivals } from '@/lib/services/busanSubwayService';
 import { calculateNextTrainFromTimetable } from '@/lib/services/subway/timetableService';
 
 describe('지하철 시간표 모드 심야 첫차 및 도착 시각 제공 검증', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-19T02:30:00+09:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('수도권 시간표: 심야 새벽 03:00 조회 시 LAST_TRAIN_ENDED와 함께 익일 첫차 시각(05:xx)을 반환해야 한다', () => {
     const lateNightDate = new Date('2026-09-19T03:00:00+09:00'); // 새벽 3시
     const res = getNextTrainFromSeoulTimetable({

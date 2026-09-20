@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, RefreshCw, Bus, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBusLinePositions } from '@/hooks/useBusLinePositions';
@@ -314,7 +314,21 @@ export function resolveActualBoardingInfo(params: ResolveBoardingParams): Resolv
     turningIdx = stations.findIndex((s) => normalizeStationName(s.stationName) === normTurn);
   }
   if (turningIdx === -1) {
-    turningIdx = Math.floor(stations.length / 2);
+    // 왕복 노선의 경우 정류소명이 중복으로 등장하는 첫 번째 지점이 회차지 경계일 가능성이 높음
+    const seenNames = new Set<string>();
+    for (let i = 0; i < stations.length; i++) {
+      const norm = normalizeStationName(stations[i].stationName);
+      if (seenNames.has(norm)) {
+        // 이미 지나온 정류소가 다시 나타난 첫 위치 -> 반대 방향 회차 시작점
+        turningIdx = i;
+        break;
+      }
+      seenNames.add(norm);
+    }
+    // 중복 정류소가 전혀 없는 경우(일방통행 노선 등)에만 중간 지점을 fallback으로 사용
+    if (turningIdx === -1) {
+      turningIdx = Math.floor(stations.length / 2);
+    }
   }
 
   // 1단계: stationId / ARS 번호 기반 완전 일치 탐색 (상행/하행 정류소는 고유 ID/ARS가 다름, auto 가상 ID 제외)
@@ -611,6 +625,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
   const targetStationNodeRef = useRef<HTMLDivElement>(null);
   const turningStationNodeRef = useRef<HTMLDivElement>(null);
   const hasInitialScrolled = useRef(false);
+  const isSheetReady = useRef(false);
 
   const [snap, setSnap] = useState<string | number>(() => {
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -824,54 +839,92 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
     }
   };
 
-  // 💡 초기 진입 시 탑승역 중앙 자동 포커싱 스크롤
+  // 💡 초기 진입 시 상태 리셋
   useEffect(() => {
     if (isOpen) {
       hasInitialScrolled.current = false;
+      isSheetReady.current = false;
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || isLoading || orderedStations.length === 0 || hasInitialScrolled.current) return;
+  // 💡 타깃 승차 정류소 또는 회차지로 스크롤 이동 함수
+  const performScrollToTarget = useCallback((behavior: ScrollBehavior = 'smooth'): boolean => {
+    const container = scrollContainerRef.current;
+    if (!container) return false;
+    // 시트가 아직 최소 높이 미만이거나 닫혀있는 중이면 스크롤 실패로 간주하고 lock하지 않음
+    if (container.clientHeight < 50) return false;
 
-    const performInitialScroll = (behavior: ScrollBehavior = 'smooth') => {
-      const container = scrollContainerRef.current;
-      const targetEl = targetStationNodeRef.current;
-      if (!container) return;
-
-      if (targetEl) {
-        const offsetTop = targetEl.offsetTop;
-        const centerScrollTop = offsetTop - container.clientHeight / 2 + targetEl.clientHeight / 2;
+    const targetEl = targetStationNodeRef.current;
+    if (targetEl) {
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = targetEl.getBoundingClientRect();
+      const relativeTop = targetRect.top - containerRect.top + container.scrollTop;
+      const centerScrollTop = relativeTop - container.clientHeight / 2 + targetEl.clientHeight / 2;
+      container.scrollTo({
+        top: Math.max(0, centerScrollTop),
+        behavior,
+      });
+      hasInitialScrolled.current = true;
+      return true;
+    } else if (actualBoardingInfo.direction === '1') {
+      const turningEl = turningStationNodeRef.current;
+      if (turningEl) {
+        const containerRect = container.getBoundingClientRect();
+        const turningRect = turningEl.getBoundingClientRect();
+        const relativeTop = turningRect.top - containerRect.top + container.scrollTop;
         container.scrollTo({
-          top: Math.max(0, centerScrollTop),
+          top: Math.max(0, relativeTop - 8),
           behavior,
         });
         hasInitialScrolled.current = true;
-      } else if (actualBoardingInfo.direction === '1') {
-        const turningEl = turningStationNodeRef.current;
-        if (turningEl) {
-          container.scrollTo({
-            top: Math.max(0, turningEl.offsetTop - 8),
-            behavior,
-          });
-          hasInitialScrolled.current = true;
-        }
+        return true;
       }
-    };
+    }
+    return false;
+  }, [actualBoardingInfo.direction]);
 
-    const rafId = requestAnimationFrame(() => {
-      performInitialScroll('auto');
-    });
+  // 💡 바텀 시트 스프링 애니메이션 완료 시 호출 (모바일)
+  const handleSheetOpened = useCallback(() => {
+    isSheetReady.current = true;
+    if (!hasInitialScrolled.current) {
+      performScrollToTarget('smooth');
+    }
+  }, [performScrollToTarget]);
 
-    const timer = setTimeout(() => {
-      performInitialScroll('smooth');
-    }, 300);
+  // 💡 초기 스크롤 트리거 (시트 오픈 이벤트 또는 650ms 폴백)
+  useEffect(() => {
+    if (!isOpen || isLoading || orderedStations.length === 0 || hasInitialScrolled.current) return;
+
+    if (isSheetReady.current) {
+      performScrollToTarget('smooth');
+      return;
+    }
+
+    // 바텀 시트 애니메이션(약 600ms) 완료 전 조기 실행 방지용 폴백 타이머 (데스크톱 및 안전장치)
+    const fallbackTimer = setTimeout(() => {
+      if (!hasInitialScrolled.current) {
+        performScrollToTarget('smooth');
+      }
+    }, 650);
 
     return () => {
-      cancelAnimationFrame(rafId);
-      clearTimeout(timer);
+      clearTimeout(fallbackTimer);
     };
-  }, [isOpen, isLoading, orderedStations, actualBoardingInfo]);
+  }, [isOpen, isLoading, orderedStations, performScrollToTarget]);
+
+  // 💡 actualBoardingInfo.index가 -1에서 유효한 인덱스로 뒤늦게 전이된 경우 재스크롤 보정
+  const prevBoardingIndexRef = useRef(actualBoardingInfo.index);
+  useEffect(() => {
+    if (prevBoardingIndexRef.current === -1 && actualBoardingInfo.index !== -1) {
+      hasInitialScrolled.current = false;
+      const timer = setTimeout(() => {
+        performScrollToTarget('smooth');
+      }, 100);
+      prevBoardingIndexRef.current = actualBoardingInfo.index;
+      return () => clearTimeout(timer);
+    }
+    prevBoardingIndexRef.current = actualBoardingInfo.index;
+  }, [actualBoardingInfo.index, performScrollToTarget]);
 
   // 데스크톱 애니메이션 상태
   const [animate, setAnimate] = useState(false);
@@ -1338,6 +1391,7 @@ export const BusLineMapPanel: React.FC<BusLineMapPanelProps> = ({
         }}
         onClose={onClose}
         onExited={onExited}
+        onOpened={handleSheetOpened}
         disableHistory
       >
         <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-line" />

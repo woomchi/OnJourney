@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, RefreshCw, Train, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSubwayLinePositions } from '@/hooks/useSubwayLinePositions';
@@ -218,6 +218,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
   const targetStationNodeRef = useRef<HTMLDivElement>(null);
   const timetableScrollRef = useRef<HTMLDivElement>(null);
   const hasInitialScrolledRef = useRef(false);
+  const isSheetReady = useRef(false);
 
   const [snap, setSnap] = useState<string | number>(() => {
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -229,6 +230,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
       const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
       setSnap(Math.round(windowHeight * 0.65));
       hasInitialScrolledRef.current = false;
+      isSheetReady.current = false;
     }
   }, [isOpen]);
 
@@ -488,28 +490,51 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
     };
   }, [primaryTrainNo, trainObjectMap, trainAwayMap, targetMinutesLeft]);
 
-  // 탑승역으로 자동 센터 스크롤 (상위 창/지도 스크롤 없이 내부 컨테이너만 안전하게 스크롤, 패널 열림 시 1회만 실행)
-  useEffect(() => {
-    if (isOpen && !hasInitialScrolledRef.current && targetStationNodeRef.current && scrollContainerRef.current) {
-      const timer = setTimeout(() => {
-        const container = scrollContainerRef.current;
-        const target = targetStationNodeRef.current;
-        if (!container || !target || hasInitialScrolledRef.current) return;
+  // 💡 타깃 탑승역으로 자동 센터 스크롤 이동 함수
+  const performScrollToTarget = useCallback((behavior: ScrollBehavior = 'smooth'): boolean => {
+    const container = scrollContainerRef.current;
+    const target = targetStationNodeRef.current;
+    if (!container || !target) return false;
+    // 시트가 아직 최소 높이 미만이거나 닫혀있는 중이면 스크롤 실패로 간주하고 lock하지 않음
+    if (container.clientHeight < 50) return false;
 
-        const containerRect = container.getBoundingClientRect();
-        const targetRect = target.getBoundingClientRect();
-        const relativeOffsetTop = targetRect.top - containerRect.top + container.scrollTop;
-        const centerScrollTop = relativeOffsetTop - (container.clientHeight / 2) + (target.clientHeight / 2);
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const relativeOffsetTop = targetRect.top - containerRect.top + container.scrollTop;
+    const centerScrollTop = relativeOffsetTop - (container.clientHeight / 2) + (target.clientHeight / 2);
 
-        container.scrollTo({
-          top: Math.max(0, centerScrollTop),
-          behavior: 'smooth',
-        });
-        hasInitialScrolledRef.current = true;
-      }, 350);
-      return () => clearTimeout(timer);
+    container.scrollTo({
+      top: Math.max(0, centerScrollTop),
+      behavior,
+    });
+    hasInitialScrolledRef.current = true;
+    return true;
+  }, []);
+
+  // 💡 바텀 시트 스프링 애니메이션 완료 시 호출 (모바일)
+  const handleSheetOpened = useCallback(() => {
+    isSheetReady.current = true;
+    if (!hasInitialScrolledRef.current) {
+      performScrollToTarget('smooth');
     }
-  }, [isOpen, orderedStations, selectedBranchId]);
+  }, [performScrollToTarget]);
+
+  // 💡 탑승역으로 자동 센터 스크롤 (시트 오픈 이벤트 또는 650ms 폴백)
+  useEffect(() => {
+    if (!isOpen || hasInitialScrolledRef.current || !targetStationNodeRef.current || !scrollContainerRef.current) return;
+
+    if (isSheetReady.current) {
+      performScrollToTarget('smooth');
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (!hasInitialScrolledRef.current) {
+        performScrollToTarget('smooth');
+      }
+    }, 650);
+    return () => clearTimeout(timer);
+  }, [isOpen, orderedStations, selectedBranchId, performScrollToTarget]);
 
   // 데스크톱 애니메이션 상태
   const [animate, setAnimate] = useState(false);
@@ -1251,6 +1276,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         }}
         onClose={onClose}
         onExited={onExited}
+        onOpened={handleSheetOpened}
         disableHistory
       >
         <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-line" />

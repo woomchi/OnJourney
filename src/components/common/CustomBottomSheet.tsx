@@ -27,6 +27,7 @@ export interface CustomBottomSheetProps {
   onSnap?: (snap: 'min' | 'default' | 'max') => void;
   onClose?: () => void;
   onExited?: () => void;
+  onOpened?: () => void;
   headerContent?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -67,6 +68,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   onSnap,
   onClose,
   onExited,
+  onOpened,
   headerContent,
   children,
   className = '',
@@ -83,6 +85,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
 
   const onCloseRef = useRef(onClose);
   const onExitedRef = useRef(onExited);
+  const onOpenedRef = useRef(onOpened);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -91,6 +94,10 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   useEffect(() => {
     onExitedRef.current = onExited;
   }, [onExited]);
+
+  useEffect(() => {
+    onOpenedRef.current = onOpened;
+  }, [onOpened]);
 
   // #7. useTransform으로 그림자 강도 동적 변화
   const shadowOpacity = useTransform(y, [-minHeight, -maxHeight], [0.06, 0.20]);
@@ -150,6 +157,8 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       onComplete: () => {
         if (activeSnapY === 0) {
           onExitedRef.current?.();
+        } else {
+          onOpenedRef.current?.();
         }
       }
     });

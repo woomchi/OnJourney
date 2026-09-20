@@ -102,4 +102,37 @@ describe('Bus Station Topology Sequence & Pass-stop Reverse Mapping (Option A)',
     expect(result.seq).toBe(115);
     expect(result.direction).toBe('1');
   });
+
+  it('should detect turningIdx by duplicate station name when turning metadata is absent', () => {
+    // turningStationSeq, turningStationName 없이 중복 정류소만 있는 비대칭 노선
+    // stations: [A(1), B(2), C(3), D(4), E(5), C(6), B(7), A(8)]
+    // 중복 발견 최초 위치: C(idx 5) -> turningIdx = 5
+    const asymmetricStations: BusLineStation[] = [
+      { stationSeq: 1, stationName: '기점', stationId: '2001', arsNo: '20001', lat: 37.0, lng: 127.0 },
+      { stationSeq: 2, stationName: '정류소A', stationId: '2002', arsNo: '20002', lat: 37.01, lng: 127.01 },
+      { stationSeq: 3, stationName: '정류소B', stationId: '2003', arsNo: '20003', lat: 37.02, lng: 127.02 },
+      { stationSeq: 4, stationName: '회차지점', stationId: '2004', arsNo: '20004', lat: 37.03, lng: 127.03 },
+      { stationSeq: 5, stationName: '정류소B', stationId: '2005', arsNo: '20005', lat: 37.02, lng: 127.02 },
+      { stationSeq: 6, stationName: '정류소A', stationId: '2006', arsNo: '20006', lat: 37.01, lng: 127.01 },
+      { stationSeq: 7, stationName: '기점', stationId: '2007', arsNo: '20007', lat: 37.0, lng: 127.0 },
+    ];
+
+    // idx 4(정류소B 두번째)는 turningIdx(4) 이상이므로 direction '1' (하행)이어야 함
+    const resultDown = resolveActualBoardingInfo({
+      stations: asymmetricStations,
+      stationId: '2005',
+      stationName: '정류소B',
+    });
+    expect(resultDown.index).toBe(4);
+    expect(resultDown.direction).toBe('1');
+
+    // idx 2(정류소B 첫번째)는 turningIdx(4) 미만이므로 direction '0' (상행)이어야 함
+    const resultUp = resolveActualBoardingInfo({
+      stations: asymmetricStations,
+      stationId: '2003',
+      stationName: '정류소B',
+    });
+    expect(resultUp.index).toBe(2);
+    expect(resultUp.direction).toBe('0');
+  });
 });

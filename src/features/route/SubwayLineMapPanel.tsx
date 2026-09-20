@@ -1251,6 +1251,7 @@ export const SubwayLineMapPanel: React.FC<SubwayLineMapPanelProps> = ({
         }}
         onClose={onClose}
         onExited={onExited}
+        disableHistory
       >
         <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-line" />
         <SubwayMobileSheetBody

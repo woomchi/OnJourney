@@ -297,6 +297,7 @@ export default function AlternativeRoutePanel({
             onClose();
           }}
           onExited={onExited}
+          disableHistory
         >
           <BottomSheetFloatingButtonsTarget id="mobile-map-buttons-target-route" />
           <div className="flex flex-col relative w-full h-full min-h-0 bg-white">

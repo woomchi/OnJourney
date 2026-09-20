@@ -35,6 +35,7 @@ export interface CustomBottomSheetProps {
   y?: any;
   showHandleBar?: boolean;
   disableSnap?: boolean;
+  disableHistory?: boolean;
 }
 
 export const BottomSheetContext = createContext<{
@@ -74,6 +75,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   y: propY,
   showHandleBar = true,
   disableSnap = false,
+  disableHistory = false,
 }) => {
   const dragControls = useDragControls();
   const internalY = useMotionValue(0);
@@ -165,7 +167,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
 
   // #9. History API 통합 (백버튼 처리)
   useEffect(() => {
-    if (typeof window === 'undefined' || !isOpen) return;
+    if (typeof window === 'undefined' || !isOpen || disableHistory) return;
 
     const stateKey = `bottomsheet-${Date.now()}`;
 
@@ -187,7 +189,7 @@ export const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         window.history.back();
       }
     };
-  }, [isOpen]);
+  }, [isOpen, disableHistory]);
 
   const handleDragEnd = (event: any, info: any) => {
     if (disableSnap) return;

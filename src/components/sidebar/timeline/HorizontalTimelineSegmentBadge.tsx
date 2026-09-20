@@ -159,7 +159,7 @@ export function HorizontalTimelineSegmentBadge({
               {/* 4행: 요금 정보 */}
               <span className={`text-[11px] font-medium leading-none truncate max-w-full ${isFocused ? 'text-white/55' : 'text-zinc-400'}`}>
                 {type === 'car' ? (
-                  route?.taxiFare ? `택시 ${Math.round(route.taxiFare / 1000)}k` : '비용 미정'
+                  route?.taxiFare ? `택시 ${route.taxiFare >= 10000 ? `${(route.taxiFare / 10000).toFixed(1)}만원` : `${route.taxiFare.toLocaleString()}원`}` : '비용 미정'
                 ) : type === 'walk' ? (
                   '무료'
                 ) : fareVal ? (

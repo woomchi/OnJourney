@@ -93,13 +93,28 @@ export default function TransferMarkers({
       });
 
       // 이동 상세에서 전체 경로 보기 상태(!focusedStep 또는 다른 구간의 step)일 때는
-      // 중간 환승/탑승/하차 마커를 숨기고 출발 및 도착 마커만 노출
+      // 차량/도보이거나 일반 상태에서는 출발 및 도착 마커만 노출하되,
+      // 대중교통(public)에 한하여 탑승/환승 지점을 구분할 수 있도록 탑승 및 환승 마커도 함께 노출
       const isSegmentOverallView =
         !focusedStep ||
         focusedStep.originId !== focusedSegment.originId ||
         focusedStep.destId !== focusedSegment.destId;
 
       if (isSegmentOverallView) {
+        const cacheKey = `${focusedSegment.originId}-${focusedSegment.destId}`;
+        const segmentData = directionsCache[cacheKey];
+        const originPlace = places.find((p) => p.id === focusedSegment.originId);
+        const destPlace = places.find((p) => p.id === focusedSegment.destId);
+        const isAlternativeSeg =
+          alternativeSegment &&
+          alternativeSegment.originId === focusedSegment.originId &&
+          alternativeSegment.destId === focusedSegment.destId;
+        const defaultRoute = (originPlace && destPlace)
+          ? getDefaultRoute(originPlace, destPlace, segmentData, transportType as 'public' | 'car' | 'walk')
+          : null;
+        const segRoute = (isAlternativeSeg && hoveredAlternativeRoute) ? hoveredAlternativeRoute : defaultRoute;
+        const isPublicTransit = segRoute?.type === 'public';
+
         filteredPoints = filteredPoints.filter((pt) => {
           const isStartMarker = Boolean(
             pt.isSegmentStart || (pt.subPoints && pt.subPoints.some((p) => p.isSegmentStart))
@@ -107,6 +122,17 @@ export default function TransferMarkers({
           const isDestMarker = Boolean(
             pt.isSegmentDest || (pt.subPoints && pt.subPoints.some((p) => p.isSegmentDest))
           );
+
+          if (isPublicTransit) {
+            const pointsToCheck = pt.isMergedGroup && pt.subPoints ? pt.subPoints : [pt];
+            const isBoardingOrTransfer = pointsToCheck.some((p) => {
+              if (p.isSegmentStart || p.isSegmentDest) return false;
+              if (p.type === 'walk') return false;
+              return p.isFirst === true || p.key.startsWith('transfer-');
+            });
+            if (isBoardingOrTransfer) return true;
+          }
+
           return isStartMarker || isDestMarker;
         });
       }

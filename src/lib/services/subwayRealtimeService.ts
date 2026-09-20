@@ -136,7 +136,21 @@ async function buildTimetableFallback(
   }
 
   results.sort((a, b) => a.minutesLeft - b.minutesLeft);
-  return results;
+
+  // 동일 trainNo 중복 제거: 배차간격 Fallback('ESTIMATED')처럼 고정값이 양방향 모두 반환될 수 있으므로
+  // trainNo가 의미 없는 특수값(ESTIMATED/FIRST_TRAIN_WAITING)일 경우 updnLine까지 키에 포함
+  const SYNTHETIC_TRAIN_NOS = new Set(['ESTIMATED', 'FIRST_TRAIN_WAITING', 'LAST_TRAIN_ENDED']);
+  const seenKeys = new Set<string>();
+  const deduped = results.filter((item) => {
+    const key = SYNTHETIC_TRAIN_NOS.has(String(item.trainNo))
+      ? `${item.trainNo}_${item.updnLine}`
+      : String(item.trainNo);
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
+    return true;
+  });
+
+  return deduped;
 }
 
 /** '당역 출발' 상태 데이터 수신 후 유효 시간 (밀리초, 30초) */
@@ -578,7 +592,15 @@ export async function fetchSubwayRealtime(
       return 0;
     });
 
-    return validArrivals;
+    // 동일 열차 번호 중복 제거 (실시간 API가 동일 btrainNo를 중복 반환하는 경우 방어)
+    const dedupedArrivals = validArrivals.filter(((seen) => (item: SubwayArrival) => {
+      const key = String(item.trainNo || '');
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })(new Set<string>()));
+
+    return dedupedArrivals;
   } catch (error) {
     const isTimeout = error instanceof Error && error.name === 'AbortError';
     if (isTimeout) {

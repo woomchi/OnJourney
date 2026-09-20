@@ -158,5 +158,14 @@ export async function getStationArrivalsFromTotalCache(
     return 0;
   });
 
-  return validArrivals;
+  // 동일 열차 번호 중복 제거 (일괄 API 응답에 동일 btrainNo가 중복 포함되는 경우 방어)
+  const seenTrainNos = new Set<string>();
+  const dedupedArrivals = validArrivals.filter((item) => {
+    const key = String(item.trainNo || '');
+    if (!key || seenTrainNos.has(key)) return false;
+    seenTrainNos.add(key);
+    return true;
+  });
+
+  return dedupedArrivals;
 }

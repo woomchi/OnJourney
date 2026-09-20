@@ -10,8 +10,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   // Zod validation
   const validatedParams = directionsQuerySchema.parse(rawParams);
 
-  const { sx, sy, ex, ey, departureTime } = validatedParams;
-  const data = await fetchWalkDetailRoute(sx, sy, ex, ey, departureTime);
+  const { sx, sy, ex, ey } = validatedParams;
+  const data = await fetchWalkDetailRoute(sx, sy, ex, ey);
 
   return successResponse(data);
 });

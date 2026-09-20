@@ -36,6 +36,6 @@ describe('GET /api/directions/walk-detail 엔드포인트 검증', () => {
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.data).toEqual(mockDetail);
-    expect(mockFetchWalkDetailRoute).toHaveBeenCalledWith(126.97, 37.56, 126.98, 37.57, undefined);
+    expect(mockFetchWalkDetailRoute).toHaveBeenCalledWith(126.97, 37.56, 126.98, 37.57);
   });
 });

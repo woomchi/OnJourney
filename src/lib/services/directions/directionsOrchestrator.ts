@@ -3,6 +3,7 @@ import { DirectionsQueryType } from '@/lib/validations/directions';
 import { haversineDistance, roundCoord } from './common/distanceUtils';
 import { fetchCarRoute, calculateCarFallback } from './car/carRouteService';
 import { buildWalkFallbackResults } from './walk/walkFallbackService';
+import { fetchKakaoWalkingRoute } from './walk/kakaoWalkingService';
 
 /**
  * 차량 + 도보 통합 오케스트레이션 함수
@@ -21,12 +22,16 @@ export async function fetchCarWalkDirections(params: DirectionsQueryType): Promi
   const cex = roundCoordCar(ex);
   const cey = roundCoordCar(ey);
 
-  // 2. 도보 탐색 (명세서 규격: 로컬 거리 기반 정밀 도보/자전거/킥보드 엔진 직결 - ODsay 쿼터 소모 0회)
+  // 2. 도보 탐색 (Kakao Mobility Walking API → 실패 시 직선 Fallback)
   let walkResults: DirectionResult[] = [];
   if (isWalkExceedLimit) {
     walkResults = [];
   } else {
-    walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
+    try {
+      walkResults = await fetchKakaoWalkingRoute(sx, sy, ex, ey);
+    } catch {
+      walkResults = buildWalkFallbackResults(sx, sy, ex, ey);
+    }
   }
 
   const snapMeta: SnapMeta = {

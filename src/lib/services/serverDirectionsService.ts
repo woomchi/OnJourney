@@ -24,7 +24,14 @@ export { fetchCarRoute, calculateCarFallback } from './directions/car/carRouteSe
 
 // 4. 도보 도메인 서비스
 export { buildWalkFallbackResults } from './directions/walk/walkFallbackService';
-export { fetchOdsayWalkingRoute, fetchOdsayDetailRoute, fetchOdsayDetailRoute as fetchWalkDetailRoute, fetchOdsayDetailRoute as fetchTmapDetailRoute } from './directions/walk/odsayWalkingService';
+// Kakao Mobility Walking API 기반 도보 경로 서비스 (ODsay maasRP 대체)
+export {
+  fetchKakaoWalkingRoute,
+  fetchKakaoWalkDetailRoute as fetchWalkDetailRoute,
+  fetchKakaoWalkDetailRoute as fetchTmapDetailRoute,
+} from './directions/walk/kakaoWalkingService';
+// ODsay 도보 서비스 (하위 호환성 유지용 — 직접 호출하지 말 것)
+export { fetchOdsayWalkingRoute, fetchOdsayDetailRoute } from './directions/walk/odsayWalkingService';
 
 // 5. 장거리/시외 멀티모달 도메인 서비스 (ODsay 기반, 2주 캐시 & 쿼터 가드)
 export { fetchIntercityTransitRoute } from './directions/transit/odsayTransitService';

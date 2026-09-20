@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useJourneyStore } from '@/stores/journey-store';
 import { useShallow } from 'zustand/react/shallow';
 import { CustomBottomSheet } from '@/components/common/CustomBottomSheet';
@@ -84,19 +84,52 @@ export default function AlternativeRoutePanel({
     scrollRef: scrollContainerRef,
     snap,
     setSnap,
-    minSnap: (windowHeight || 812) * 0.46 + 20,
-    defaultSnap: (windowHeight || 812) * 0.46 + 20,
+    minSnap: BOTTOM_SHEET_SNAP.ALTERNATIVE_MIN_PX,
+    defaultSnap: BOTTOM_SHEET_SNAP.ALTERNATIVE_MIN_PX,
     maxSnap: 1,
   });
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(175);
+
+  useEffect(() => {
+    if (!headerRef.current) return;
+    const updateHeight = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight);
+      }
+    };
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const parsedSnap = parseSnapVal(snap);
   const snapPx = parsedSnap === 1
     ? windowHeight - 16
-    : (typeof snap === 'string' && snap.endsWith('vh') ? windowHeight * (parseFloat(snap) / 100) + 20 : parsedSnap);
+    : (typeof snap === 'string' && snap.endsWith('vh') ? windowHeight * (parseFloat(snap) / 100) + 20 : (typeof parsedSnap === 'number' && parsedSnap > 0 ? parsedSnap : BOTTOM_SHEET_SNAP.ALTERNATIVE_MIN_PX));
 
   const contentMaxHeight = isMobile && snapPx > 0
-    ? `${Math.max(0, snapPx - 150)}px`
+    ? `${Math.max(0, snapPx - headerHeight - 14)}px`
     : '100%';
+
+  const scrollToCard = useCallback((cardElement: HTMLElement) => {
+    const container = scrollContainerRef.current;
+    if (!container || !cardElement) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const cardRect = cardElement.getBoundingClientRect();
+
+    // scrollContainerRef 내부에서의 상대적 Y 위치 계산 (상단 패딩 pt-1: 4px 오프셋 감안)
+    const relativeOffset = cardRect.top - containerRect.top;
+    const targetScrollTop = container.scrollTop + relativeOffset - 4;
+
+    container.scrollTo({
+      top: Math.max(0, targetScrollTop),
+      behavior: 'smooth',
+    });
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -129,7 +162,7 @@ export default function AlternativeRoutePanel({
   };
 
   const headerContent = (
-    <>
+    <div ref={headerRef} className="flex flex-col w-full flex-shrink-0">
       <AlternativeRouteHeader
         originPlace={originPlace}
         destPlace={destPlace}
@@ -148,14 +181,18 @@ export default function AlternativeRoutePanel({
         setDisplayLimit={setDisplayLimit}
         isMobile={isMobile}
       />
-    </>
+    </div>
   );
 
   const listContent = (
     <div
       ref={scrollContainerRef}
       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-none scrollbar-sidebar relative bg-white px-5 pt-1"
-      style={{ paddingBottom: isMobile ? '2rem' : '2.5rem', maxHeight: contentMaxHeight }}
+      style={{
+        height: isMobile ? contentMaxHeight : undefined,
+        maxHeight: contentMaxHeight,
+        paddingBottom: isMobile ? '1.5rem' : '2.5rem',
+      }}
       onPointerDown={isMobile ? handlePointerDown : undefined}
       onTouchStart={isMobile ? handleTouchStart : undefined}
       onTouchMove={isMobile ? handleTouchMove : undefined}
@@ -194,7 +231,7 @@ export default function AlternativeRoutePanel({
           선택 가능한 경로가 없습니다.
         </div>
       ) : (
-        <>
+        <div className="flex flex-col gap-3 pb-2">
           {(activeSubTab === '추천' ? displayedRoutes : displayedRoutes.slice(0, displayLimit)).map((route) => (
             <AlternativeRouteCard
               key={route.id}
@@ -204,8 +241,11 @@ export default function AlternativeRoutePanel({
               activeTab={activeTab}
               tags={routeTags ? (routeTags[route.id] || []) : []}
               isDetailLoading={!!isDetailLoading[route.id]}
-              onClick={() => {
+              onClick={(e) => {
                 if (isDraggedRef.current) return;
+                if (e?.currentTarget) {
+                  scrollToCard(e.currentTarget);
+                }
                 if (route.type === 'walk') {
                   handleWalkRouteClick(route);
                 } else {
@@ -228,15 +268,15 @@ export default function AlternativeRoutePanel({
               </svg>
             </button>
           )}
-        </>
+        </div>
       )}
     </div>
   );
 
   if (isMobile) {
-    const altHeight = windowHeight * 0.46 + 20;
+    const altHeight = BOTTOM_SHEET_SNAP.ALTERNATIVE_MIN_PX;
     let currentSnapType: 'min' | 'default' | 'max' = 'default';
-    if (snap === '46vh' || snap === 0.46 || (typeof snap === 'number' && Math.abs(snap - altHeight) < 5)) currentSnapType = 'default';
+    if (snap === BOTTOM_SHEET_SNAP.ALTERNATIVE_MIN_PX || (typeof snap === 'number' && Math.abs(snap - altHeight) < 5)) currentSnapType = 'default';
     else if (snap === 1 || snap === '1') currentSnapType = 'max';
 
     return (
@@ -250,7 +290,7 @@ export default function AlternativeRoutePanel({
           headerContent={headerContent}
           zIndex={45}
           onSnap={(snapName) => {
-            if (snapName === 'min' || snapName === 'default') setSnap('46vh');
+            if (snapName === 'min' || snapName === 'default') setSnap(BOTTOM_SHEET_SNAP.ALTERNATIVE_MIN_PX);
             else if (snapName === 'max') setSnap(1);
           }}
           onClose={() => {

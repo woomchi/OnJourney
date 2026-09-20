@@ -20,8 +20,10 @@ export const BOTTOM_SHEET_SNAP = {
   GUIDE_DEFAULT: 370,
 
   // ─── 대안 경로 탐색 패널 (AlternativeRoutePanel) ───────────────────────────
-  /** 대안 경로 목록 기본 높이 ('46vh') */
-  ALTERNATIVE_DEFAULT: '46vh',
+  /** 대안 경로 목록 기본 높이 (단일 카드 및 헤더 안정 노출: 370px) */
+  ALTERNATIVE_DEFAULT: 370,
+  /** 대안 경로 목록 최소/기본 고정 높이 (px) */
+  ALTERNATIVE_MIN_PX: 370,
 
   // ─── 공통 전체 확장 ────────────────────────────────────────────────────────
   /** 전체 화면 확장 상태 (1 또는 '1') */

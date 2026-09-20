@@ -65,7 +65,7 @@ export function useSnapScrollBridge({
 
     if (!isScrollable && bottomSheet) {
       const isDragHandle = (e.target as HTMLElement).closest('.drag-handle');
-      const isButton = (e.target as HTMLElement).closest('button');
+      const isButton = (e.target as HTMLElement).closest('button, [role="button"]');
       const isInput = (e.target as HTMLElement).closest('input, textarea, select');
       if (!isDragHandle && !isButton && !isInput) {
         bottomSheet.dragControls.start(e);

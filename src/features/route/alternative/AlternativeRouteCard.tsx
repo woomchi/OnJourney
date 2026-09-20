@@ -17,7 +17,7 @@ interface AlternativeRouteCardProps {
   activeTab: 'public' | 'car' | 'walk';
   tags: string[];
   isDetailLoading: boolean;
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => void;
 }
 
 export function AlternativeRouteCard({
@@ -242,11 +242,11 @@ export function AlternativeRouteCard({
     <div
       role="button"
       tabIndex={0}
-      onClick={onClick}
+      onClick={(e) => onClick(e)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onClick();
+          onClick(e);
         }
       }}
       className={`
